@@ -446,14 +446,17 @@ window.E = (() => {
 
       // --- Instant victory (grapple success) ---
       if (outcome.instantVictory) {
+        const newGold = state.gold + (outcome.goldReward || 0);
         return {
           ...state,
+          gold: newGold,
           ship: { ...state.ship, hull: state.battleState.playerHull },
           crew: { ...state.crew, morale: newMorale },
           battleState: {
             ...state.battleState,
             phase: "victory",
-            log: [...newLog, `Player: ${action.action}. Instant victory!`]
+            goldReward: outcome.goldReward,   // so the screen can show it
+            log: [...newLog, `Player: ${action.action}. Instant victory! +${outcome.goldReward}g`]
           }
         };
       }
@@ -473,8 +476,10 @@ window.E = (() => {
       // --- Check for victory ---
       if (newBattleState.enemyHull <= 0) {
         newBattleState.phase = "victory";
+        newBattleState.goldReward = outcome.goldReward || 0;   // 0 for non-grapple
         return {
           ...state,
+          gold: state.gold + (outcome.goldReward || 0),
           ship: { ...state.ship, hull: newBattleState.playerHull },
           crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
           battleState: newBattleState

@@ -941,7 +941,7 @@ window.S = (() => {
             </div>
             {bs.phase === "victory" && (
               <div style={{ color: T.gold, fontSize: 13, marginBottom: 14 }}>
-                +{bs.enemy.gold} gold · +{bs.enemy.fame} fame
+                {bs.goldReward > 0 && <span style={{ color: T.gold, fontSize: 13, marginBottom: 14 }}>+{bs.goldReward} gold</span>}
               </div>
             )}
             <Btn v="gold" onClick={() => dispatch({ type: A.DISMISS_BATTLE })}>

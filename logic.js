@@ -311,6 +311,13 @@ window.L = (() => {
     }
   }
 
+    // Gold reward: only for grapple victory (boarding)
+  if (outcome.instantVictory) {
+    outcome.goldReward = Math.floor((enemy.hull + enemy.cannons * 10 + enemy.crew * 5) * 0.3);
+  } else {
+    outcome.goldReward = 0;
+  }
+
   // --- NPC Action (damage only, no morale) ---
   if (!outcome.fled && !outcome.instantVictory) {
     const npcAction = getNPCAction(enemy);
