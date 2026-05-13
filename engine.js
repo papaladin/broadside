@@ -211,6 +211,7 @@ window.E = (() => {
           if (event) {
             return {
               ...state,
+              screen: "event",          // ← show the event screen
               day: state.day + 1,
               sailingDaysLeft: newDays,
               gold: newGold,
@@ -437,77 +438,41 @@ window.E = (() => {
 
       // --- COMBAT ---
       case A.BATTLE_ACTION: {
-        const outcome = L.resolveCombatAction(state, action.action);
-        const newLog = [...state.battleState.log];
+      const outcome = L.resolveCombatAction(state, action.action);
+      const newLog = [...state.battleState.log];
 
-        // --- Apply morale delta ---
-        const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
+      // --- Apply morale delta ---
+      const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
-        // --- Instant victory (grapple success) ---
-        if (outcome.instantVictory) {
-          return {
-            ...state,
-            ship: { ...state.ship, hull: state.battleState.playerHull },
-            crew: { ...state.crew, morale: newMorale },
-            battleState: {
-              ...state.battleState,
-              phase: "victory",
-              log: [...newLog, `Player: ${action.action}. Instant victory!`]
-            }
-          };
-        }
-
-        // --- Apply damage ---
-        const newBattleState = {
-          ...state.battleState,
-          playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
-          enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
-          playerCrew: Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss),
-          enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
-          round: state.battleState.round + 1,
-          phase: "npc_turn",
-          log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.`]
+      // --- Instant victory (grapple success) ---
+      if (outcome.instantVictory) {
+        return {
+          ...state,
+          ship: { ...state.ship, hull: state.battleState.playerHull },
+          crew: { ...state.crew, morale: newMorale },
+          battleState: {
+            ...state.battleState,
+            phase: "victory",
+            log: [...newLog, `Player: ${action.action}. Instant victory!`]
+          }
         };
+      }
 
-        // --- Check for victory ---
-        if (newBattleState.enemyHull <= 0) {
-          newBattleState.phase = "victory";
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-            battleState: newBattleState
-          };
-        }
+      // --- Apply damage ---
+      const newBattleState = {
+        ...state.battleState,
+        playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
+        enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
+        playerCrew: Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss),
+        enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
+        round: state.battleState.round + 1,
+        phase: "npc_turn",
+        log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.`]
+      };
 
-        // --- Check for defeat ---
-        if (newBattleState.playerHull <= 0) {
-          newBattleState.phase = "defeat";
-          newBattleState.log.push("Your ship is destroyed! Returning to port.");
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-            battleState: newBattleState,
-            screen: "port",
-            destination: null,
-            sailingDaysLeft: 0,
-            sailingDaysTotal: 0
-          };
-        }
-
-        // --- Check for flee ---
-        if (outcome.fled) {
-          newBattleState.phase = "fled";
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-            battleState: newBattleState
-          };
-        }
-
-        // --- Normal round (continue fighting) ---
+      // --- Check for victory ---
+      if (newBattleState.enemyHull <= 0) {
+        newBattleState.phase = "victory";
         return {
           ...state,
           ship: { ...state.ship, hull: newBattleState.playerHull },
@@ -515,6 +480,42 @@ window.E = (() => {
           battleState: newBattleState
         };
       }
+
+      // --- Check for defeat ---
+      if (newBattleState.playerHull <= 0) {
+        newBattleState.phase = "defeat";
+        newBattleState.log.push("Your ship is destroyed! Returning to port.");
+        return {
+          ...state,
+          ship: { ...state.ship, hull: newBattleState.playerHull },
+          crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+          battleState: newBattleState,
+          screen: "port",
+          destination: null,
+          sailingDaysLeft: 0,
+          sailingDaysTotal: 0
+        };
+      }
+
+      // --- Check for flee ---
+      if (outcome.fled) {
+        newBattleState.phase = "fled";
+        return {
+          ...state,
+          ship: { ...state.ship, hull: newBattleState.playerHull },
+          crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+          battleState: newBattleState
+        };
+      }
+
+      // --- Normal round (continue fighting) ---
+      return {
+        ...state,
+        ship: { ...state.ship, hull: newBattleState.playerHull },
+        crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+        battleState: newBattleState
+      };
+    }
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
@@ -608,6 +609,10 @@ window.E = (() => {
           newState.screen = "battle";
         }
 
+        // ---- Return to sailing after event (unless it led to battle) ----
+        if (!choice.outcome.battle) {
+          newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
+        }
         return newState;
       }
 
