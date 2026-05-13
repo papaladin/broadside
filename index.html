@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pirates – Caribbean 1695</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #07111e; overflow: hidden; }
+    #root { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #07111e; }
+    ::-webkit-scrollbar-thumb { background: #1c3450; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Dependencies — must load before Babel scripts -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!--
+    Game files — loaded in strict dependency order.
+    Each file exposes a window namespace (window.D, window.L, etc.)
+    that subsequent files consume. Babel standalone fetches
+    each src synchronously before moving to the next.
+
+    data.js   → window.D  (pure constants, no deps)
+    logic.js  → window.L  (pure functions, uses window.D)
+    engine.js → window.E  (reducer + actions, uses window.D + window.L)
+    ui.jsx    → window.UI (React primitives, no game knowledge)
+    screens.jsx → window.S (all screens, uses window.D/L/E/UI)
+    App.jsx   → root render (uses all of the above)
+
+    NOTE: requires a local server (VSCode Live Server, Python http.server,
+    or GitHub Pages). Will NOT work opened directly as file:// due to
+    browser CORS restrictions on XHR to local files.
+  -->
+  <script type="text/babel" data-presets="react" src="data.js"></script>
+  <script type="text/babel" data-presets="react" src="logic.js"></script>
+  <script type="text/babel" data-presets="react" src="engine.js"></script>
+  <script type="text/babel" data-presets="react" src="ui.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens.jsx"></script>
+  <script type="text/babel" data-presets="react" src="App.jsx"></script>
+</body>
+</html>

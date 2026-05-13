@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pirates Game Tests</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a141e; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 20px; }
+    h1 { color: #ffd700; margin-bottom: 10px; }
+    .summary { margin: 10px 0; font-size: 14px; }
+    .summary span { margin-right: 20px; }
+    .pass { color: #4caf50; }
+    .fail { color: #f44336; }
+    .suite { margin: 16px 0; border: 1px solid #2a3a4a; border-radius: 4px; padding: 12px; background: #121c28; }
+    .suite h2 { color: #ffd700; font-size: 16px; margin-bottom: 8px; }
+    .test { margin: 4px 0; font-size: 12px; padding: 2px 8px; }
+    .test.pass::before { content: "✓ "; color: #4caf50; }
+    .test.fail { color: #f44336; }
+    .test.fail::before { content: "✗ "; color: #f44336; }
+    .error { color: #ff9800; font-size: 11px; margin-left: 20px; white-space: pre-wrap; }
+    .filters { margin-bottom: 10px; }
+    .filters button { background: #121c28; border: 1px solid #2a3a4a; color: #e0e0e0; padding: 4px 10px; cursor: pointer; margin-right: 6px; font-family: inherit; }
+    .filters button.active { border-color: #ffd700; color: #ffd700; }
+    #toolbar { margin: 10px 0; display: flex; gap: 10px; align-items: center; }
+    #copyFailures { background: #f44336; border: none; color: white; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-family: inherit; display: none; }
+    #copyMsg { color: #4caf50; font-size: 12px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test Suite</h1>
+  <div class="summary">
+    <span>Total: <span id="total">0</span></span>
+    <span class="pass">Passed: <span id="passed">0</span></span>
+    <span class="fail">Failed: <span id="failed">0</span></span>
+  </div>
+  <div class="filters">
+    <button data-type="all" class="active">All</button>
+    <button data-type="unit">Unit</button>
+    <button data-type="reducer">Reducer</button>
+    <button data-type="integration">Integration</button>
+    <button data-type="scenario">Scenario</button>
+    <button data-type="ui">UI Smoke</button>
+  </div>
+  <div id="toolbar">
+    <button id="copyFailures">📋 Copy Failing Details</button>
+    <span id="copyMsg">Copied!</span>
+  </div>
+  <div id="suites"></div>
+
+  <!-- Load React and Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Game files (relative to tests/ folder) -->
+  <script type="text/babel" data-presets="react" src="../data.js"></script>
+  <script type="text/babel" data-presets="react" src="../logic.js"></script>
+  <script type="text/babel" data-presets="react" src="../engine.js"></script>
+  <script type="text/babel" data-presets="react" src="../ui.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../App.jsx"></script>
+
+  <!-- Test utilities and runner -->
+  <script type="text/babel">
+    // ── Test utilities ────────────────────────────────────────────────
+    (() => {
+      const origRandom = Math.random;
+      const origLocalStorage = window.localStorage;
+      let randomValues = [];
+      let randomIndex = 0;
+      let usingStub = false;
+
+      const resetRandomStub = () => {
+        randomValues = [];
+        randomIndex = 0;
+        usingStub = false;
+        Math.random = origRandom;
+      };
+
+      const setRandomSequence = (values) => {
+        randomValues = values;
+        randomIndex = 0;
+        usingStub = true;
+        Math.random = () => {
+          if (randomIndex >= randomValues.length) throw new Error('Random stub exhausted');
+          return randomValues[randomIndex++];
+        };
+      };
+
+      // localStorage mock
+      let store = {};
+      const mockLocalStorage = {
+        getItem: (key) => store[key] || null,
+        setItem: (key, value) => { store[key] = value; },
+        removeItem: (key) => { delete store[key]; },
+        clear: () => { store = {}; }
+      };
+
+      const installLocalStorageMock = () => {
+        Object.defineProperty(window, 'localStorage', { value: mockLocalStorage, writable: true, configurable: true });
+      };
+
+      const clearLocalStorageMock = () => { store = {}; };
+
+      const restoreLocalStorage = () => {
+        try { window.localStorage = origLocalStorage; } catch(e) {
+          // Fallback in case assignment fails (browser security)
+          Object.defineProperty(window, 'localStorage', { value: origLocalStorage, writable: true, configurable: true });
+        }
+      };
+
+      // Assertion helpers
+      const assert = (condition, msg = 'Assertion failed') => { if (!condition) throw new Error(msg); };
+      const assertEqual = (actual, expected, msg) => {
+        if (actual !== expected) throw new Error(msg || `Expected ${expected} but got ${actual}`);
+      };
+      const assertDeepEqual = (actual, expected, msg) => {
+        if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(msg || `Deep equal failed`);
+      };
+
+      // React mount helpers
+      const mountReact = (Component, props = {}) => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(Component, props));
+        return {
+          root, container,
+          query: (s) => container.querySelector(s),
+          queryAll: (s) => container.querySelectorAll(s),
+          unmount: () => { root.unmount(); document.body.removeChild(container); }
+        };
+      };
+
+      // Expose
+      window.__testUtils = {
+        assert, assertEqual, assertDeepEqual,
+        resetRandomStub, setRandomSequence,
+        installLocalStorageMock, clearLocalStorageMock, restoreLocalStorage,
+        mountReact,
+      };
+    })();
+
+    // ── Test runner ──────────────────────────────────────────────────
+    (() => {
+      const suitesContainer = document.getElementById('suites');
+      const totalSpan = document.getElementById('total');
+      const passedSpan = document.getElementById('passed');
+      const failedSpan = document.getElementById('failed');
+      const copyBtn = document.getElementById('copyFailures');
+      const copyMsg = document.getElementById('copyMsg');
+
+      let allTests = [];
+      let currentFilter = 'all';
+      let failureDetails = [];  // Array of {suite, test, error, consoleErrors}
+
+      const runTests = (suites) => {
+        allTests = [];
+        suites.forEach(suite => {
+          suite.tests.forEach(test => {
+            test.suiteName = suite.name;
+            allTests.push(test);
+          });
+        });
+        applyFilter();
+      };
+
+      const applyFilter = () => {
+        suitesContainer.innerHTML = '';
+        let total = 0, passed = 0, failed = 0;
+        failureDetails = [];
+        const filtered = allTests.filter(t => currentFilter === 'all' || t.type === currentFilter);
+
+        const grouped = {};
+        filtered.forEach(t => {
+          if (!grouped[t.suiteName]) grouped[t.suiteName] = [];
+          grouped[t.suiteName].push(t);
+        });
+
+        Object.entries(grouped).forEach(([suiteName, tests]) => {
+          const suiteDiv = document.createElement('div');
+          suiteDiv.className = 'suite';
+          suiteDiv.innerHTML = `<h2>${suiteName}</h2>`;
+
+          tests.forEach(test => {
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test';
+            testDiv.textContent = test.name;
+            suiteDiv.appendChild(testDiv);
+
+            const capturedErrors = [];
+            const origConsoleError = console.error;
+            console.error = (...args) => capturedErrors.push(args.join(' '));
+
+            // Before running the test, ensure localStorage is real
+            window.__testUtils.restoreLocalStorage();
+
+            try {
+              test.run(window.__testUtils);
+              testDiv.classList.add('pass');
+              passed++;
+            } catch (err) {
+              testDiv.classList.add('fail');
+              failed++;
+              const errDiv = document.createElement('div');
+              errDiv.className = 'error';
+              errDiv.textContent = err.message;
+              testDiv.appendChild(errDiv);
+              failureDetails.push({
+                suite: suiteName,
+                test: test.name,
+                error: err.message,
+                consoleErrors: [...capturedErrors]
+              });
+            } finally {
+              console.error = origConsoleError;
+            }
+            total++;
+          });
+          suitesContainer.appendChild(suiteDiv);
+        });
+
+        totalSpan.textContent = total;
+        passedSpan.textContent = passed;
+        failedSpan.textContent = failed;
+        copyBtn.style.display = failed > 0 ? 'inline-block' : 'none';
+      };
+
+      // Copy button handler
+      copyBtn.addEventListener('click', () => {
+        const lines = [];
+        lines.push(`FAILED TESTS (${failureDetails.length}):\n`);
+        failureDetails.forEach((f, idx) => {
+          lines.push(`[${f.suite}] ${f.test}`);
+          lines.push(`  Error: ${f.error}`);
+          if (f.consoleErrors.length > 0) {
+            lines.push(`  Console errors:`);
+            f.consoleErrors.forEach(e => lines.push(`    ${e}`));
+          }
+          lines.push('');
+        });
+        const text = lines.join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+          copyMsg.style.display = 'inline';
+          setTimeout(() => { copyMsg.style.display = 'none'; }, 2000);
+        }).catch(() => alert('Copy failed'));
+      });
+
+      // Filter buttons
+      document.querySelectorAll('.filters button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.type;
+          applyFilter();
+        });
+      });
+
+      window.__runTests = runTests;
+    })();
+  </script>
+
+  <!-- Test definitions (always last) -->
+  <script type="text/babel" data-presets="react" src="tests.js"></script>
+
+  <script type="text/babel">
+    if (window.TESTS) {
+      window.__runTests(window.TESTS);
+    } else {
+      document.getElementById('suites').innerHTML = '<div class="fail">No tests found (window.TESTS is undefined)</div>';
+    }
+  </script>
+</body>
+</html>
