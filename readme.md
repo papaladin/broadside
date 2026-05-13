@@ -1,4 +1,3 @@
-````md id="f3o2v1"
 # Broadside
 
 **Caribbean Pirates** – a turn-based strategy game inspired by *Sid Meier’s Pirates!*  
@@ -165,4 +164,3 @@ Feel free to use, modify, and expand it.
 # 🏴☠️ Hoist the Colours!
 
 Fair winds and following seas, Captain.
-````
