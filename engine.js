@@ -238,7 +238,7 @@ window.E = (() => {
       case A.ENTER_PORT: {
         const port = PORTS[state.destination];
         const portFaction = port.faction;
-        const playerRep = state.reputation[state.destination] || 50;
+        const playerRep = state.reputation[state.destination] ?? 50;
 
         // Hostile port: Direct combat (reputation < 10)
         if (playerRep < 10) {
@@ -612,6 +612,12 @@ window.E = (() => {
             returnScreen: "sailing"
           };
           newState.screen = "battle";
+        }
+        if (choice.outcome.moraleBonus) {
+          newState.crew = {
+            ...newState.crew,
+            morale: Math.max(0, Math.min(100, newState.crew.morale + choice.outcome.moraleBonus))
+          };
         }
 
         // ---- Return to sailing after event (unless it led to battle) ----

@@ -60,7 +60,7 @@ window.S = (() => {
           textTransform: "uppercase",
           marginBottom: 4,
           textShadow: `0 0 30px ${T.goldDim}`,
-        }}>⚓ Pirates</div>
+        }}>⚓ Broadside</div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>
           CARIBBEAN · 1695
         </div>
