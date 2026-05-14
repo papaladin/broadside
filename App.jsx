@@ -20,10 +20,9 @@ const App = () => {
 
     return (
       <div style={{
-        position: "fixed",
-        top: 10,
-        left: 10,
-        right: 10,
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
         display: "flex",
         justifyContent: "space-between",
         background: T.panel + "cc",
@@ -31,7 +30,6 @@ const App = () => {
         borderRadius: 4,
         border: `1px solid ${T.border}`,
         fontSize: 11,
-        zIndex: 100,
         backdropFilter: "blur(4px)",
       }}>
         <div>
@@ -75,13 +73,12 @@ const App = () => {
       background: T.bg,
       color: T.text,
       fontFamily: T.font,
-      overflow: "hidden",
       display: "flex",
       flexDirection: "column",
     }}>
       <HUD />
       {/* FIX: Add padding to the top of the screen container to avoid HUD overlap */}
-      <div style={{ flex: 1, overflow: "auto", paddingTop: 50 }}>
+      <div style={{ flex: 1, overflow: "auto", paddingBottom: 20 }}>
         {renderScreen()}
       </div>
     </div>
