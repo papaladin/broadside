@@ -177,7 +177,6 @@ window.E = (() => {
         // Deduct crew wages
         const wages = L.payCrewWages(state);
         const newGold = Math.max(0, state.gold - wages);
-        if (wages > 0) newLog.push(`Paid crew wages: -${wages}g.`);
 
         // Reputation decays only every 2 days
         const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
@@ -243,7 +242,6 @@ window.E = (() => {
           gold: newGold,
           reputation: newRep,
           crew: { ...state.crew, morale: newMorale },
-          log: [...newLog, `Day ${state.day + 1}: Sailing to ${PORTS[state.destination].name}...`]
         };
       }
 
@@ -298,7 +296,7 @@ window.E = (() => {
         const shipStats = L.getShipStats(state);
         const cost = (shipStats.maxHull - state.ship.hull) * 2;
         if (state.gold < cost) {
-          return { ...state, log: [...state.log, "Not enough gold to repair!"] };
+          return { ...state};
         }
         return {
           ...state,
@@ -311,7 +309,7 @@ window.E = (() => {
       case A.BUY_SHIP: {
         const ship = SHIPS[action.shipType];
         if (!ship || state.gold < ship.cost) {
-          return { ...state, log: [...state.log, "Cannot purchase this ship!"] };
+          return { ...state};
         }
         return {
           ...state,
@@ -335,16 +333,16 @@ window.E = (() => {
       case A.BUY_UPGRADE: {
         const upgrade = UPGRADES[action.upgradeKey];
         if (!upgrade) {
-          return { ...state, log: [...state.log, "Upgrade not found!"] };
+          return { ...state};
         }
         if (state.gold < upgrade.cost) {
-          return { ...state, log: [...state.log, "Not enough gold!"] };
+          return { ...state};
         }
         if (state.ship.upgrades.includes(action.upgradeKey)) {
-          return { ...state, log: [...state.log, "Already installed!"] };
+          return { ...state};
         }
         if (!SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) {
-          return { ...state, log: [...state.log, "Cannot install on this ship!"] };
+          return { ...state};
         }
 
         return {
@@ -402,7 +400,6 @@ window.E = (() => {
         return {
           ...state,
           missions: L.generateMissions(state.currentPort, state),
-          log: [...state.log, "Refreshed mission board."]
         };
       }
 

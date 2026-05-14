@@ -240,7 +240,7 @@ window.S = (() => {
         </div>
 
         {/* ── Log ── */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column", maxHeight: 220, overflow: "hidden" })}>
+        <div style={panelStyle({ display: "flex", flexDirection: "column", maxHeight: 220, overflow: "auto" })}>
           <SectionTitle>CAPTAIN'S LOG</SectionTitle>
           <LogList entries={state.log} />
         </div>
