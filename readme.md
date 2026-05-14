@@ -36,10 +36,12 @@ Everything runs entirely in the browser — no build step, no server.
 
 # 🚀 Running the Game
 
+You can either play directly on github (https://papaladin.github.io/broadside/) or play locally on your machine using the method below.
+
 ## 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/papaladin/broadside.git
 cd Broadside
 ```
 
@@ -149,7 +151,6 @@ architecture.md
 
 - Fame exists in the state but has no gameplay effect yet
 - Some UI tests are still being stabilised
-- The save key mismatch bug has been fixed (`piratesSave` is now unified)
 
 ---
 

@@ -28,6 +28,7 @@ window.E = (() => {
     BUY_SHIP: "BUY_SHIP",
     BUY_UPGRADE: "BUY_UPGRADE",
     HIRE_CREW: "HIRE_CREW",
+    RAISE_MORALE: "RAISE_MORALE",
     REFRESH_MISSIONS: "REFRESH_MISSIONS",
     TAKE_MISSION: "TAKE_MISSION",
     COMPLETE_MISSION: "COMPLETE_MISSION",
@@ -165,6 +166,14 @@ window.E = (() => {
         const newDays = state.sailingDaysLeft - 1;
         const newLog = [...state.log];
 
+        // Wind shifts gradually each day at sea
+        const rawAngle = (state.wind.angle + (Math.random() - 0.5) * 30 + 360) % 360;
+        const newWind = {
+          angle: Math.round(rawAngle) % 360,
+          speed: Math.round(Math.max(1, Math.min(20, state.wind.speed + (Math.random() - 0.5) * 5)))
+        };
+
+
         // Deduct crew wages
         const wages = L.payCrewWages(state);
         const newGold = Math.max(0, state.gold - wages);
@@ -182,6 +191,7 @@ window.E = (() => {
           if (Math.random() < interceptChance) {
             return {
               ...state,
+              wind: newWind,
               day: state.day + 1,
               sailingDaysLeft: newDays,
               gold: newGold,
@@ -211,6 +221,7 @@ window.E = (() => {
           if (event) {
             return {
               ...state,
+              wind: newWind,
               screen: "event",          // ← show the event screen
               day: state.day + 1,
               sailingDaysLeft: newDays,
@@ -226,6 +237,7 @@ window.E = (() => {
         // Normal sailing day
         return {
           ...state,
+          wind: newWind,
           day: state.day + 1,
           sailingDaysLeft: newDays,
           gold: newGold,
@@ -346,6 +358,8 @@ window.E = (() => {
         };
       }
 
+
+      // --- CREW MANAGEMENT & MORALE -----
       case A.HIRE_CREW: {
         const cost = action.count * 50;
         const shipStats = SHIPS[state.ship.type];
@@ -363,6 +377,25 @@ window.E = (() => {
           log: [...state.log, `Hired ${action.count} crew for ${cost}g.`]
         };
       }
+
+        case A.RAISE_MORALE: {
+          const cost = state.crew.current * 5;
+          if (state.gold < cost) {
+            return { ...state, log: [...state.log, "Not enough gold to buy drinks!"] };
+          }
+          if (state.crew.morale >= 100) {
+            return { ...state, log: [...state.log, "Crew is already in high spirits."] };
+          }
+          const newMorale = Math.min(100, state.crew.morale + 5);
+          return {
+            ...state,
+            gold: state.gold - cost,
+            crew: { ...state.crew, morale: newMorale },
+            log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`]
+          };
+        }
+
+
 
       // --- MISSIONS ---
       case A.REFRESH_MISSIONS: {

@@ -678,6 +678,15 @@ window.S = (() => {
                 ⚠ Low morale weakens combat effectiveness
               </div>
             )}
+            <div style={{ marginTop: 10 }}>
+              <Btn
+                v="green"
+                onClick={() => dispatch({ type: A.RAISE_MORALE })}
+                disabled={state.gold < state.crew.current * 5 || state.crew.morale >= 100}
+              >
+                🍻 Buy Drinks ({state.crew.current * 5}g) +5 Morale
+              </Btn>
+            </div>
           </div>
 
           {/* Hire */}
