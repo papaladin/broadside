@@ -489,9 +489,11 @@ window.E = (() => {
       // --- Instant victory (grapple success) ---
       if (outcome.instantVictory) {
         const newGold = state.gold + (outcome.goldReward || 0);
+        const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
         return {
           ...state,
           gold: newGold,
+          reputation: newRep,
           ship: { ...state.ship, hull: state.battleState.playerHull },
           crew: { ...state.crew, morale: newMorale },
           battleState: {
@@ -519,9 +521,11 @@ window.E = (() => {
       if (newBattleState.enemyHull <= 0) {
         newBattleState.phase = "victory";
         newBattleState.goldReward = outcome.goldReward || 0;   // 0 for non-grapple
+        const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
         return {
           ...state,
           gold: state.gold + (outcome.goldReward || 0),
+          reputation: newRep,
           ship: { ...state.ship, hull: newBattleState.playerHull },
           crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
           battleState: newBattleState
