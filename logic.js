@@ -223,14 +223,15 @@ window.L = (() => {
     return "evade";
   };
 
-  const resolveCombatAction = (state, action) => {
+const resolveCombatAction = (state, action) => {
   if (!state.battleState) {
     return {
       player: { hullDamage: 0, crewLoss: 0 },
       enemy: { hullDamage: 0, crewLoss: 0 },
       moraleDelta: 0,
       fled: false,
-      instantVictory: false
+      instantVictory: false,
+      goldReward: 0
     };
   }
 
@@ -243,22 +244,26 @@ window.L = (() => {
     enemy: { hullDamage: 0, crewLoss: 0 },
     moraleDelta: 0,
     fled: false,
-    instantVictory: false
+    instantVictory: false,
+    goldReward: 0
   };
 
-  // --- Player Action (damage only, no morale yet) ---
+  // Helper: apply 50% chance to avoid crew loss
+  const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
+
+  // --- Player Action ---
   switch (action) {
     case "broadside": {
-      const broadsideDamage = shipStats.cannons * (0.8 + Math.random() * 0.4);
-      outcome.player.hullDamage = Math.floor(broadsideDamage * 0.6);
-      outcome.player.crewLoss = Math.floor(broadsideDamage * 0.4 / 10);
+      const dmg = shipStats.cannons * (0.8 + Math.random() * 0.4);
+      outcome.player.hullDamage = Math.floor(dmg * 0.6);
+      outcome.player.crewLoss = maybeCrewLoss(dmg * 0.4 / 3);   // /3 instead of /10, 50% skip
       break;
     }
     case "precision": {
       if (Math.random() < 0.7) {
-        const precisionDamage = shipStats.cannons * (1.2 + Math.random() * 0.6);
-        outcome.player.hullDamage = Math.floor(precisionDamage * 0.9);
-        outcome.player.crewLoss = Math.floor(precisionDamage * 0.1 / 10);
+        const dmg = shipStats.cannons * (1.2 + Math.random() * 0.6);
+        outcome.player.hullDamage = Math.floor(dmg * 0.9);
+        outcome.player.crewLoss = maybeCrewLoss(dmg * 0.1 / 3);
       }
       break;
     }
@@ -278,8 +283,9 @@ window.L = (() => {
       if (Math.random() < successChance) {
         outcome.instantVictory = true;
       } else {
+        // Player grapple failure → player loses crew
         const crewLossPct = 0.3 + Math.random() * 0.2;
-        outcome.player.crewLoss = Math.floor(playerCrew * crewLossPct);
+        outcome.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);   // fixed: was outcome.player
       }
       break;
     }
@@ -287,52 +293,49 @@ window.L = (() => {
       if (Math.random() < 0.9) {
         outcome.fled = true;
       } else {
-        const enemyBroadside = enemy.cannons * (0.8 + Math.random() * 0.4);
-        outcome.player.hullDamage = Math.floor(enemyBroadside * 0.3);
-        outcome.player.crewLoss = Math.floor(enemyBroadside * 0.2 / 10);
+        // Evade fail: take reduced enemy fire
+        const enemyDmg = enemy.cannons * (0.8 + Math.random() * 0.4);
+        outcome.player.hullDamage = Math.floor(enemyDmg * 0.3);
+        outcome.player.crewLoss = maybeCrewLoss(enemyDmg * 0.2 / 3);
       }
       break;
     }
   }
 
-  // --- Determine morale delta based on battle‑ending outcome ---
+  // --- Determine morale delta based on battle-ending outcome ---
   if (outcome.instantVictory) {
     outcome.moraleDelta = 5;
   } else if (outcome.fled) {
     outcome.moraleDelta = -5;
   } else {
-    // After player action, check if enemy hull would reach 0
     const newEnemyHull = Math.max(0, battleState.enemyHull - outcome.player.hullDamage);
     if (newEnemyHull <= 0) {
-      outcome.moraleDelta = 10;    // sunk the enemy
+      outcome.moraleDelta = 10;
     } else if (action === "grapple") {
-      // Grapple failed
       outcome.moraleDelta = -10;
     }
   }
 
-    // Gold reward: only for grapple victory (boarding)
+  // Gold reward: only for grapple victory
   if (outcome.instantVictory) {
     outcome.goldReward = Math.floor((enemy.hull + enemy.cannons * 10 + enemy.crew * 5) * 0.3);
-  } else {
-    outcome.goldReward = 0;
   }
 
   // --- NPC Action (damage only, no morale) ---
   if (!outcome.fled && !outcome.instantVictory) {
     const npcAction = getNPCAction(enemy);
-    const npcDamage = enemy.cannons * (0.7 + Math.random() * 0.3);
+    const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
 
     switch (npcAction) {
       case "broadside": {
-        outcome.enemy.hullDamage = Math.floor(npcDamage * 0.6);
-        outcome.enemy.crewLoss = Math.floor(npcDamage * 0.4 / 10);
+        outcome.enemy.hullDamage = Math.floor(npcDmg * 0.6);
+        outcome.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.4 / 3);   // /3, 50% skip
         break;
       }
       case "precision": {
         if (Math.random() < 0.7) {
-          outcome.enemy.hullDamage = Math.floor(npcDamage * 0.9);
-          outcome.enemy.crewLoss = Math.floor(npcDamage * 0.1 / 10);
+          outcome.enemy.hullDamage = Math.floor(npcDmg * 0.9);
+          outcome.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.1 / 3);
         }
         break;
       }
@@ -350,17 +353,19 @@ window.L = (() => {
         npcSuccessChance = Math.min(0.95, npcSuccessChance);
 
         if (Math.random() < npcSuccessChance) {
+          // NPC grapple success → player loses crew
           const npcCrewLossPct = 0.3 + Math.random() * 0.2;
-          outcome.player.crewLoss += Math.floor(playerCrew * npcCrewLossPct);
+          outcome.enemy.crewLoss += Math.floor(playerCrew * npcCrewLossPct);   // fixed
         } else {
+          // NPC grapple failure → enemy loses crew
           const npcCrewLoss = Math.floor(enemyCrew * 0.05);
-          outcome.enemy.crewLoss += npcCrewLoss;
+          outcome.player.crewLoss += npcCrewLoss;                              // fixed
         }
         break;
       }
       case "evade": {
         if (Math.random() < 0.9) {
-          // NPC flees – no damage
+          // NPC flees
         } else {
           outcome.enemy.hullDamage += outcome.player.hullDamage;
           outcome.enemy.crewLoss += outcome.player.crewLoss;
@@ -370,7 +375,7 @@ window.L = (() => {
     }
   }
 
-  // Apply morale modifier to damage
+  // Apply morale modifier to player damage
   const effectiveMorale = getEffectiveMorale(state);
   const moraleModifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
   outcome.player.hullDamage = Math.floor(outcome.player.hullDamage * moraleModifier);

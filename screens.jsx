@@ -882,7 +882,7 @@ window.S = (() => {
             <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull}
               color={playerPct < 0.3 ? T.redBr : T.greenBr} h={10} />
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
-              {state.crew.current} crew · {state.ship.cannons} cannons
+              {state.crew.current} crew · {L.getShipStats(state).cannons}  cannons
             </div>
             {state.ship.upgrades.length > 0 && (
               <div style={{ marginTop: 5, display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -900,7 +900,7 @@ window.S = (() => {
             </div>
             <Bar value={bs.enemyHull} max={bs.enemy.hull} color={T.redBr} h={10} />
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
-              {bs.enemy.crew} crew · {bs.enemy.cannons} cannons
+              {bs.enemyCrew} crew · {bs.enemy.cannons} cannons
             </div>
             <div style={{ marginTop: 5 }}>
               <FactionPill faction={bs.enemy.faction} />

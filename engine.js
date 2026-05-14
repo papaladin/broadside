@@ -472,6 +472,15 @@ window.E = (() => {
       // --- COMBAT ---
       case A.BATTLE_ACTION: {
       const outcome = L.resolveCombatAction(state, action.action);
+      console.log("BATTLE_ACTION outcome", {
+        action: action.action,
+        playerHullDamage: outcome.player.hullDamage,
+        playerCrewLoss: outcome.player.crewLoss,
+        enemyHullDamage: outcome.enemy.hullDamage,
+        enemyCrewLoss: outcome.enemy.crewLoss,
+        fled: outcome.fled,
+        instantVictory: outcome.instantVictory
+      });
       const newLog = [...state.battleState.log];
 
       // --- Apply morale delta ---
