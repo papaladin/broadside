@@ -179,8 +179,8 @@ window.E = (() => {
         const newGold = Math.max(0, state.gold - wages);
         if (wages > 0) newLog.push(`Paid crew wages: -${wages}g.`);
 
-        // Reputation decay
-        const newRep = L.decayReputation(state);
+        // Reputation decays only every 2 days
+        const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
 
         // Morale decay
         const newMorale = state.crew.morale < 30 ? Math.max(0, state.crew.morale - 1) : state.crew.morale;

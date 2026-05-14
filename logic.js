@@ -117,7 +117,9 @@ window.L = (() => {
   const decayReputation = (state) => {
     const newRep = { ...state.reputation };
     Object.keys(newRep).forEach(port => {
-      newRep[port] = Math.max(0, newRep[port] - 1);
+      if (newRep[port] > 50) {
+        newRep[port] = Math.max(50, newRep[port] - 1);
+      }
     });
     return newRep;
   };
@@ -219,8 +221,7 @@ window.L = (() => {
     const roll = Math.random();
     if (roll < 0.6) return "broadside";
     if (roll < 0.8) return "precision";
-    if (roll < 0.9) return "grapple";
-    return "evade";
+    return "grapple";
   };
 
 const resolveCombatAction = (state, action) => {
