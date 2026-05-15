@@ -812,6 +812,43 @@ window.D = (() => {
     }
   };
 
+  const ENCOUNTER_FLAVOUR = {
+    patrol: (enemy, rep) => rep < 20
+      ? `A ${enemy.name} opens fire without warning.`
+      : `A ${enemy.name} hails you and demands you heave to for inspection.`,
+
+    hostile_port_entry: (enemy) =>
+      `The harbour battery opens fire. You sailed into hostile waters.`,
+
+    smuggling_caught: () =>
+      `"Heave to for inspection!" The patrol has spotted your cargo hold.`,
+
+    cargo_inspection_refused: () =>
+      `The patrol vessel moves to enforce compliance. You have seconds to decide.`,
+
+    bounty_target: (enemy) =>
+      `You've cornered ${enemy.name}. There is nowhere left to run.`,
+
+    named_rival: (enemy) =>
+      `${enemy.name}'s ship emerges from the fog. This was no accident.`,
+
+    mission_combat: (enemy) =>
+      `Your target is in sight: ${enemy.name}. The mission requires engagement.`,
+
+    random: (enemy) =>
+      `A ${enemy.name} moves to intercept. They haven't fired yet.`,
+  };
+
+  const SURRENDER_CONSEQUENCE = {
+    patrol:                   { loseCargoPercent: 30, moralePenalty: 10 },
+    smuggling_caught:         { loseContraband: true, goldFine: 200,  moralePenalty: 8 },
+    cargo_inspection_refused: { loseContraband: true, goldFine: 150,  moralePenalty: 6 },
+    hostile_port_entry:       { imprisoned: true, loseDays: 5, loseGoldPercent: 30, moralePenalty: 20 },
+    named_rival:              { loseGoldPercent: 40, moralePenalty: 25, rep_loss: 10 },
+    random:                   { loseCargoPercent: 20, moralePenalty: 8 },
+  };
+
+
   // Expose all constants globally
   return {
     PORTS,
@@ -821,6 +858,8 @@ window.D = (() => {
     MISSION_POOL,
     RANDOM_EVENTS,
     STARTS,
-    FACTION_RELATIONS
+    FACTION_RELATIONS,
+    ENCOUNTER_FLAVOUR,
+    SURRENDER_CONSEQUENCE
   };
 })();

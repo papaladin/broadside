@@ -119,7 +119,7 @@ window.E = (() => {
                 hull: SHIPS[shipType].maxHull,
                 cannons: SHIPS[shipType].cannons
               };
-              newState.crew.max = SHIPS[shipType].maxCrew;
+              newState.crew = { ...newState.crew, max: SHIPS[shipType].maxCrew };
               newState.crew.current = Math.min(newState.crew.current, SHIPS[shipType].maxCrew);
             }
           } else if (bonus.includes("reputation with")) {
@@ -361,7 +361,7 @@ window.E = (() => {
       case A.HIRE_CREW: {
         const cost = action.count * 50;
         const shipStats = SHIPS[state.ship.type];
-        if (state.crew.current >= shipStats.maxCrew) {
+        if (state.crew.current >= state.crew.max) {
           return { ...state, log: [...state.log, "Ship is already at full capacity."] };
         }
         if (state.gold < cost) {

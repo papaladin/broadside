@@ -461,6 +461,112 @@ const resolveCombatAction = (state, action) => {
     return reputation;
   };
 
+//--------------------------------------
+// ---  encounter context & pre-screen ---
+//--------------------------------------
+
+
+
+  // Simple dice roller (1 .. sides)
+  const roll = (sides) => Math.ceil(Math.random() * sides);
+
+  // Derive a ship type from enemy stats (for speed display / flee checks)
+  const guessShipType = (enemy) => {
+    if (!enemy) return "sloop";
+    const cannons = enemy.cannons || 0;
+    if (cannons >= 25) return "galleon";
+    if (cannons >= 18) return "frigate";
+    if (cannons >= 12) return "brigantine";
+    return "sloop";
+  };
+
+  function buildEncounterContext(state, type, enemy) {
+    const { ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE, SHIPS } = window.D;
+
+    const shipStats  = getShipStats(state);
+    const mySpeed    = shipStats.speed;
+    const enemyShip  = guessShipType(enemy);
+    const eSpeed     = SHIPS[enemyShip]?.speed ?? 5;
+    const rep        = state.reputation[state.destination ?? state.currentPort] ?? 20;
+    const gold       = state.gold;
+    const bribeCost  = Math.round((enemy.gold ?? 500) * 0.4);
+
+    // --- Flee ---
+    const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat"];
+    const canFlee     = !noFleeTypes.includes(type);
+    const fleeReason  = !canFlee
+      ? type === "hostile_port_entry"
+        ? "Already in range of the harbour guns"
+        : "The target is cornered — no escape"
+      : null;
+
+    // --- Parley ---
+    const noParleyTypes = [
+      "hostile_port_entry", "bounty_target", "mission_combat",
+      "smuggling_caught", "cargo_inspection_refused"
+    ];
+    const canParley   = !noParleyTypes.includes(type) && rep >= 30;
+    const parleyReason = noParleyTypes.includes(type)
+      ? "They are not here to negotiate"
+      : rep < 30
+        ? `Reputation too low (${rep} — need 30)`
+        : null;
+
+    // --- Bribe ---
+    const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat"];
+    const bribeBlocked = noBribeTypes.includes(type);
+    const canAffordBribe = gold >= bribeCost;
+    const canBribe    = !bribeBlocked && canAffordBribe;
+    const bribeReason = bribeBlocked
+      ? "They cannot be bought"
+      : !canAffordBribe
+        ? `Need ${bribeCost}g (you have ${gold}g)`
+        : null;
+
+    // --- Surrender ---
+    const noSurrenderTypes = ["bounty_target", "mission_combat"];
+    const canSurrender = !noSurrenderTypes.includes(type);
+    const surrenderReason = !canSurrender
+      ? "Surrender means death here"
+      : null;
+
+    return {
+      type,
+      enemy: { ...enemy, ship: enemyShip },   // attach ship type for UI
+      flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep)
+        ?? `A ${enemy.name} moves to intercept.`,
+      options: {
+        flee: {
+          available:   canFlee,
+          reason:      fleeReason,
+          speedCheck:  canFlee ? { player: mySpeed, enemy: eSpeed } : null,
+        },
+        parley: {
+          available:   canParley,
+          reason:      parleyReason,
+          repRequired: 30,
+        },
+        bribe: {
+          available:   canBribe,
+          reason:      bribeReason,
+          cost:        bribeCost,
+        },
+        surrender: {
+          available:    canSurrender,
+          reason:       surrenderReason,
+          consequence:  SURRENDER_CONSEQUENCE[type] ?? SURRENDER_CONSEQUENCE.random,
+        },
+        fight: {
+          available: true,
+          reason:    null,
+        },
+      },
+    };
+  }
+
+
+
+
   // Expose all functions globally
   return {
     // Save/Load
@@ -495,6 +601,10 @@ const resolveCombatAction = (state, action) => {
 
     // Events
     triggerRandomEvent,
+
+    //encounter
+    buildEncounterContext,
+    roll,
 
     // Combat
     getNPCAction,
