@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-//  engine.js — COMPLETE, FIXED VERSION
+//  engine.js — COMPLETE (intercept screen, morale, wind, log cleanup)
 //  State management: initialState, reducer, action constants.
 //  Exposed as window.E for global access.
 // ═══════════════════════════════════════════════════════════════════
@@ -33,6 +33,13 @@ window.E = (() => {
     TAKE_MISSION: "TAKE_MISSION",
     COMPLETE_MISSION: "COMPLETE_MISSION",
     ABANDON_MISSION: "ABANDON_MISSION",
+
+    // Intercept (pre-combat)
+    INTERCEPT_FIGHT:     "INTERCEPT_FIGHT",
+    INTERCEPT_FLEE:      "INTERCEPT_FLEE",
+    INTERCEPT_PARLEY:    "INTERCEPT_PARLEY",
+    INTERCEPT_BRIBE:     "INTERCEPT_BRIBE",
+    INTERCEPT_SURRENDER: "INTERCEPT_SURRENDER",
 
     // Combat
     BATTLE_ACTION: "BATTLE_ACTION",
@@ -73,7 +80,8 @@ window.E = (() => {
     activeMission: null,
     reputation: {},
     battleState: null,
-    activeEvent: null
+    activeEvent: null,
+    encounterContext: null,   // for intercept screen
   };
 
   // Initialize reputation for all ports in initialState
@@ -112,6 +120,7 @@ window.E = (() => {
           } else if (bonus.includes("ship:")) {
             const shipType = bonus.split(":")[1].trim();
             if (SHIPS[shipType]) {
+              // Spread crew to avoid mutation (P0.4 fix)
               newState.ship = {
                 ...newState.ship,
                 type: shipType,
@@ -119,8 +128,11 @@ window.E = (() => {
                 hull: SHIPS[shipType].maxHull,
                 cannons: SHIPS[shipType].cannons
               };
-              newState.crew = { ...newState.crew, max: SHIPS[shipType].maxCrew };
-              newState.crew.current = Math.min(newState.crew.current, SHIPS[shipType].maxCrew);
+              newState.crew = {
+                ...newState.crew,
+                max: SHIPS[shipType].maxCrew,
+                current: Math.min(newState.crew.current, SHIPS[shipType].maxCrew)
+              };
             }
           } else if (bonus.includes("reputation with")) {
             const faction = bonus.split("with")[1].trim().toLowerCase();
@@ -173,21 +185,26 @@ window.E = (() => {
           speed: Math.round(Math.max(1, Math.min(20, state.wind.speed + (Math.random() - 0.5) * 5)))
         };
 
-
-        // Deduct crew wages
+        // Deduct crew wages (no log to reduce spam)
         const wages = L.payCrewWages(state);
         const newGold = Math.max(0, state.gold - wages);
 
-        // Reputation decays only every 2 days
-        const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
+        // Reputation decay (every 2 days, never below 50)
+        const newRep = (state.day % 2 === 0)
+          ? L.decayReputation(state)
+          : state.reputation;
 
-        // Morale decay
-        const newMorale = state.crew.morale < 30 ? Math.max(0, state.crew.morale - 1) : state.crew.morale;
+        // Morale decay (only if already below 30)
+        const newMorale = state.crew.morale < 30
+          ? Math.max(0, state.crew.morale - 1)
+          : state.crew.morale;
 
-        // Smuggle mission: ONE intercept
+        // Smuggle mission intercept
         if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOccurred) {
           const interceptChance = state.activeMission.interceptChance || 0.5;
           if (Math.random() < interceptChance) {
+            const enemy = state.activeMission.enemy;
+            const encounterContext = L.buildEncounterContext(state, "smuggling_caught", enemy);
             return {
               ...state,
               wind: newWind,
@@ -197,19 +214,9 @@ window.E = (() => {
               reputation: newRep,
               crew: { ...state.crew, morale: newMorale },
               activeMission: { ...state.activeMission, encounterOccurred: true },
-              battleState: {
-                phase: "player_turn",
-                playerHull: state.ship.hull,
-                playerCrew: state.crew.current,
-                enemy: state.activeMission.enemy,
-                enemyHull: state.activeMission.enemy.hull,
-                enemyCrew: state.activeMission.enemy.crew,
-                round: 1,
-                log: [`Mission: ${state.activeMission.name} - Intercepted!`],
-                returnScreen: "sailing"
-              },
-              screen: "battle",
-              log: [...newLog, `Day ${state.day + 1}: ${state.activeMission.enemy.name} intercepts you!`]
+              encounterContext,
+              screen: "intercept",
+              log: [...newLog, `Day ${state.day + 1}: ${enemy.name} intercepts you!`]
             };
           }
         }
@@ -221,7 +228,7 @@ window.E = (() => {
             return {
               ...state,
               wind: newWind,
-              screen: "event",          // ← show the event screen
+              screen: "event",
               day: state.day + 1,
               sailingDaysLeft: newDays,
               gold: newGold,
@@ -233,7 +240,7 @@ window.E = (() => {
           }
         }
 
-        // Normal sailing day
+        // Normal sailing day (no log entry)
         return {
           ...state,
           wind: newWind,
@@ -241,7 +248,7 @@ window.E = (() => {
           sailingDaysLeft: newDays,
           gold: newGold,
           reputation: newRep,
-          crew: { ...state.crew, morale: newMorale },
+          crew: { ...state.crew, morale: newMorale }
         };
       }
 
@@ -250,31 +257,24 @@ window.E = (() => {
         const portFaction = port.faction;
         const playerRep = state.reputation[state.destination] ?? 50;
 
-        // Hostile port: Direct combat (reputation < 10)
+        // Hostile port: intercept screen (may lead to battle)
         if (playerRep < 10) {
+          const enemy = {
+            name: `${port.name} Guards`,
+            hull: 150,
+            cannons: 15,
+            crew: 40,
+            faction: portFaction,
+            gold: 300,
+          };
+          const encounterContext = L.buildEncounterContext(state, "hostile_port_entry", enemy);
           return {
             ...state,
             currentPort: state.destination,
             destination: null,
             sailingDaysLeft: 0,
-            battleState: {
-              phase: "player_turn",
-              playerHull: state.ship.hull,
-              playerCrew: state.crew.current,
-              enemy: {
-                name: `${port.name} Guards`,
-                hull: 150,
-                cannons: 15,
-                crew: 40,
-                faction: portFaction
-              },
-              enemyHull: 150,
-              enemyCrew: 40,
-              round: 1,
-              log: [`${port.name} guards attack your ship!`],
-              returnScreen: "port"
-            },
-            screen: "battle",
+            encounterContext,
+            screen: "intercept",
             log: [...state.log, `Arrived at ${port.name}. Hostile port!`]
           };
         }
@@ -296,7 +296,7 @@ window.E = (() => {
         const shipStats = L.getShipStats(state);
         const cost = (shipStats.maxHull - state.ship.hull) * 2;
         if (state.gold < cost) {
-          return { ...state};
+          return { ...state };  // no log
         }
         return {
           ...state,
@@ -309,7 +309,7 @@ window.E = (() => {
       case A.BUY_SHIP: {
         const ship = SHIPS[action.shipType];
         if (!ship || state.gold < ship.cost) {
-          return { ...state};
+          return { ...state };  // no log
         }
         return {
           ...state,
@@ -333,18 +333,17 @@ window.E = (() => {
       case A.BUY_UPGRADE: {
         const upgrade = UPGRADES[action.upgradeKey];
         if (!upgrade) {
-          return { ...state};
+          return { ...state };
         }
         if (state.gold < upgrade.cost) {
-          return { ...state};
+          return { ...state };
         }
         if (state.ship.upgrades.includes(action.upgradeKey)) {
-          return { ...state};
+          return { ...state };
         }
         if (!SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) {
-          return { ...state};
+          return { ...state };
         }
-
         return {
           ...state,
           gold: state.gold - upgrade.cost,
@@ -356,18 +355,17 @@ window.E = (() => {
         };
       }
 
-
-      // --- CREW MANAGEMENT & MORALE -----
+      // --- CREW MANAGEMENT & MORALE ---
       case A.HIRE_CREW: {
         const cost = action.count * 50;
         const shipStats = SHIPS[state.ship.type];
         if (state.crew.current >= state.crew.max) {
-          return { ...state, log: [...state.log, "Ship is already at full capacity."] };
+          return { ...state };  // no log
         }
         if (state.gold < cost) {
-          return { ...state, log: [...state.log, "Not enough gold to hire crew!"] };
+          return { ...state };
         }
-        const newCrew = Math.min(state.crew.current + action.count, shipStats.maxCrew);
+        const newCrew = Math.min(state.crew.current + action.count, state.crew.max);
         return {
           ...state,
           gold: state.gold - cost,
@@ -376,58 +374,47 @@ window.E = (() => {
         };
       }
 
-        case A.RAISE_MORALE: {
-          const cost = state.crew.current * 5;
-          if (state.gold < cost) {
-            return { ...state, log: [...state.log, "Not enough gold to buy drinks!"] };
-          }
-          if (state.crew.morale >= 100) {
-            return { ...state, log: [...state.log, "Crew is already in high spirits."] };
-          }
-          const newMorale = Math.min(100, state.crew.morale + 5);
-          return {
-            ...state,
-            gold: state.gold - cost,
-            crew: { ...state.crew, morale: newMorale },
-            log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`]
-          };
+      case A.RAISE_MORALE: {
+        const cost = state.crew.current * 5;
+        if (state.gold < cost) {
+          return { ...state };
         }
-
-
+        if (state.crew.morale >= 100) {
+          return { ...state };
+        }
+        const newMorale = Math.min(100, state.crew.morale + 5);
+        return {
+          ...state,
+          gold: state.gold - cost,
+          crew: { ...state.crew, morale: newMorale },
+          log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`]
+        };
+      }
 
       // --- MISSIONS ---
       case A.REFRESH_MISSIONS: {
         return {
           ...state,
-          missions: L.generateMissions(state.currentPort, state),
+          missions: L.generateMissions(state.currentPort, state)
+          // no log
         };
       }
 
       case A.TAKE_MISSION: {
         const mission = action.mission;
 
-        // Combat missions: instant battle
+        // Combat missions: go through intercept screen
         if (mission.type === "combat" && mission.enemy) {
           return {
             ...state,
             activeMission: mission,
-            battleState: {
-              phase: "player_turn",
-              playerHull: state.ship.hull,
-              playerCrew: state.crew.current,
-              enemy: mission.enemy,
-              enemyHull: mission.enemy.hull,
-              enemyCrew: mission.enemy.crew,
-              round: 1,
-              log: [`Mission: ${mission.name} - Combat begins!`],
-              returnScreen: "port"
-            },
-            screen: "battle",
+            encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
+            screen: "intercept",
             log: [...state.log, `Accepted mission: ${mission.name}.`]
           };
         }
 
-        // Normal missions
+        // Non-combat missions (trade, escort, etc.)
         return {
           ...state,
           activeMission: { ...mission, encounterOccurred: false },
@@ -439,12 +426,10 @@ window.E = (() => {
         const mission = state.activeMission;
         if (!mission) return state;
 
-        // Check if at target port (for non-combat missions)
         if (mission.targetPort && state.currentPort !== mission.targetPort) {
-          return { ...state, log: [...state.log, "Mission not completed: Wrong port!"] };
+          return { ...state };  // no log
         }
 
-        // Apply rewards
         const newRep = L.applyReputationImpact(state, mission.repImpact);
         return {
           ...state,
@@ -466,110 +451,259 @@ window.E = (() => {
         };
       }
 
+      // --- INTERCEPT ACTIONS ---
+      case A.INTERCEPT_FIGHT: {
+        const ctx = state.encounterContext;
+        if (!ctx) return state;
+        const enemy = ctx.enemy;
+        const bs = {
+          phase: "player_turn",
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.current,
+          enemy: enemy,
+          enemyHull: enemy.hull,
+          enemyCrew: enemy.crew,
+          round: 1,
+          log: [`You engage the ${enemy.name}!`],
+          returnScreen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+        };
+        return {
+          ...state,
+          encounterContext: null,
+          battleState: bs,
+          screen: "battle",
+        };
+      }
+
+      case A.INTERCEPT_FLEE: {
+        const ctx = state.encounterContext;
+        if (!ctx) return state;
+        const { player, enemy } = ctx.options.flee.speedCheck;
+        const playerRoll = player + L.roll(3);
+        const enemyRoll  = enemy  + L.roll(3);
+        if (playerRoll >= enemyRoll) {
+          return {
+            ...state,
+            encounterContext: null,
+            screen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+            log: [...state.log, "You pulled clear — the enemy couldn't keep up."]
+          };
+        }
+        // Failed flee → battle
+        const enemyObj = ctx.enemy;
+        const bs = {
+          phase: "player_turn",
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.current,
+          enemy: enemyObj,
+          enemyHull: enemyObj.hull,
+          enemyCrew: enemyObj.crew,
+          round: 1,
+          log: ["Escape failed! The enemy closes in."],
+          returnScreen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+        };
+        return {
+          ...state,
+          encounterContext: null,
+          battleState: bs,
+          screen: "battle",
+          log: [...state.log, "Failed to escape — battle unavoidable."]
+        };
+      }
+
+      case A.INTERCEPT_PARLEY: {
+        const ctx = state.encounterContext;
+        if (!ctx) return state;
+        const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
+        const success = L.roll(100) <= Math.min(80, rep + 20);
+        if (success) {
+          const portKey = state.destination ?? state.currentPort;
+          return {
+            ...state,
+            encounterContext: null,
+            screen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+            reputation: {
+              ...state.reputation,
+              [portKey]: Math.min(100, (state.reputation[portKey] ?? 20) + 3),
+            },
+            log: [...state.log, "Parley successful. They let you pass."]
+          };
+        }
+        // Failed parley → battle
+        const enemyObj = ctx.enemy;
+        const bs = {
+          phase: "player_turn",
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.current,
+          enemy: enemyObj,
+          enemyHull: enemyObj.hull,
+          enemyCrew: enemyObj.crew,
+          round: 1,
+          log: ["Parley failed — they attack!"],
+          returnScreen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+        };
+        return {
+          ...state,
+          encounterContext: null,
+          battleState: bs,
+          screen: "battle",
+          log: [...state.log, "Parley failed. Battle unavoidable."]
+        };
+      }
+
+      case A.INTERCEPT_BRIBE: {
+        const ctx = state.encounterContext;
+        if (!ctx) return state;
+        const cost = ctx.options.bribe.cost;
+        const portKey = state.destination ?? state.currentPort;
+        return {
+          ...state,
+          encounterContext: null,
+          gold: state.gold - cost,
+          reputation: {
+            ...state.reputation,
+            [portKey]: Math.max(0, (state.reputation[portKey] ?? 20) - 2),
+          },
+          screen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port",
+          log: [...state.log, `Bribed them with ${cost}g. They looked the other way.`]
+        };
+      }
+
+      case A.INTERCEPT_SURRENDER: {
+        const ctx = state.encounterContext;
+        if (!ctx) return state;
+        const consequence = ctx.options.surrender.consequence;
+        let s = { ...state, encounterContext: null };
+
+        if (consequence.loseCargoPercent) {
+          if (s.cargo) {
+            s.gold = Math.max(0, s.gold - Math.round(s.gold * consequence.loseCargoPercent / 100));
+          }
+        }
+        if (consequence.loseContraband && s.cargo) {
+          s.cargo = { ...s.cargo, contraband: 0 };
+        }
+        if (consequence.goldFine) {
+          s.gold = Math.max(0, s.gold - consequence.goldFine);
+        }
+        if (consequence.loseGoldPercent) {
+          s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
+        }
+        if (consequence.moralePenalty) {
+          s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
+        }
+        if (consequence.loseDays) {
+          s.day = s.day + consequence.loseDays;
+        }
+        if (consequence.rep_loss) {
+          const portKey = state.destination ?? state.currentPort;
+          s.reputation = {
+            ...s.reputation,
+            [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss)
+          };
+        }
+
+        s.screen = state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
+        return {
+          ...s,
+          log: [...state.log, "You surrendered. The consequences were steep."]
+        };
+      }
+
       // --- COMBAT ---
       case A.BATTLE_ACTION: {
-      const outcome = L.resolveCombatAction(state, action.action);
-      console.log("BATTLE_ACTION outcome", {
-        action: action.action,
-        playerHullDamage: outcome.player.hullDamage,
-        playerCrewLoss: outcome.player.crewLoss,
-        enemyHullDamage: outcome.enemy.hullDamage,
-        enemyCrewLoss: outcome.enemy.crewLoss,
-        fled: outcome.fled,
-        instantVictory: outcome.instantVictory
-      });
-      const newLog = [...state.battleState.log];
+        const outcome = L.resolveCombatAction(state, action.action);
+        const newLog = [...state.battleState.log];
 
-      // --- Apply morale delta ---
-      const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
+        // Apply morale delta
+        const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
-      // --- Instant victory (grapple success) ---
-      if (outcome.instantVictory) {
-        const newGold = state.gold + (outcome.goldReward || 0);
-        const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
-        return {
-          ...state,
-          gold: newGold,
-          reputation: newRep,
-          ship: { ...state.ship, hull: state.battleState.playerHull },
-          crew: { ...state.crew, morale: newMorale },
-          battleState: {
-            ...state.battleState,
-            phase: "victory",
-            goldReward: outcome.goldReward,   // so the screen can show it
-            log: [...newLog, `Player: ${action.action}. Instant victory! +${outcome.goldReward}g`]
-          }
+        // Instant victory (grapple success)
+        if (outcome.instantVictory) {
+          const newGold = state.gold + (outcome.goldReward || 0);
+          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+          return {
+            ...state,
+            gold: newGold,
+            reputation: newRep,
+            ship: { ...state.ship, hull: state.battleState.playerHull },
+            crew: { ...state.crew, morale: newMorale },
+            battleState: {
+              ...state.battleState,
+              phase: "victory",
+              goldReward: outcome.goldReward,
+              log: [...newLog, `Player: ${action.action}. Instant victory! +${outcome.goldReward}g`]
+            }
+          };
+        }
+
+        // Normal damage
+        const newBattleState = {
+          ...state.battleState,
+          playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
+          enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
+          playerCrew: Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss),
+          enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
+          round: state.battleState.round + 1,
+          phase: "npc_turn",
+          log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.`]
         };
-      }
 
-      // --- Apply damage ---
-      const newBattleState = {
-        ...state.battleState,
-        playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
-        enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
-        playerCrew: Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss),
-        enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
-        round: state.battleState.round + 1,
-        phase: "npc_turn",
-        log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.`]
-      };
+        // Victory
+        if (newBattleState.enemyHull <= 0) {
+          newBattleState.phase = "victory";
+          newBattleState.goldReward = outcome.goldReward || 0;
+          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+          return {
+            ...state,
+            gold: state.gold + (outcome.goldReward || 0),
+            reputation: newRep,
+            ship: { ...state.ship, hull: newBattleState.playerHull },
+            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+            battleState: newBattleState
+          };
+        }
 
-      // --- Check for victory ---
-      if (newBattleState.enemyHull <= 0) {
-        newBattleState.phase = "victory";
-        newBattleState.goldReward = outcome.goldReward || 0;   // 0 for non-grapple
-        const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+        // Defeat
+        if (newBattleState.playerHull <= 0) {
+          newBattleState.phase = "defeat";
+          newBattleState.log.push("Your ship is destroyed! Returning to port.");
+          return {
+            ...state,
+            ship: { ...state.ship, hull: newBattleState.playerHull },
+            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+            battleState: newBattleState,
+            screen: "port",
+            destination: null,
+            sailingDaysLeft: 0,
+            sailingDaysTotal: 0
+          };
+        }
+
+        // Flee
+        if (outcome.fled) {
+          newBattleState.phase = "fled";
+          return {
+            ...state,
+            ship: { ...state.ship, hull: newBattleState.playerHull },
+            crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
+            battleState: newBattleState
+          };
+        }
+
+        // Normal round
         return {
           ...state,
-          gold: state.gold + (outcome.goldReward || 0),
-          reputation: newRep,
           ship: { ...state.ship, hull: newBattleState.playerHull },
           crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
           battleState: newBattleState
         };
       }
-
-      // --- Check for defeat ---
-      if (newBattleState.playerHull <= 0) {
-        newBattleState.phase = "defeat";
-        newBattleState.log.push("Your ship is destroyed! Returning to port.");
-        return {
-          ...state,
-          ship: { ...state.ship, hull: newBattleState.playerHull },
-          crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-          battleState: newBattleState,
-          screen: "port",
-          destination: null,
-          sailingDaysLeft: 0,
-          sailingDaysTotal: 0
-        };
-      }
-
-      // --- Check for flee ---
-      if (outcome.fled) {
-        newBattleState.phase = "fled";
-        return {
-          ...state,
-          ship: { ...state.ship, hull: newBattleState.playerHull },
-          crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-          battleState: newBattleState
-        };
-      }
-
-      // --- Normal round (continue fighting) ---
-      return {
-        ...state,
-        ship: { ...state.ship, hull: newBattleState.playerHull },
-        crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-        battleState: newBattleState
-      };
-    }
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
         const returnScreen = battleState.returnScreen || "port";
 
-        // Auto-complete combat/assault missions on victory
         if (battleState.phase === "victory" && state.activeMission) {
           if (state.activeMission.type === "combat" || state.activeMission.type === "assault") {
             const mission = state.activeMission;
@@ -588,7 +722,6 @@ window.E = (() => {
           }
         }
 
-        // Return to sailing if fled
         if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
           return {
             ...state,
@@ -597,7 +730,6 @@ window.E = (() => {
           };
         }
 
-        // Default: return to port
         return {
           ...state,
           battleState: null,
@@ -613,7 +745,6 @@ window.E = (() => {
         const choice = event.choices[action.choiceIndex];
         const newState = { ...state, activeEvent: null };
 
-        // Apply event outcome
         if (choice.outcome.log) {
           newState.log = [...state.log, choice.outcome.log];
         }
@@ -642,31 +773,23 @@ window.E = (() => {
         if (choice.outcome.repImpact) {
           newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
         }
-        if (choice.outcome.battle) {
-          newState.battleState = {
-            phase: "player_turn",
-            playerHull: state.ship.hull,
-            playerCrew: state.crew.current,
-            enemy: choice.outcome.battle.enemy,
-            enemyHull: choice.outcome.battle.enemy.hull,
-            enemyCrew: choice.outcome.battle.enemy.crew,
-            round: 1,
-            log: [`Event: ${event.title} - Combat begins!`],
-            returnScreen: "sailing"
-          };
-          newState.screen = "battle";
-        }
         if (choice.outcome.moraleBonus) {
           newState.crew = {
             ...newState.crew,
             morale: Math.max(0, Math.min(100, newState.crew.morale + choice.outcome.moraleBonus))
           };
         }
-
-        // ---- Return to sailing after event (unless it led to battle) ----
-        if (!choice.outcome.battle) {
+        // Battle triggered by event
+        if (choice.outcome.battle) {
+          newState.encounterContext = L.buildEncounterContext(
+            state, "patrol", choice.outcome.battle.enemy
+          );
+          newState.screen = "intercept";
+        } else {
+          // Return to sailing/port
           newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
         }
+
         return newState;
       }
 
@@ -693,7 +816,6 @@ window.E = (() => {
         }
       }
 
-      // --- DEFAULT ---
       default: {
         console.warn(`Unknown action type: ${action.type}`);
         return state;
@@ -701,10 +823,5 @@ window.E = (() => {
     }
   };
 
-  // Expose everything
-  return {
-    A,
-    initialState,
-    reducer
-  };
+  return { A, initialState, reducer };
 })();

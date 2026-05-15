@@ -852,6 +852,130 @@ window.S = (() => {
   }
 
   // ── BATTLE SCREEN ────────────────────────────────────────────────────
+
+const InterceptScreen = ({ state, dispatch }) => {
+  const { T, Btn, Bar, panelStyle } = window.UI;
+  const { SHIPS } = window.D;
+  const { A } = window.E;
+  const ctx = state.encounterContext;
+
+  if (!ctx) return null;
+
+  const { enemy, flavourText, options } = ctx;
+  const enemyShip = SHIPS[enemy.ship] || {};
+
+  const Option = ({ actionType, label, sublabel, reason, available, v = "default" }) => (
+    <div style={{ marginBottom: 8 }}>
+      <Btn
+        v={available ? v : "ghost"}
+        disabled={!available}
+        onClick={() => dispatch({ type: actionType })}
+        style={{ width: "100%", textAlign: "left", opacity: available ? 1 : 0.45 }}
+      >
+        {label}
+        {sublabel && (
+          <span style={{ color: T.gold, marginLeft: 8, fontSize: 10 }}>{sublabel}</span>
+        )}
+      </Btn>
+      {!available && reason && (
+        <div style={{ color: T.textFaint, fontSize: 10, marginTop: 2, marginLeft: 4 }}>
+          ✗ {reason}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{
+      padding: 20,
+      maxWidth: 560,
+      margin: "0 auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: 14,
+    }}>
+      <div style={{ color: T.gold, fontSize: 16, fontWeight: "bold", letterSpacing: "0.08em" }}>
+        ⚠ ENCOUNTER
+      </div>
+
+      <div style={panelStyle({ borderColor: T.borderBr })}>
+        <p style={{ color: T.text, fontSize: 12, lineHeight: 1.6 }}>{flavourText}</p>
+      </div>
+
+      <div style={panelStyle()}>
+        <div style={{ color: T.redBr, fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>
+          {enemy.name}
+          <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: 10 }}>
+            {enemyShip.name ?? enemy.ship}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          {[
+            ["Hull",    `${enemy.hull}/${enemy.maxHull || enemy.hull}`],
+            ["Cannons", enemy.cannons],
+            ["Crew",    enemy.crew],
+            ["Speed",   enemyShip.speed ?? "?"],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <div style={{ color: T.textDim, fontSize: 9 }}>{label}</div>
+              <div style={{ color: T.text,    fontSize: 13 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={6} />
+        </div>
+      </div>
+
+      <div style={panelStyle()}>
+        <div style={{ color: T.textDim, fontSize: 10, marginBottom: 10, letterSpacing: "0.08em" }}>
+          CHOOSE YOUR RESPONSE:
+        </div>
+
+        <Option
+          actionType={A.INTERCEPT_FIGHT}
+          label="⚔  Engage"
+          available={true}
+          reason={null}
+          v="red"
+        />
+        <Option
+          actionType={A.INTERCEPT_FLEE}
+          label="💨  Attempt to Flee"
+          sublabel={options.flee.available
+            ? `Speed check: you ${options.flee.speedCheck.player} vs ${options.flee.speedCheck.enemy}`
+            : null}
+          available={options.flee.available}
+          reason={options.flee.reason}
+        />
+        <Option
+          actionType={A.INTERCEPT_PARLEY}
+          label="🤝  Parley"
+          sublabel={options.parley.available ? `Rep: ${state.reputation[state.destination ?? state.currentPort] ?? 0}` : null}
+          available={options.parley.available}
+          reason={options.parley.reason}
+        />
+        <Option
+          actionType={A.INTERCEPT_BRIBE}
+          label="💰  Bribe"
+          sublabel={options.bribe.available ? `Cost: ${options.bribe.cost}g` : null}
+          available={options.bribe.available}
+          reason={options.bribe.reason}
+          v="gold"
+        />
+        <Option
+          actionType={A.INTERCEPT_SURRENDER}
+          label="🏳  Surrender"
+          available={options.surrender.available}
+          reason={options.surrender.reason}
+          v="ghost"
+        />
+      </div>
+    </div>
+  );
+};
+
+
   function BattleScreen({ state, dispatch }) {
     const bs = state.battleState;
     if (!bs) return null;
@@ -975,6 +1099,7 @@ window.S = (() => {
     CrewScreen,
     FactionsScreen,
     EventScreen,
+    InterceptScreen,
     BattleScreen,
   };
 })();

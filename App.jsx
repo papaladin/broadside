@@ -61,6 +61,7 @@ const App = () => {
       case "crew": return <S.CrewScreen state={state} dispatch={dispatch} />;
       case "factions": return <S.FactionsScreen state={state} dispatch={dispatch} />;
       case "event": return <S.EventScreen state={state} dispatch={dispatch} />;
+      case "intercept": return <S.InterceptScreen state={state} dispatch={dispatch} />;
       case "battle": return <S.BattleScreen state={state} dispatch={dispatch} />;
       default: return <div style={{ color: T.text, padding: 20 }}>Unknown screen: {state.screen}</div>;
     }
