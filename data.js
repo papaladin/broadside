@@ -237,6 +237,68 @@ window.D = (() => {
     }
   };
 
+  // ── Crew Name Pools (minimal starter set) ───────────────────────
+const CREW_FIRST_NAMES = {
+  english: ["William","John","Henry","Edward","Charles","James","Thomas","George",
+    "Samuel","Richard","Robert","Joseph","Benjamin","Nathaniel","Francis",
+    "Peter","Jacob","Andrew","Nicholas","Matthew","Anne","Mary","Elizabeth",
+    "Sarah","Margaret","Jane","Alice","Katherine","Rebecca","Abigail"],
+
+  spanish: ["Carlos","Miguel","Diego","José","Francisco","Antonio",
+    "Manuel","Pedro","Juan","Alonso","Fernando","Rafael","Joaquín",
+    "Isabella","María","Catalina","Inés","Juana","Teresa","Beatriz",
+    "Ana","Leonor","Magdalena"],
+
+  french: ["Jean","Pierre","Louis","Henri","Antoine","Claude","Jacques",
+    "François","Étienne","Michel","Nicolas","André","Luc","Guillaume",
+    "Marie","Jeanne","Marguerite","Catherine","Anne","Louise","Madeleine",
+    "Élisabeth","Charlotte","Françoise"],
+
+  dutch: ["Willem","Jan","Pieter","Hendrik","Cornelis","Dirk","Adriaan",
+    "Jacob","Claes","Maarten","Johannes","Frans","Michiel",
+    "Anna","Maria","Elisabeth","Catharina","Geertruida","Margaretha",
+    "Johanna","Eva"],
+
+  pirate: ["Calico","Blackwood","Bloodworth","Crowe","Morgan","Rackham",
+    "Teach","Vane","Bonny","Low","Avery","Read","Drake",
+    "Ashford","Briggs","Graves","Storm","Skullridge","Dread"],
+};
+
+const CREW_LAST_NAMES = {
+  english: ["Smith","Brown","Taylor","Wilson","Davies","Jones","Williams","Clark",
+    "White","Harris","Walker","Wright","Turner","Cooper","Baker","Carter",
+    "Hill","Ward","Morgan","Bell","Parker","Mitchell","Wood","Cook",
+    "Webb","Bailey","Price","Bennett","Foster","Griffin"],
+
+  spanish: ["García","Rodríguez","López","Martínez","Hernández","González",
+    "Pérez","Sánchez","Ramírez","Torres","Ruiz","Flores","Morales",
+    "Navarro","Castillo","Romero","Ortega","Delgado","Cruz","Mendoza",
+    "Vargas","Silva","Rojas","Herrera","Campos"],
+
+  french: ["Martin","Bernard","Dubois","Thomas","Robert","Richard","Petit",
+    "Durand","Leroy","Moreau","Simon","Laurent","Michel","Lefebvre",
+    "Roux","Fontaine","Chevalier","Mercier","Girard","Blanchard",
+    "Garnier","Bonnet","Lambert","Renaud"],
+
+  dutch: ["de Vries","van Dijk","Bakker","Janssen","Smit","Meijer",
+    "de Boer","Mulder","Dekker","van den Berg","Visser","Vos",
+    "van Rijn","Kuiper","van Leeuwen","van der Meer","Post",
+    "de Groot","Kramer","van Dam","Schouten"],
+
+  pirate: ["Rackham","Teach","Vane","Bonny","Drake","Morgan","Low",
+    "Avery","Read","Thatch","Blackwood","Bloodworth","Crowe",
+    "Hawkins","Graves","Storm","Ashford","Briggs","Skullridge","Dread"],
+};
+
+  const CREW_ROLES = [
+    { role: "deckhand", weight: 60 },
+    { role: "gunner",   weight: 20 },
+    { role: "cook",     weight: 5 },
+    { role: "carpenter",weight: 10 },
+    { role: "navigator",weight: 5 },
+  ];
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  MISSION_POOL: All possible missions.
   //  targetPort: Port key where mission is completed (null for instant combat).
@@ -819,6 +881,9 @@ window.D = (() => {
     PORTS,
     SHIPS,
     FACTIONS,
+    CREW_FIRST_NAMES,
+    CREW_LAST_NAMES,
+    CREW_ROLES,
     UPGRADES,
     MISSION_POOL,
     RANDOM_EVENTS,

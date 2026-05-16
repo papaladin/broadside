@@ -564,7 +564,69 @@ const resolveCombatAction = (state, action) => {
     };
   }
 
+  // ── Crew generation helpers ──────────────────────────────────────
 
+  // Pick a random item from an array
+  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Pick a role based on weight table
+  const pickWeightedRole = () => {
+    const { CREW_ROLES } = window.D;
+    const total = CREW_ROLES.reduce((s, r) => s + r.weight, 0);
+    let roll = Math.random() * total;
+    for (let r of CREW_ROLES) {
+      roll -= r.weight;
+      if (roll <= 0) return r.role;
+    }
+    return "deckhand"; // fallback
+  };
+
+  // Build a single crew member
+  const generateCrewMember = (faction, existingNames = []) => {
+    const { CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
+    const firstList = CREW_FIRST_NAMES[faction] || CREW_FIRST_NAMES.pirate;
+    const lastList  = CREW_LAST_NAMES[faction]  || CREW_LAST_NAMES.pirate;
+
+    let firstName, lastName, fullName;
+    let attempts = 0;
+    do {
+      firstName = pickRandom(firstList);
+      lastName  = pickRandom(lastList);
+      fullName  = `${firstName} ${lastName}`;
+      attempts++;
+    } while (existingNames.includes(fullName) && attempts < 50);
+
+    return {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      firstName,
+      lastName,
+      role: pickWeightedRole(),
+      faction,
+      daysAboard: 0,
+    };
+  };
+
+  // Create a full roster
+  const generateRoster = (count, faction = "pirate") => {
+    const roster = [];
+    const existingNames = [];
+    for (let i = 0; i < count; i++) {
+      const member = generateCrewMember(faction, existingNames);
+      roster.push(member);
+      existingNames.push(`${member.firstName} ${member.lastName}`);
+    }
+    return roster;
+  };
+
+  // Remove random members and return the removed list
+  const removeRandomCrew = (roster, count) => {
+    if (count <= 0) return { newRoster: [...roster], removed: [] };
+    const shuffled = [...roster].sort(() => Math.random() - 0.5);
+    const removed = shuffled.slice(0, count);
+    const removedIds = new Set(removed.map(m => m.id));
+    const newRoster = roster.filter(m => !removedIds.has(m.id));
+    return { newRoster, removed };
+  };
 
 
   // Expose all functions globally
@@ -594,6 +656,9 @@ const resolveCombatAction = (state, action) => {
 
     // Crew
     payCrewWages,
+    generateCrewMember,
+    generateRoster,
+    removeRandomCrew,
 
     // Missions
     generateMissions,
@@ -616,5 +681,6 @@ const resolveCombatAction = (state, action) => {
     getStartingCrew,
     getStartingGold,
     getStartingReputation
+
   };
 })();
