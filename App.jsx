@@ -35,7 +35,7 @@ const App = () => {
         <div>
           <span style={{ color: T.gold }}>💰 {state.gold}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>📅 Day {state.day}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.current}/{state.crew.max}</span>
+          <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>😊 {effectiveMorale}%</span>        </div>
         <div>

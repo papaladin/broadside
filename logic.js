@@ -149,7 +149,7 @@ window.L = (() => {
   const payCrewWages = (state) => {
     const effectiveMorale = getEffectiveMorale(state);
     const wageMultiplier = effectiveMorale < 30 ? 1.5 : 1;
-    const wages = Math.floor(state.crew.current * 2 * wageMultiplier);
+    const wages = Math.floor(state.crew.roster.length * 2 * wageMultiplier);
     return wages;
   };
 
@@ -269,7 +269,7 @@ const resolveCombatAction = (state, action) => {
       break;
     }
     case "grapple": {
-      const playerCrew = state.crew.current;
+      const playerCrew = state.crew.roster.length;
       const enemyCrew = enemy.crew;
       const playerHullPct = state.ship.hull / shipStats.maxHull;
       const playerMoralePct = state.crew.morale / 100;
@@ -342,7 +342,7 @@ const resolveCombatAction = (state, action) => {
       }
       case "grapple": {
         const enemyCrew = enemy.crew;
-        const playerCrew = state.crew.current;
+        const playerCrew = state.crew.roster.length;
         const enemyHullPct = battleState.enemyHull / enemy.hull;
         const enemyMoralePct = 0.7;
 

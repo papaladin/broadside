@@ -225,7 +225,7 @@ window.S = (() => {
             <StatBlock label="Class" value={SHIPS[state.ship.type].name} />
             <StatBlock label="Cannons" value={effectiveShipStats.cannons} /> {/* Use effective cannons */}
             <StatBlock label="Speed" value={effectiveShipStats.speed} /> {/* Use effective speed */}
-            <StatBlock label="Crew" value={`${state.crew.current}/${state.crew.max}`} />
+            <StatBlock label="Crew" value={`${state.crew.roster.length}/${state.crew.max}`} />
           </div>
           <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>HULL</div>
           <Bar value={state.ship.hull} max={effectiveShipStats.maxHull}
@@ -635,8 +635,8 @@ window.S = (() => {
 
   // ── CREW SCREEN ──────────────────────────────────────────────────────
   function CrewScreen({ state, dispatch }) {
-    const open = SHIPS[state.ship.type].maxCrew - state.crew.current;
-    const happy = Math.round(state.crew.current * state.crew.morale / 100);
+    const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
+    const happy = Math.round(state.crew.roster.length * state.crew.morale / 100);
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
@@ -664,11 +664,11 @@ window.S = (() => {
           <div style={panelStyle()}>
             <SectionTitle>ROSTER</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <StatBlock label="Aboard" value={`${state.crew.current}/${state.crew.max}`} />
+              <StatBlock label="Aboard" value={`${state.crew.roster.length}/${state.crew.max}`} />
               <StatBlock label="Berths Free" value={open} />
               <StatBlock label="Morale" value={`${state.crew.morale}%`}
                 color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} />
-              <StatBlock label="Daily Wage" value={`${state.crew.current * 2}g`} />
+              <StatBlock label="Daily Wage" value={`${state.crew.roster.length * 2}g`} />
             </div>
             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>MORALE</div>
             <Bar value={state.crew.morale} max={100}
@@ -682,9 +682,9 @@ window.S = (() => {
               <Btn
                 v="green"
                 onClick={() => dispatch({ type: A.RAISE_MORALE })}
-                disabled={state.gold < state.crew.current * 5 || state.crew.morale >= 100}
+                disabled={state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}
               >
-                🍻 Buy Drinks ({state.crew.current * 5}g) +5 Morale
+                🍻 Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale
               </Btn>
             </div>
           </div>
@@ -712,21 +712,27 @@ window.S = (() => {
           <div style={{ ...panelStyle(), gridColumn: "1 / -1" }}>
             <SectionTitle>MANIFEST</SectionTitle>
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {Array.from({ length: Math.min(state.crew.current, 60) }).map((_, i) => (
-                <div key={i} style={{
-                  width: 26, height: 26, borderRadius: 3,
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
-                  background: i < happy ? T.greenBg : "#1e1008",
-                  border: `1px solid ${i < happy ? T.green : T.red}`,
-                }}>
-                  {["⚓","🗡","🔧","🍖"][i % 4]}
-                </div>
-              ))}
-              {state.crew.current > 60 && (
-                <div style={{ color: T.textDim, fontSize: 10, alignSelf: "center" }}>
-                  +{state.crew.current - 60} more
-                </div>
-              )}
+              {state.crew.roster.map(member => {
+                const roleIcon = {
+                  deckhand: "⚓", gunner: "🗡", cook: "🍖",
+                  carpenter: "🔧", navigator: "🧭"
+                }[member.role] ?? "👤";
+                return (
+                  <div key={member.id}
+                    title={`${member.firstName} ${member.lastName} · ${member.role} · ${member.faction}`}
+                    style={{
+                      width: 26, height: 26, borderRadius: 3,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 13,
+                      background: T.panelAlt,
+                      border: `1px solid ${T.border}`,
+                      cursor: "default",
+                    }}
+                  >
+                    {roleIcon}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1043,7 +1049,7 @@ const InterceptScreen = ({ state, dispatch }) => {
             <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull}
               color={playerPct < 0.3 ? T.redBr : T.greenBr} h={10} />
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
-              {state.crew.current} crew · {L.getShipStats(state).cannons}  cannons
+              {state.crew.roster.length} crew · {L.getShipStats(state).cannons}  cannons
             </div>
             {state.ship.upgrades.length > 0 && (
               <div style={{ marginTop: 5, display: "flex", gap: 4, flexWrap: "wrap" }}>
