@@ -219,8 +219,8 @@ window.L = (() => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const getNPCAction = (enemy) => {
     const roll = Math.random();
-    if (roll < 0.6) return "broadside";
-    if (roll < 0.8) return "precision";
+    if (roll < 0.7) return "broadside";
+    if (roll < 0.95) return "precision";
     return "grapple";
   };
 

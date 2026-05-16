@@ -1070,7 +1070,7 @@ const InterceptScreen = ({ state, dispatch }) => {
         </div>
 
         {/* Battle log */}
-        <div style={{ ...panelStyle({ background: T.bgDeep, maxHeight: 130, overflowY: "auto" }) }}>
+        <div style={{ ...panelStyle({ background: T.bgDeep, height: 130, overflowY: "auto" }) }}>
           {[...bs.log].reverse().map((e, i) => (
             <div key={i} style={{ color: i === 0 ? T.text : T.textDim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>
               {e}
