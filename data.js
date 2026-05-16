@@ -776,41 +776,6 @@ window.D = (() => {
     }
   ];
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  FACTION_RELATIONS: Predefined relationships between factions.
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const FACTION_RELATIONS = {
-    english: {
-      spanish: -1,
-      french: -1,
-      dutch: 0,
-      pirate: -1
-    },
-    spanish: {
-      english: -1,
-      french: -1,
-      dutch: -1,
-      pirate: -1
-    },
-    french: {
-      english: -1,
-      spanish: -1,
-      dutch: 0,
-      pirate: -1
-    },
-    dutch: {
-      english: 0,
-      spanish: -1,
-      french: 0,
-      pirate: 0
-    },
-    pirate: {
-      english: -1,
-      spanish: -1,
-      french: -1,
-      dutch: 0
-    }
-  };
 
   const ENCOUNTER_FLAVOUR = {
     patrol: (enemy, rep) => rep < 20
@@ -858,7 +823,6 @@ window.D = (() => {
     MISSION_POOL,
     RANDOM_EVENTS,
     STARTS,
-    FACTION_RELATIONS,
     ENCOUNTER_FLAVOUR,
     SURRENDER_CONSEQUENCE
   };

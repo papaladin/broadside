@@ -137,7 +137,7 @@ window.S = (() => {
               <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>}
             {port.services.includes("crew") &&
               <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>}
-            <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "factions" })}>🏴 Factions</Btn>
+            <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "factions" })}>📊 Status</Btn>
           </div>
 
           {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
@@ -734,7 +734,7 @@ window.S = (() => {
     );
   }
 
-  // ── FACTIONS SCREEN ──────────────────────────────────────────────────
+  // ── STATUS SCREEN (formerly Factions) ──────────────────────────────
   function FactionsScreen({ state, dispatch }) {
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => {
       if (!acc[p.faction]) acc[p.faction] = [];
@@ -744,7 +744,7 @@ window.S = (() => {
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
-        {/* EXPLICIT BACK BUTTON (plain HTML, no dependencies) */}
+        {/* Back button */}
         <button
           onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
           style={{
@@ -763,6 +763,42 @@ window.S = (() => {
           ← Back to Port
         </button>
 
+        {/* Fame panel */}
+        <div style={panelStyle()}>
+          <SectionTitle>⭐ FAME</SectionTitle>
+          <div style={{ color: T.text, fontSize: 24, fontWeight: "bold" }}>
+            {state.fame}
+          </div>
+          <div style={{ color: T.textDim, fontSize: 10, marginTop: 4 }}>
+            Fame is earned by completing missions and winning battles. It unlocks new ships, upgrades, and missions.
+          </div>
+        </div>
+
+        {/* Faction relations panel */}
+        <div style={panelStyle()}>
+          <SectionTitle>🤝 FACTION RELATIONS</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {Object.entries(FACTIONS).map(([factionKey, fac]) => (
+              <div key={factionKey} style={{
+                background: T.panelAlt,
+                padding: 8,
+                borderRadius: 3,
+                borderLeft: `3px solid ${fac.color}`,
+              }}>
+                <div style={{ color: fac.color, fontSize: 12, fontWeight: "bold", marginBottom: 4 }}>
+                  {fac.label}
+                </div>
+                <div style={{ color: T.textDim, fontSize: 10 }}>
+                  {fac.rivalFactions && fac.rivalFactions.length > 0
+                    ? `Rivals: ${fac.rivalFactions.map(r => FACTIONS[r]?.label ?? r).join(", ")}`
+                    : "No known rivals"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Reputation per port panels */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {Object.entries(portsByFaction).map(([faction, ports]) => {
             const fac = FACTIONS[faction];
@@ -790,8 +826,9 @@ window.S = (() => {
             );
           })}
         </div>
+
         <p style={{ color: T.textDim, fontSize: 10, lineHeight: 1.6 }}>
-          Reputation decays slowly toward neutral over time. Complete missions, aid distressed
+          Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed
           ships, or parley with faction vessels to improve standing. Attacking their ships
           will anger all ports of that faction.
         </p>

@@ -224,7 +224,7 @@ window.E = (() => {
         }
 
         // Random event (10% chance)
-        if (Math.random() < 0.1) {
+        if (newDays >= 1 && Math.random() < 0.1) {
           const event = L.triggerRandomEvent(state);
           if (event) {
             return {
@@ -259,25 +259,32 @@ window.E = (() => {
         const portFaction = port.faction;
         const playerRep = state.reputation[state.destination] ?? 50;
 
-        // Determine if we should trigger a combat encounter
         let combatEncounter = null;
 
-        // 1. Assault mission at destination (takes priority over generic hostility)
+        // 1. Assault mission at destination
         if (state.activeMission?.type === "assault" && state.activeMission.targetPort === state.destination) {
           const mission = state.activeMission;
-          combatEncounter = {
-            type: "hostile_port_entry",   // uses same flavour / logic
-            enemy: mission.enemy || {
-              name: `${port.name} Garrison`,
-              hull: 200,
-              cannons: 20,
-              crew: 50,
-              faction: portFaction,
-              gold: 500,
-            },
-          };
+          if (mission.enemy) {
+            combatEncounter = {
+              type: "hostile_port_entry",
+              enemy: mission.enemy,
+            };
+          } else {
+            console.warn(`Assault mission ${mission.id} has no enemy – falling back to generic garrison`);
+            combatEncounter = {
+              type: "hostile_port_entry",
+              enemy: {
+                name: `${port.name} Garrison`,
+                hull: 200,
+                cannons: 20,
+                crew: 50,
+                faction: portFaction,
+                gold: 500,
+              },
+            };
+          }
         }
-        // 2. Hostile port (reputation < 10)
+        // 2. Hostile port (reputation < 10) – only if no assault mission triggered
         else if (playerRep < 10) {
           combatEncounter = {
             type: "hostile_port_entry",
@@ -792,8 +799,21 @@ window.E = (() => {
           };
         }
         if (choice.outcome.daysLost) {
-          newState.day += choice.outcome.daysLost;
-          newState.sailingDaysLeft = Math.max(0, state.sailingDaysLeft - choice.outcome.daysLost);
+          const lost = choice.outcome.daysLost;
+          // Advance the calendar
+          newState.day += lost;
+          // Extend the voyage without moving forward
+          newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
+          newState.sailingDaysLeft  = (state.sailingDaysLeft || 0) + lost;
+          // Pay wages for the lost days (lump sum)
+          const dailyWage = L.payCrewWages(state);
+          newState.gold = Math.max(0, newState.gold - dailyWage * lost);
+          // Reputation decay for each lost day
+          let rep = { ...state.reputation };
+          for (let i = 0; i < lost; i++) {
+            rep = L.decayReputation({ reputation: rep });
+          }
+          newState.reputation = rep;  
         }
         if (choice.outcome.repImpact) {
           newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
