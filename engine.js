@@ -257,17 +257,44 @@ window.E = (() => {
         const portFaction = port.faction;
         const playerRep = state.reputation[state.destination] ?? 50;
 
-        // Hostile port: intercept screen (may lead to battle)
-        if (playerRep < 10) {
-          const enemy = {
-            name: `${port.name} Guards`,
-            hull: 150,
-            cannons: 15,
-            crew: 40,
-            faction: portFaction,
-            gold: 300,
+        // Determine if we should trigger a combat encounter
+        let combatEncounter = null;
+
+        // 1. Assault mission at destination (takes priority over generic hostility)
+        if (state.activeMission?.type === "assault" && state.activeMission.targetPort === state.destination) {
+          const mission = state.activeMission;
+          combatEncounter = {
+            type: "hostile_port_entry",   // uses same flavour / logic
+            enemy: mission.enemy || {
+              name: `${port.name} Garrison`,
+              hull: 200,
+              cannons: 20,
+              crew: 50,
+              faction: portFaction,
+              gold: 500,
+            },
           };
-          const encounterContext = L.buildEncounterContext(state, "hostile_port_entry", enemy);
+        }
+        // 2. Hostile port (reputation < 10)
+        else if (playerRep < 10) {
+          combatEncounter = {
+            type: "hostile_port_entry",
+            enemy: {
+              name: `${port.name} Guards`,
+              hull: 150,
+              cannons: 15,
+              crew: 40,
+              faction: portFaction,
+              gold: 300,
+            },
+          };
+        }
+
+        if (combatEncounter) {
+          const encounterContext = L.buildEncounterContext(state, combatEncounter.type, combatEncounter.enemy);
+          const logMsg = state.activeMission?.type === "assault"
+            ? `Arrived at ${port.name}. The garrison is on high alert!`
+            : `Arrived at ${port.name}. Hostile port!`;
           return {
             ...state,
             currentPort: state.destination,
@@ -275,7 +302,7 @@ window.E = (() => {
             sailingDaysLeft: 0,
             encounterContext,
             screen: "intercept",
-            log: [...state.log, `Arrived at ${port.name}. Hostile port!`]
+            log: [...state.log, logMsg]
           };
         }
 

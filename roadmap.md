@@ -49,7 +49,18 @@ These decisions are locked. New features must respect them.
 
 ---
 
+### Development Constraints
+
+These apply to every phase, every feature, without exception:
+
+- **Test coverage:** every new system ships with at least one unit test in `logic.js` and one reducer test in `engine.js`. UI smoke tests for any new screen. Tests are written in the same session as the feature, not deferred.
+- **Documentation:** `architecture.md` is updated when a new system changes the state shape, adds a major function, or introduces a new screen. `README.md` feature list is updated at the end of each phase.
+- **No orphaned code:** if a function is added to `logic.js`, it must be called somewhere. If a field is added to state, it must be read somewhere. Dead code is removed before the phase is closed.
+
+---
+
 ## Roadmap Overview
+**Standing rule across all phases:** a phase is not closed until its test coverage is written and `architecture.md` reflects any state shape changes introduced. Doc and test work are part of the feature, not a follow-up.
 
 ```
 Phase 0 — Stabilization          (prerequisite for everything)
@@ -315,6 +326,15 @@ Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat:
 
 ---
 
+### P2.8 — Bounty Hunter Spawns
+**What:** High infamy attracts hired hunters. A `calculateNotoriety(state)` function in logic.js combines infamy score and negative reputation across factions into a single notoriety value. A `shouldSpawnHunter(state)` function rolls against notoriety daily — low notoriety means rare spawns, high notoriety means near-certain. When a hunter spawns, it routes through the intercept screen (P0.8) as a special encounter type (`bounty_hunt`) with fight as the only real option and flavour text naming the hiring faction. Hunter ships are templates in `data.js` scaled to player fame tier — a low-fame player gets a sloop, a high-fame player gets a frigate with veteran crew. Defeating a hunter yields high gold, high fame, and a notoriety reduction. Notoriety is displayed on the FactionsScreen.
+**Complexity:** Medium (new logic functions, new encounter type, new data templates, notoriety display)
+**Dependencies:** P2.7 (infamy track is the input to notoriety), P0.8 (intercept screen handles the encounter)
+**Design impact:** High infamy has real teeth. The player cannot raid indefinitely without consequences finding them at sea. Embodies "every success creates new problems" — a string of profitable raids summons increasingly dangerous hunters. Notoriety display on FactionsScreen gives the player visible warning before hunters become overwhelming.
+
+
+---
+
 ## Phase 3 — Depth and Replayability
 > **Goal: the world has secrets. The player has rivals. Named characters have histories.**
 
@@ -349,6 +369,7 @@ Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat:
 **Complexity:** High (officer slots interact with almost every system)
 **Dependencies:** P1.5 complete and stable, P2.5 (rumors can reference officers)
 **Design impact:** Small cast of named characters the player actively manages and protects. Creates attachment at a higher intensity than roster crew. Losing your surgeon before a long voyage is a real tactical decision: do you delay and find a new one, or risk it?
+**Note — subsumes Crew Specialists from earlier design:** The officer system is the intended implementation of the "crew specialists" concept (named hireable roles with mechanical effects: Gunner, Navigator, Doctor/Surgeon, Bosun). The distinction is that officers are slot-based, loyalty-tracked, and deeply integrated rather than a flat array of stat modifiers. Any tasks previously listed under "Crew Specialists" (tavern hire flow, `crew.specialists` state array, `getShipStats` modifier integration) are implemented here instead, not as a separate prior system.
 
 ---
 
