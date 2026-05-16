@@ -59,6 +59,7 @@ window.E = (() => {
     log: [],
     gold: 1000,
     fame: 0,
+    previousPort: null,
     currentPort: "port_royal",
     destination: null,
     sailingDaysLeft: 0,
@@ -164,6 +165,7 @@ window.E = (() => {
         const days = L.travelDays(state.currentPort, action.port, state);
         return {
           ...state,
+          previousPort: state.currentPort,   // remember where we sailed from
           destination: action.port,
           sailingDaysLeft: days,
           sailingDaysTotal: days,
@@ -694,16 +696,13 @@ window.E = (() => {
         // Defeat
         if (newBattleState.playerHull <= 0) {
           newBattleState.phase = "defeat";
-          newBattleState.log.push("Your ship is destroyed! Returning to port.");
+          newBattleState.log.push("Your ship is destroyed!");
           return {
             ...state,
             ship: { ...state.ship, hull: newBattleState.playerHull },
             crew: { ...state.crew, current: newBattleState.playerCrew, morale: newMorale },
-            battleState: newBattleState,
-            screen: "port",
-            destination: null,
-            sailingDaysLeft: 0,
-            sailingDaysTotal: 0
+            battleState: newBattleState
+            // keep screen "battle" so the player sees the defeat message
           };
         }
 
@@ -727,44 +726,41 @@ window.E = (() => {
         };
       }
 
-      case A.DISMISS_BATTLE: {
-        const { battleState } = state;
-        const returnScreen = battleState.returnScreen || "port";
+     case A.DISMISS_BATTLE: {
+      const { battleState } = state;
 
-        // if (battleState.phase === "victory" && state.activeMission) {
-        //   if (state.activeMission.type === "combat" || state.activeMission.type === "assault") {
-        //     const mission = state.activeMission;
-        //     const newRep = L.applyReputationImpact(state, mission.repImpact);
-        //     return {
-        //       ...state,
-        //       gold: state.gold + mission.gold,
-        //       fame: state.fame + mission.fame,
-        //       reputation: newRep,
-        //       activeMission: null,
-        //       missions: L.generateMissions(state.currentPort, state),
-        //       battleState: null,
-        //       screen: returnScreen,
-        //       log: [...state.log, `Completed mission: ${mission.name}. +${mission.gold}g, +${mission.fame} fame.`]
-        //     };
-        //   }
-        // }
-
-        // Return to sailing if battle or fled during a voyage
-        if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
-          return {
-            ...state,
-            battleState: null,
-            screen: "sailing"
-          };
-        }
-
-        // Default: return to port (or wherever the battle started)
+      // Defeat: wash ashore at the port you left
+      if (battleState.phase === "defeat") {
+        const returnPort = state.previousPort || state.currentPort;
+        const portName = PORTS[state.currentPort]?.name || "a nearby port";
         return {
           ...state,
           battleState: null,
-          screen: returnScreen
+          screen: "port",
+          currentPort: returnPort,
+          destination: null,
+          sailingDaysLeft: 0,
+          sailingDaysTotal: 0,
+          log: [...state.log, `Defeated in battle and washed ashore at ${portName}.`]
         };
       }
+
+      // Fled during a voyage → continue sailing
+      if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
+        return {
+          ...state,
+          battleState: null,
+          screen: "sailing"
+        };
+      }
+
+      // Victory / fled in port → return to port
+      return {
+        ...state,
+        battleState: null,
+        screen: battleState.returnScreen || "port"
+      };
+    }
 
       // --- EVENTS ---
       case A.RESOLVE_EVENT: {
