@@ -102,7 +102,7 @@ window.S = (() => {
     const repCost = L.shipRepairCost(state);
     const effectiveShipStats = L.getShipStats(state); 
     const canFinish = state.activeMission &&
-      state.currentPort === state.activeMission.targetPort;
+  (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
 
     return (
       <div style={{

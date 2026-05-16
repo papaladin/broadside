@@ -731,24 +731,25 @@ window.E = (() => {
         const { battleState } = state;
         const returnScreen = battleState.returnScreen || "port";
 
-        if (battleState.phase === "victory" && state.activeMission) {
-          if (state.activeMission.type === "combat" || state.activeMission.type === "assault") {
-            const mission = state.activeMission;
-            const newRep = L.applyReputationImpact(state, mission.repImpact);
-            return {
-              ...state,
-              gold: state.gold + mission.gold,
-              fame: state.fame + mission.fame,
-              reputation: newRep,
-              activeMission: null,
-              missions: L.generateMissions(state.currentPort, state),
-              battleState: null,
-              screen: returnScreen,
-              log: [...state.log, `Completed mission: ${mission.name}. +${mission.gold}g, +${mission.fame} fame.`]
-            };
-          }
-        }
+        // if (battleState.phase === "victory" && state.activeMission) {
+        //   if (state.activeMission.type === "combat" || state.activeMission.type === "assault") {
+        //     const mission = state.activeMission;
+        //     const newRep = L.applyReputationImpact(state, mission.repImpact);
+        //     return {
+        //       ...state,
+        //       gold: state.gold + mission.gold,
+        //       fame: state.fame + mission.fame,
+        //       reputation: newRep,
+        //       activeMission: null,
+        //       missions: L.generateMissions(state.currentPort, state),
+        //       battleState: null,
+        //       screen: returnScreen,
+        //       log: [...state.log, `Completed mission: ${mission.name}. +${mission.gold}g, +${mission.fame} fame.`]
+        //     };
+        //   }
+        // }
 
+        // Return to sailing if battle or fled during a voyage
         if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
           return {
             ...state,
@@ -757,6 +758,7 @@ window.E = (() => {
           };
         }
 
+        // Default: return to port (or wherever the battle started)
         return {
           ...state,
           battleState: null,
