@@ -12,84 +12,223 @@ window.D = (() => {
   //  services: Available services (shipyard, missions, crew, upgrades).
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const PORTS = {
-    port_royal: {
-      name: "Port Royal",
-      x: 650, y: 300,
-      faction: "english",
-      services: ["shipyard", "missions", "crew", "upgrades"],
-      desc: "Bustling English port with a thriving market and strict laws. The heart of British trade in the Caribbean."
+ 
+  // ═══════════════════════════════════════════════════
+  //  STANDARD — visible and reachable from the start
+  // ═══════════════════════════════════════════════════
+ 
+  tortuga: {
+    name: "Tortuga", faction: "pirate",
+    x: 490, y: 245,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "A lawless haven for pirates and buccaneers. The most notorious port in the Caribbean.",
+  },
+ 
+  portDepaix: {
+    name: "Port-de-Paix", faction: "french",
+    x: 476, y: 228,
+    services: ["tavern", "crew", "missions"],
+    desc: "A small French port on northern Saint-Domingue, close neighbour to Tortuga.",
+  },
+ 
+  petitGoave: {
+    name: "Petit-Goâve", faction: "french",
+    x: 460, y: 270,
+    services: ["tavern", "crew", "missions"],
+    desc: "A French buccaneer base on western Saint-Domingue. Rougher and more desperate than Martinique.",
+  },
+ 
+  santoDomingo: {
+    name: "Santo Domingo", faction: "spanish",
+    x: 545, y: 268,
+    services: ["tavern", "shipyard", "crew"],
+    desc: "The oldest European city in the Americas. A proud Spanish administrative centre on Hispaniola.",
+  },
+ 
+  havana: {
+    name: "Havana", faction: "spanish",
+    x: 310, y: 190,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "Crown jewel of Spanish power in the New World. Heavily fortified and fiercely proud.",
+  },
+ 
+  santiagoDeCuba: {
+    name: "Santiago de Cuba", faction: "spanish",
+    x: 415, y: 238,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "The second city of Cuba. A waypoint for Spanish convoys heading east toward Hispaniola.",
+  },
+ 
+  nassau: {
+    name: "Nassau", faction: "pirate",
+    x: 405, y: 152,
+    services: ["tavern", "crew", "missions"],
+    desc: "A loosely governed English settlement in the Bahamas. Rapidly becoming a pirate refuge.",
+  },
+ 
+  portRoyal: {
+    name: "Port Royal", faction: "english",
+    x: 405, y: 280,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "The wealthiest English harbour in the Caribbean. Rebuilt since the great earthquake of 1692.",
+  },
+ 
+  kingston: {
+    name: "Kingston", faction: "english",
+    x: 422, y: 296,
+    services: ["tavern", "crew"],
+    desc: "A young town growing in Port Royal's shadow. Modest but honest trade and a welcome harbour.",
+  },
+ 
+  portobelo: {
+    name: "Portobelo", faction: "spanish",
+    x: 355, y: 430,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "The treasure fair port of the Spanish Main. Silver from Peru flows through here before the Atlantic crossing.",
+  },
+ 
+  cartagena: {
+    name: "Cartagena", faction: "spanish",
+    x: 440, y: 415,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "A formidable fortified city. The Spanish treasure fleet assembles here — rich, guarded, and unforgiving.",
+  },
+ 
+  maracaibo: {
+    name: "Maracaibo", faction: "spanish",
+    x: 515, y: 410,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "A Spanish colonial port deep in a sheltered lake. Sacked by Morgan, now more heavily garrisoned.",
+  },
+ 
+  curacao: {
+    name: "Curaçao", faction: "dutch",
+    x: 558, y: 390,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "The jewel of Dutch Caribbean trade. A prosperous free port with a sharp mercantile eye.",
+  },
+ 
+  stEustatius: {
+    name: "St. Eustatius", faction: "dutch",
+    x: 672, y: 287,
+    services: ["tavern", "crew", "missions"],
+    desc: "The Golden Rock. A Dutch free-trade port where anything can be bought if the price is right.",
+  },
+ 
+  martinique: {
+    name: "Martinique", faction: "french",
+    x: 700, y: 335,
+    services: ["tavern", "crew", "missions"],
+    desc: "A proud French colony rich in sugar and rum. The most cultivated port in the eastern Caribbean.",
+  },
+ 
+  bridgetown: {
+    name: "Bridgetown", faction: "english",
+    x: 728, y: 368,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "The beating heart of English sugar trade. Barbados is the wealthiest island in the New World.",
+  },
+ 
+  // ═══════════════════════════════════════════════════
+  //  REMOTE — visible on map but require sufficient
+  //  ship range (brigantine+ typically). Greyed out
+  //  in MapScreen when canReach() returns false.
+  // ═══════════════════════════════════════════════════
+ 
+  campeche: {
+    name: "Campeche", faction: "spanish",
+    x: 148, y: 248,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "A Gulf of Mexico port famous for logwood. Remote and frequently raided by buccaneers.",
+  },
+ 
+  veracruz: {
+    name: "Veracruz", faction: "spanish",
+    x: 38, y: 258,
+    services: ["tavern", "shipyard", "missions"],
+    desc: "The origin point of the Spanish treasure fleets. Immensely wealthy and immensely dangerous.",
+  },
+ 
+  bermuda: {
+    name: "Bermuda", faction: "english",
+    x: 648, y: 35,
+    services: ["tavern", "crew"],
+    desc: "A remote English outpost far to the north. A vital resupply stop for ships making the Atlantic crossing.",
+  },
+ 
+  providencia: {
+    name: "Old Providence", faction: "pirate",
+    x: 248, y: 358,
+    services: ["tavern", "crew", "missions"],
+    desc: "A remote island off Nicaragua used by buccaneers and rogue English settlers. Off every map that matters.",
+  },
+ 
+  trinidad: {
+    name: "Trinidad", faction: "spanish",
+    x: 672, y: 415,
+    services: ["tavern", "missions"],
+    desc: "A remote Spanish island at the Caribbean's southeastern edge. Gateway to the South American mainland.",
+  },
+ 
+  // ═══════════════════════════════════════════════════
+  //  HIDDEN — not rendered on MapScreen until
+  //  unlockCondition is satisfied for the current
+  //  save state. Logic lives in canSeePort() in
+  //  logic.js (Phase 3 implementation).
+  //
+  //  These ports are fully inert until that function
+  //  is written — the unlockCondition field is ignored
+  //  by all current code.
+  // ═══════════════════════════════════════════════════
+ 
+  roatan: {
+    name: "Roatán", faction: "pirate",
+    x: 220, y: 308,
+    services: ["tavern", "crew", "missions"],
+    desc: "A secret pirate haven in the Bay Islands of Honduras. No navy has found it yet.",
+    unlockCondition: {
+      type: "any", conditions: [
+        { type: "fame",       value: 100 },
+        { type: "reputation", faction: "pirate", value: 80 },
+      ],
     },
-    kingston: {
-      name: "Kingston",
-      x: 700, y: 350,
-      faction: "english",
-      services: ["shipyard", "missions", "crew"],
-      desc: "A well-defended English port. Home to the Royal Navy's Caribbean fleet."
+  },
+ 
+  dryTortugas: {
+    name: "Dry Tortugas", faction: "pirate",
+    x: 295, y: 158,
+    services: ["tavern", "missions"],
+    desc: "A desolate cluster of islands at the tip of the Florida Keys. A pirate waypoint hidden in plain sight.",
+    unlockCondition: {
+      type: "item", value: "map_fragment_tortugas",
     },
-    havana: {
-      name: "Havana",
-      x: 50, y: 100,
-      faction: "spanish",
-      services: ["shipyard", "missions", "crew", "upgrades"],
-      desc: "The jewel of the Spanish Empire. Heavily fortified and rich with gold from the New World."
+  },
+ 
+  lasAves: {
+    name: "Las Aves", faction: "pirate",
+    x: 590, y: 388,
+    services: ["tavern", "missions"],
+    desc: "A treacherous shoal island group. The wrecks of a French fleet lie here. Pirates know the safe channels.",
+    unlockCondition: {
+      type: "item", value: "map_fragment_lasAves",
     },
-    cartagena: {
-      name: "Cartagena",
-      x: 100, y: 50,
-      faction: "spanish",
-      services: ["shipyard", "missions", "crew"],
-      desc: "A major Spanish port with towering walls. A hub for treasure fleets."
+  },
+ 
+  libertalia: {
+    name: "Libertalia", faction: "pirate",
+    x: 718, y: 445,
+    services: ["tavern", "shipyard", "crew", "missions"],
+    desc: "The legendary pirate utopia. Some say it does not exist. Those who have been there do not say much at all.",
+    unlockCondition: {
+      type: "all", conditions: [
+        { type: "fame",  value: 300 },
+        { type: "item",  value: "map_fragment_libertalia" },
+        { type: "ship",  minSize: "frigate" },
+      ],
     },
-    tortuga: {
-      name: "Tortuga",
-      x: 200, y: 200,
-      faction: "pirate",
-      services: ["missions", "crew"],
-      desc: "Lawless pirate haven. No questions asked, but no shipyards either."
-    },
-    nassau: {
-      name: "Nassau",
-      x: 300, y: 250,
-      faction: "pirate",
-      services: ["missions", "crew", "upgrades"],
-      desc: "The Republic of Pirates. A free port for those who dare to live outside the law."
-    },
-    maracaibo: {
-      name: "Maracaibo",
-      x: 150, y: 300,
-      faction: "spanish",
-      services: ["missions", "crew"],
-      desc: "A wealthy Spanish port, but its shallow waters make it vulnerable to raids."
-    },
-    port_de_paix: {
-      name: "Port-de-Paix",
-      x: 400, y: 150,
-      faction: "french",
-      services: ["shipyard", "missions", "crew"],
-      desc: "A French port known for its sugar plantations and privateers."
-    },
-    martinique: {
-      name: "Martinique",
-      x: 500, y: 100,
-      faction: "french",
-      services: ["missions", "crew"],
-      desc: "A French island with a small but strategic port."
-    },
-    curacao: {
-      name: "Curaçao",
-      x: 250, y: 50,
-      faction: "dutch",
-      services: ["shipyard", "missions", "crew"],
-      desc: "A Dutch trading post. Neutral ground for merchants of all nations."
-    },
-    st_eustatius: {
-      name: "St. Eustatius",
-      x: 450, y: 200,
-      faction: "dutch",
-      services: ["missions", "crew"],
-      desc: "A small but prosperous Dutch island. Known as the 'Golden Rock' for its trade."
-    }
-  };
+  },
+ 
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIPS: Player and enemy ship types.
@@ -537,10 +676,10 @@ const CREW_LAST_NAMES = {
       }
     },
     {
-      id: "assault_port_royal",
+      id: "assault_portRoyal",
       name: "Strike at Port Royal",
       desc: "Dare to attack the heart of English power in the Caribbean.",
-      targetPort: "port_royal",
+      targetPort: "portRoyal",
       type: "assault",
       gold: 5000,
       fame: 150,
@@ -561,7 +700,7 @@ const CREW_LAST_NAMES = {
       id: "patrol_waters",
       name: "Patrol the Waters",
       desc: "Patrol the waters around Port Royal for pirate activity.",
-      targetPort: "port_royal",
+      targetPort: "portRoyal",
       type: "patrol",
       gold: 800,
       fame: 15,

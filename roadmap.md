@@ -76,14 +76,14 @@ Each phase is designed so the game is fully playable at the end of it. No phase 
 
 ---
 
-## Phase 0 — Stabilization
+## Phase 0 — Stabilization --> DONE
 > **Goal: the foundation is trustworthy before we build on it.**
 
 Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no new features — only fixes.
 
 ---
 
-### P0.1 — Fix duplicate `getEffectiveMorale` declaration
+### P0.1 — Fix duplicate `getEffectiveMorale` declaration --> DONE
 **What:** `logic.js` declares `getEffectiveMorale` twice with `const` in the same scope. Fatal `SyntaxError` — `window.L` never loads, entire game is a blank screen.
 **Complexity:** Trivial (delete 5 lines)
 **Dependencies:** None
@@ -91,7 +91,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.2 — Fix `L.calculateTravelDays` wrong function name in engine.js
+### P0.2 — Fix `L.calculateTravelDays` wrong function name in engine.js --> DONE
 **What:** `engine.js` calls `L.calculateTravelDays()` but the function is named `L.travelDays()`. Crashes on every sail attempt.
 **Complexity:** Trivial (rename call)
 **Dependencies:** None
@@ -99,7 +99,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.3 — Fix `localStorage` key mismatch (save/load broken)
+### P0.3 — Fix `localStorage` key mismatch (save/load broken) --> DONE
 **What:** `logic.js` save functions use key `"pirates_save"`, engine.js reducer uses `"piratesSave"`. The Continue button never appears. `L.saveGame` and `L.loadGame` are effectively dead code.
 **Complexity:** Low (unify key, route engine SAVE/LOAD through `L.saveGame`/`L.loadGame`)
 **Dependencies:** None
@@ -107,7 +107,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.4 — Fix `START_GAME` mutating `initialState`
+### P0.4 — Fix `START_GAME` mutating `initialState` --> DONE
 **What:** `newState.crew.max = ...` mutates the shared `initialState` object. After the first game, a new game starts with corrupted initial state.
 **Complexity:** Low (spread `crew` before mutating)
 **Dependencies:** None
@@ -115,7 +115,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.5 — Remove/fix dead `completeMissionOnCombatVictory` in logic.js
+### P0.5 — Remove/fix dead `completeMissionOnCombatVictory` in logic.js --> DONE
 **What:** Function internally calls `L.xxx` inside the IIFE where `L` doesn't exist yet. Never called anywhere. Either remove it or fix the references.
 **Complexity:** Low
 **Dependencies:** None
@@ -123,7 +123,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.6 — Fix victory gold display in BattleScreen
+### P0.6 — Fix victory gold display in BattleScreen --> DONE
 **What:** `bs.goldReward` is never set in `battleState`. Victory screen always shows blank reward. Players receive gold silently with no feedback.
 **Complexity:** Low (store `goldReward` in battleState when building it)
 **Dependencies:** None
@@ -131,7 +131,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.7 — Fix HIRE_CREW and CrewScreen using base maxCrew instead of state.crew.max
+### P0.7 — Fix HIRE_CREW and CrewScreen using base maxCrew instead of state.crew.max --> DONE
 **What:** Two places read `SHIPS[type].maxCrew` instead of `state.crew.max`. Will break silently when any upgrade modifies crew capacity.
 **Complexity:** Trivial
 **Dependencies:** None
@@ -139,7 +139,7 @@ Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no n
 
 ---
 
-### P0.8 — Pre-battle intercept screen
+### P0.8 — Pre-battle intercept screen --> DONE
 **What:** Currently every encounter jumps straight to combat. Add a brief intercept screen with options: Engage, Attempt to flee (speed check), Demand surrender (reputation-gated), Parley (faction-gated). This is the last Phase 0 item because it costs almost nothing structurally but has outsized impact on feel.
 **Complexity:** Low-medium (new screen, new action, route existing battle trigger through it)
 **Dependencies:** P0.2
@@ -154,7 +154,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.1 — Morale recovery in port (Tavern service)
+### P1.1 — Morale recovery in port (Tavern service) --> DONE
 **What:** Morale currently only decays. Add a Tavern service at eligible ports where the player can spend gold to raise crew morale. Also add passive morale recovery: each day in port (not at sea) restores 2 morale. Morale decay at sea continues.
 **Complexity:** Low
 **Dependencies:** P0.1
@@ -230,7 +230,7 @@ This phase transforms the crew from a number into a cast. It makes every existin
 
 ---
 
-### P1.5.1 — Named crew roster (Layer 1)
+### P1.5.1 — Named crew roster (Layer 1) -> DONE
 **What:** Replace `crew.current` (a number) with `crew.roster` (an array of crew member objects). Each member has: `id`, `name` (drawn from faction-appropriate name list in data.js), `role` (deckhand/gunner/cook/carpenter/navigator — weighted random), `daysAboard`. `crew.current` becomes `crew.roster.length`. Hire/fire/lose crew becomes array add/remove. Events reference specific crew members by name.
 **Complexity:** Medium (refactor all `crew.current` references in engine.js, logic.js, screens.jsx — systematic but not conceptually hard)
 **Dependencies:** Phase 0 complete

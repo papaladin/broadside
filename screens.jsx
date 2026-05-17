@@ -302,16 +302,233 @@ window.S = (() => {
               </pattern>
             </defs>
             <rect width={W} height={H} fill="url(#seaGrid)" />
+              {/* ── LANDMASSES ─────────────────────────────────────────────────────
+                  Insert inside the <svg> in MapScreen, immediately after:
+                    <rect width={W} height={H} fill="url(#seaGrid)" />
+                  and before the active mission route block.
+
+                  All coordinates calibrated against actual port positions.
+                  Key anchors used:
+                    Havana        (310, 190)  — western Cuba
+                    Santiago      (415, 238)  — eastern Cuba
+                    Dry Tortugas  (295, 158)  — Florida Keys tip
+                    Nassau        (405, 152)  — Bahamas, east of Florida
+                    Tortuga       (490, 245)  — just off NW Hispaniola
+                    Port-de-Paix  (476, 228)  — N Hispaniola coast
+                    Santo Domingo (545, 268)  — SE Hispaniola
+                    Port Royal    (405, 280)  — south Jamaica coast
+                    Campeche      (148, 248)  — east Yucatan/Gulf coast
+                    Veracruz      (38,  258)  — Gulf of Mexico
+                    Portobelo     (355, 430)  — Panama
+                    Cartagena     (440, 415)  — Colombia
+                    Maracaibo     (515, 410)  — Venezuela
+              ──────────────────────────────────────────────────────────────────── */}
+              <g opacity="0.5">
+
+                {/* ── Florida peninsula ───────────────────────────────────────────
+                    Tip near Dry Tortugas (295,158). Body extends north.
+                    Narrow and tapered — clearly a peninsula, not an island.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 344 62 L 352 88 L 356 116 L 350 140 L 338 158
+                    L 326 162 L 316 155 L 315 132 L 320 105
+                    L 328 78 L 336 62 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* Florida Keys — faint westward arc from tip */}
+                <path
+                  d="M 326 162 Q 315 167 305 164 Q 296 161 290 156"
+                  fill="none" stroke="#0d1e2e" strokeWidth="4" strokeLinecap="round"
+                  opacity="0.8"
+                />
+
+                {/* ── Cuba ────────────────────────────────────────────────────────
+                    Havana (310,190) = western tip. Santiago (415,238) = eastern.
+                    Very flat and wide — the most recognisable Caribbean island.
+                    Top arc slightly above ports, bottom arc slightly below.
+                    Critical: ends well before x:455 to stay clear of Hispaniola.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 296 196
+                    Q 335 182 375 181
+                    Q 408 181 435 192
+                    Q 444 202 436 215
+                    Q 405 225 365 226
+                    Q 325 226 298 214
+                    Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── Hispaniola ──────────────────────────────────────────────────
+                    Port-de-Paix (476,228) on N coast. Santo Domingo (545,268) SE.
+                    Petit-Goâve (460,270) SW coast. Tortuga is a tiny island just
+                    off the NW corner — not included in the mainland shape.
+                    Starts at x:462 — leaves a clear gap east of Cuba (ends x:436).
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 462 234
+                    Q 498 222 538 226
+                    Q 566 232 570 255
+                    Q 564 278 530 286
+                    Q 496 288 468 274
+                    Q 452 260 462 234
+                    Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* Tortuga — tiny island just north of Port-de-Paix */}
+                <ellipse cx={490} cy={238} rx={5} ry={3}
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5" />
+
+                {/* ── Jamaica ─────────────────────────────────────────────────────
+                    Port Royal (405,280) and Kingston (422,296) on south coast.
+                    Small, clearly separate from Cuba to its north.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 388 275 Q 415 267 444 274 Q 452 284 444 298
+                    Q 418 308 392 298 Q 380 288 388 275 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── Puerto Rico ─────────────────────────────────────────────────
+                    East of Hispaniola, west of the Antilles chain.
+                    Roughly (595–645, 245–262).
+                ─────────────────────────────────────────────────────────────── */}
+                <ellipse cx={620} cy={253} rx={22} ry={9}
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
+
+                {/* ── Bahamas chain ───────────────────────────────────────────────
+                    North of Cuba and Hispaniola, east of Florida.
+                    Nassau (405,152) is the main island.
+                ─────────────────────────────────────────────────────────────── */}
+                {[
+                  [382, 130,  9, 3],   // Grand Bahama — westernmost, northernmost
+                  [405, 144,  7, 3],   // New Providence / Nassau
+                  [432, 150,  5, 2],   // Eleuthera
+                  [450, 160,  4, 2],   // Cat Island
+                  [462, 174,  3, 2],   // Long Island
+                ].map(([cx, cy, rx, ry], i) => (
+                  <ellipse key={`bah${i}`} cx={cx} cy={cy} rx={rx} ry={ry}
+                    fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5" />
+                ))}
+
+                {/* ── Lesser Antilles chain ────────────────────────────────────────
+                    Running south from ~(648,272) down to Trinidad (672,415).
+                    St Eustatius (672,287), Martinique (700,335), Bridgetown (728,368).
+                    Each island a small ellipse, slightly offset east-west for realism.
+                ─────────────────────────────────────────────────────────────── */}
+                {[
+                  [648, 272,  4, 3],   // Guadeloupe / St Kitts area
+                  [654, 290,  3, 4],   // Dominica
+                  [660, 310,  3, 5],   // Martinique (slightly larger)
+                  [664, 330,  3, 4],   // St Lucia
+                  [668, 348,  2, 3],   // St Vincent
+                  [700, 345,  5, 3],   // Barbados — east of the main chain
+                ].map(([cx, cy, rx, ry], i) => (
+                  <ellipse key={`ant${i}`} cx={cx} cy={cy} rx={rx} ry={ry}
+                    fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5" />
+                ))}
+
+                {/* ── Dutch ABC islands (Aruba, Bonaire, Curaçao) ─────────────────
+                    Just north of the Venezuelan coast, near Curaçao (558,390).
+                ─────────────────────────────────────────────────────────────── */}
+                {[
+                  [528, 388,  5, 2],
+                  [544, 390,  4, 2],
+                  [560, 392,  5, 2],
+                ].map(([cx, cy, rx, ry], i) => (
+                  <ellipse key={`abc${i}`} cx={cx} cy={cy} rx={rx} ry={ry}
+                    fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5" />
+                ))}
+
+                {/* ── Trinidad ────────────────────────────────────────────────────
+                    Separate from the Venezuelan coast, south-east.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 662 408 Q 676 403 688 408 Q 690 418 678 422
+                    Q 664 420 660 413 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5"
+                />
+
+                {/* ── Yucatan peninsula ───────────────────────────────────────────
+                    Campeche (148,248) is on its Gulf coast.
+                    Peninsula tip (Cancun area) extends to ~(218,222).
+                    South end connects toward Honduras around (185,295).
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 90 155
+                    Q 112 148 142 155
+                    Q 168 162 180 190
+                    Q 186 222 174 265
+                    Q 158 292 132 296
+                    Q 105 295 86 268
+                    Q 72 244 75 202
+                    Q 78 170 90 155
+                    Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── Mexican Gulf coast ──────────────────────────────────────────
+                    Connects Veracruz (38,258) area to the Yucatan base.
+                    Left edge of the map — just a coastal sliver.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 20 155 L 45 148 L 68 155 L 84 170 Q 86 188 78 202
+                    Q 62 198 42 188 L 20 172 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── Central American coast ──────────────────────────────────────
+                    Runs south from the Yucatan base (around 175,295)
+                    down to Panama (Portobelo at 355,430).
+                    Roatán (220,308) and Old Providence (248,358) sit off this coast.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 172 298
+                    Q 190 320 200 352
+                    Q 208 378 225 402
+                    Q 252 432 295 448
+                    Q 322 455 348 458
+                    L 320 460 L 155 460 L 155 310 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── South American northern coast ───────────────────────────────
+                    Runs along the bottom of the map.
+                    Portobelo (355,430) → Cartagena (440,415) →
+                    Maracaibo (515,410) → Trinidad area (672,415).
+                    Fill extends to the bottom edge of the SVG.
+                ─────────────────────────────────────────────────────────────── */}
+                <path
+                  d="M 348 458
+                    Q 380 430 420 420
+                    Q 458 412 495 410
+                    Q 535 410 568 418
+                    Q 608 426 645 422
+                    Q 672 418 700 426
+                    Q 730 432 760 438
+                    L 760 460 L 348 460 Z"
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+                />
+
+                {/* ── Bermuda ─────────────────────────────────────────────────────
+                    Far north-east. Tiny island cluster. (648,35)
+                ─────────────────────────────────────────────────────────────── */}
+                <ellipse cx={648} cy={35} rx={6} ry={3}
+                  fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.5" />
+
+              </g>
 
             {/* Connections */}
-            {Object.entries(PORTS).map(([k, p]) =>
+            {/* {Object.entries(PORTS).map(([k, p]) =>
               Object.entries(PORTS).filter(([k2]) => k2 > k).map(([k2, p2]) => {
                 const d = Math.hypot(p.x - p2.x, p.y - p2.y);
                 return d < 230
                   ? <line key={k+k2} x1={p.x} y1={p.y} x2={p2.x} y2={p2.y} stroke="#0d1e2e" strokeWidth="0.8" />
                   : null;
               })
-            )}
+            )} */}
 
             {/* Active mission route */}
             {state.activeMission && (() => {

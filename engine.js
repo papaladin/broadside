@@ -43,7 +43,7 @@ window.E = (() => {
     log: [],
     gold: 1000,
     fame: 0,
-    currentPort: "port_royal",
+    currentPort: "portRoyal",
     previousPort: null,
     destination: null,
     sailingDaysLeft: 0,
@@ -74,7 +74,7 @@ window.E = (() => {
         const start = STARTS.find(s => s.id === action.scenarioId);
         if (!start) return { ...initialState, screen: "start" };
 
-        const newState = { ...initialState, screen: "port", currentPort: "port_royal", day: 1, log: [`Started as ${start.name}.`], reputation: {} };
+        const newState = { ...initialState, screen: "port", currentPort: "portRoyal", day: 1, log: [`Started as ${start.name}.`], reputation: {} };
 
         start.bonuses.forEach(bonus => {
           if (bonus.includes("gold")) {
@@ -94,7 +94,7 @@ window.E = (() => {
           }
         });
 
-        const startFaction = PORTS["port_royal"].faction; // English
+        const startFaction = PORTS["portRoyal"].faction; // English
         const crewCount = Math.floor(newState.crew.max * 0.6);
         newState.crew.roster = L.generateRoster(crewCount, startFaction);
 
