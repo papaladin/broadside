@@ -176,13 +176,26 @@ window.E = (() => {
       // --- PORT ACTIONS ---
       case A.REPAIR: {
         const shipStats = L.getShipStats(state);
-        const cost = (shipStats.maxHull - state.ship.hull) * 2;
-        if (state.gold < cost) return { ...state };
-        return { ...state, gold: state.gold - cost, ship: { ...state.ship, hull: shipStats.maxHull }, log: [...state.log, `Repaired ship for ${cost}g.`] };
+        const rep = state.reputation[state.currentPort] ?? 50;
+        const perk = L.getRepPerk(rep);
+        const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
+        const cost = Math.floor(baseCost * perk.repairMult);
+        if (state.gold < cost) {
+          return { ...state, log: [...state.log, "Not enough gold to repair."] };
+        }
+        const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
+        return {
+          ...state,
+          gold: state.gold - cost,
+          ship: { ...state.ship, hull: shipStats.maxHull },
+          log: [...state.log, `Repaired ship for ${cost}g${discountNote}.`]
+        };
       }
 
       case A.BUY_SHIP: {
         const ship = SHIPS[action.shipType];
+        const req = L.meetsRequirement(state, ship);
+        if (!req.allowed) return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
         if (!ship || state.gold < ship.cost) return { ...state };
         let newRoster = state.crew.roster;
         if (ship.maxCrew < newRoster.length) newRoster = newRoster.slice(0, ship.maxCrew);
@@ -190,7 +203,8 @@ window.E = (() => {
       }
 
       case A.BUY_UPGRADE: {
-        const upgrade = UPGRADES[action.upgradeKey];
+        const req = L.meetsRequirement(state, upgrade);
+        if (!req.allowed) return { ...state, log: [...state.log, `Cannot install: ${req.reason}.`] };
         if (!upgrade || state.gold < upgrade.cost || state.ship.upgrades.includes(action.upgradeKey) || !SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) return { ...state };
         return { ...state, gold: state.gold - upgrade.cost, ship: { ...state.ship, upgrades: [...state.ship.upgrades, action.upgradeKey] }, log: [...state.log, `Installed ${upgrade.name} for ${upgrade.cost}g.`] };
       }
@@ -221,6 +235,8 @@ window.E = (() => {
 
       case A.COMPLETE_MISSION: {
         const mission = state.activeMission;
+        const req = L.meetsRequirement(state, mission);
+        if (!req.allowed) return { ...state, log: [...state.log, `Mission unavailable: ${req.reason}.`] };
         if (!mission) return state;
         if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
         const newRep = L.applyReputationImpact(state, mission.repImpact);

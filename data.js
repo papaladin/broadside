@@ -277,6 +277,7 @@ window.D = (() => {
       cannons: 20,
       speed: 5,
       cost: 4000,
+      requiredFame: 50,
       upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
       desc: "A warship. Slow but heavily armed."
     },
@@ -287,6 +288,7 @@ window.D = (() => {
       cannons: 30,
       speed: 3,
       cost: 8000,
+      requiredFame: 100,
       upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
       desc: "The king of the seas. Slow but nearly unstoppable in combat."
     },
@@ -354,6 +356,7 @@ window.D = (() => {
       name: "Extra Cannons",
       desc: "+2 cannons",
       cost: 800,
+      requiredFame: 50,
       effects: { cannonBonus: 2 }
     },
     figurehead: {
@@ -366,12 +369,14 @@ window.D = (() => {
       name: "Copper-Plated Hull",
       desc: "-1 day travel time (wind resistance)",
       cost: 1200,
+      requiredFame: 100,
       effects: { speedBonus: 1 }
     },
     navigational_tools: {
       name: "Navigational Tools",
       desc: "-1 day travel time (better routing)",
       cost: 600,
+      requiredFame: 50,
       effects: { speedBonus: 1 }
     }
   };
@@ -459,7 +464,7 @@ const CREW_LAST_NAMES = {
       targetPort: "havana",
       type: "trade",
       gold: 500,
-      fame: 10,
+      fame: 1,
       risk: "low",
       faction: "spanish",
       repImpact: { spanish: +15, english: -5 }
@@ -471,7 +476,7 @@ const CREW_LAST_NAMES = {
       targetPort: "kingston",
       type: "trade",
       gold: 600,
-      fame: 10,
+      fame: 1,
       risk: "low",
       faction: "french",
       repImpact: { french: +15, english: +5 }
@@ -483,7 +488,7 @@ const CREW_LAST_NAMES = {
       targetPort: "cartagena",
       type: "trade",
       gold: 800,
-      fame: 15,
+      fame: 1,
       risk: "medium",
       faction: "spanish",
       repImpact: { spanish: +20, pirate: -10 }
@@ -497,7 +502,7 @@ const CREW_LAST_NAMES = {
       targetPort: "curacao",
       type: "escort",
       gold: 1000,
-      fame: 20,
+      fame: 1,
       risk: "medium",
       faction: "dutch",
       repImpact: { dutch: +20, pirate: -15 }
@@ -509,7 +514,7 @@ const CREW_LAST_NAMES = {
       targetPort: "havana",
       type: "escort",
       gold: 1500,
-      fame: 30,
+      fame: 1,
       risk: "high",
       faction: "spanish",
       repImpact: { spanish: +30, english: -20 }
@@ -523,7 +528,8 @@ const CREW_LAST_NAMES = {
       targetPort: null,
       type: "combat",
       gold: 2000,
-      fame: 50,
+      requiredFame: 50,
+      fame: 1,
       risk: "high",
       faction: "english",
       repImpact: { english: +30, pirate: -20 },
@@ -542,7 +548,8 @@ const CREW_LAST_NAMES = {
       targetPort: null,
       type: "combat",
       gold: 1800,
-      fame: 40,
+      requiredFame: 50,
+      fame: 1,
       risk: "high",
       faction: "english",
       repImpact: { english: +25, french: -20 },
@@ -582,7 +589,7 @@ const CREW_LAST_NAMES = {
       targetPort: "tortuga",
       type: "smuggle",
       gold: 1200,
-      fame: 25,
+      fame: 1,
       risk: "high",
       faction: "pirate",
       repImpact: { pirate: +20, english: -15 },
@@ -622,7 +629,7 @@ const CREW_LAST_NAMES = {
       targetPort: "nassau",
       type: "smuggle",
       gold: 800,
-      fame: 15,
+      fame: 1,
       risk: "medium",
       faction: "pirate",
       repImpact: { pirate: +15, english: -10 },
@@ -644,7 +651,8 @@ const CREW_LAST_NAMES = {
       targetPort: "havana",
       type: "assault",
       gold: 3000,
-      fame: 100,
+      requiredFame: 100,
+      fame: 3,
       risk: "high",
       faction: "pirate",
       repImpact: { pirate: +30, spanish: -40 },
@@ -663,7 +671,8 @@ const CREW_LAST_NAMES = {
       targetPort: "cartagena",
       type: "assault",
       gold: 4000,
-      fame: 120,
+      requiredFame: 100,
+      fame: 3,
       risk: "high",
       faction: "pirate",
       repImpact: { pirate: +35, spanish: -50 },
@@ -682,7 +691,8 @@ const CREW_LAST_NAMES = {
       targetPort: "portRoyal",
       type: "assault",
       gold: 5000,
-      fame: 150,
+      requiredFame: 100,
+      fame: 3,
       risk: "high",
       faction: "pirate",
       repImpact: { pirate: +40, english: -50 },
@@ -703,7 +713,7 @@ const CREW_LAST_NAMES = {
       targetPort: "portRoyal",
       type: "patrol",
       gold: 800,
-      fame: 15,
+      fame: 1,
       risk: "medium",
       faction: "english",
       repImpact: { english: +20, pirate: -10 }

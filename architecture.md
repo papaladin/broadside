@@ -314,6 +314,8 @@ partial state objects only.
 | `getEffectiveMorale` | `(state)` | Morale with equipment bonuses applied |
 | `canAfford` | `(state, cost)` | Boolean |
 | `hasUpgrade` | `(state, key)` | Boolean — equipment key is installed |
+| `getFameLabel`     |  `L.getFameLabel(50)` → `"Recognised"` | Returns a tier label (Unknown → Immortal) based on fame.     |
+| `meetsRequirement` |  `L.meetsRequirement(state, ship)` → `{ allowed: false, reason: "Requires ★ 50 fame" }` | Checks if the player's fame meets an item's `requiredFame`.  |
 | `shipRepairCost` | `(state)` | Gold cost to fully repair |
 | `reputationLabel` | `(rep)` | String label for a reputation value |
 | `payCrewWages` | `(state)` | Partial state after daily wage payment |
@@ -437,7 +439,7 @@ calculation belongs in `logic.js`. Screens read and render; they do not decide.
 | `BattleScreen` | `"battle"` | Turn-based naval combat |
 | `ShipyardScreen` | `"shipyard"` | Ship purchase, equipment, repair |
 | `CrewScreen` | `"crew"` | Crew roster, hire, morale |
-| `FactionsScreen` | `"factions"` | Reputation per faction and port |
+| `StatusScreen`    | View reputation, fame, infamy, and faction relations.       | Displays Captain's Standing panel, faction rep bars, and perk info. |
 | `EventScreen` | `"event"` | Random event resolution |
 
 **Export pattern:**
@@ -756,6 +758,20 @@ Fight is always available in all types.
 `L.reputationLabel(rep)` returns the label string. Threshold checks happen in
 the reducer (port entry) and screen components (service access, mission filtering).
 
+### Fame System (New)
+
+- **Earning**: Fame is awarded on mission completion. Most missions give **1 fame**; high‑risk missions give **2–3**.
+- **Decay**: Never.
+- **Tiers**:  
+  | Fame | Label |  
+  |------|-------|  
+  | 0–49 | Unknown |  
+  | 50–99 | Recognised |  
+  | 100–199 | Notorious |  
+  | 200–349 | Legendary |  
+  | 350+ | Immortal |
+- **Gating**: Ships, upgrades, and missions can have a `requiredFame` field. Items with a requirement are either hidden (missions) or greyed‑out with a lock reason (ships/upgrades).
+
 ### Combat resolution flow
 
 ```
@@ -792,7 +808,7 @@ whenever the state shape changes between versions.
 ### Add a ship
 
 1. Add to `SHIPS` in `data.js` with all fields including `upgradeSlots` and
-   `maxDaysAtSea`
+   `maxDaysAtSea` and `requiredFame`
 2. ShipyardScreen renders from `SHIPS` automatically for ships with `cost > 0`
 3. `cost: 0` is reserved for the starting ship only
 4. Test: verify `getShipStats` returns correct base stats

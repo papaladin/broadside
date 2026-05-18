@@ -681,17 +681,20 @@ window.S = (() => {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {Object.entries(SHIPS).map(([key, s]) => {
             const isCur = key === state.ship.type;
-            const canBuy = !isCur && state.gold >= s.cost;
-            const lack = !isCur && state.gold < s.cost ? s.cost - state.gold : 0;
+            const shipReq = L.meetsRequirement(state, s);
+            const canBuy = !isCur && shipReq.allowed && state.gold >= s.cost;
+            const lack = !isCur && shipReq.allowed && state.gold < s.cost ? s.cost - state.gold : 0;
+
             return (
               <div key={key} style={panelStyle({
                 background: isCur ? T.greenBg : T.panel,
                 borderColor: isCur ? T.greenBr : T.border,
+                opacity: shipReq.allowed ? 1 : 0.55,
               })}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                   <span style={{ color: T.text, fontSize: 13, fontWeight: "bold" }}>{s.name}</span>
                   {isCur ? <Pill label="Current" color={T.greenBr} />
-                         : <span style={{ color: T.gold, fontSize: 12 }}>{s.cost.toLocaleString()}g</span>}
+                        : <span style={{ color: T.gold, fontSize: 12 }}>{s.cost.toLocaleString()}g</span>}
                 </div>
                 <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 8px", lineHeight: 1.4 }}>{s.desc}</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 8 }}>
@@ -699,12 +702,17 @@ window.S = (() => {
                     <StatBlock key={l} label={l} value={v} />
                   ))}
                 </div>
+                {!shipReq.allowed && (
+                  <div style={{ color: T.gold, fontSize: 10, marginBottom: 6 }}>🔒 {shipReq.reason}</div>
+                )}
                 {!isCur && (
                   <Btn sm v={canBuy ? "gold" : "ghost"}
                     onClick={() => dispatch({ type: A.BUY_SHIP, shipType: key })}
                     disabled={!canBuy}
                   >
-                    {lack ? `Need ${lack.toLocaleString()}g more` : "Purchase"}
+                    {!shipReq.allowed ? "Locked"
+                    : lack ? `Need ${lack.toLocaleString()}g more`
+                    : "Purchase"}
                   </Btn>
                 )}
               </div>
@@ -720,24 +728,32 @@ window.S = (() => {
               {currentShip.upgradeable.map(key => {
                 const upg = UPGRADES[key];
                 const installed = L.hasUpgrade(state, key);
-                const canBuy = !installed && state.gold >= upg.cost;
+                const upgradeReq = L.meetsRequirement(state, upg);
+                const canBuy = !installed && upgradeReq.allowed && state.gold >= upg.cost;
+
                 return (
                   <div key={key} style={panelStyle({
                     background: installed ? T.blueBg : T.panel,
                     borderColor: installed ? T.blueBr : T.border,
+                    opacity: upgradeReq.allowed ? 1 : 0.55,
                   })}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{upg.name}</span>
                       {installed ? <Pill label="Installed" color={T.blueBr} />
-                                 : <span style={{ color: T.gold, fontSize: 11 }}>{upg.cost.toLocaleString()}g</span>}
+                                : <span style={{ color: T.gold, fontSize: 11 }}>{upg.cost.toLocaleString()}g</span>}
                     </div>
                     <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 8px", lineHeight: 1.4 }}>{upg.desc}</p>
+                    {!upgradeReq.allowed && (
+                      <div style={{ color: T.gold, fontSize: 10, marginBottom: 6 }}>🔒 {upgradeReq.reason}</div>
+                    )}
                     {!installed && (
                       <Btn sm v={canBuy ? "default" : "ghost"}
                         onClick={() => dispatch({ type: A.BUY_UPGRADE, upgradeKey: key })}
                         disabled={!canBuy}
                       >
-                        {state.gold < upg.cost ? `Need ${(upg.cost - state.gold).toLocaleString()}g more` : "Install"}
+                        {!upgradeReq.allowed ? "Locked"
+                        : state.gold < upg.cost ? `Need ${(upg.cost - state.gold).toLocaleString()}g more`
+                        : "Install"}
                       </Btn>
                     )}
                   </div>
@@ -858,7 +874,7 @@ window.S = (() => {
   }
 
   // ── STATUS SCREEN (formerly Factions) ──────────────────────────────
-  function FactionsScreen({ state, dispatch }) {
+  function StatusScreen({ state, dispatch }) {
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => {
       if (!acc[p.faction]) acc[p.faction] = [];
       acc[p.faction].push({ key, ...p });
@@ -886,14 +902,18 @@ window.S = (() => {
           ← Back to Port
         </button>
 
-        {/* Fame panel */}
+        {/* Captain's Standing */}
         <div style={panelStyle()}>
-          <SectionTitle>⭐ FAME</SectionTitle>
-          <div style={{ color: T.text, fontSize: 24, fontWeight: "bold" }}>
-            {state.fame}
-          </div>
-          <div style={{ color: T.textDim, fontSize: 10, marginTop: 4 }}>
-            Fame is earned by completing missions and winning battles. It unlocks new ships, upgrades, and missions.
+          <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</span>
+              <span style={{ color: T.textDim, marginLeft: 8, fontSize: 12 }}>{L.getFameLabel(state.fame)}</span>
+            </div>
+            <div>
+              <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>☠ {state.infamy ?? 0}</span>
+              <span style={{ color: T.textDim, marginLeft: 8, fontSize: 12 }}>{L.getInfamyLabel ? L.getInfamyLabel(state.infamy ?? 0) : "Clean"}</span>
+            </div>
           </div>
         </div>
 
@@ -1257,7 +1277,7 @@ const InterceptScreen = ({ state, dispatch }) => {
     SailingScreen,
     ShipyardScreen,
     CrewScreen,
-    FactionsScreen,
+    StatusScreen,
     EventScreen,
     InterceptScreen,
     BattleScreen,

@@ -63,9 +63,9 @@ These apply to every phase, every feature, without exception:
 **Standing rule across all phases:** a phase is not closed until its test coverage is written and `architecture.md` reflects any state shape changes introduced. Doc and test work are part of the feature, not a follow-up.
 
 ```
-Phase 0 — Stabilization          (prerequisite for everything)
-Phase 1 — Core Loop Pressure      (morale, time, money matter)
-Phase 1.5 — Crew as Characters    (names, traits, scars)
+Phase 0 — Stabilization          (prerequisite for everything) --> DONE
+Phase 1 — Core Loop Pressure      (morale, time, money matter) --> started
+Phase 1.5 — Crew as Characters    (names, traits, scars) --> started
 Phase 2 — World Comes Alive       (economy, world events, crew drama)
 Phase 3 — Depth & Replayability   (unlockable world, named NPCs, officers)
 Phase 4 — Save & Polish           (robust persistence, UI feedback)

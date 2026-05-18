@@ -41,8 +41,22 @@ window.L = (() => {
     return "At War";
   };
 
+  const getFameLabel = (fame) => {
+  if (fame >= 350) return "Immortal";
+  if (fame >= 200) return "Legendary";
+  if (fame >= 100) return "Notorious";
+  if (fame >= 50)  return "Recognised";
+  return "Unknown";
+  };
+
   const hasUpgrade = (state, upgradeKey) => {
     return state.ship.upgrades.includes(upgradeKey);
+  };
+
+  const meetsRequirement = (state, item) => {
+  if (item.requiredFame && state.fame < item.requiredFame)
+    return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${getFameLabel(item.requiredFame)})` };
+  return { allowed: true, reason: null };
   };
 
   const getEffectiveMorale = (state) => {
@@ -143,6 +157,14 @@ window.L = (() => {
     return newRep;
   };
 
+  const getRepPerk = (rep) => {
+    if (rep >= 80) return { tier: "allied",   repairMult: 0.80, missionMult: 1.20, servicesBlocked: false };
+    if (rep >= 50) return { tier: "friendly", repairMult: 0.90, missionMult: 1.10, servicesBlocked: false };
+    if (rep >= 30) return { tier: "neutral",  repairMult: 1.00, missionMult: 0.90, servicesBlocked: false };
+    if (rep >= 10) return { tier: "hostile",  repairMult: 1.00, missionMult: 0.75, servicesBlocked: false };
+    return               { tier: "at_war",   repairMult: 1.00, missionMult: 0,    servicesBlocked: true  };
+  };
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  CREW FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -176,6 +198,7 @@ window.L = (() => {
       if (mission.risk === "medium" && playerRep < 20) {
         return false;
       }
+      if (mission.requiredFame && state.fame < mission.requiredFame) return false;
       return true;
     });
 
@@ -639,6 +662,8 @@ const resolveCombatAction = (state, action) => {
     // Helpers
     canAfford,
     reputationLabel,
+    getFameLabel,
+    meetsRequirement,
     hasUpgrade,
     getShipStats,
     getEffectiveMorale,
@@ -653,6 +678,7 @@ const resolveCombatAction = (state, action) => {
     decayReputation,
     updateReputation,
     applyReputationImpact,
+    getRepPerk,
 
     // Crew
     payCrewWages,

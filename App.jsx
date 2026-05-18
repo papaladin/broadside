@@ -37,7 +37,9 @@ const App = () => {
           <span style={{ color: T.textDim, marginLeft: 10 }}>📅 Day {state.day}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>😊 {effectiveMorale}%</span>        </div>
+          <span style={{ color: T.textDim, marginLeft: 10 }}>😊 {effectiveMorale}%</span>
+          <span style={{ color: T.gold, marginLeft: 10 }}>★ {state.fame}</span>
+          <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, marginLeft: 10 }}>☠ {state.infamy ?? 0}</span>        </div>
         <div>
           {currentPort && (
             <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim }}>
@@ -59,7 +61,7 @@ const App = () => {
       case "sailing": return <S.SailingScreen state={state} dispatch={dispatch} />;
       case "shipyard": return <S.ShipyardScreen state={state} dispatch={dispatch} />;
       case "crew": return <S.CrewScreen state={state} dispatch={dispatch} />;
-      case "factions": return <S.FactionsScreen state={state} dispatch={dispatch} />;
+      case "factions": return <S.StatusScreen state={state} dispatch={dispatch} />;
       case "event": return <S.EventScreen state={state} dispatch={dispatch} />;
       case "intercept": return <S.InterceptScreen state={state} dispatch={dispatch} />;
       case "battle": return <S.BattleScreen state={state} dispatch={dispatch} />;

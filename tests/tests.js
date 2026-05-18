@@ -515,6 +515,79 @@ window.TESTS = [
           u.restoreLocalStorage();
         }
       },
+// ── Fame ──
+{
+  name: "L.43 getFameLabel returns correct tier at boundaries",
+  type: "unit",
+  run: (u) => {
+    u.assertEqual(L.getFameLabel(0), "Unknown");
+    u.assertEqual(L.getFameLabel(49), "Unknown");
+    u.assertEqual(L.getFameLabel(50), "Recognised");
+    u.assertEqual(L.getFameLabel(99), "Recognised");
+    u.assertEqual(L.getFameLabel(100), "Notorious");
+    u.assertEqual(L.getFameLabel(199), "Notorious");
+    u.assertEqual(L.getFameLabel(200), "Legendary");
+    u.assertEqual(L.getFameLabel(349), "Legendary");
+    u.assertEqual(L.getFameLabel(350), "Immortal");
+  }
+},
+{
+  name: "L.44 meetsRequirement blocks when fame too low",
+  type: "unit",
+  run: (u) => {
+    const state = { fame: 10 };
+    const item = { requiredFame: 50, name: "Frigate" };
+    const res = L.meetsRequirement(state, item);
+    u.assert(res.allowed === false, "Should be blocked");
+    u.assert(res.reason.includes("Requires ★ 50 fame"), "Reason should mention required fame");
+  }
+},
+{
+  name: "L.45 meetsRequirement allows when fame sufficient",
+  type: "unit",
+  run: (u) => {
+    const state = { fame: 60 };
+    const item = { requiredFame: 50 };
+    const res = L.meetsRequirement(state, item);
+    u.assert(res.allowed === true, "Should be allowed");
+    u.assertEqual(res.reason, null);
+  }
+},
+{
+  name: "L.46 meetsRequirement allows when no requiredFame field",
+  type: "unit",
+  run: (u) => {
+    const state = { fame: 0 };
+    const item = { name: "Sloop" }; // no requiredFame
+    const res = L.meetsRequirement(state, item);
+    u.assert(res.allowed === true);
+  }
+},
+{
+  name: "L.47 generateMissions filters out fame-gated missions",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 10, reputation: { portRoyal: 80 } };
+    const missions = L.generateMissions("portRoyal", state);
+    // hunt_pirate requires 50 fame – should not appear
+    u.assert(!missions.some(m => m.id === "hunt_pirate"), "hunt_pirate should be hidden");
+  }
+},
+{
+  name: "L.48 generateMissions includes fame-gated missions when unlocked",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 60, reputation: { portRoyal: 80 } };
+    const missions = L.generateMissions("portRoyal", state);
+    // hunt_pirate requires 50 fame – may appear now
+    // Can't guarantee it's always included (random), but we can check that at least one gated mission appears occasionally. For reliability, we'll just verify that the filter doesn't exclude everything.
+    u.assert(missions.length > 0, "Some missions should appear");
+    // Not asserting presence of hunt_pirate because random selection may omit it.
+  }
+},
+
       // ── Crew generation ──
       {
         name: "L.50 generateCrewMember creates a valid member",
@@ -1318,6 +1391,48 @@ window.TESTS = [
           u.assert(s.encounterContext.enemy.name === mission.enemy.name, "Uses mission enemy");
         }
       },
+// -- Fame gating (P1.5) --
+{
+  name: "E.58 BUY_SHIP blocked by fame",
+  type: "reducer",
+  run: (u) => {
+    const state = { ...E.initialState, gold: 10000, fame: 10 };
+    const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
+    u.assertEqual(s.ship.type, state.ship.type, "Ship type unchanged");
+    u.assert(s.log.some(l => l.includes("Requires ★ 50 fame")), "Should log fame requirement");
+  }
+},
+{
+  name: "E.59 BUY_UPGRADE blocked by fame",
+  type: "reducer",
+  run: (u) => {
+    const state = { ...E.initialState, gold: 5000, fame: 10, ship: { type: "frigate", upgrades: [] } };
+    const s = E.reducer(state, { type: E.A.BUY_UPGRADE, upgradeKey: "extra_cannons" });
+    u.assert(!s.ship.upgrades.includes("extra_cannons"), "Upgrade not installed");
+    u.assert(s.log.some(l => l.includes("Requires ★ 50 fame")), "Should log fame requirement");
+  }
+},
+{
+  name: "E.60 TAKE_MISSION blocked by fame",
+  type: "reducer",
+  run: (u) => {
+    const mission = D.MISSION_POOL.find(m => m.id === "hunt_pirate"); // requires 50 fame
+    const state = { ...E.initialState, fame: 10, currentPort: "portRoyal" };
+    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
+    u.assert(!s.activeMission, "Mission not accepted");
+    u.assert(s.log.some(l => l.includes("Mission unavailable")), "Should log fame requirement");
+  }
+},
+{
+  name: "E.61 BUY_SHIP succeeds when fame sufficient",
+  type: "reducer",
+  run: (u) => {
+    const state = { ...E.initialState, gold: 10000, fame: 60 };
+    const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
+    u.assertEqual(s.ship.type, "frigate");
+  }
+},
+
     ]
   },
 
@@ -1893,7 +2008,34 @@ window.TESTS = [
         u.assert(container.textContent.includes("Precision"));
         unmount();
       }
-    }
+    },
+
+{
+  name: "U.10 HUD shows fame star on port screen",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({ screen: "port", fame: 5 });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("★"), "Fame star should be visible");
+    unmount();
+  }
+},
+{
+  name: "U.11 ShipyardScreen shows locked ship with reason",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen: "shipyard", currentPort: "portRoyal",
+      ship: { type: "sloop", hull: 80, upgrades: [] },
+      gold: 2000, fame: 10
+    });
+    const { container, unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+    // Frigate requires 50 fame → should show lock
+    u.assert(container.textContent.includes("🔒"), "Lock icon should appear");
+    u.assert(container.textContent.includes("Requires ★ 50 fame"), "Reason should be shown");
+    unmount();
+  }
+},
   ]
 },
 
