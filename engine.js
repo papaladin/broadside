@@ -489,7 +489,17 @@ window.E = (() => {
 
       // --- SAVE/LOAD ---
       case A.SAVE_GAME: { localStorage.setItem("piratesSave", JSON.stringify(state)); return { ...state, log: [...state.log, "Game saved."] }; }
-      case A.LOAD_GAME: { /* unchanged */ return state; }
+      case A.LOAD_GAME: {
+        try {
+          const raw = localStorage.getItem("piratesSave");
+          if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
+          const loaded = JSON.parse(raw);
+          return { ...loaded, screen: "port", battleState: null, activeEvent: null, encounterContext: null };
+        } catch (e) {
+          return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
+        }
+      }
+
       default: return state;
     }
   };

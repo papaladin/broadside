@@ -61,6 +61,8 @@
   <script type="text/babel" data-presets="react" src="../screens.jsx"></script>
   <script type="text/babel" data-presets="react" src="../App.jsx"></script>
 
+  <div id="root" style="display: none;"></div>
+
   <!-- Test utilities and runner -->
   <script type="text/babel">
     // ── Test utilities ────────────────────────────────────────────────
@@ -195,6 +197,8 @@
 
             // Before running the test, ensure localStorage is real
             window.__testUtils.restoreLocalStorage();
+            window.__testUtils.resetRandomStub();   // ← ADD THIS LINE
+
 
             try {
               test.run(window.__testUtils);

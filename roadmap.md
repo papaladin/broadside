@@ -191,6 +191,18 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 **Complexity:** Low
 **Dependencies:** None (fame already exists in state)
 **Design impact:** Fame becomes a visible progression axis. Players understand what they're working toward. High-tier content feels earned rather than bought.
+- [ ] **data.js** – Add `requiredFame` field to `SHIPS` (e.g., galleon 200, frigate 100, etc.).
+- [ ] **data.js** – Add `requiredFame` to selected `UPGRADES` (e.g., copper hull 100, extra cannons 50).
+- [ ] **data.js** – Add `requiredFame` to `MISSION_POOL` entries for high‑risk missions.
+- [ ] **logic.js** – (No pure functions needed, filtering done in UI).
+- [ ] **engine.js** – No reducer changes required; fame is already in state.
+- [ ] **screens.jsx** – Modify `ShipyardScreen` to grey out ships/upgrades if `fame < requiredFame`, show requirement.
+- [ ] **screens.jsx** – Modify `PortScreen` mission board filter to hide missions requiring more fame.
+- [ ] **App.jsx** – Add fame display to HUD (next to gold, e.g., `★ {state.fame}`).
+- [ ] **tests.js** – Add unit/reducer tests for fame gating (try buying gated ship with insufficient fame).
+- [ ] **tests.js** – Add UI smoke test for fame visibility in HUD and shipyard.
+- [ ] **architecture.md** – Document fame field and its effects on unlocks.
+- [ ] **README.md** – Update feature list to mention fame progression.
 
 ---
 
