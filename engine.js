@@ -97,7 +97,7 @@ window.E = (() => {
 
         const startFaction = PORTS["portRoyal"].faction; // English
         const crewCount = Math.floor(newState.crew.max * 0.6);
-        newState.crew.roster = L.generateRoster(crewCount, startFaction);
+        newState.crew.roster = G.generateRoster(crewCount, startFaction);
 
         Object.keys(PORTS).forEach(portKey => {
           if (newState.reputation[portKey] === undefined) newState.reputation[portKey] = 50;
@@ -171,7 +171,7 @@ window.E = (() => {
         }
 
         // Normal entry
-        return { ...state, currentPort: state.destination, destination: null, sailingDaysLeft: 0, screen: "port", missions: L.generateMissions(state.destination, state), log: [...state.log, `Arrived at ${port.name}.`] };
+        return { ...state, currentPort: state.destination, destination: null, sailingDaysLeft: 0, screen: "port", missions: G.generateMissions(state.destination, state), log: [...state.log, `Arrived at ${port.name}.`] };
       }
 
       // --- PORT ACTIONS ---
@@ -235,7 +235,7 @@ window.E = (() => {
         const cost = action.count * 50;
         if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
         const portFaction = PORTS[state.currentPort]?.faction || "pirate";
-        const newMembers = L.generateRoster(action.count, portFaction);
+        const newMembers = G.generateRoster(action.count, portFaction);
         return { ...state, gold: state.gold - cost, crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] }, log: [...state.log, `Hired ${action.count} crew for ${cost}g.`] };
       }
 
@@ -251,12 +251,29 @@ window.E = (() => {
       }
 
       // --- MISSIONS ---
-      case A.REFRESH_MISSIONS: return { ...state, missions: L.generateMissions(state.currentPort, state) };
+      case A.REFRESH_MISSIONS: return { ...state, missions: G.generateMissions(state.currentPort, state) };
 
       case A.TAKE_MISSION: {
         const mission = action.mission;
-        if (mission.type === "combat" && mission.enemy) return { ...state, activeMission: mission, encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy), screen: "intercept", log: [...state.log, `Accepted mission: ${mission.name}.`] };
-        return { ...state, activeMission: { ...mission, encounterOccurred: false }, log: [...state.log, `Accepted mission: ${mission.name}.`] };
+        if (!mission) return state;
+
+        // Combat missions go to intercept screen immediately
+        if (mission.type === "combat" && mission.enemy) {
+          return {
+            ...state,
+            activeMission: mission,
+            encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
+            screen: "intercept",
+            log: [...state.log, `Accepted mission: ${mission.name}.`]
+          };
+        }
+
+        // Other mission types (trade, escort, smuggle, assault)
+        return {
+          ...state,
+          activeMission: { ...mission, encounterOccurred: false },
+          log: [...state.log, `Accepted mission: ${mission.name}.`]
+        };
       }
 
       case A.COMPLETE_MISSION: {
@@ -297,7 +314,7 @@ window.E = (() => {
           infamy: newInfamy,
           reputation: newRep,
           activeMission: null,
-          missions: L.generateMissions(state.currentPort, state),
+          missions: G.generateMissions(state.currentPort, state),
           log: newLog
         };
       }

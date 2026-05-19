@@ -49,6 +49,14 @@ window.L = (() => {
   return "Unknown";
   };
 
+  const getFameTier = (fame) => {
+  if (fame >= 350) return 4;
+  if (fame >= 200) return 3;
+  if (fame >= 100) return 2;
+  if (fame >= 50)  return 1;
+  return 0;
+};
+
   const getInfamyLabel = (infamy) => {
   if (infamy >= 100) return "Legendary Outlaw";
   if (infamy >= 50)  return "Notorious";
@@ -186,37 +194,8 @@ window.L = (() => {
     return wages;
   };
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  MISSION FUNCTIONS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const generateMissions = (portKey, state) => {
-    const port = PORTS[portKey];
-    const faction = port.faction;
-    const playerRep = state.reputation[portKey] ?? 50; // use ?? so 0 is not overwritten
 
-    // Filter missions:
-    // 1. Must be for the port's faction or pirate
-    // 2. Player rep must be high enough for high-risk missions
-    const availableMissions = MISSION_POOL.filter(mission => {
-      if (mission.faction !== faction && mission.faction !== "pirate") {
-        return false;
-      }
-       // Treat undefined or unexpected risk as high risk
-      const risk = mission.risk || "high";
-      if (mission.risk === "high" && playerRep < 40) {
-        return false;
-      }
-      if (mission.risk === "medium" && playerRep < 20) {
-        return false;
-      }
-      if (mission.requiredFame && state.fame < mission.requiredFame) return false;
-      return true;
-    });
 
-    // Randomly select 2-3 missions
-    const shuffled = [...availableMissions].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 2 + Math.floor(Math.random() * 2)); // 2-3 missions
-  };
 
   const completeMissionOnCombatVictory = (state, mission) => {
     if (!mission) return state;
@@ -598,47 +577,6 @@ const resolveCombatAction = (state, action) => {
     };
   }
 
-  // ── Crew generation helpers ──────────────────────────────────────
-
-  // Pick a random item from an array
-  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-  // Pick a role based on weight table
-  const pickWeightedRole = () => {
-    const { CREW_ROLES } = window.D;
-    const total = CREW_ROLES.reduce((s, r) => s + r.weight, 0);
-    let roll = Math.random() * total;
-    for (let r of CREW_ROLES) {
-      roll -= r.weight;
-      if (roll <= 0) return r.role;
-    }
-    return "deckhand"; // fallback
-  };
-
-  // Build a single crew member
-  const generateCrewMember = (faction, existingNames = []) => {
-    const { CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
-    const firstList = CREW_FIRST_NAMES[faction] || CREW_FIRST_NAMES.pirate;
-    const lastList  = CREW_LAST_NAMES[faction]  || CREW_LAST_NAMES.pirate;
-
-    let firstName, lastName, fullName;
-    let attempts = 0;
-    do {
-      firstName = pickRandom(firstList);
-      lastName  = pickRandom(lastList);
-      fullName  = `${firstName} ${lastName}`;
-      attempts++;
-    } while (existingNames.includes(fullName) && attempts < 50);
-
-    return {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      firstName,
-      lastName,
-      role: pickWeightedRole(),
-      faction,
-      daysAboard: 0,
-    };
-  };
 
   // Create a full roster
   const generateRoster = (count, faction = "pirate") => {
@@ -674,6 +612,7 @@ const resolveCombatAction = (state, action) => {
     canAfford,
     reputationLabel,
     getFameLabel,
+    getFameTier,
     getInfamyLabel,
     meetsRequirement,
     canBribe,
@@ -695,13 +634,7 @@ const resolveCombatAction = (state, action) => {
 
     // Crew
     payCrewWages,
-    generateCrewMember,
-    generateRoster,
     removeRandomCrew,
-
-    // Missions
-    generateMissions,
-    completeMissionOnCombatVictory,
 
     // Events
     triggerRandomEvent,
@@ -713,6 +646,7 @@ const resolveCombatAction = (state, action) => {
     // Combat
     getNPCAction,
     resolveCombatAction,
+    completeMissionOnCombatVictory,
 
     // Initialization
     initializeReputation,

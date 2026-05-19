@@ -56,6 +56,7 @@
   <!-- Game files (relative to tests/ folder) -->
   <script type="text/babel" data-presets="react" src="../data.js"></script>
   <script type="text/babel" data-presets="react" src="../logic.js"></script>
+  <script type="text/babel" data-presets="react" src="../generators.js"></script>
   <script type="text/babel" data-presets="react" src="../engine.js"></script>
   <script type="text/babel" data-presets="react" src="../ui.jsx"></script>
   <script type="text/babel" data-presets="react" src="../screens.jsx"></script>
@@ -265,7 +266,11 @@
   </script>
 
   <!-- Test definitions (always last) -->
-  <script type="text/babel" data-presets="react" src="tests.js"></script>
+  <script type="text/babel" data-presets="react" src="tests_helpers.js"></script>
+<script type="text/babel" data-presets="react" src="tests_logic.js"></script>
+<script type="text/babel" data-presets="react" src="tests_engine.js"></script>
+<script type="text/babel" data-presets="react" src="tests_flows.js"></script>
+<script type="text/babel" data-presets="react" src="tests_ui.js"></script>
 
   <script type="text/babel">
     if (window.TESTS) {

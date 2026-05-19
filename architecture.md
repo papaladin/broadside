@@ -153,6 +153,7 @@ broadside/
 ├── index.html Entry point. Loads dependencies and game files in order.
 ├── data.js All game constants. Exposes window.D
 ├── logic.js All pure game functions. Exposes window.L
+├── generators.js       All runtime content generators. Exposes window.G
 ├── engine.js State shape, reducer, action constants. Exposes window.E
 ├── ui.jsx React primitives and theme tokens. Exposes window.UI
 ├── screens.jsx All game screens. Exposes window.S
@@ -161,7 +162,11 @@ broadside/
 ├── README.md Setup and running instructions
 └── tests/
 ├── tests.html Test runner UI
-└── tests.js Test suite definitions
+├── tests_helpers.js   Shared helpers (fillRoster, makeState, testMission)
+├── tests_logic.js     Unit tests (logic.js + generators.js)
+├── tests_engine.js    Reducer tests
+├── tests_flows.js     Integration + Scenario tests
+└── tests_ui.js        UI smoke + Edge case tests
 ```
 
 ### Planned split — screens.jsx (at Phase 2 boundary)
@@ -199,18 +204,14 @@ data_content.js   Frequently edited content pools: CREW_NAME_POOLS,
                   Exposes window.C
 ```
 
-### Planned addition — generators.js (at Phase 1.5 boundary)
+---
 
-When parametric generation functions are added, extract them from `logic.js`:
 
-```
-generators.js     buildCrewMember(), generateMission(), buildRumor(),
-                  buildEncounterContext(), buildRival().
-                  Reads window.D and window.C. Exposes window.G.
-```
+### generators.js — `window.G`
 
-This separates stable calculation functions (`logic.js`) from content assembly
-functions (`generators.js`) that change more frequently.
+Created at the P1.6 boundary. Contains all `Math.random`‑using content generators:
+crew creation, mission generation, enemy building, and supporting helpers.
+Reads `window.D` and `window.L`. Exposes `window.G`.
 
 ---
 
@@ -222,12 +223,13 @@ functions (`generators.js`) that change more frequently.
 index.html
   ├── data.js        (window.D)  ← no dependencies
   ├── logic.js       (window.L)  ← reads D
-  ├── engine.js      (window.E)  ← reads D, L
+  ├── generators.js  (window.G)  ← reads D, L
+  ├── engine.js      (window.E)  ← reads D, L, G
   ├── ui.jsx         (window.UI) ← no game dependencies
-  ├── screens.jsx    (window.S)  ← reads D, L, E, UI
-  └── App.jsx                    ← reads D, L, E, UI, S
+  ├── screens.jsx    (window.S)  ← reads D, L, G, E, UI
+  └── App.jsx                    ← reads D, L, G, E, UI, S
 
-tests/tests.html    ← loads all game files above, then tests.js
+tests/tests.html    ← loads all game files above, then test files
 ```
 
 ### Dependency direction rule — never violated
@@ -275,7 +277,6 @@ partial state objects only.
 | `SHIPS` | Ship stats: maxHull, maxCrew, cannons, speed, cost, upgradeable, requiredFame |
 | `FACTIONS` | Faction labels and colours: english, spanish, french, dutch, pirate |
 | `UPGRADES` | Ship upgrades: name, cost, desc, effects object, requiredFame |
-| `MISSION_POOL` | Mission templates: type, gold, fame, infamyGain, risk, requiredFame, enemy, interceptChance |
 | `RANDOM_EVENTS` | Event pool: id, type, title, desc, condition, choices with outcomes |
 | `STARTS` | Starting scenarios: name, desc, bonuses array |
 | `FACTION_RELATIONS` | Inter-faction stance matrix (currently unused) |
@@ -284,6 +285,11 @@ partial state objects only.
 | `CREW_FIRST_NAMES` | First name pools per faction |
 | `CREW_LAST_NAMES` | Last name pools per faction |
 | `CREW_ROLES` | Role definitions with weights |
+| `MISSION_GOLD_RANGES` | Gold reward ranges by fame tier and risk level |
+| `MISSION_ENEMY_RANGES` | Enemy stat ranges (hull, cannons, crew) by fame tier |
+| `MISSION_REP_IMPACTS` | Reputation impact values per mission type and risk |
+| `MISSION_NAME_PARTS` | Word pools for generating mission names and descriptions |
+| `ENEMY_SHIP_NAMES` | Adjective/noun pools for enemy ship names |
 
 **Port service keys** used in `port.services[]`:
 
@@ -311,12 +317,12 @@ partial state objects only.
 | `getEffectiveMorale` | `(state)` | Morale with figurehead bonus applied, capped at 100 |
 | `hasUpgrade` | `(state, key)` | Boolean — upgrade key is installed |
 | `getFameLabel` | `(fame)` | Returns tier label (Unknown → Immortal) |
+| `getFameTier` | `(fame)` | Returns numeric tier 0‑4 for fame value |
 | `meetsRequirement` | `(state, item)` | Returns `{ allowed, reason }` for fame-gated items |
 | `getRepPerk` | `(rep)` | Returns `{ tier, repairMult, missionMult, servicesBlocked }` |
 | `getInfamyLabel` | `(infamy)` | Returns label (Clean → Legendary Outlaw) |
 | `canBribe` | `(state)` | Boolean — infamy < 50 |
 | `buildEncounterContext` | `(state, type, enemy)` | Builds context object for InterceptScreen |
-| `generateMissions` | `(portKey, state)` | Returns 2‑3 missions filtered by faction, rep, fame |
 | `triggerRandomEvent` | `(state)` | Selects event from pool filtered by conditions |
 | `shipRepairCost` | `(state)` | Gold cost to fully repair |
 | `reputationLabel` | `(rep)` | String label for a reputation value |
@@ -326,8 +332,6 @@ partial state objects only.
 | `updateReputation` | `(state, portKey, delta)` | Single port update, clamped 0‑100 |
 | `resolveCombatAction` | `(state, action)` | Returns `{ player, enemy, moraleDelta, goldReward, fled, instantVictory }` |
 | `getNPCAction` | `(enemy)` | NPC's chosen combat action (weighted random, no evade) |
-| `generateCrewMember` | `(faction, existingNames)` | Creates a named crew member |
-| `generateRoster` | `(count, faction)` | Creates a full roster |
 | `removeRandomCrew` | `(roster, count)` | Removes random members, returns `{ newRoster, removed }` |
 | `roll` | `(sides)` | Random integer 1–sides |
 | `saveGame` | `(state)` | Serialise to localStorage |
@@ -342,6 +346,31 @@ that bypasses this function.
 **Critical:** `travelDays(fromKey, toKey, state)` must receive `state` to apply
 speed bonuses from equipment and future cargo load penalties. The base distance
 uses port SVG coordinates internally — callers treat the return value as days only.
+
+---
+
+### generators.js → `window.G`
+
+**Contains:** All functions that use `Math.random` to produce runtime content.
+No pure game logic — that lives in `logic.js`.
+
+**Current exports:**
+
+| Function | Signature | Description |
+|---|---|---|
+| `generateCrewMember` | `(faction, existingNames)` | Creates a named crew member |
+| `generateRoster` | `(count, faction)` | Creates a full roster |
+| `generateMissions` | `(portKey, state)` | Returns 2‑3 parametric mission objects |
+| `generateEnemy` | `(risk, fame, faction)` | Builds enemy object from scaling ranges |
+| `generateEnemyForAssault` | `(targetPortKey, fame)` | Builds assault enemy from port's faction |
+| `generateEnemyName` | `(faction)` | Returns "The Black Serpent" style name |
+| `generateGold` | `(type, risk, fame)` | Gold reward, rounded to nearest 25 |
+| `generateRepImpact` | `(type, faction, risk, defendingFaction)` | Returns rep‑impact object |
+| `generateMissionText` | `(type, faction, targetPortKey, risk, enemy)` | Returns `{ name, desc }` |
+| `pickTargetPort` | `(currentPortKey, type, state, faction)` | Picks a valid destination port |
+| `opposingFaction` | `(factionKey)` | Returns a random rival faction |
+
+
 
 ---
 
@@ -510,7 +539,7 @@ No ES module imports exist. Files communicate through `window` globals.
 | `window.D` | `data.js` | Game constants |
 | `window.C` | `data_content.js` | Content pools (after split) |
 | `window.L` | `logic.js` | Pure functions |
-| `window.G` | `generators.js` | Generation functions (after split) |
+| `window.G` | `generators.js` | Generation functions |
 | `window.E` | `engine.js` | `{ A, initialState, reducer }` |
 | `window.UI` | `ui.jsx` | `{ T, panelStyle, Btn, Bar, ... }` |
 | `window.S` | `screens.jsx` | `{ StartScreen, PortScreen, ... }` |
@@ -667,7 +696,7 @@ dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
 | `BUY_EQUIPMENT` | `equipmentKey` |
 | `REMOVE_EQUIPMENT` | `equipmentKey` |
 | `HIRE_CREW` | `count` |
-| `TAKE_MISSION` | `mission` (full mission object) |
+| `TAKE_MISSION` | `mission` (full mission object — no ID field) |
 | `COMPLETE_MISSION` | — |
 | `ABANDON_MISSION` | — |
 | `REFRESH_MISSIONS` | — |
@@ -798,6 +827,33 @@ the reducer (port entry) and screen components (service access, mission filterin
 - **Recovery**: "Buy Drinks" button on CrewScreen costs `crew.roster.length * 5` gold for +5 morale (capped at 100).
 - **Effective morale**: `crew.morale + ship.moraleBonus` (from figurehead upgrade), displayed in HUD. Affects combat damage and crew wages.
 
+### Parametric Mission Generation
+
+Missions are generated at runtime by `G.generateMissions(portKey, state)`.
+There is no static mission pool. Each call produces 2‑3 missions from weighted
+type and risk tables.
+
+**Mission types:** escort, patrol, combat, smuggle, assault.
+
+**Risk levels:** low, medium, high (assault always uses the assault bracket).
+
+**Gating:**
+- At War (rep < 10): no missions returned.
+- Fame tier gates risk via weight tables (assault only appears at tier 3+).
+- Assault missions only target ports of other factions.
+- Trade/escort/smuggle exclude ports belonging to rival factions.
+- Smuggle missions are always offered by the pirate faction, regardless of port.
+
+**Enemy generation** uses `MISSION_ENEMY_RANGES` scaling by fame tier and risk.
+Assault enemies use the defending port's faction and get extended stat ranges.
+
+**Reputation impacts** follow `MISSION_REP_IMPACTS`:
+- Escort/patrol/combat: positive to commissioning faction, negative to rival.
+- Smuggle: positive to pirate faction only.
+- Assault: +5 to commissioning faction, −8 to defending faction.
+
+**Gold rewards** come from `MISSION_GOLD_RANGES`, scaled by fame tier and risk,
+rounded to the nearest 25.
 
 ### Named Crew Roster
 
@@ -891,21 +947,22 @@ whenever the state shape changes between versions.
 3. Add weight or condition if the event should not fire in all contexts
 4. Test: verify `L.applyEvent` returns valid partial state for each branch
 
-### Add a mission template
+### Tuning mission generation
 
-1. Add to `MISSION_POOL` in `data.js`:
-   ```js
-   {
-     tpl:      "template_id",
-     name:     "Mission Name",
-     baseGold: 1000,
-     baseFame: 12,
-     risk:     "low"|"medium"|"high",
-     desc:     "Player-facing description.",
-   }
-   ```
-2. `generateMissions` picks randomly from the pool — no further wiring needed
-3. Test: verify `generateMissions` can produce the new template
+Missions are generated parametrically. To adjust the mix, modify these constants
+in `data.js`:
+
+- `MISSION_GOLD_RANGES` — gold reward [min, max] per fame tier and risk.
+- `MISSION_ENEMY_RANGES` — enemy hull/cannons/crew ranges per fame tier.
+- `MISSION_REP_IMPACTS` — reputation deltas per mission type and risk.
+- `MISSION_NAME_PARTS` — word pools for mission name/description templates.
+- `ENEMY_SHIP_NAMES` — adjective/noun pools for enemy ship names.
+
+To change mission type weights or risk distributions, edit the weight tables
+inside `G.generateMissions` in `generators.js`.
+
+No code outside `generators.js` and `data.js` needs to change when adjusting
+mission balance.
 
 ### Add a screen
 
@@ -931,8 +988,13 @@ whenever the state shape changes between versions.
 
 ```
 tests/
-├── tests.html    Loads all game files, runs window.TESTS, renders results UI
-└── tests.js      Defines window.TESTS — array of suite objects
+tests/
+├── tests.html          Loads all game files, runs window.TESTS, renders results UI
+├── tests_helpers.js    Shared helpers: fillRoster, makeState, testMission
+├── tests_logic.js      Unit tests for logic.js (L.*) and generators.js (G.*)
+├── tests_engine.js     Reducer tests for engine.js (E.*)
+├── tests_flows.js      Integration tests (I.*) and Scenario tests (S.*)
+└── tests_ui.js         UI smoke tests (U.*) and Edge case / Regression tests (F.*)
 ```
 
 ### Test structure
@@ -983,6 +1045,7 @@ I.01  Integration test     (multiple systems together)
 S.01  Scenario simulation  (full player flow)
 U.01  UI smoke test        (screen renders without crash)
 F.01  Edge case/regression
+G.01  Generator test        (functions in generators.js)
 ```
 
 ### Coverage requirement

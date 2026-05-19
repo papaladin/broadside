@@ -196,8 +196,8 @@ window.S = (() => {
           ? <EmptyState message="No mission board in this port." />
           : state.missions.length === 0
             ? <EmptyState message="No missions posted. Try refreshing." />
-            : state.missions.map(m => (
-                <div key={m.id} style={{
+            : state.missions.map((m, i) => (
+                <div key={i} style={{
                   ...panelStyle({ background: T.panelAlt, marginBottom: 8 }),
                   opacity: state.activeMission ? 0.55 : 1,
                 }}>
@@ -205,7 +205,12 @@ window.S = (() => {
                     <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
                     <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
                   </div>
-                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.desc}</p>
+                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
+                  {m.enemy && (
+                    <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
+                      Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                     <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
                     <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>

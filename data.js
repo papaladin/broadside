@@ -442,287 +442,48 @@ const CREW_LAST_NAMES = {
     { role: "navigator",weight: 5 },
   ];
 
+// ── Parametric Mission Generator Config ────────────────────────
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  MISSION_POOL: All possible missions.
-  //  targetPort: Port key where mission is completed (null for instant combat).
-  //  type: "trade", "escort", "combat", "smuggle", "assault".
-  //  gold: Gold reward.
-  //  fame: Fame points.
-  //  risk: "low", "medium", or "high".
-  //  faction: Faction offering the mission.
-  //  repImpact: Object with faction reputation changes.
-  //  enemy: Enemy ship definition (for combat/smuggle/assault missions).
-  //  interceptChance: Probability of combat during voyage (for smuggle missions).
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const MISSION_POOL = [
-    // ===== TRADE MISSIONS =====
-    {
-      id: "trade_spices",
-      name: "Deliver Spices",
-      desc: "Transport a shipment of spices to Havana.",
-      targetPort: "havana",
-      type: "trade",
-      gold: 500,
-      fame: 1,
-      risk: "low",
-      faction: "spanish",
-      repImpact: { spanish: +15, english: -5 }
-    },
-    {
-      id: "trade_sugar",
-      name: "Deliver Sugar",
-      desc: "Take sugar from Port-de-Paix to Kingston.",
-      targetPort: "kingston",
-      type: "trade",
-      gold: 600,
-      fame: 1,
-      risk: "low",
-      faction: "french",
-      repImpact: { french: +15, english: +5 }
-    },
-    {
-      id: "trade_gold",
-      name: "Transport Gold",
-      desc: "Escort a gold shipment to Cartagena.",
-      targetPort: "cartagena",
-      type: "trade",
-      gold: 800,
-      fame: 1,
-      risk: "medium",
-      faction: "spanish",
-      repImpact: { spanish: +20, pirate: -10 }
-    },
+const MISSION_GOLD_RANGES = {
+  //          [low,      medium,    high,      assault  ]
+  0: { low: [150,300], medium: [300,550],  high: [550,900],  assault: [900,1400]  },
+  1: { low: [250,500], medium: [500,850],  high: [850,1400], assault: [1400,2200] },
+  2: { low: [400,750], medium: [750,1200], high: [1200,2000],assault: [2000,3200] },
+  3: { low: [650,1100],medium: [1100,1800],high: [1800,3000],assault: [3000,5000] },
+  4: { low: [1000,1600],medium:[1600,2600],high: [2600,4200],assault: [4200,7000] },
+};
 
-    // ===== ESCORT MISSIONS =====
-    {
-      id: "escort_merchant",
-      name: "Escort Merchant Ship",
-      desc: "Protect a merchant ship from pirates on its way to Curaçao.",
-      targetPort: "curacao",
-      type: "escort",
-      gold: 1000,
-      fame: 1,
-      risk: "medium",
-      faction: "dutch",
-      repImpact: { dutch: +20, pirate: -15 }
-    },
-    {
-      id: "escort_fleet",
-      name: "Escort Treasure Fleet",
-      desc: "Defend a Spanish treasure fleet from English privateers.",
-      targetPort: "havana",
-      type: "escort",
-      gold: 1500,
-      fame: 1,
-      risk: "high",
-      faction: "spanish",
-      repImpact: { spanish: +30, english: -20 }
-    },
+const MISSION_ENEMY_RANGES = {
+  hull:    { 0:[20,45],  1:[40,75],  2:[65,110], 3:[95,155],  4:[135,210] },
+  cannons: { 0:[2,6],    1:[5,10],   2:[8,16],   3:[13,22],   4:[18,30]   },
+  crew:    { 0:[8,18],   1:[15,35],  2:[25,55],  3:[40,80],   4:[60,110]  },
+};
 
-    // ===== COMBAT MISSIONS (Instant Combat) =====
-    {
-      id: "hunt_pirate",
-      name: "Hunt the Pirate Scourge",
-      desc: "Sink the notorious pirate 'Black Bart' and his crew.",
-      targetPort: null,
-      type: "combat",
-      gold: 2000,
-      requiredFame: 50,
-      fame: 1,
-      risk: "high",
-      faction: "english",
-      repImpact: { english: +30, pirate: -20 },
-      enemy: {
-        name: "Black Bart's Revenge",
-        hull: 150,
-        cannons: 15,
-        crew: 40,
-        faction: "pirate"
-      }
-    },
-    {
-      id: "hunt_privateer",
-      name: "Hunt French Privateer",
-      desc: "Track down and sink the French privateer 'Le Renard'.",
-      targetPort: null,
-      type: "combat",
-      gold: 1800,
-      requiredFame: 50,
-      fame: 1,
-      risk: "high",
-      faction: "english",
-      repImpact: { english: +25, french: -20 },
-      enemy: {
-        name: "Le Renard",
-        hull: 130,
-        cannons: 12,
-        crew: 35,
-        faction: "french"
-      }
-    },
-    {
-      id: "debug_combat",
-      name: "DEBUG: Force Combat",
-      desc: "Immediately triggers a test battle. For debugging only.",
-      targetPort: null,
-      type: "combat",
-      gold: 0,
-      fame: 0,
-      risk: "low",
-      faction: "pirate",
-      repImpact: {},
-      enemy: {
-        name: "Test Pirate",
-        hull: 100,
-        cannons: 10,
-        crew: 40,
-        faction: "pirate"
-      }
-    },
+const MISSION_REP_IMPACTS = {
+  escort:  { low: 2, medium: 3, high: 4 },
+  patrol:  { low: 2, medium: 3, high: 4 },
+  combat:  { low: 3, medium: 4, high: 5 },
+  smuggle: { any: 2 },
+  assault: { any: 5 },
+};
 
-    // ===== SMUGGLE MISSIONS (Random Combat During Voyage) =====
-    {
-      id: "smuggle_goods",
-      name: "Smuggle Contraband",
-      desc: "Smuggle goods past the English blockade to Tortuga.",
-      targetPort: "tortuga",
-      type: "smuggle",
-      gold: 1200,
-      fame: 1,
-      risk: "high",
-      faction: "pirate",
-      repImpact: { pirate: +20, english: -15 },
-      enemy: {
-        name: "English Blockade",
-        hull: 120,
-        cannons: 12,
-        crew: 35,
-        faction: "english"
-      },
-      interceptChance: 0.7 // 70% chance of combat during voyage
-    },
-    {
-      id: "smuggle_slaves",
-      name: "Smuggle Slaves",
-      desc: "Transport slaves from Africa to Maracaibo. (Disreputable work.)",
-      targetPort: "maracaibo",
-      type: "smuggle",
-      gold: 3000,
-      fame: 0,
-      infamyGain: 2,
-      risk: "high",
-      faction: "pirate",
-      repImpact: { pirate: +10, spanish: -30, english: -20, french: -20, dutch: -20 },
-      enemy: {
-        name: "Spanish Patrol",
-        hull: 140,
-        cannons: 14,
-        crew: 45,
-        faction: "spanish"
-      },
-      interceptChance: 0.8 // 80% chance of combat
-    },
-    {
-      id: "smuggle_rum",
-      name: "Smuggle Rum to Nassau",
-      desc: "Deliver rum to the pirates of Nassau under the nose of the Navy.",
-      targetPort: "nassau",
-      type: "smuggle",
-      gold: 800,
-      fame: 1,
-      risk: "medium",
-      faction: "pirate",
-      repImpact: { pirate: +15, english: -10 },
-      enemy: {
-        name: "Navy Sloop",
-        hull: 100,
-        cannons: 10,
-        crew: 30,
-        faction: "english"
-      },
-      interceptChance: 0.5 // 50% chance of combat
-    },
+const MISSION_NAME_PARTS = {
+  cargo:      ["spice shipment","merchant convoy","supply fleet","noble passenger","silver bullion","colonial goods","textile cargo","grain stores"],
+  contraband: ["rum","stolen charts","black powder","foreign silk","untaxed tobacco","opium","illegal firearms","forbidden books"],
+  regionAdj:  ["southern","northern","treacherous","disputed","windward","leeward","inner","outer"],
+  factionAdj: {
+    english: ["English","Crown","His Majesty's","Royal"],
+    spanish: ["Spanish","Colonial","Crown","Viceroyalty"],
+    french:  ["French","Republican","Gallic","Louis'"],
+    dutch:   ["Dutch","Company","Merchant","West India"],
+    pirate:  ["Brotherhood","Free","Unaligned","Brethren"],
+  },
+};
 
-    // ===== ASSAULT MISSIONS (Combat on Arrival) =====
-    {
-      id: "assault_havana",
-      name: "Assault Spanish Outpost",
-      desc: "Attack and capture the Spanish outpost at Havana!",
-      targetPort: "havana",
-      type: "assault",
-      gold: 3000,
-      requiredFame: 100,
-      infamyGain: 2,
-      fame: 3,
-      risk: "high",
-      faction: "pirate",
-      repImpact: { pirate: +30, spanish: -40 },
-      enemy: {
-        name: "Havana Guards",
-        hull: 200,
-        cannons: 20,
-        crew: 50,
-        faction: "spanish"
-      }
-    },
-    {
-      id: "assault_cartagena",
-      name: "Raid Cartagena",
-      desc: "Launch a surprise attack on the Spanish stronghold at Cartagena.",
-      targetPort: "cartagena",
-      type: "assault",
-      gold: 4000,
-      requiredFame: 100,
-      infamyGain: 2,
-      fame: 3,
-      risk: "high",
-      faction: "pirate",
-      repImpact: { pirate: +35, spanish: -50 },
-      enemy: {
-        name: "Cartagena Garrison",
-        hull: 250,
-        cannons: 25,
-        crew: 60,
-        faction: "spanish"
-      }
-    },
-    {
-      id: "assault_portRoyal",
-      name: "Strike at Port Royal",
-      desc: "Dare to attack the heart of English power in the Caribbean.",
-      targetPort: "portRoyal",
-      type: "assault",
-      gold: 5000,
-      requiredFame: 100,
-      infamyGain: 2,
-      fame: 3,
-      risk: "high",
-      faction: "pirate",
-      repImpact: { pirate: +40, english: -50 },
-      enemy: {
-        name: "Port Royal Garrison",
-        hull: 300,
-        cannons: 30,
-        crew: 70,
-        faction: "english"
-      }
-    },
-
-    // ===== PATROL MISSIONS =====
-    {
-      id: "patrol_waters",
-      name: "Patrol the Waters",
-      desc: "Patrol the waters around Port Royal for pirate activity.",
-      targetPort: "portRoyal",
-      type: "patrol",
-      gold: 800,
-      fame: 1,
-      risk: "medium",
-      faction: "english",
-      repImpact: { english: +20, pirate: -10 }
-    }
-  ];
+const ENEMY_SHIP_NAMES = {
+  adjectives: ["Black","Scarlet","Iron","Crimson","Silent","Cursed","Broken","Savage","Dread","Wicked"],
+  nouns:      ["Serpent","Tide","Fortune","Drake","Widow","Storm","Revenge","Horizon","Ghost","Fury"],
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  RANDOM_EVENTS: Events that can occur at sea or in port.
@@ -1037,8 +798,12 @@ const CREW_LAST_NAMES = {
     CREW_FIRST_NAMES,
     CREW_LAST_NAMES,
     CREW_ROLES,
+    MISSION_GOLD_RANGES,
+    MISSION_ENEMY_RANGES,
+    MISSION_REP_IMPACTS,
+    MISSION_NAME_PARTS,
+    ENEMY_SHIP_NAMES,
     UPGRADES,
-    MISSION_POOL,
     RANDOM_EVENTS,
     STARTS,
     ENCOUNTER_FLAVOUR,
