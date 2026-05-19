@@ -587,6 +587,23 @@ window.TESTS = [
     // Not asserting presence of hunt_pirate because random selection may omit it.
   }
 },
+{
+  name: "L.49 getRepPerk returns correct object at rep boundaries",
+  type: "unit",
+  run: (u) => {
+    u.assertEqual(L.getRepPerk(80).tier, "allied");
+    u.assertEqual(L.getRepPerk(79).tier, "friendly");
+    u.assertEqual(L.getRepPerk(50).tier, "friendly");
+    u.assertEqual(L.getRepPerk(49).tier, "neutral");
+    u.assertEqual(L.getRepPerk(30).tier, "neutral");
+    u.assertEqual(L.getRepPerk(29).tier, "hostile");
+    u.assertEqual(L.getRepPerk(10).tier, "hostile");
+    u.assertEqual(L.getRepPerk(9).tier, "at_war");
+    u.assertEqual(L.getRepPerk(80).repairMult, 0.80);
+    u.assertEqual(L.getRepPerk(50).missionMult, 1.10);
+    u.assertEqual(L.getRepPerk(9).servicesBlocked, true);
+  }
+},
 
       // ── Crew generation ──
       {
@@ -627,6 +644,57 @@ window.TESTS = [
           u.assert(newRoster.every(m => !removedIds.has(m.id)), "Removed members not in new roster");
         }
       },
+      // ── Infamy ──
+{
+  name: "L.53 getInfamyLabel returns correct tier at boundaries",
+  type: "unit",
+  run: (u) => {
+    u.assertEqual(L.getInfamyLabel(0), "Clean");
+    u.assertEqual(L.getInfamyLabel(9), "Clean");
+    u.assertEqual(L.getInfamyLabel(10), "Suspect");
+    u.assertEqual(L.getInfamyLabel(24), "Suspect");
+    u.assertEqual(L.getInfamyLabel(25), "Wanted");
+    u.assertEqual(L.getInfamyLabel(49), "Wanted");
+    u.assertEqual(L.getInfamyLabel(50), "Notorious");
+    u.assertEqual(L.getInfamyLabel(99), "Notorious");
+    u.assertEqual(L.getInfamyLabel(100), "Legendary Outlaw");
+  }
+},
+{
+  name: "L.54 canBribe returns true below 50 infamy",
+  type: "unit",
+  run: (u) => {
+    u.assert(L.canBribe({ infamy: 0 }) === true);
+    u.assert(L.canBribe({ infamy: 49 }) === true);
+    u.assert(L.canBribe({}) === true, "undefined infamy → true");
+  }
+},
+{
+  name: "L.55 canBribe returns false at 50+ infamy",
+  type: "unit",
+  run: (u) => {
+    u.assert(L.canBribe({ infamy: 50 }) === false);
+    u.assert(L.canBribe({ infamy: 100 }) === false);
+  }
+},
+{
+  name: "L.56 buildEncounterContext blocks bribe at 50 infamy",
+  type: "unit",
+  run: (u) => {
+    const state = {
+      infamy: 50,
+      gold: 1000,
+      reputation: { tortuga: 50 },
+      destination: "tortuga",
+      ship: { type: "sloop", upgrades: [] },
+      crew: { morale: 80 }
+    };
+    const enemy = { name: "Patrol", hull: 100, cannons: 10, crew: 40, gold: 300 };
+    const ctx = L.buildEncounterContext(state, "patrol", enemy);
+    u.assert(ctx.options.bribe.available === false, "Bribe should be unavailable");
+    u.assert(ctx.options.bribe.reason.includes("bribery has preceded you"), "Reason should mention bribery reputation");
+  }
+},
     ]
   },
 
@@ -1432,6 +1500,180 @@ window.TESTS = [
     u.assertEqual(s.ship.type, "frigate");
   }
 },
+{
+  name: "E.62 REPAIR applies 10% discount at Friendly",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      currentPort: "tortuga",
+      ship: { type: "sloop", hull: 50, upgrades: [] },
+      gold: 1000,
+      reputation: { tortuga: 60 }  // Friendly
+    };
+    const s = E.reducer(state, { type: E.A.REPAIR });
+    const expectedCost = Math.floor((D.SHIPS.sloop.maxHull - 50) * 2 * 0.9);
+    u.assertEqual(s.gold, 1000 - expectedCost);
+    u.assert(s.log.some(l => l.includes("friendly discount")), "Log mentions discount");
+  }
+},
+{
+  name: "E.63 HIRE_CREW blocked when At War",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      currentPort: "portRoyal",
+      reputation: { portRoyal: 5 },
+      gold: 1000,
+      crew: { roster: fillRoster(20), max: 50, morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.HIRE_CREW, count: 5 });
+    u.assertEqual(s.crew.roster.length, 20, "No crew hired");
+    u.assert(s.log.some(l => l.includes("at war")), "Log mentions at war");
+  }
+},
+{
+  name: "E.64 COMPLETE_MISSION applies +20% gold at Allied",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = { id:"test", name:"Test", gold:100, fame:1, repImpact:{}, targetPort:null, faction:"english" };
+    const state = {
+      ...E.initialState,
+      currentPort: "portRoyal",
+      activeMission: mission,
+      gold: 1000, fame: 0,
+      reputation: { portRoyal: 85 },  // Allied
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.gold, 1000 + Math.floor(100 * 1.20), "Allied bonus applied");
+    u.assert(s.log.some(l => l.includes("+20g allied bonus")), "Log mentions allied bonus");
+  }
+},
+{
+  name: "E.65 COMPLETE_MISSION applies 0 gold at At War (safeguard)",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = { id:"test", name:"Test", gold:100, fame:1, repImpact:{}, targetPort:null, faction:"english" };
+    const state = {
+      ...E.initialState,
+      currentPort: "portRoyal",
+      activeMission: mission,
+      gold: 1000, fame: 0,
+      reputation: { portRoyal: 5 },  // At War
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.gold, 1000, "No gold gained");
+    u.assert(s.log.some(l => l.includes("100g hostile penalty")), "Log mentions penalty");
+  }
+},
+{
+  name: "E.66 COMPLETE_MISSION on smuggle_rum adds 1 infamy",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
+    const state = {
+      ...E.initialState,
+      currentPort: mission.targetPort,
+      activeMission: mission,
+      gold: 1000, fame: 0, infamy: 0,
+      reputation: { [mission.targetPort]: 50 },
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.infamy, 1, "Infamy increased by 1");
+  }
+},
+{
+  name: "E.67 COMPLETE_MISSION on assault_portRoyal adds 3 infamy",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = D.MISSION_POOL.find(m => m.id === "assault_portRoyal");
+    const state = {
+      ...E.initialState,
+      currentPort: mission.targetPort,
+      activeMission: mission,
+      gold: 1000, fame: 0, infamy: 0,
+      reputation: { [mission.targetPort]: 50 },
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.infamy, 3, "Infamy increased by 3");
+  }
+},
+{
+  name: "E.68 COMPLETE_MISSION on trade mission adds 0 infamy",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = D.MISSION_POOL.find(m => m.type === "trade");
+    const state = {
+      ...E.initialState,
+      currentPort: mission.targetPort,
+      activeMission: mission,
+      gold: 1000, fame: 0, infamy: 0,
+      reputation: { [mission.targetPort]: 50 },
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.infamy, 0, "Infamy unchanged for clean mission");
+  }
+},
+{
+  name: "E.69 COMPLETE_MISSION logs threshold crossing (Clean → Suspect)",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = { ...D.MISSION_POOL.find(m => m.id === "smuggle_rum"), infamyGain: 10 };
+    const state = {
+      ...E.initialState,
+      currentPort: mission.targetPort,
+      activeMission: mission,
+      gold: 1000, fame: 0, infamy: 9,
+      reputation: { [mission.targetPort]: 50 },
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.infamy, 19, "Infamy increased to 19");
+    u.assert(s.log.some(l => l.includes("Your name grows darker")), "Threshold crossing log");
+    u.assert(s.log.some(l => l.includes("Suspect")), "New label mentioned");
+  }
+},
+{
+  name: "E.70 COMPLETE_MISSION does not log threshold when label unchanged",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
+    const state = {
+      ...E.initialState,
+      currentPort: mission.targetPort,
+      activeMission: mission,
+      gold: 1000, fame: 0, infamy: 10,
+      reputation: { [mission.targetPort]: 50 },
+      crew: { roster: fillRoster(30), morale: 80 }
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.infamy, 11, "Infamy increased");
+    // Should NOT contain threshold crossing
+    u.assert(!s.log.some(l => l.includes("Your name grows darker")), "No threshold log");
+  }
+},
+{
+  name: "E.71 START_GAME produces infamy: 0",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+    u.assertEqual(s.infamy, 0, "Infamy should be 0");
+  }
+},
 
     ]
   },
@@ -2033,6 +2275,59 @@ window.TESTS = [
     // Frigate requires 50 fame → should show lock
     u.assert(container.textContent.includes("🔒"), "Lock icon should appear");
     u.assert(container.textContent.includes("Requires ★ 50 fame"), "Reason should be shown");
+    unmount();
+  }
+},
+{
+  name: "U.12 ShipyardScreen shows hostile notice when At War",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen: "shipyard",
+      currentPort: "portRoyal",
+      reputation: { portRoyal: 5 },
+      ship: { type: "sloop", hull: 80, upgrades: [] },
+      gold: 2000
+    });
+    const { container, unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("at war with this port"), "Hostile notice should appear");
+    unmount();
+  }
+},
+{
+  name: "U.13 PortScreen shows bonus notice when Friendly",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen: "port",
+      currentPort: "portRoyal",
+      reputation: { portRoyal: 60 },
+      missions: [],
+      activeMission: null,
+    });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("friendly standing"), "Bonus notice should appear");
+    unmount();
+  }
+},
+{
+  name: "U.14 HUD shows infamy ☠ 0 in faint colour",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({ screen: "port", infamy: 0 });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("☠"), "Infamy symbol visible");
+    unmount();
+  }
+},
+{
+  name: "U.15 StatusScreen shows infamy label and consequence at level 10",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({ screen: "status", infamy: 10 });
+    const { container, unmount } = u.mountReact(window.S.StatusScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("Suspect"), "Label appears");
+    u.assert(container.textContent.includes("patrols are watching"), "Consequence text appears");
     unmount();
   }
 },

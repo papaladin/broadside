@@ -61,7 +61,7 @@ const App = () => {
       case "sailing": return <S.SailingScreen state={state} dispatch={dispatch} />;
       case "shipyard": return <S.ShipyardScreen state={state} dispatch={dispatch} />;
       case "crew": return <S.CrewScreen state={state} dispatch={dispatch} />;
-      case "factions": return <S.StatusScreen state={state} dispatch={dispatch} />;
+      case "status": return <S.StatusScreen state={state} dispatch={dispatch} />;
       case "event": return <S.EventScreen state={state} dispatch={dispatch} />;
       case "intercept": return <S.InterceptScreen state={state} dispatch={dispatch} />;
       case "battle": return <S.BattleScreen state={state} dispatch={dispatch} />;

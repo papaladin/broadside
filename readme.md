@@ -8,14 +8,18 @@ Sail the Caribbean, trade, fight, upgrade your ship, and build your reputation i
 
 # 🎮 Features
 
-- ⚓ Explore an interactive map with 11 ports across 5 factions
-- 🛒 Trade & Missions – deliver goods, escort merchants, hunt pirates
-- ⚔️ Turn-based naval combat – broadside, precision shots, grappling, and evading
-- 🏴 Faction reputation – ally with nations or turn pirate
-- 🔧 Ship upgrades – reinforced hull, extra cannons, figureheads, and more
-- 👥 Crew management – hire sailors, maintain morale, pay wages
-- 🌪️ Random events – storms, mutinies, treasures, and patrols
-- 💾 Save / Load via browser `localStorage`
+- ⚓ **Explore** an interactive Caribbean map with 11 ports across 5 factions
+- 🛒 **Missions** – trade, escort, hunt pirates, smuggle goods, and assault ports
+- ⚔️ **Turn‑based naval combat** – broadside, precision shots, grappling, and evading
+- 🛡️ **Pre‑battle intercept screen** – negotiate, bribe, flee, or surrender before every encounter
+- 🏴 **Faction reputation** – ally with nations or turn pirate; reputation affects service prices and mission rewards
+- 🔧 **Ship upgrades** – reinforced hull, extra cannons, figureheads, and more (gated by fame)
+- 👥 **Named crew** – every sailor has a name, role, and faction; crew losses are personal
+- 🍻 **Morale management** – buy drinks in port to boost morale; low morale weakens combat performance
+- 🌪️ **Random events** – storms, mutinies, treasures, and patrols
+- ⭐ **Fame system** – permanent progression that unlocks ships, upgrades, and high‑risk missions
+- ☠️ **Infamy system** – permanent outlaw reputation that closes options (bribe blocked at high infamy)
+- 💾 **Save / Load** via browser `localStorage`
 
 ---
 
@@ -149,8 +153,9 @@ architecture.md
 
 # 🐛 Known Issues
 
-- Fame exists in the state but has no gameplay effect yet
-- Some UI tests are still being stabilised
+- The patrol mission type exists in data but is not yet fully integrated into the mission board.
+- Grapple crew‑loss logic has a known bug (losses are sometimes applied to the wrong side). Manual testing is pending.
+- Some UI smoke tests are still being stabilised.
 
 ---
 

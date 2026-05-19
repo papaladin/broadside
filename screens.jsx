@@ -97,156 +97,184 @@ window.S = (() => {
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
   function PortScreen({ state, dispatch }) {
-    const port = PORTS[state.currentPort];
-    const rep = state.reputation[state.currentPort] ?? 0;
-    const repCost = L.shipRepairCost(state);
-    const effectiveShipStats = L.getShipStats(state); 
-    const canFinish = state.activeMission &&
-  (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
+  const port = PORTS[state.currentPort];
+  const rep = state.reputation[state.currentPort] ?? 0;
+  const perk = L.getRepPerk(rep);
+  const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
+  const effectiveShipStats = L.getShipStats(state);
+  const canFinish = state.activeMission &&
+    (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
 
-    return (
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 12,
-        padding: 14,
-        overflowY: "auto",
-        flex: 1,
-      }}>
-        {/* ── Port card ── */}
-        <div style={panelStyle()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-            <div>
-              <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
-              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
-                {FACTIONS[port.faction]?.label.toUpperCase()} PORT
-              </div>
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 12,
+      padding: 14,
+      overflowY: "auto",
+      flex: 1,
+    }}>
+      {/* ── Port card ── */}
+      <div style={panelStyle()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div>
+            <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
+            <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
+              {FACTIONS[port.faction]?.label.toUpperCase()} PORT
             </div>
-            <RepPill rep={rep} />
           </div>
-
-          <p style={{ color: T.textDim, fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 }}>{port.desc}</p>
-
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-            {port.services.map(s => <Pill key={s} label={s} />)}
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
-            {port.services.includes("shipyard") &&
-              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>}
-            {port.services.includes("crew") &&
-              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>}
-            <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "factions" })}>📊 Status</Btn>
-          </div>
-
-          {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
-            <div style={{ marginTop: 10 }}>
-              <Btn v="gold"
-                onClick={() => dispatch({ type: A.REPAIR })}
-                disabled={state.gold < repCost}
-              >
-                Quick Repair ({repCost}g)
-              </Btn>
-            </div>
-          )}
-
-          <div style={{ marginTop: 10 }}>
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
-          </div>
+          <RepPill rep={rep} />
         </div>
 
-        {/* ── Mission board ── */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column" })}>
-          <SectionTitle action={
-            <Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>
-          }>
-            MISSION BOARD
-          </SectionTitle>
+        <p style={{ color: T.textDim, fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 }}>{port.desc}</p>
 
-          {!port.services.includes("missions")
-            ? <EmptyState message="No mission board in this port." />
-            : state.missions.length === 0
-              ? <EmptyState message="No missions posted. Try refreshing." />
-              : state.missions.map(m => (
-                  <div key={m.id} style={{
-                    ...panelStyle({ background: T.panelAlt, marginBottom: 8 }),
-                    opacity: state.activeMission ? 0.55 : 1,
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                      <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
-                      <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
-                    </div>
-                    <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.desc}</p>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
-                      <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
-                      <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
-                      <Btn sm v="gold"
-                        disabled={!!state.activeMission}
-                        onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}
-                      >Accept</Btn>
-                    </div>
-                  </div>
-                ))
-          }
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+          {port.services.map(s => <Pill key={s} label={s} />)}
+        </div>
 
-          {state.activeMission && (
-            <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
-              <div style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
-                ACTIVE: {state.activeMission.name}
-              </div>
-              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
-                Destination: {PORTS[state.activeMission.targetPort]?.name}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {canFinish && (
-                  <Btn v="green" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}>
-                    Complete Mission
-                  </Btn>
-                )}
-                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>
-                  Abandon
+        {/* World Map – ALWAYS visible */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
+          <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
+        </div>
+
+        {/* Port services – hidden when At War */}
+        {!perk.servicesBlocked && (
+          <>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              {port.services.includes("shipyard") &&
+                <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>}
+              {port.services.includes("crew") &&
+                <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>}
+            </div>
+
+            {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
+              <div style={{ marginTop: 10 }}>
+                <Btn v="gold"
+                  onClick={() => dispatch({ type: A.REPAIR })}
+                  disabled={state.gold < repCost}
+                >
+                  Quick Repair ({repCost}g)
                 </Btn>
               </div>
-              {!canFinish && (
-                <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
-                  Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </>
+        )}
 
-        {/* ── Ship status ── */}
-        <div style={panelStyle()}>
-          <SectionTitle>⚓ {state.ship.name}</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <StatBlock label="Class" value={SHIPS[state.ship.type].name} />
-            <StatBlock label="Cannons" value={effectiveShipStats.cannons} /> {/* Use effective cannons */}
-            <StatBlock label="Speed" value={effectiveShipStats.speed} /> {/* Use effective speed */}
-            <StatBlock label="Crew" value={`${state.crew.roster.length}/${state.crew.max}`} />
-          </div>
-          <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>HULL</div>
-          <Bar value={state.ship.hull} max={effectiveShipStats.maxHull}
-            color={state.ship.hull / effectiveShipStats.maxHull < 0.3 ? T.redBr : T.greenBr} h={10} />
-          {state.ship.upgrades.length > 0 && (
-            <div style={{ marginTop: 8, display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {state.ship.upgrades.map(u => (
-                <Pill key={u} label={UPGRADES[u]?.name ?? u} color={T.blueBr} />
-              ))}
-            </div>
-          )}
-        </div>
+        {/* At War notice */}
+        {perk.servicesBlocked && (
+          <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
+        )}
 
-        {/* ── Log ── */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column", maxHeight: 220, overflow: "auto" })}>
-          <SectionTitle>CAPTAIN'S LOG</SectionTitle>
-          <LogList entries={state.log} />
+        <div style={{ marginTop: 10 }}>
+          <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
         </div>
       </div>
-    );
-  }
+
+      {/* ── Mission board ── */}
+      <div style={panelStyle({ display: "flex", flexDirection: "column" })}>
+        <SectionTitle action={
+          <Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>
+        }>
+          MISSION BOARD
+        </SectionTitle>
+
+        {/* Reputation-based mission reward modifier */}
+        {perk.tier !== "neutral" && (
+          <div style={{
+            color: perk.missionMult > 1 ? T.greenBr : T.gold,
+            fontSize: 10,
+            marginBottom: 8,
+          }}>
+            {perk.missionMult > 1
+              ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
+              : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
+          </div>
+        )}
+
+        {!port.services.includes("missions")
+          ? <EmptyState message="No mission board in this port." />
+          : state.missions.length === 0
+            ? <EmptyState message="No missions posted. Try refreshing." />
+            : state.missions.map(m => (
+                <div key={m.id} style={{
+                  ...panelStyle({ background: T.panelAlt, marginBottom: 8 }),
+                  opacity: state.activeMission ? 0.55 : 1,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
+                    <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                  </div>
+                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.desc}</p>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
+                    <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
+                    <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
+                    <Btn sm v="gold"
+                      disabled={!!state.activeMission}
+                      onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}
+                    >Accept</Btn>
+                  </div>
+                </div>
+              ))
+        }
+
+        {state.activeMission && (
+          <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
+            <div style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
+              ACTIVE: {state.activeMission.name}
+            </div>
+            <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
+              Destination: {PORTS[state.activeMission.targetPort]?.name}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {canFinish && (
+                <Btn v="green" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}>
+                  Complete Mission
+                </Btn>
+              )}
+              <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>
+                Abandon
+              </Btn>
+            </div>
+            {!canFinish && (
+              <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
+                Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Ship status ── */}
+      <div style={panelStyle()}>
+        <SectionTitle>⚓ {state.ship.name}</SectionTitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <StatBlock label="Class" value={SHIPS[state.ship.type].name} />
+          <StatBlock label="Cannons" value={effectiveShipStats.cannons} />
+          <StatBlock label="Speed" value={effectiveShipStats.speed} />
+          <StatBlock label="Crew" value={`${state.crew.roster.length}/${state.crew.max}`} />
+        </div>
+        <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>HULL</div>
+        <Bar value={state.ship.hull} max={effectiveShipStats.maxHull}
+          color={state.ship.hull / effectiveShipStats.maxHull < 0.3 ? T.redBr : T.greenBr} h={10} />
+        {state.ship.upgrades.length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {state.ship.upgrades.map(u => (
+              <Pill key={u} label={UPGRADES[u]?.name ?? u} color={T.blueBr} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Log ── */}
+      <div style={panelStyle({ display: "flex", flexDirection: "column", maxHeight: 220, overflow: "auto" })}>
+        <SectionTitle>CAPTAIN'S LOG</SectionTitle>
+        <LogList entries={state.log} />
+      </div>
+    </div>
+  );
+}
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
@@ -632,27 +660,33 @@ window.S = (() => {
 
   // ── SHIPYARD SCREEN ──────────────────────────────────────────────────
   function ShipyardScreen({ state, dispatch }) {
-    const repCost = L.shipRepairCost(state);
+    const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+
+    // At War – show only notice and back button
+    if (perk.servicesBlocked) {
+      return (
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+          <button
+            onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
+            style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}
+          >
+            ← Back to Port
+          </button>
+          <EmptyState message="⚔ You are at war with this port. No shipyard services available." />
+        </div>
+      );
+    }
+
+    // Normal content (unchanged after this point)
+    const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
     const currentShip = SHIPS[state.ship.type];
-    const effectiveShipStats = L.getShipStats(state); // Get effective stats (includes upgrades)
+    const effectiveShipStats = L.getShipStats(state);
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
-        {/* EXPLICIT BACK BUTTON (plain HTML, no dependencies) */}
         <button
           onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
-          style={{
-            alignSelf: "flex-start",
-            background: T.panel,
-            border: `1px solid ${T.gold}`,
-            color: T.gold,
-            padding: "6px 12px",
-            borderRadius: 3,
-            cursor: "pointer",
-            fontSize: 12,
-            fontFamily: T.font,
-            marginBottom: 10
-          }}
+          style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}
         >
           ← Back to Port
         </button>
@@ -663,7 +697,7 @@ window.S = (() => {
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
             <div style={{ flex: 1 }}>
               <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>
-                Hull: {state.ship.hull} / {effectiveShipStats.maxHull} {/* Use effective maxHull */}
+                Hull: {state.ship.hull} / {effectiveShipStats.maxHull}
               </div>
               <Bar value={state.ship.hull} max={effectiveShipStats.maxHull} color={T.greenBr} h={10} />
             </div>
@@ -770,6 +804,21 @@ window.S = (() => {
   function CrewScreen({ state, dispatch }) {
     const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
     const happy = Math.round(state.crew.roster.length * state.crew.morale / 100);
+    const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+
+    if (perk.servicesBlocked) {
+      return (
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+          <button
+            onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
+            style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}
+          >
+            ← Back to Port
+          </button>
+          <EmptyState message="⚔ You are at war with this port. No crew services available." />
+        </div>
+      );
+    }
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
@@ -905,14 +954,28 @@ window.S = (() => {
         {/* Captain's Standing */}
         <div style={panelStyle()}>
           <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            {/* Fame */}
             <div>
-              <span style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</span>
-              <span style={{ color: T.textDim, marginLeft: 8, fontSize: 12 }}>{L.getFameLabel(state.fame)}</span>
+              <div style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</div>
+              <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameLabel(state.fame)}</div>
             </div>
-            <div>
-              <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>☠ {state.infamy ?? 0}</span>
-              <span style={{ color: T.textDim, marginLeft: 8, fontSize: 12 }}>{L.getInfamyLabel ? L.getInfamyLabel(state.infamy ?? 0) : "Clean"}</span>
+            {/* Infamy */}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>
+                ☠ {state.infamy ?? 0}
+              </div>
+              <div style={{ color: T.textDim, fontSize: 12 }}>
+                {L.getInfamyLabel(state.infamy ?? 0)}
+              </div>
+              {(state.infamy ?? 0) >= 10 && (
+                <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4, maxWidth: 200 }}>
+                  {(state.infamy ?? 0) >= 100 ? "Every colonial faction considers you an enemy of civilisation."
+                  : (state.infamy ?? 0) >= 50 ? "You cannot bribe your way past patrols."
+                  : (state.infamy ?? 0) >= 25 ? "Bribe option will be unavailable above 50 infamy."
+                  : "Coastal patrols are watching you more closely."}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -951,6 +1014,13 @@ window.S = (() => {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: fac.color, fontSize: 13, fontWeight: "bold" }}>{fac.label}</span>
                   <RepPill rep={avgRep} />
+                  <div style={{ color: T.textDim, fontSize: 9, marginTop: 2 }}>
+                    {avgRep >= 80 ? "20% repair · +20% missions"
+                    : avgRep >= 50 ? "10% repair · +10% missions"
+                    : avgRep >= 30 ? "−10% missions"
+                    : avgRep >= 10 ? "−25% missions"
+                    : "No services"}
+                  </div>
                 </div>
                 {ports.map(p => {
                   const rep = state.reputation[p.key] ?? 20;

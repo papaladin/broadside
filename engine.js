@@ -43,6 +43,7 @@ window.E = (() => {
     log: [],
     gold: 1000,
     fame: 0,
+    infamy: 0,
     currentPort: "portRoyal",
     previousPort: null,
     destination: null,
@@ -74,7 +75,7 @@ window.E = (() => {
         const start = STARTS.find(s => s.id === action.scenarioId);
         if (!start) return { ...initialState, screen: "start" };
 
-        const newState = { ...initialState, screen: "port", currentPort: "portRoyal", day: 1, log: [`Started as ${start.name}.`], reputation: {} };
+        const newState = { ...initialState, screen: "port", currentPort: "portRoyal", day: 1, log: [`Started as ${start.name}.`], reputation: {},infamy: 0, };
 
         start.bonuses.forEach(bonus => {
           if (bonus.includes("gold")) {
@@ -175,6 +176,11 @@ window.E = (() => {
 
       // --- PORT ACTIONS ---
       case A.REPAIR: {
+        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+        if (repPerk.servicesBlocked) return {
+          ...state,
+          log: [...state.log, "You are at war with this port. No services available."]
+        };
         const shipStats = L.getShipStats(state);
         const rep = state.reputation[state.currentPort] ?? 50;
         const perk = L.getRepPerk(rep);
@@ -193,6 +199,11 @@ window.E = (() => {
       }
 
       case A.BUY_SHIP: {
+        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+        if (repPerk.servicesBlocked) return {
+          ...state,
+          log: [...state.log, "You are at war with this port. No services available."]
+        };
         const ship = SHIPS[action.shipType];
         const req = L.meetsRequirement(state, ship);
         if (!req.allowed) return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
@@ -203,6 +214,11 @@ window.E = (() => {
       }
 
       case A.BUY_UPGRADE: {
+        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+        if (repPerk.servicesBlocked) return {
+          ...state,
+          log: [...state.log, "You are at war with this port. No services available."]
+        };
         const req = L.meetsRequirement(state, upgrade);
         if (!req.allowed) return { ...state, log: [...state.log, `Cannot install: ${req.reason}.`] };
         if (!upgrade || state.gold < upgrade.cost || state.ship.upgrades.includes(action.upgradeKey) || !SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) return { ...state };
@@ -211,6 +227,11 @@ window.E = (() => {
 
       // --- CREW & MORALE ---
       case A.HIRE_CREW: {
+        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+        if (repPerk.servicesBlocked) return {
+          ...state,
+          log: [...state.log, "You are at war with this port. No services available."]
+        };
         const cost = action.count * 50;
         if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
         const portFaction = PORTS[state.currentPort]?.faction || "pirate";
@@ -219,6 +240,11 @@ window.E = (() => {
       }
 
       case A.RAISE_MORALE: {
+        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+        if (repPerk.servicesBlocked) return {
+          ...state,
+          log: [...state.log, "You are at war with this port. No services available."]
+        };
         const cost = state.crew.roster.length * 5;
         if (state.gold < cost || state.crew.morale >= 100) return { ...state };
         return { ...state, gold: state.gold - cost, crew: { ...state.crew, morale: Math.min(100, state.crew.morale + 5) }, log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`] };
@@ -235,12 +261,45 @@ window.E = (() => {
 
       case A.COMPLETE_MISSION: {
         const mission = state.activeMission;
-        const req = L.meetsRequirement(state, mission);
-        if (!req.allowed) return { ...state, log: [...state.log, `Mission unavailable: ${req.reason}.`] };
         if (!mission) return state;
-        if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
+        if (mission.targetPort && state.currentPort !== mission.targetPort) {
+          return { ...state };
+        }
+
+        // Reputation-based gold multiplier
+        const rep = state.reputation[state.currentPort] ?? 50;
+        const perk = L.getRepPerk(rep);
+        const baseGold = mission.gold;
+        const finalGold = Math.floor(baseGold * perk.missionMult);
+        const goldDelta = finalGold - baseGold;
+        const bonusNote = goldDelta > 0 ? ` (+${goldDelta}g ${perk.tier} bonus)`
+                        : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
+
         const newRep = L.applyReputationImpact(state, mission.repImpact);
-        return { ...state, gold: state.gold + mission.gold, fame: state.fame + mission.fame, reputation: newRep, activeMission: null, missions: L.generateMissions(state.currentPort, state), log: [...state.log, `Completed mission: ${mission.name}. +${mission.gold}g, +${mission.fame} fame.`] };
+
+        // Infamy gain
+        const infamyGain = mission.infamyGain || 0;
+        const oldInfamy = state.infamy ?? 0;
+        const newInfamy = Math.min(999, oldInfamy + infamyGain);
+        const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
+
+        const newLog = [
+          ...state.log,
+          `Completed mission: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`
+        ];
+        if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
+        if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
+
+        return {
+          ...state,
+          gold: state.gold + finalGold,
+          fame: state.fame + mission.fame,
+          infamy: newInfamy,
+          reputation: newRep,
+          activeMission: null,
+          missions: L.generateMissions(state.currentPort, state),
+          log: newLog
+        };
       }
 
       case A.ABANDON_MISSION: return { ...state, activeMission: null, reputation: L.applyReputationImpact(state, { [state.activeMission?.faction || "pirate"]: -10 }), log: [...state.log, `Abandoned mission: ${state.activeMission?.name}.`] };

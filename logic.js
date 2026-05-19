@@ -49,6 +49,14 @@ window.L = (() => {
   return "Unknown";
   };
 
+  const getInfamyLabel = (infamy) => {
+  if (infamy >= 100) return "Legendary Outlaw";
+  if (infamy >= 50)  return "Notorious";
+  if (infamy >= 25)  return "Wanted";
+  if (infamy >= 10)  return "Suspect";
+  return "Clean";
+  };
+
   const hasUpgrade = (state, upgradeKey) => {
     return state.ship.upgrades.includes(upgradeKey);
   };
@@ -58,6 +66,9 @@ window.L = (() => {
     return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${getFameLabel(item.requiredFame)})` };
   return { allowed: true, reason: null };
   };
+
+  const canBribe = (state) => (state.infamy ?? 0) < 50;
+
 
   const getEffectiveMorale = (state) => {
     const shipStats = getShipStats(state);
@@ -539,12 +550,12 @@ const resolveCombatAction = (state, action) => {
     const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat"];
     const bribeBlocked = noBribeTypes.includes(type);
     const canAffordBribe = gold >= bribeCost;
-    const canBribe    = !bribeBlocked && canAffordBribe;
-    const bribeReason = bribeBlocked
-      ? "They cannot be bought"
-      : !canAffordBribe
-        ? `Need ${bribeCost}g (you have ${gold}g)`
-        : null;
+    const bribeInfamyBlocked = !L.canBribe(state);
+    const canBribeResult = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
+    const bribeReason = bribeBlocked        ? "They cannot be bought"
+                      : bribeInfamyBlocked  ? "Your reputation for bribery has preceded you."
+                      : !canAffordBribe     ? `Need ${bribeCost}g (you have ${gold}g)`
+                      : null;
 
     // --- Surrender ---
     const noSurrenderTypes = ["bounty_target", "mission_combat"];
@@ -570,7 +581,7 @@ const resolveCombatAction = (state, action) => {
           repRequired: 30,
         },
         bribe: {
-          available:   canBribe,
+          available:   canBribeResult,   // was canBribe
           reason:      bribeReason,
           cost:        bribeCost,
         },
@@ -663,7 +674,9 @@ const resolveCombatAction = (state, action) => {
     canAfford,
     reputationLabel,
     getFameLabel,
+    getInfamyLabel,
     meetsRequirement,
+    canBribe,
     hasUpgrade,
     getShipStats,
     getEffectiveMorale,

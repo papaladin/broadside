@@ -1,10 +1,11 @@
 # Broadside — Architecture Documentation
 
-> This document covers **code structure, design constraints, and implementation
-> decisions**. It does not cover the feature roadmap or future plans — those live
-> in `roadmap.md`. It does not cover how to run the game or tests — that lives in
-> `README.md`. When those documents conflict with this one, this one is authoritative
-> on code structure; `roadmap.md` is authoritative on priorities.
+# Broadside — Architecture Documentation
+
+> This document covers **code structure, design constraints, and current
+> implementation**. It does not cover the feature roadmap or future plans — those
+> live in `roadmap.md`. It does not cover how to run the game or tests — that lives
+> in `README.md`.
 
 ---
 
@@ -148,19 +149,19 @@ key used by both `logic.js` and `engine.js`. Do not introduce a second key.
 
 ```
 broadside/
-├── index.html          Entry point. Loads dependencies and game files in order.
-├── data.js             All game constants. Exposes window.D
-├── logic.js            All pure game functions. Exposes window.L
-├── engine.js           State shape, reducer, action constants. Exposes window.E
-├── ui.jsx              React primitives and theme tokens. Exposes window.UI
-├── screens.jsx         All game screens. Exposes window.S
-├── App.jsx             Root component, HUD, screen router. Renders to #root
-├── architecture.md     This document
-├── roadmap.md          Feature roadmap and design decisions
-├── README.md           Setup and running instructions
+broadside/
+├── index.html Entry point. Loads dependencies and game files in order.
+├── data.js All game constants. Exposes window.D
+├── logic.js All pure game functions. Exposes window.L
+├── engine.js State shape, reducer, action constants. Exposes window.E
+├── ui.jsx React primitives and theme tokens. Exposes window.UI
+├── screens.jsx All game screens. Exposes window.S
+├── App.jsx Root component, HUD, screen router. Renders to #root
+├── architecture.md This document
+├── README.md Setup and running instructions
 └── tests/
-    ├── tests.html      Test runner UI
-    └── tests.js        Test suite definitions
+├── tests.html Test runner UI
+└── tests.js Test suite definitions
 ```
 
 ### Planned split — screens.jsx (at Phase 2 boundary)
@@ -268,17 +269,21 @@ partial state objects only.
 
 | Export | Description |
 |---|---|
-| `FACTIONS` | Faction labels and colours: pirate, spanish, english, dutch, french |
-| `PORTS` | Port definitions: name, faction, SVG coords, available services, description |
-| `SHIPS` | Ship stats: maxCrew, cannons, speed, maxHull, cost, upgradeSlots, maxDaysAtSea |
-| `EQUIPMENT` | Equipment definitions: name, category, cost, description, effects object |
-| `MISSION_POOL` | Mission templates: type, base gold/fame, risk level, description |
-| `RANDOM_EVENTS` | Event pool: id, type, icon, description, apply fn or choices array |
-| `WORLD_EVENTS` | World-level events: condition, weight, effects, duration range |
-| `STARTS` | Starting scenarios: gold, fame, startPort, shipType, crew, reputation |
-| `FACTION_RELATIONS` | Inter-faction stance matrix (−100 to +100) |
+| Export | Description |
+|---|---|
+| `PORTS` | Port definitions: name, faction, coordinates, services, description |
+| `SHIPS` | Ship stats: maxHull, maxCrew, cannons, speed, cost, upgradeable, requiredFame |
+| `FACTIONS` | Faction labels and colours: english, spanish, french, dutch, pirate |
+| `UPGRADES` | Ship upgrades: name, cost, desc, effects object, requiredFame |
+| `MISSION_POOL` | Mission templates: type, gold, fame, infamyGain, risk, requiredFame, enemy, interceptChance |
+| `RANDOM_EVENTS` | Event pool: id, type, title, desc, condition, choices with outcomes |
+| `STARTS` | Starting scenarios: name, desc, bonuses array |
+| `FACTION_RELATIONS` | Inter-faction stance matrix (currently unused) |
 | `ENCOUNTER_FLAVOUR` | Functions returning flavour text per encounter type |
 | `SURRENDER_CONSEQUENCE` | Consequence objects per encounter type |
+| `CREW_FIRST_NAMES` | First name pools per faction |
+| `CREW_LAST_NAMES` | Last name pools per faction |
+| `CREW_ROLES` | Role definitions with weights |
 
 **Port service keys** used in `port.services[]`:
 
@@ -301,34 +306,33 @@ partial state objects only.
 
 | Function | Signature | Description |
 |---|---|---|
-| `travelDays` | `(fromKey, toKey, state)` | Effective travel days, accounts for speed and cargo load |
-| `canReach` | `(state, fromKey, toKey)` | Whether ship can reach port within `maxDaysAtSea` |
-| `randomWind` | `()` | Generates `{ angle, speed }` |
-| `encounterRoll` | `(state)` | Boolean — random encounter fires this day |
-| `rollRandomEvent` | `(state)` | Selects event from pool, filtered by state context |
-| `applyEvent` | `(event, state, choiceIndex)` | Returns partial state from event |
+| `travelDays` | `(fromKey, toKey, state)` | Travel days accounting for speed, wind, morale |
+| `getShipStats` | `(state)` | Effective ship stats with all upgrade effects applied |
+| `getEffectiveMorale` | `(state)` | Morale with figurehead bonus applied, capped at 100 |
+| `hasUpgrade` | `(state, key)` | Boolean — upgrade key is installed |
+| `getFameLabel` | `(fame)` | Returns tier label (Unknown → Immortal) |
+| `meetsRequirement` | `(state, item)` | Returns `{ allowed, reason }` for fame-gated items |
+| `getRepPerk` | `(rep)` | Returns `{ tier, repairMult, missionMult, servicesBlocked }` |
+| `getInfamyLabel` | `(infamy)` | Returns label (Clean → Legendary Outlaw) |
+| `canBribe` | `(state)` | Boolean — infamy < 50 |
 | `buildEncounterContext` | `(state, type, enemy)` | Builds context object for InterceptScreen |
-| `generateMissions` | `(portKey, state)` | Returns mission array for a port |
-| `missionOdds` | `(mission, state)` | Returns 0–95 success probability |
-| `getShipStats` | `(state)` | Effective ship stats with all equipment effects applied |
-| `getEffectiveMorale` | `(state)` | Morale with equipment bonuses applied |
-| `canAfford` | `(state, cost)` | Boolean |
-| `hasUpgrade` | `(state, key)` | Boolean — equipment key is installed |
-| `getFameLabel`     |  `L.getFameLabel(50)` → `"Recognised"` | Returns a tier label (Unknown → Immortal) based on fame.     |
-| `meetsRequirement` |  `L.meetsRequirement(state, ship)` → `{ allowed: false, reason: "Requires ★ 50 fame" }` | Checks if the player's fame meets an item's `requiredFame`.  |
+| `generateMissions` | `(portKey, state)` | Returns 2‑3 missions filtered by faction, rep, fame |
+| `triggerRandomEvent` | `(state)` | Selects event from pool filtered by conditions |
 | `shipRepairCost` | `(state)` | Gold cost to fully repair |
 | `reputationLabel` | `(rep)` | String label for a reputation value |
-| `payCrewWages` | `(state)` | Partial state after daily wage payment |
+| `payCrewWages` | `(state)` | Daily wage amount |
 | `applyReputationImpact` | `(state, impact)` | Updated reputation object |
-| `decayReputation` | `(reputation)` | Reputation after daily decay |
-| `resolveCombatAction` | `(battleState, shipStats, crew, action)` | Updated battleState |
-| `getNPCAction` | `(battleState)` | NPC's chosen combat action string |
-| `updateReputation` | `(state, portKey, delta)` | State with reputation updated |
-| `saveGame` | `(state)` | Serialise to localStorage. Returns boolean |
-| `loadGame` | `()` | Deserialise from localStorage. Returns state or null |
+| `decayReputation` | `(state)` | Reputation after daily decay (only above 50) |
+| `updateReputation` | `(state, portKey, delta)` | Single port update, clamped 0‑100 |
+| `resolveCombatAction` | `(state, action)` | Returns `{ player, enemy, moraleDelta, goldReward, fled, instantVictory }` |
+| `getNPCAction` | `(enemy)` | NPC's chosen combat action (weighted random, no evade) |
+| `generateCrewMember` | `(faction, existingNames)` | Creates a named crew member |
+| `generateRoster` | `(count, faction)` | Creates a full roster |
+| `removeRandomCrew` | `(roster, count)` | Removes random members, returns `{ newRoster, removed }` |
+| `roll` | `(sides)` | Random integer 1–sides |
+| `saveGame` | `(state)` | Serialise to localStorage |
+| `loadGame` | `()` | Deserialise from localStorage, returns state or null |
 | `hasSave` | `()` | Boolean |
-| `deleteSave` | `()` | Removes save |
-| `roll` | `(sides)` | Returns random integer 1–sides |
 
 **Critical:** `getShipStats(state)` is the central stat aggregator. All combat,
 travel, capacity, and UI code must call this rather than reading
@@ -368,7 +372,7 @@ Always call it last, wrapping the final state object.
 | Navigation | `NAVIGATE`, `SAIL_TO`, `ENTER_PORT`, `ADVANCE_DAY` |
 | Game lifecycle | `START_GAME`, `SAVE_GAME`, `LOAD_GAME` |
 | Intercept | `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_PARLEY`, `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER` |
-| Port | `REPAIR`, `BUY_SHIP`, `BUY_EQUIPMENT`, `REMOVE_EQUIPMENT`, `HIRE_CREW` |
+| Port | `REPAIR`, `BUY_SHIP`, `BUY_UPGRADE`, `HIRE_CREW`, `RAISE_MORALE` |
 | Missions | `TAKE_MISSION`, `COMPLETE_MISSION`, `ABANDON_MISSION`, `REFRESH_MISSIONS` |
 | Combat | `BATTLE_ACTION`, `DISMISS_BATTLE` |
 | Events | `RESOLVE_EVENT` |
@@ -432,15 +436,15 @@ calculation belongs in `logic.js`. Screens read and render; they do not decide.
 | Screen | `state.screen` value | Description |
 |---|---|---|
 | `StartScreen` | `"start"` | Scenario selection, load game |
-| `PortScreen` | `"port"` | Main hub: mission board, log, quick actions |
-| `MapScreen` | `"map"` | Interactive SVG world map, sail destination |
-| `SailingScreen` | `"sailing"` | Day-advance, voyage progress |
-| `InterceptScreen` | `"intercept"` | Pre-combat encounter options |
-| `BattleScreen` | `"battle"` | Turn-based naval combat |
-| `ShipyardScreen` | `"shipyard"` | Ship purchase, equipment, repair |
-| `CrewScreen` | `"crew"` | Crew roster, hire, morale |
-| `StatusScreen`    | View reputation, fame, infamy, and faction relations.       | Displays Captain's Standing panel, faction rep bars, and perk info. |
-| `EventScreen` | `"event"` | Random event resolution |
+| `PortScreen` | `"port"` | Main hub: mission board, log, ship status, services |
+| `MapScreen` | `"map"` | Interactive SVG world map, click to sail |
+| `SailingScreen` | `"sailing"` | Day-advance, voyage progress, wind display |
+| `InterceptScreen` | `"intercept"` | Pre-combat encounter: fight, flee, parley, bribe, surrender |
+| `BattleScreen` | `"battle"` | Turn-based naval combat with battle log |
+| `ShipyardScreen` | `"shipyard"` | Buy ships/upgrades, repair (fame-gated, rep-discounted) |
+| `CrewScreen` | `"crew"` | Named crew manifest, hire, buy drinks for morale |
+| `StatusScreen` | `"status"` | Captain's Standing (fame/infamy), faction relations, reputation per port with perk info |
+| `EventScreen` | `"event"` | Random event resolution with choices |
 
 **Export pattern:**
 
@@ -534,62 +538,54 @@ Authoritative state shape. Update this section when adding new fields.
 ```js
 {
   // ── Game lifecycle ──────────────────────────────────────────────
-  screen:       "start",    // current screen key — see screen list in Section 5
-  day:          1,          // absolute day counter, never resets
-  gold:         0,
-  fame:         0,          // cumulative fame (heroic acts)
-  infamy:       0,          // cumulative infamy (piracy, criminal acts)
+  screen:       "start",
+  day:          1,
+  gold:         1000,
+  fame:         0,          // permanent progression, never decays
+  infamy:       0,          // permanent outlaw track, never decays
 
   // ── Ship ────────────────────────────────────────────────────────
   ship: {
-    type:       "sloop",    // key into SHIPS
-    hull:       100,        // current hull points
-    name:       "The Sea Rat",
-    equipment:  [],         // array of EQUIPMENT keys
-                            // max length = SHIPS[type].upgradeSlots
-                            // no duplicate keys allowed
+    type:       "sloop",
+    hull:       100,
+    cannons:    10,
+    name:       "Sea Dog",
+    upgrades:   [],         // array of UPGRADES keys
   },
 
-  // ── Crew ────────────────────────────────────────────────────────
+  // ── Crew (named roster) ─────────────────────────────────────────
   crew: {
-    current:    20,         // number of crew aboard
-    max:        30,         // effective max (base from ship + equipment bonuses)
-    morale:     75,         // 0–100
+    roster:     [{ id, firstName, lastName, role, faction, daysAboard }],
+    max:        50,
+    morale:     80,         // 0–100
   },
 
   // ── Navigation ──────────────────────────────────────────────────
-  currentPort:      "tortuga",  // port key of current location
-  worldPos:         { x: 0, y: 0 }, // SVG coords, mirrors port position
-  destination:      null,       // port key of destination while sailing
+  currentPort:      "portRoyal",
+  previousPort:     null,       // set on SAIL_TO, used for defeat return
+  destination:      null,
   sailingDaysLeft:  0,
   sailingDaysTotal: 0,
-  wind:             { angle: 0, speed: 8 },
+  wind:             { angle: 45, speed: 10 },
 
   // ── Reputation ──────────────────────────────────────────────────
-  reputation: {
-    tortuga:      60,       // 0–100 per port key
-    portRoyal:    20,
-    // all port keys present
-  },
+  reputation: { /* portKey: 0–100 for all ports */ },
 
   // ── Missions ────────────────────────────────────────────────────
-  missions:         [],     // available missions at current port
-  activeMission:    null,   // accepted mission object, or null
+  missions:         [],
+  activeMission:    null,
 
   // ── Combat ──────────────────────────────────────────────────────
-  battleState:      null,   // see battleState shape below
-  encounterContext: null,   // see encounterContext shape below
+  battleState:      null,   // { phase, playerHull, enemyHull, playerCrew, enemyCrew,
+                            //   enemy, round, log, returnScreen, goldReward,
+                            //   initialCrewCount, lostCrewNames }
+  encounterContext: null,   // { type, enemy, flavourText, options: { flee, parley, bribe, surrender, fight } }
 
   // ── Events ──────────────────────────────────────────────────────
-  activeEvent:      null,   // event object from RANDOM_EVENTS, or null
+  activeEvent:      null,
 
   // ── Captain's log ───────────────────────────────────────────────
-  log:              [],     // strings, newest first, max 30 entries
-
-  // ── Planned fields (not yet in state) ───────────────────────────
-  // provisions: { food, water, medicine, ammunition }  ← Phase 1.2
-  // world: { wars, plagues, sieges, eventLog }         ← Phase 2.1
-  // crew.roster: []                                    ← Phase 1.5.1
+  log:              [],
 }
 ```
 
@@ -678,6 +674,12 @@ dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
 | `BATTLE_ACTION` | `action`: `"broadside"` \| `"precision"` \| `"grapple"` \| `"evade"` |
 | `DISMISS_BATTLE` | — |
 | `RESOLVE_EVENT` | `choiceIndex` (number, or null for non-choice events) |
+| `RAISE_MORALE` | — |
+| `INTERCEPT_FIGHT` | — |
+| `INTERCEPT_FLEE` | — |
+| `INTERCEPT_PARLEY` | — |
+| `INTERCEPT_BRIBE` | — |
+| `INTERCEPT_SURRENDER` | — |
 
 ---
 
@@ -724,6 +726,13 @@ Future cargo load penalty will reduce speed proportionally to fill percentage.
 ports. Mid-voyage events that extend travel are never blocking — consequences
 come from provision consumption and wage costs for the extra days.
 
+### Wind & Sailing
+
+- Wind shifts daily at sea: angle drifts ±15°, speed drifts ±2.5 kt (clamped 1‑20).
+- Wind affects travel days: favourable wind reduces days, opposing wind increases them.
+- The wind rose on MapScreen and SailingScreen shows current wind direction and speed.
+
+
 ### Encounter routing — all encounters through InterceptScreen
 
 No encounter ever goes directly to `BattleScreen`. Every trigger point builds
@@ -747,13 +756,13 @@ Fight is always available in all types.
 
 ### Reputation thresholds
 
-| Range | Label | Mechanical effect |
-|---|---|---|
-| < 10 | Hostile | Port entry triggers combat. Black market only. |
-| 10–29 | Restricted | Port fee to dock. No crew hire. Reduced missions. |
-| 30–49 | Neutral | Standard access. |
-| 50–69 | Friendly | 10% repair discount. Better mission quality. |
-| ≥ 80 | Allied | 20% repair discount. Elite crew. Governor missions. |
+| Range | Label | Repair multiplier | Mission gold multiplier | Services |
+|---|---|---|---|---|
+| < 10 | At War | 1.00 | ×0 | Blocked entirely |
+| 10–29 | Hostile | 1.00 | ×0.75 | Available |
+| 30–49 | Neutral | 1.00 | ×0.90 | Available |
+| 50–69 | Friendly | 0.90 | ×1.10 | Available |
+| ≥ 80 | Allied | 0.80 | ×1.20 | Available |
 
 `L.reputationLabel(rep)` returns the label string. Threshold checks happen in
 the reducer (port entry) and screen components (service access, mission filtering).
@@ -770,7 +779,47 @@ the reducer (port entry) and screen components (service access, mission filterin
   | 100–199 | Notorious |  
   | 200–349 | Legendary |  
   | 350+ | Immortal |
-- **Gating**: Ships, upgrades, and missions can have a `requiredFame` field. Items with a requirement are either hidden (missions) or greyed‑out with a lock reason (ships/upgrades).
+- **Gating**: Ships, upgrades, and missions can have a `requiredFame` field.
+  Ships/upgrades are greyed‑out in the shipyard; missions are hidden from the board.
+  The reducer also guards `BUY_SHIP`, `BUY_UPGRADE`, and `TAKE_MISSION` with
+  `L.meetsRequirement`.
+
+
+### Morale System
+
+- **Initial**: 80.
+- **Daily decay**: -1 only when morale is already below 30.
+- **Combat outcomes**:  
+  - Victory by sinking: **+10**  
+  - Victory by grapple: **+5**  
+  - Flee: **-5**  
+  - Grapple failure: **-10**  
+- **Events**: Certain choices (e.g., whale sighting "Leave them be") give morale bonuses.
+- **Recovery**: "Buy Drinks" button on CrewScreen costs `crew.roster.length * 5` gold for +5 morale (capped at 100).
+- **Effective morale**: `crew.morale + ship.moraleBonus` (from figurehead upgrade), displayed in HUD. Affects combat damage and crew wages.
+
+
+### Named Crew Roster
+
+- Crew are individual objects with `id`, `firstName`, `lastName`, `role`, `faction`, `daysAboard`.
+- Names are drawn from faction‑specific pools in `CREW_FIRST_NAMES` and `CREW_LAST_NAMES`.
+- Roles (deckhand, gunner, cook, carpenter, navigator) are assigned by weighted random.
+- The manifest on CrewScreen shows each member as an icon with a tooltip.
+- Crew losses in combat and events remove specific named members; the log names them.
+- `L.removeRandomCrew(roster, count)` handles removal.
+
+
+### Pre-Battle Intercept Screen
+
+All encounters route through `InterceptScreen` before any combat. Options are
+context‑dependent:
+
+- **Fight**: always available.
+- **Flee**: speed check (player speed + d3 vs enemy speed + d3). Blocked in hostile port entry, mission combat.
+- **Parley**: reputation check (d100 ≤ min(80, rep+20)). Requires rep ≥ 30. Blocked in certain encounter types.
+- **Bribe**: costs gold, reduces rep by 2. Blocked by encounter type, insufficient gold, or infamy ≥ 50.
+- **Surrender**: applies penalties (gold loss, morale loss, days lost, rep loss) depending on encounter type.
+
 
 ### Combat resolution flow
 
@@ -969,7 +1018,10 @@ Read this section before making any changes to the codebase.
 - Using a localStorage key other than `"piratesSave"`
 - Reading `SHIPS[state.ship.type].someField` directly instead of calling
   `getShipStats(state)` — equipment effects are ignored
-- Using `crew.current` instead of `crew.roster.length` after the Phase 1.5 split
+- Using `crew.current` instead of `crew.roster.length` after the named-crew migration
+- Forgetting to export a new logic function from the IIFE's `return` statement
+- Using `rep < 10` instead of `L.getRepPerk(rep).servicesBlocked` for At War checks
+- Using string literals like `"pirates_save"` instead of the canonical `"piratesSave"` key
 - Using `crew.max` instead of `getShipStats(state).maxCrew` for hire limits
 
 ### Always do
