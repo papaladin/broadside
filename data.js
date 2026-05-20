@@ -239,70 +239,71 @@ window.D = (() => {
   //  cost: Gold cost to purchase.
   //  upgradeable: Array of upgrade keys from UPGRADES.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const SHIPS = {
-    dinghy: {
-      name: "Dinghy",
-      maxHull: 30,
-      maxCrew: 5,
-      cannons: 2,
-      speed: 3,
-      cost: 200,
-      upgradeable: [],
-      desc: "A tiny boat. Barely seaworthy, but cheap."
-    },
-    sloop: {
-      name: "Sloop",
-      maxHull: 100,
-      maxCrew: 50,
-      cannons: 10,
-      speed: 8,
-      cost: 1000,
-      upgradeable: ["reinforced_hull", "extra_cannons"],
-      desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
-    },
-    brigantine: {
-      name: "Brigantine",
-      maxHull: 150,
-      maxCrew: 80,
-      cannons: 15,
-      speed: 6,
-      cost: 2500,
-      upgradeable: ["reinforced_hull", "extra_cannons", "figurehead"],
-      desc: "Balanced ship with good speed and firepower."
-    },
-    frigate: {
-      name: "Frigate",
-      maxHull: 200,
-      maxCrew: 100,
-      cannons: 20,
-      speed: 5,
-      cost: 4000,
-      requiredFame: 50,
-      upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
-      desc: "A warship. Slow but heavily armed."
-    },
-    galleon: {
-      name: "Galleon",
-      maxHull: 300,
-      maxCrew: 150,
-      cannons: 30,
-      speed: 3,
-      cost: 8000,
-      requiredFame: 100,
-      upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
-      desc: "The king of the seas. Slow but nearly unstoppable in combat."
-    },
-    merchantman: {
-      name: "Merchantman",
-      maxHull: 120,
-      maxCrew: 60,
-      cannons: 5,
-      speed: 4,
-      cost: 1500,
-      upgradeable: ["reinforced_hull"],
-      desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
-    }
-  };
+const SHIPS = {
+
+  // Tier 1
+  dinghy: { name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 20,
+    upgradeable: [],
+    desc: "A tiny boat. Barely seaworthy, but cheap."
+  },
+
+  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 4, speed: 20, cost: 600, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+    upgradeable: ["reinforced_hull"],
+    desc: "Small, fast, and agile. Excellent for scouting and smuggling."
+  },
+
+  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 1000, requiredFame: 0, maxDays: 10, holdCapacity: 200,
+    upgradeable: ["reinforced_hull", "extra_cannons"],
+    desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
+  },
+
+
+  // Tier 2
+  schooner: { name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 1800, requiredFame: 50, maxDays: 12, holdCapacity: 240,
+    upgradeable: ["reinforced_hull", "figurehead"],
+    desc: "Favored by smugglers and pirates for its speed and shallow draft."
+  },
+
+  merchantman: { name: "Merchantman", maxHull: 120, maxCrew: 60, cannons: 5, speed: 10, cost: 1500, requiredFame: 50, maxDays: 14, holdCapacity: 336,
+    upgradeable: ["reinforced_hull"],
+    desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
+  },
+
+  brigantine: { name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 2500, requiredFame: 50, maxDays: 14, holdCapacity: 448,
+    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead"],
+    desc: "Balanced ship with good speed and firepower."
+  },
+
+
+  // Tier 3
+  corvette: { name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 3500, requiredFame: 100, maxDays: 16, holdCapacity: 500,
+    upgradeable: ["reinforced_hull", "extra_cannons", "copper_hull"],
+    desc: "A swift naval warship designed to hunt pirates and escort convoys."
+  },
+
+  frigate: { name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 4500, requiredFame: 100, maxDays: 18, holdCapacity: 720,
+    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+    desc: "A powerful warship with heavy guns and solid endurance."
+  },
+
+  fluyt: { name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 4200, requiredFame: 100, maxDays: 24, holdCapacity: 1100,
+    upgradeable: ["reinforced_hull", "expanded_hold"],
+    desc: "A Dutch cargo vessel optimized for long-distance trade and massive profits."
+  },
+
+
+  // Tier 4
+  galleon: { name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 8000, requiredFame: 150, maxDays: 22, holdCapacity: 1320,
+    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+    desc: "The king of the seas. Slow but nearly unstoppable in combat."
+  },
+
+  ship_of_the_line: { name: "Ship of the Line", maxHull: 420, maxCrew: 280, cannons: 50, speed: 5, cost: 15000, requiredFame: 150, maxDays: 28, holdCapacity: 1600,
+    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+    desc: "A colossal naval fortress capable of dominating entire fleets."
+  }
+
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  FACTIONS: Political factions in the Caribbean.
@@ -324,7 +325,7 @@ window.D = (() => {
     french: {
       label: "French",
       color: "#0066ff",
-      rivalFactions: ["english", "spanish"]
+      rivalFactions: ["english"]
     },
     dutch: {
       label: "Dutch",
@@ -441,6 +442,52 @@ const CREW_LAST_NAMES = {
     { role: "carpenter",weight: 10 },
     { role: "navigator",weight: 5 },
   ];
+
+
+  // ---- RESOURCES AND ECONOMY SYSTEM -------------------------------
+
+const RESOURCES = {
+  food:    { name: "Food",    basePrice: 5,   variance: 0.02, illegal: false, infamyOnBuy: 0, unit: "ration" },
+  water:   { name: "Water",   basePrice: 3,   variance: 0.02, illegal: false, infamyOnBuy: 0, unit: "barrel" },
+  rum:     { name: "Rum",     basePrice: 30,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "cask"   },
+  sugar:   { name: "Sugar",   basePrice: 40,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "sack"   },
+  timber:  { name: "Timber",  basePrice: 25,  variance: 0.10, illegal: false, infamyOnBuy: 0, unit: "plank"  },
+  cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "bale"   },
+  spices:  { name: "Spices",  basePrice: 120, variance: 0.45, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  silk:    { name: "Silk",    basePrice: 160, variance: 0.50, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
+  coffee:  { name: "Coffee",  basePrice: 70,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "bag"    },
+  cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "crate"  },
+  weapons: { name: "Weapons", basePrice: 80,  variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "crate"  },
+  tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale"   },
+  silver:  { name: "Silver",  basePrice: 250, variance: 0.70, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person" },
+};
+
+// Column order:
+// food, water, rum, sugar, timber, cloth, spices, silk, coffee, cocoa, weapons, tobacco, silver, slaves
+
+const GOODS_AVAILABILITY = {
+  portRoyal:   [ "always","always","frequently","sometimes","frequently","frequently","sometimes","rarely","sometimes","rarely","sometimes","sometimes","rarely","rarely" ],
+  kingston:    [ "always","always","sometimes","sometimes","frequently","sometimes","rarely","rarely","frequently","rarely","rarely","frequently","never","never" ],
+  havana:      [ "always","always","frequently","frequently","rarely","frequently","sometimes","rarely","sometimes","sometimes","sometimes","always","sometimes","rarely" ],
+  cartagena:   [ "always","always","sometimes","sometimes","rarely","frequently","sometimes","sometimes","sometimes","frequently","rarely","sometimes","frequently","sometimes" ],
+  tortuga:     [ "always","always","always","rarely","sometimes","rarely","rarely","never","rarely","never","frequently","frequently","rarely","sometimes" ],
+  nassau:      [ "always","always","frequently","rarely","rarely","rarely","rarely","never","rarely","never","sometimes","sometimes","rarely","sometimes" ],
+  portDePaix:  [ "always","always","sometimes","frequently","rarely","sometimes","rarely","never","frequently","sometimes","rarely","sometimes","never","rarely" ],
+  maracaibo:   [ "always","always","rarely","sometimes","frequently","sometimes","rarely","rarely","sometimes","frequently","rarely","sometimes","sometimes","rarely" ],
+  curacao:     [ "always","always","sometimes","sometimes","sometimes","frequently","frequently","sometimes","sometimes","sometimes","frequently","sometimes","sometimes","rarely" ],
+  stEustatius: [ "always","always","sometimes","rarely","rarely","frequently","sometimes","sometimes","sometimes","rarely","frequently","sometimes","rarely","sometimes" ],
+  martinique:  [ "always","always","frequently","always","rarely","sometimes","sometimes","rarely","frequently","sometimes","rarely","sometimes","never","rarely" ],
+
+  // Hidden ports
+  dryTortugas: [ "sometimes","sometimes","sometimes","never","never","never","never","never","never","never","rarely","sometimes","rarely","never" ],
+  lasAves:     [ "sometimes","sometimes","never","never","never","never","never","never","never","never","never","rarely","rarely","rarely" ],
+  libertalia:  [ "always","always","always","rarely","rarely","rarely","rarely","sometimes","sometimes","sometimes","frequently","frequently","sometimes","frequently" ],
+};
+
+
+
+
 
 // ── Parametric Mission Generator Config ────────────────────────
 
@@ -798,6 +845,8 @@ const ENEMY_SHIP_NAMES = {
     CREW_FIRST_NAMES,
     CREW_LAST_NAMES,
     CREW_ROLES,
+    RESOURCES,
+    GOODS_AVAILABILITY,
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
     MISSION_REP_IMPACTS,

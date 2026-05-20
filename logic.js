@@ -7,7 +7,7 @@
 
 window.L = (() => {
   // Destructure constants for easier access
-  const { PORTS, SHIPS, FACTIONS, UPGRADES, MISSION_POOL, RANDOM_EVENTS, STARTS, FACTION_RELATIONS } = window.D;
+  const { PORTS, SHIPS, FACTIONS, UPGRADES, RANDOM_EVENTS, STARTS, } = window.D;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SAVE/LOAD FUNCTIONS
@@ -129,7 +129,7 @@ window.L = (() => {
     const distance = Math.hypot(dx, dy);
 
     const ship = getShipStats(state);
-    let days = Math.ceil(distance / (ship.speed * 10));
+    let days = Math.ceil(distance / (ship.speed * 4));
 
     // Morale modifier
     if (state.crew.morale < 50) days += 1;
@@ -141,7 +141,10 @@ window.L = (() => {
     if (windAngleDiff < 45 || windAngleDiff > 315) days -= 1; // Favorable wind
     else if (windAngleDiff > 135 && windAngleDiff < 225) days += 1; // Opposing wind
 
-    return Math.max(1, days); // Minimum 1 day
+    const baseDays = Math.max(1, days);
+    const loadPct = getHoldLoadPct(state.hold?.items, state.hold?.capacity);
+    const mult = getHoldSpeedMultiplier(loadPct);
+    return Math.max(1, Math.round(baseDays * mult)); // Minimum 1 day
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -194,20 +197,14 @@ window.L = (() => {
     return wages;
   };
 
-
-
-
-  const completeMissionOnCombatVictory = (state, mission) => {
-    if (!mission) return state;
-    return {
-      ...state,
-      gold: state.gold + mission.gold,
-      fame: state.fame + mission.fame,
-      reputation: L.applyReputationImpact(state, mission.repImpact),
-      activeMission: null,
-      missions: L.generateMissions(state.currentPort, state),
-      log: [...state.log, `Mission complete: ${mission.name}. +${mission.gold}g, +${mission.fame} fame.`]
-    };
+    // Remove random members and return the removed list
+  const removeRandomCrew = (roster, count) => {
+    if (count <= 0) return { newRoster: [...roster], removed: [] };
+    const shuffled = [...roster].sort(() => Math.random() - 0.5);
+    const removed = shuffled.slice(0, count);
+    const removedIds = new Set(removed.map(m => m.id));
+    const newRoster = roster.filter(m => !removedIds.has(m.id));
+    return { newRoster, removed };
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -432,20 +429,6 @@ const resolveCombatAction = (state, action) => {
     };
   };
 
-  const getStartingCrew = (ship, bonuses) => {
-    const shipStats = SHIPS[ship.type];
-    const crewBonus = bonuses.find(b => b.includes("crew"));
-    let current = Math.floor(shipStats.maxCrew * 0.6); // Start with 60% crew
-    if (crewBonus) {
-      current = Math.min(shipStats.maxCrew, current + parseInt(crewBonus));
-    }
-    return {
-      current,
-      max: shipStats.maxCrew,
-      morale: 80
-    };
-  };
-
   const getStartingGold = (bonuses) => {
     let gold = 1000;
     bonuses.forEach(bonus => {
@@ -484,14 +467,18 @@ const resolveCombatAction = (state, action) => {
   const roll = (sides) => Math.ceil(Math.random() * sides);
 
   // Derive a ship type from enemy stats (for speed display / flee checks)
-  const guessShipType = (enemy) => {
-    if (!enemy) return "sloop";
-    const cannons = enemy.cannons || 0;
-    if (cannons >= 25) return "galleon";
-    if (cannons >= 18) return "frigate";
-    if (cannons >= 12) return "brigantine";
-    return "sloop";
-  };
+const guessShipType = (enemy) => {
+  if (!enemy) return "sloop";
+  const cannons = enemy.cannons || 0;
+  if (cannons >= 50) return "ship_of_the_line";   // speed  5
+  if (cannons >= 30) return "galleon";            // speed  7
+  if (cannons >= 24) return "frigate";            // speed 12
+  if (cannons >= 18) return "corvette";           // speed 15
+  if (cannons >= 14) return "brigantine";         // speed 14
+  if (cannons >= 10) return "sloop";              // speed 18
+  if (cannons >=  6) return "schooner";           // speed 19
+  return "cutter";                                // speed 20
+};
 
   function buildEncounterContext(state, type, enemy) {
     const { ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE, SHIPS } = window.D;
@@ -578,28 +565,58 @@ const resolveCombatAction = (state, action) => {
   }
 
 
-  // Create a full roster
-  const generateRoster = (count, faction = "pirate") => {
-    const roster = [];
-    const existingNames = [];
-    for (let i = 0; i < count; i++) {
-      const member = generateCrewMember(faction, existingNames);
-      roster.push(member);
-      existingNames.push(`${member.firstName} ${member.lastName}`);
-    }
-    return roster;
-  };
 
-  // Remove random members and return the removed list
-  const removeRandomCrew = (roster, count) => {
-    if (count <= 0) return { newRoster: [...roster], removed: [] };
-    const shuffled = [...roster].sort(() => Math.random() - 0.5);
-    const removed = shuffled.slice(0, count);
-    const removedIds = new Set(removed.map(m => m.id));
-    const newRoster = roster.filter(m => !removedIds.has(m.id));
-    return { newRoster, removed };
-  };
 
+
+
+
+
+//-----------------------------------------------
+//----- cargo, economy, trade, and resources functions 
+//---------------------------------------------------
+
+
+const getHoldUsed = (holdItems) =>
+  Object.values(holdItems || {}).reduce((sum, qty) => sum + qty, 0);
+
+const getHoldLoadPct = (holdItems, capacity) => {
+  if (!capacity || capacity <= 0) return 0;
+  return Math.min(1, getHoldUsed(holdItems) / capacity);
+};
+
+const getHoldSpeedMultiplier = (loadPct) => {
+  if (loadPct < 0.50) return 1.00;
+  if (loadPct < 0.75) return 1.11;
+  return 1.33;
+};
+
+const getProvisionConsumptionPerDay = (state) => {
+  const crewCount = state.crew?.roster?.length ?? 0;
+  const rate = Math.ceil(crewCount / 10);
+  return { food: rate, water: rate };
+};
+
+const getDaysOfProvisions = (holdItems, consumptionPerDay) => ({
+  food:  consumptionPerDay.food  > 0 ? Math.floor((holdItems.food  || 0) / consumptionPerDay.food)  : Infinity,
+  water: consumptionPerDay.water > 0 ? Math.floor((holdItems.water || 0) / consumptionPerDay.water) : Infinity,
+});
+
+const applyLoseCargoPercent = (holdItems, percent) => {
+  const factor = 1 - (percent / 100);
+  const result = {};
+  Object.entries(holdItems || {}).forEach(([good, qty]) => {
+    result[good] = Math.floor(qty * factor);
+  });
+  return result;
+};
+
+const applyLoseContraband = (holdItems) => {
+  const result = { ...holdItems };
+  Object.keys(window.D.RESOURCES).forEach(good => {
+    if (window.D.RESOURCES[good].illegal) result[good] = 0;
+  });
+  return result;
+};
 
   // Expose all functions globally
   return {
@@ -646,14 +663,22 @@ const resolveCombatAction = (state, action) => {
     // Combat
     getNPCAction,
     resolveCombatAction,
-    completeMissionOnCombatVictory,
 
     // Initialization
     initializeReputation,
     getStartingShip,
-    getStartingCrew,
     getStartingGold,
-    getStartingReputation
+    getStartingReputation,
+
+    // Resource & trade
+    getHoldUsed,
+    getHoldLoadPct,
+    getHoldSpeedMultiplier,
+    getProvisionConsumptionPerDay,
+    getDaysOfProvisions,
+    applyLoseCargoPercent,
+    applyLoseContraband,
+
 
   };
 })();

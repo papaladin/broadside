@@ -23,7 +23,9 @@ window.G = (() => {
     return items[items.length - 1];
   };
 
+    //------------------------------------------------------------------
   // ── crew generators (migrated from logic.js) ──────────────────
+  //------------------------------------------------------------------
 
   const pickWeightedRole = () => {
     const { CREW_ROLES } = window.D;
@@ -71,7 +73,9 @@ window.G = (() => {
     return roster;
   };
 
+  //------------------------------------------------------------------
   // ── mission generators (new) ──────────────────────────────────
+  //------------------------------------------------------------------
 
   // Pick a random enemy faction for the given faction, using rivalFactions
   const opposingFaction = (factionKey) => {
@@ -227,8 +231,14 @@ window.G = (() => {
     const perk = window.L.getRepPerk(state.reputation?.[portKey] ?? 50);
     if (perk.servicesBlocked) return []; // At War
 
-    const eligibleFactions = [port.faction]; // Option B: port faction only
-
+    // Port faction + any faction not a rival of the port faction
+    const portRivals = window.D.FACTIONS[port.faction]?.rivalFactions || [];
+    const eligibleFactions = [port.faction];
+    Object.keys(window.D.FACTIONS).forEach(factionKey => {
+      if (factionKey !== port.faction && !portRivals.includes(factionKey)) {
+        eligibleFactions.push(factionKey);
+      }
+    });
     const count = Math.random() < 0.5 ? 2 : 3;
     const missions = [];
 
@@ -297,6 +307,71 @@ window.G = (() => {
     return missions;
   };
 
+/// ---------------------------------
+
+// resource, port market genration
+
+//--------------------------------------
+
+
+const generatePortMarket = (portKey) => {
+  const resources   = window.D.RESOURCES;
+  const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
+  const goodKeys    = Object.keys(resources);
+
+  // Column order must match data.js comment
+  const colOrder = [
+    "food","water","rum","sugar","timber","cloth","spices","silk",
+    "coffee","cocoa","weapons","tobacco","silver","slaves"
+  ];
+
+  // Appearance chance per tier
+  const tierChance = {
+    always:     1.0,
+    frequently: 0.66,
+    sometimes:  0.33,
+    rarely:     0.10,
+    never:      0.0,
+  };
+
+  const goods = {};
+
+  colOrder.forEach((good, idx) => {
+    const tier = availability[idx] || "never";
+    const chance = tierChance[tier] ?? 0;
+    if (chance === 0 || Math.random() > chance) return; // didn't appear this visit
+
+    const res = resources[good];
+    const isFixed = res.variance === 0;
+
+    // Roll market price
+    const variance = res.basePrice * res.variance;
+    const marketPrice = isFixed
+      ? res.basePrice
+      : Math.round((res.basePrice + randBetween(-variance, variance)) / 5) * 5;
+
+    const buyFromPort  = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
+    const sellToPort   = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
+
+    // Quantity
+    let available;
+    if (good === "food" || good === "water") {
+      available = 999;
+    } else {
+      available = randInt(40, 100);   // common trade-good range
+    }
+
+    goods[good] = { basePrice: res.basePrice, buyFromPort, sellToPort, available };
+  });
+
+  return { portKey, goods };
+};
+
+
+
+
+
+
   // ── exports ───────────────────────────────────────────────────
   return {
     // crew (migrated)
@@ -311,6 +386,7 @@ window.G = (() => {
     generateRepImpact,
     pickTargetPort,
     opposingFaction,
+    generatePortMarket
   };
 
 })();

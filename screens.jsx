@@ -203,7 +203,10 @@ window.S = (() => {
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                     <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
-                    <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
+                      <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                    </div>
                   </div>
                   <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
                   {m.enemy && (
@@ -226,11 +229,21 @@ window.S = (() => {
 
         {state.activeMission && (
           <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
-            <div style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
-              ACTIVE: {state.activeMission.name}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>
+                ACTIVE: {state.activeMission.name}
+              </span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
+                <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
+              </div>
             </div>
-            <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
-              Destination: {PORTS[state.activeMission.targetPort]?.name}
+            <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>
+              Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}
+            </div>
+            <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+              <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
+              <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {canFinish && (
