@@ -40,6 +40,9 @@ const App = () => {
           <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim, marginLeft: 10 }}>
             💧 {state.hold?.items?.water ?? 0}
           </span>
+          <span style={{ color: T.textDim, marginLeft: 10 }}>
+            📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}
+          </span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>📅 Day {state.day}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>

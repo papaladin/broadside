@@ -977,5 +977,172 @@ window.TESTS.push({
         u.assertEqual(s.infamy, 0, "Infamy should be 0");
       }
     },
+    // ── Economy system ──
+{
+  name: "E.80 ADVANCE_DAY deducts food and water",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = {
+      ...E.initialState,
+      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
+      crew: { roster: fillRoster(30), max:50, morale:80 },
+      gold: 1000, reputation: { tortuga:50 },
+      hold: { capacity:200, items: { food:10, water:10 } }
+    };
+    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+    u.assertEqual(s.hold.items.food, 7, "30 crew → 3 food consumed");
+    u.assertEqual(s.hold.items.water, 7, "30 crew → 3 water consumed");
+  }
+},
+{
+  name: "E.81 ADVANCE_DAY applies morale penalty when food runs out",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = {
+      ...E.initialState,
+      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
+      crew: { roster: fillRoster(30), max:50, morale:50 },
+      gold: 1000, reputation: { tortuga:50 },
+      hold: { capacity:200, items: { food:2, water:10 } }
+    };
+    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+    u.assertEqual(s.crew.morale, 49, "Morale −1 from empty food");
+    u.assert(s.log.some(l => l.includes("food stores are empty")), "Food exhaustion logged");
+  }
+},
+{
+  name: "E.82 ADVANCE_DAY morale penalty does not stack for multiple crises",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = {
+      ...E.initialState,
+      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
+      crew: { roster: fillRoster(30), max:50, morale:50 },
+      gold: 0, reputation: { tortuga:50 },
+      hold: { capacity:200, items: { food:0, water:0 } }
+    };
+    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+    u.assertEqual(s.crew.morale, 49, "Only −1 despite food=0, water=0, gold crisis");
+  }
+},
+{
+  name: "E.83 CONFIRM_TRADE buying adds to hold and deducts gold",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      gold: 500,
+      hold: { capacity:200, items: { rum:0 } },
+      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:10 } } }
+    };
+    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { rum:5 }, sells: {} });
+    u.assertEqual(s.gold, 500 - 165);
+    u.assertEqual(s.hold.items.rum, 5);
+  }
+},
+{
+  name: "E.84 CONFIRM_TRADE selling removes from hold and adds gold",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      gold: 500,
+      hold: { capacity:200, items: { rum:10 } },
+      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:10 } } }
+    };
+    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: {}, sells: { rum:5 } });
+    u.assertEqual(s.gold, 500 + 135);
+    u.assertEqual(s.hold.items.rum, 5);
+  }
+},
+{
+  name: "E.85 CONFIRM_TRADE rejects buy exceeding available stock",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      gold: 500,
+      hold: { capacity:200, items: {} },
+      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:2 } } }
+    };
+    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { rum:5 }, sells: {} });
+    u.assert(s.log.some(l => l.includes("Not enough rum available")), "Rejection logged");
+    u.assertEqual(s.hold.items.rum || 0, 0, "No rum added");
+  }
+},
+{
+  name: "E.86 CONFIRM_TRADE buying slaves adds infamy",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      gold: 5000, infamy: 0,
+      hold: { capacity:200, items: {} },
+      portMarket: { goods: { slaves: { basePrice:220, buyFromPort:242, sellToPort:198, available:5 } } }
+    };
+    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { slaves:1 }, sells: {} });
+    u.assertEqual(s.infamy, 1, "Slave purchase adds infamy");
+  }
+},
+{
+  name: "E.87 BUY_SHIP updates hold capacity",
+  type: "reducer",
+  run: (u) => {
+    const state = { ...E.initialState, gold: 5000, ship: { type:"sloop", hull:100, cannons:10, upgrades:[] }, crew: { roster: fillRoster(30), max:50, morale:80 }, hold: { capacity:200, items:{ food:10 } } };
+    const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
+    u.assertEqual(s.hold.capacity, D.SHIPS.frigate.holdCapacity, "Hold capacity updated");
+  }
+},
+{
+  name: "E.88 DISMISS_BATTLE defeat clears all hold items",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      previousPort: "portRoyal",
+      battleState: { phase:"defeat", returnScreen:"port" },
+      hold: { capacity:200, items: { food:10, rum:5 } }
+    };
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assert(Object.values(s.hold.items).every(v => v === 0), "All cargo cleared");
+    u.assert(s.log.some(l => l.includes("All cargo lost")), "Log entry added");
+  }
+},
+{
+  name: "E.89 INTERCEPT_SURRENDER loseCargoPercent reduces all items",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      destination: "tortuga", sailingDaysLeft:2,
+      hold: { capacity:200, items: { rum:10, food:20 } },
+      crew: { roster: [], morale:80 },
+      encounterContext: { options: { surrender: { consequence: { loseCargoPercent:30 } } } }
+    };
+    const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
+    u.assertEqual(s.hold.items.food, 14, "Food reduced by 30%");
+    u.assertEqual(s.hold.items.rum, 7, "Rum reduced by 30%");
+  }
+},
+{
+  name: "E.90 INTERCEPT_SURRENDER loseContraband removes illegal goods",
+  type: "reducer",
+  run: (u) => {
+    const state = {
+      ...E.initialState,
+      destination: "tortuga", sailingDaysLeft:2,
+      hold: { capacity:200, items: { rum:10, tobacco:5, slaves:2 } },
+      crew: { roster: [], morale:80 },
+      encounterContext: { options: { surrender: { consequence: { loseContraband:true } } } }
+    };
+    const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
+    u.assertEqual(s.hold.items.tobacco, 0);
+    u.assertEqual(s.hold.items.slaves, 0);
+    u.assertEqual(s.hold.items.rum, 10, "Legal goods untouched");
+  }
+},
   ]
 });

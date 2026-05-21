@@ -238,6 +238,62 @@ window.TESTS.push({
         unmount();
       }
     },
+    {
+  name: "U.16 HUD shows food and water on port screen",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({ screen:"port", hold: { items: { food:8, water:12 } } });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("🍖"), "Food icon visible");
+    u.assert(container.textContent.includes("💧"), "Water icon visible");
+    unmount();
+  }
+},
+{
+  name: "U.17 MarketScreen shows food and water rows",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen:"market",
+      hold: { capacity:200, items:{} },
+      portMarket: { goods: { food:{ basePrice:5, buyFromPort:5, sellToPort:5, available:999 }, water:{ basePrice:3, buyFromPort:3, sellToPort:3, available:999 } } }
+    });
+    const { container, unmount } = u.mountReact(window.S.MarketScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("Food"), "Food row present");
+    u.assert(container.textContent.includes("Water"), "Water row present");
+    unmount();
+  }
+},
+{
+  name: "U.18 MarketScreen shows (Illegal) for tobacco",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen:"market",
+      hold: { capacity:200, items:{} },
+      portMarket: { goods: { tobacco:{ basePrice:90, buyFromPort:99, sellToPort:81, available:5 } } }
+    });
+    const { container, unmount } = u.mountReact(window.S.MarketScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("(Illegal)"), "Illegal label present");
+    unmount();
+  }
+},
+{
+  name: "U.19 SailingScreen shows provisions and daily consumption",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen:"sailing", currentPort:"portRoyal", destination:"tortuga",
+      sailingDaysLeft:2, sailingDaysTotal:4,
+      crew: { roster: fillRoster(30), max:50, morale:80 },
+      hold: { capacity:200, items: { food:10, water:15 } }
+    });
+    const { container, unmount } = u.mountReact(window.S.SailingScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("PROVISIONS"), "Provisions section");
+    u.assert(container.textContent.includes("days"), "Days remaining shown");
+    unmount();
+  }
+},
   ]
 });
 

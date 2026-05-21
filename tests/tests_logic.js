@@ -590,6 +590,72 @@ window.TESTS.push({
         u.assert(ctx.options.bribe.reason.includes("bribery has preceded you"), "Reason should mention bribery reputation");
       }
     },
+    // ── Hold & Provisions ──
+{
+  name: "L.57 getHoldUsed sums quantities",
+  type: "unit",
+  run: (u) => {
+    const items = { food:10, rum:5, water:0 };
+    u.assertEqual(L.getHoldUsed(items), 15);
+    u.assertEqual(L.getHoldUsed({}), 0);
+  }
+},
+{
+  name: "L.58 getHoldLoadPct returns fraction",
+  type: "unit",
+  run: (u) => {
+    u.assertEqual(L.getHoldLoadPct({ rum:100 }, 200), 0.5);
+    u.assertEqual(L.getHoldLoadPct({ food:80 }, 80), 1.0, "At capacity = 100%");
+    u.assertEqual(L.getHoldLoadPct({}, 100), 0, "Empty hold = 0%");
+    u.assertEqual(L.getHoldLoadPct({ rum:10 }, 0), 0, "Zero capacity safe");
+  }
+},
+{
+  name: "L.59 getHoldSpeedMultiplier returns correct tiers",
+  type: "unit",
+  run: (u) => {
+    u.assertEqual(L.getHoldSpeedMultiplier(0.4), 1.00);
+    u.assertEqual(L.getHoldSpeedMultiplier(0.6), 1.11);
+    u.assertEqual(L.getHoldSpeedMultiplier(0.8), 1.33);
+    u.assertEqual(L.getHoldSpeedMultiplier(0.0), 1.00);
+  }
+},
+{
+  name: "L.60 getProvisionConsumptionPerDay scales with crew",
+  type: "unit",
+  run: (u) => {
+    const state30 = { crew: { roster: Array(30).fill({}) } };
+    u.assertDeepEqual(L.getProvisionConsumptionPerDay(state30), { food:3, water:3 }, "30 crew → 3/day");
+    const state0 = { crew: { roster: [] } };
+    u.assertDeepEqual(L.getProvisionConsumptionPerDay(state0), { food:0, water:0 }, "0 crew → 0/day");
+  }
+},
+{
+  name: "L.61 getDaysOfProvisions returns remaining days",
+  type: "unit",
+  run: (u) => {
+    const items = { food:9, water:15 };
+    const rate = { food:3, water:3 };
+    u.assertDeepEqual(L.getDaysOfProvisions(items, rate), { food:3, water:5 });
+    u.assertDeepEqual(L.getDaysOfProvisions({ food:0, water:10 }, rate), { food:0, water:3 });
+  }
+},
+{
+  name: "L.62 applyLoseCargoPercent reduces all goods",
+  type: "unit",
+  run: (u) => {
+    const items = { rum:10, food:20, water:15 };
+    u.assertDeepEqual(L.applyLoseCargoPercent(items, 50), { rum:5, food:10, water:7 });
+  }
+},
+{
+  name: "L.63 applyLoseContraband removes illegal goods",
+  type: "unit",
+  run: (u) => {
+    const items = { rum:10, tobacco:5, slaves:2, food:20 };
+    u.assertDeepEqual(L.applyLoseContraband(items), { rum:10, tobacco:0, slaves:0, food:20 });
+  }
+},
   ]
 });
 
@@ -743,5 +809,61 @@ window.TESTS.push({
         u.assertEqual(L.getFameTier(350), 4);
       }
     },
+    // ── Port market ──
+{
+  name: "G.30 generatePortMarket always includes food and water",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const market = G.generatePortMarket("portRoyal");
+    u.assert(market.goods.food !== undefined, "Food must be present");
+    u.assert(market.goods.water !== undefined, "Water must be present");
+  }
+},
+{
+  name: "G.31 food and water have fixed prices and quantity 999",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const market = G.generatePortMarket("portRoyal");
+    u.assertEqual(market.goods.food.buyFromPort, 5);
+    u.assertEqual(market.goods.food.sellToPort, 5);
+    u.assertEqual(market.goods.food.available, 999);
+    u.assertEqual(market.goods.water.buyFromPort, 3);
+    u.assertEqual(market.goods.water.available, 999);
+  }
+},
+{
+  name: "G.32 trade good buy price is above sell price (spread)",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const market = G.generatePortMarket("tortuga");
+    const rum = market.goods.rum;
+    u.assert(rum, "Rum should appear at Tortuga (always)");
+    u.assert(rum.buyFromPort >= rum.sellToPort, "Buy ≥ sell (no negative spread)");
+  }
+},
+{
+  name: "G.33 goods at 'never' tier are absent",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const market = G.generatePortMarket("kingston"); // tobacco: never
+    u.assert(!market.goods.tobacco, "Tobacco should not appear at Kingston");
+  }
+},
+{
+  name: "G.34 trade good quantity is within tier range",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const market = G.generatePortMarket("nassau"); // rum: frequently (20‑40)
+    if (market.goods.rum) {
+      u.assert(market.goods.rum.available >= 20 && market.goods.rum.available <= 40,
+        `Rum qty ${market.goods.rum.available} in [20,40]`);
+    }
+  }
+},
   ]
 });

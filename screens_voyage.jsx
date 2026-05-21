@@ -79,6 +79,8 @@ window.S = window.S || {};
     const W = 760, H = 460;
     const consumption = L.getProvisionConsumptionPerDay(state);
     const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, consumption);
+    const loadPct = L.getHoldLoadPct(state.hold?.items, state.hold?.capacity);
+    const speedMult = L.getHoldSpeedMultiplier(loadPct);
     return (
       <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden" }}>
         <div style={{ flex: 2, display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
@@ -130,7 +132,15 @@ window.S = window.S || {};
               <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>▶ Advance Day</Btn>
               <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>⚓ Enter Port</Btn>
             </div>
-            <div style={{ color: T.textDim, fontSize: 10 }}>Wind {state.wind.speed}kt at {state.wind.angle}°{state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}</div>
+              <div style={{ color: T.textDim, fontSize: 10 }}>
+                Wind {state.wind.speed}kt at {state.wind.angle}°
+                {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
+                {speedMult > 1 && (
+                  <span style={{ color: T.gold }}>
+                    {' '}— {speedMult >= 1.33 ? "very heavy load" : "heavy load"}
+                  </span>
+                )}
+              </div>
           </div>
         </div>
       </div>
