@@ -34,6 +34,12 @@ const App = () => {
       }}>
         <div>
           <span style={{ color: T.gold }}>💰 {state.gold}</span>
+          <span style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim, marginLeft: 10 }}>
+            🍖 {state.hold?.items?.food ?? 0}
+          </span>
+          <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim, marginLeft: 10 }}>
+            💧 {state.hold?.items?.water ?? 0}
+          </span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>📅 Day {state.day}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
           <span style={{ color: T.textDim, marginLeft: 10 }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
@@ -61,6 +67,7 @@ const App = () => {
       case "sailing": return <S.SailingScreen state={state} dispatch={dispatch} />;
       case "shipyard": return <S.ShipyardScreen state={state} dispatch={dispatch} />;
       case "crew": return <S.CrewScreen state={state} dispatch={dispatch} />;
+      case "market": return <S.MarketScreen state={state} dispatch={dispatch} />;
       case "status": return <S.StatusScreen state={state} dispatch={dispatch} />;
       case "event": return <S.EventScreen state={state} dispatch={dispatch} />;
       case "intercept": return <S.InterceptScreen state={state} dispatch={dispatch} />;

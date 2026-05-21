@@ -132,10 +132,11 @@ window.S = (() => {
           {port.services.map(s => <Pill key={s} label={s} />)}
         </div>
 
-        {/* World Map – ALWAYS visible */}
+        {/* World Map & Status & Market – ALWAYS visible */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
           <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
+          <Btn onClick={() => dispatch({ type: A.ENTER_MARKET })}>📦 Market</Btn>
         </div>
 
         {/* Port services – hidden when At War */}
@@ -350,131 +351,33 @@ window.S = (() => {
             <rect width={W} height={H} fill="url(#seaGrid)" />
               
               {/* ── CONTINENTAL COASTLINES ───────────────────────────── */}
-{/* ── CONTINENTAL COASTLINES ───────────────────────────── */}
-<g opacity="0.75">
+            <g opacity="0.75">
 
-  {/* ── Mexico → Yucatán → Central America → South America ── */}
-  <path
-    d="
-      M 0 110
+              {/* ── Mexico → Yucatán → Central America → South America ── */}
+              <path
+                d="M 0 110 Q 18 175 38 258 L 92 252 L 148 248 Q 185 240 210 212 Q 224 195 222 182 Q 220 205 206 238 Q 192 270 178 300 Q 166 330 162 366 Q 170 395 214 418 Q 270 438 355 430 Q 398 423 440 415 Q 478 406 515 410 Q 540 396 558 390 Q 575 386 590 388 Q 620 392 672 415 Q 690 425 700 440 Q 715 452 760 458 L 760 460 L 0 460 Z"
+                fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+              />
 
-      Q 18 175 38 258
+              {/* ── Florida peninsula ───────────────────────────────── */}
+              <path
+                d="M 325 0 Q 332 34 338 72 Q 344 108 342 138 Q 340 154 332 160 Q 322 165 312 160 Q 304 148 304 122 Q 308 90 314 54 Q 320 24 325 0 Z"
+                fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+              />
 
-      L 92 252
-      L 148 248
+              {/* ── Cuba ── */}
+              <path
+                d="M 278 205 Q 292 188 310 190 Q 360 180 405 190 Q 435 200 445 218 Q 440 236 415 238 Q 370 248 328 244 Q 292 230 278 205 Z"
+                fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+              />
 
-      Q 185 240 210 212
-      Q 224 195 222 182
+              {/* ── Hispaniola ── */}
+              <path
+                d="M 458 262 Q 460 256 466 252 Q 470 240 476 228 Q 482 240 488 248 Q 494 252 518 242 Q 548 228 572 245 Q 578 262 576 278 Q 568 284 545 268 Q 515 282 488 280 Q 468 278 460 270 Q 452 268 458 262 Z"
+                fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8"
+              />
 
-      Q 220 205 206 238
-      Q 192 270 178 300
-
-      Q 166 330 162 366
-      Q 170 395 214 418
-      Q 270 438 355 430
-
-      Q 398 423 440 415
-
-      Q 478 406 515 410
-
-      Q 540 396 558 390
-      Q 575 386 590 388
-
-      Q 620 392 672 415
-
-      Q 690 425 700 440
-      Q 715 452 760 458
-
-      L 760 460
-      L 0 460
-      Z
-    "
-    fill="#0d1e2e"
-    stroke="#1a2e42"
-    strokeWidth="0.8"
-  />
-
-  {/* ── Florida peninsula ───────────────────────────────── */}
-  <path
-    d="
-      M 325 0
-
-      Q 332 34 338 72
-      Q 344 108 342 138
-
-      Q 340 154 332 160
-      Q 322 165 312 160
-
-      Q 304 148 304 122
-      Q 308 90 314 54
-      Q 320 24 325 0
-
-      Z
-    "
-    fill="#0d1e2e"
-    stroke="#1a2e42"
-    strokeWidth="0.8"
-  />
-
-   {/* ── Cuba ──────────────────────────────────────────────────────────
-      Long flat elongated shape — the dominant island on the map.
-      North coast passes through Havana (310,190).
-      South coast passes through Santiago de Cuba (415,238).
-      Eastern tip at ~x:445 leaves a clear Windward Passage before
-      Hispaniola starts at ~x:458.
-  ─────────────────────────────────────────────────────────────────── */}
-  <path
-    d="M 278 205
-       Q 292 188 310 190
-       Q 360 180 405 190
-       Q 435 200 445 218
-       Q 440 236 415 238
-       Q 370 248 328 244
-       Q 292 230 278 205
-       Z"
-    fill="#0d1e2e"
-    stroke="#1a2e42"
-    strokeWidth="0.8"
-  />
-
-   {/* ── Hispaniola ────────────────────────────────────────────────────
-      Medium east-west island east of Cuba (Windward Passage between).
-      The north coast has a small headland at Port-de-Paix (476,228).
-      This headland creates a bay to its east where Tortuga (490,245)
-      sits visibly in open water — Tortuga is above the main coast
-      (y:252) and just east of the headland tip (x:476).
-  ─────────────────────────────────────────────────────────────────── */}
-  <path
-    d="M 458 262
-       Q 460 256 466 252
-       Q 470 240 476 228
-       Q 482 240 488 248
-       Q 494 252 518 242
-       Q 548 228 572 245
-       Q 578 262 576 278
-       Q 568 284 545 268
-       Q 515 282 488 280
-       Q 468 278 460 270
-       Q 452 268 458 262
-       Z"
-    fill="#0d1e2e"
-    stroke="#1a2e42"
-    strokeWidth="0.8"
-  />
-
-
-
-</g>
-
-            {/* Connections */}
-            {/* {Object.entries(PORTS).map(([k, p]) =>
-              Object.entries(PORTS).filter(([k2]) => k2 > k).map(([k2, p2]) => {
-                const d = Math.hypot(p.x - p2.x, p.y - p2.y);
-                return d < 230
-                  ? <line key={k+k2} x1={p.x} y1={p.y} x2={p2.x} y2={p2.y} stroke="#0d1e2e" strokeWidth="0.8" />
-                  : null;
-              })
-            )} */}
+            </g>
 
             {/* Active mission route */}
             {state.activeMission && (() => {
@@ -565,116 +468,169 @@ window.S = (() => {
 
   // ── SAILING SCREEN ───────────────────────────────────────────────────
   function SailingScreen({ state, dispatch }) {
-    const from = PORTS[state.currentPort] ?? { x: 380, y: 230 };
-    const to = PORTS[state.destination] ?? { x: 380, y: 230 };
-    const progress = state.sailingDaysTotal > 0
-      ? 1 - (state.sailingDaysLeft / state.sailingDaysTotal) : 0;
-    const shipX = from.x + (to.x - from.x) * progress;
-    const shipY = from.y + (to.y - from.y) * progress;
-    const hdgDeg = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
-    const arrived = state.sailingDaysLeft <= 0;
-    const W = 760, H = 460;
+  const from = PORTS[state.currentPort] ?? { x: 380, y: 230 };
+  const to = PORTS[state.destination] ?? { x: 380, y: 230 };
+  const progress = state.sailingDaysTotal > 0
+    ? 1 - (state.sailingDaysLeft / state.sailingDaysTotal) : 0;
+  const shipX = from.x + (to.x - from.x) * progress;
+  const shipY = from.y + (to.y - from.y) * progress;
+  const hdgDeg = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+  const arrived = state.sailingDaysLeft <= 0;
+  const W = 760, H = 460;
 
-    return (
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ color: T.gold, fontSize: 14 }}>
-            ⛵ En route to{" "}
-            <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span>
-          </div>
-          <div style={{ color: T.textDim, fontSize: 12 }}>
-            {arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}
+  const consumption = L.getProvisionConsumptionPerDay(state);
+  const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, consumption);
+
+  return (
+    <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden" }}>
+
+      {/* ── Left column: Map (2/3) ── */}
+      <div style={{
+        flex: 2,
+        display: "flex",
+        flexDirection: "column",
+        border: `1px solid ${T.border}`,
+        borderRadius: 4,
+        overflow: "hidden",
+        minHeight: 400,
+      }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          background: T.bgDeep,
+        }}>
+          <defs>
+            <pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse">
+              <path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" />
+              <path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" />
+            </pattern>
+          </defs>
+          <rect width={W} height={H} fill="url(#sailWaves)" />
+
+          {/* Route */}
+          <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+            stroke={T.border} strokeWidth="1.5" strokeDasharray="8,6" />
+          <line x1={from.x} y1={from.y} x2={shipX} y2={shipY}
+            stroke={T.blueBr} strokeWidth="1" opacity="0.3" />
+
+          {/* Origin */}
+          <circle cx={from.x} cy={from.y} r={4} fill={T.textDim} />
+          <text x={from.x} y={from.y - 10} textAnchor="middle" fontSize="8"
+            fill={T.textDim} fontFamily={T.font}>
+            {PORTS[state.currentPort]?.name?.toUpperCase()}
+          </text>
+
+          {/* Destination flag */}
+          <circle cx={to.x} cy={to.y} r={7} fill="none" stroke={T.gold} strokeWidth="1.5" strokeDasharray="3,2" />
+          <circle cx={to.x} cy={to.y} r={3} fill={T.gold} />
+          <line x1={to.x} y1={to.y - 5} x2={to.x} y2={to.y - 22} stroke={T.gold} strokeWidth="1.5" />
+          <polygon points={`${to.x},${to.y-22} ${to.x+10},${to.y-18} ${to.x},${to.y-14}`}
+            fill={T.gold} opacity="0.85" />
+          <text x={to.x} y={to.y + 16} textAnchor="middle" fontSize="8"
+            fill={T.gold} fontFamily={T.font}>
+            {PORTS[state.destination]?.name?.toUpperCase()}
+          </text>
+
+          {/* Ship sprite */}
+          <g transform={`translate(${shipX},${shipY}) rotate(${hdgDeg})`}>
+            <ellipse cx={0} cy={0} rx={20} ry={20} fill={T.gold} opacity="0.06" />
+            <ellipse cx={0} cy={0} rx={13} ry={5} fill="#3a2a10" stroke={T.goldDim} strokeWidth="1" />
+            <path d="M13,0 L19,-2 L19,2 Z" fill="#4a3418" />
+            <ellipse cx={0} cy={0} rx={7} ry={3.5} fill={T.gold} opacity="0.6" />
+            <circle cx={0} cy={0} r={1.8} fill={T.text} />
+            <path d="M-13,0 Q-20,-3 -26,0 Q-20,3 -13,0"
+              fill="none" stroke="#0d2840" strokeWidth="1.2" opacity="0.7" />
+          </g>
+
+          {/* Wind rose */}
+          <g transform="translate(724, 40)">
+            <circle cx={0} cy={0} r={22} fill="#040c18" stroke={T.border} strokeWidth="1" />
+            {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => (
+              <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7"
+                fill={T.textDim} fontFamily={T.font}>{d}</text>
+            ))}
+            <g transform={`rotate(${state.wind.angle})`}>
+              <line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" />
+              <polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} />
+            </g>
+            <text x={0} y={32} textAnchor="middle" fontSize="7"
+              fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
+          </g>
+        </svg>
+      </div>
+
+      {/* ── Right column: Provisions, Log, Controls (1/3) ── */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        minWidth: 220,
+        maxWidth: 320,
+        overflowY: "auto",
+      }}>
+
+        {/* Destination header */}
+        <div style={{ color: T.gold, fontSize: 14, textAlign: "center" }}>
+          ⛵ En route to{" "}
+          <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span>
+        </div>
+        <div style={{ color: T.textDim, fontSize: 12, textAlign: "center" }}>
+          {arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}
+        </div>
+
+        {/* Provisions panel */}
+        <div style={panelStyle()}>
+          <SectionTitle>PROVISIONS</SectionTitle>
+          <div style={{ fontSize: 11, color: T.text }}>
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ color: (state.hold?.items?.food || 0) < 3 * consumption.food ? T.red : T.gold }}>
+                🍖 Food: {state.hold?.items?.food ?? 0}
+              </span>
+              <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>
+                ({daysLeft.food} days)
+              </span>
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ color: (state.hold?.items?.water || 0) < 3 * consumption.water ? T.red : T.gold }}>
+                💧 Water: {state.hold?.items?.water ?? 0}
+              </span>
+              <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>
+                ({daysLeft.water} days)
+              </span>
+            </div>
+            <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
+              Crew consumes {consumption.food} food + {consumption.water} water / day
+            </div>
           </div>
         </div>
 
-        {/* Top-down SVG view */}
-        <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1 }}>
-          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block", background: T.bgDeep }}>
-            <defs>
-              <pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse">
-                <path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" />
-                <path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" />
-              </pattern>
-            </defs>
-            <rect width={W} height={H} fill="url(#sailWaves)" />
-
-            {/* Route */}
-            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-              stroke={T.border} strokeWidth="1.5" strokeDasharray="8,6" />
-            <line x1={from.x} y1={from.y} x2={shipX} y2={shipY}
-              stroke={T.blueBr} strokeWidth="1" opacity="0.3" />
-
-            {/* Origin */}
-            <circle cx={from.x} cy={from.y} r={4} fill={T.textDim} />
-            <text x={from.x} y={from.y - 10} textAnchor="middle" fontSize="8"
-              fill={T.textDim} fontFamily={T.font}>
-              {PORTS[state.currentPort]?.name?.toUpperCase()}
-            </text>
-
-            {/* Destination flag */}
-            <circle cx={to.x} cy={to.y} r={7} fill="none" stroke={T.gold} strokeWidth="1.5" strokeDasharray="3,2" />
-            <circle cx={to.x} cy={to.y} r={3} fill={T.gold} />
-            <line x1={to.x} y1={to.y - 5} x2={to.x} y2={to.y - 22} stroke={T.gold} strokeWidth="1.5" />
-            <polygon points={`${to.x},${to.y-22} ${to.x+10},${to.y-18} ${to.x},${to.y-14}`}
-              fill={T.gold} opacity="0.85" />
-            <text x={to.x} y={to.y + 16} textAnchor="middle" fontSize="8"
-              fill={T.gold} fontFamily={T.font}>
-              {PORTS[state.destination]?.name?.toUpperCase()}
-            </text>
-
-            {/* Ship sprite */}
-            <g transform={`translate(${shipX},${shipY}) rotate(${hdgDeg})`}>
-              <ellipse cx={0} cy={0} rx={20} ry={20} fill={T.gold} opacity="0.06" />
-              <ellipse cx={0} cy={0} rx={13} ry={5} fill="#3a2a10" stroke={T.goldDim} strokeWidth="1" />
-              <path d="M13,0 L19,-2 L19,2 Z" fill="#4a3418" />
-              <ellipse cx={0} cy={0} rx={7} ry={3.5} fill={T.gold} opacity="0.6" />
-              <circle cx={0} cy={0} r={1.8} fill={T.text} />
-              <path d="M-13,0 Q-20,-3 -26,0 Q-20,3 -13,0"
-                fill="none" stroke="#0d2840" strokeWidth="1.2" opacity="0.7" />
-            </g>
-
-            {/* Wind rose */}
-            <g transform="translate(724, 40)">
-              <circle cx={0} cy={0} r={22} fill="#040c18" stroke={T.border} strokeWidth="1" />
-              {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => (
-                <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7"
-                  fill={T.textDim} fontFamily={T.font}>{d}</text>
-              ))}
-              <g transform={`rotate(${state.wind.angle})`}>
-                <line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" />
-                <polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} />
-              </g>
-              <text x={0} y={32} textAnchor="middle" fontSize="7"
-                fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
-            </g>
-          </svg>
+        {/* Captain's Log */}
+        <div style={{ ...panelStyle(), flex: 1, display: "flex", flexDirection: "column", minHeight: 120 }}>
+          <SectionTitle>CAPTAIN'S LOG</SectionTitle>
+          <LogList entries={state.log} maxEntries={15} />
         </div>
 
         {/* Controls */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Btn
-            onClick={() => dispatch({ type: A.ADVANCE_DAY })}
-            disabled={arrived}
-          >
-            ▶ Advance Day
-          </Btn>
-          <Btn
-            v="gold"
-            onClick={() => dispatch({ type: A.ENTER_PORT })}
-            disabled={!arrived}
-          >
-            ⚓ Enter Port
-          </Btn>
-          <span style={{ color: T.textDim, fontSize: 11 }}>
-            {arrived
-              ? `Anchored off ${PORTS[state.destination]?.name} — ready to dock`
-              : `Wind ${state.wind.speed}kt at ${state.wind.angle}°${state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}`
-            }
-          </span>
+        <div style={panelStyle()}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>
+              ▶ Advance Day
+            </Btn>
+            <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>
+              ⚓ Enter Port
+            </Btn>
+          </div>
+          <div style={{ color: T.textDim, fontSize: 10 }}>
+            Wind {state.wind.speed}kt at {state.wind.angle}°
+            {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
+          </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ── SHIPYARD SCREEN ──────────────────────────────────────────────────
   function ShipyardScreen({ state, dispatch }) {
@@ -695,7 +651,6 @@ window.S = (() => {
       );
     }
 
-    // Normal content (unchanged after this point)
     const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
     const currentShip = SHIPS[state.ship.type];
     const effectiveShipStats = L.getShipStats(state);
@@ -840,7 +795,6 @@ window.S = (() => {
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
-        {/* EXPLICIT BACK BUTTON (plain HTML, no dependencies) */}
         <button
           onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
           style={{
@@ -940,7 +894,7 @@ window.S = (() => {
     );
   }
 
-  // ── STATUS SCREEN (formerly Factions) ──────────────────────────────
+  // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => {
       if (!acc[p.faction]) acc[p.faction] = [];
@@ -950,7 +904,6 @@ window.S = (() => {
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
-        {/* Back button */}
         <button
           onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })}
           style={{
@@ -973,12 +926,10 @@ window.S = (() => {
         <div style={panelStyle()}>
           <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            {/* Fame */}
             <div>
               <div style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</div>
               <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameLabel(state.fame)}</div>
             </div>
-            {/* Infamy */}
             <div style={{ textAlign: "right" }}>
               <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>
                 ☠ {state.infamy ?? 0}
@@ -1032,13 +983,13 @@ window.S = (() => {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span style={{ color: fac.color, fontSize: 13, fontWeight: "bold" }}>{fac.label}</span>
                   <RepPill rep={avgRep} />
-                  <div style={{ color: T.textDim, fontSize: 9, marginTop: 2 }}>
-                    {avgRep >= 80 ? "20% repair · +20% missions"
-                    : avgRep >= 50 ? "10% repair · +10% missions"
-                    : avgRep >= 30 ? "−10% missions"
-                    : avgRep >= 10 ? "−25% missions"
-                    : "No services"}
-                  </div>
+                </div>
+                <div style={{ color: T.textDim, fontSize: 9, marginTop: 2 }}>
+                  {avgRep >= 80 ? "20% repair · +20% missions"
+                  : avgRep >= 50 ? "10% repair · +10% missions"
+                  : avgRep >= 30 ? "−10% missions"
+                  : avgRep >= 10 ? "−25% missions"
+                  : "No services"}
                 </div>
                 {ports.map(p => {
                   const rep = state.reputation[p.key] ?? 20;
@@ -1119,131 +1070,130 @@ window.S = (() => {
     );
   }
 
-  // ── BATTLE SCREEN ────────────────────────────────────────────────────
+  // ── INTERCEPT SCREEN ──────────────────────────────────────────────────
+  const InterceptScreen = ({ state, dispatch }) => {
+    const { T, Btn, Bar, panelStyle } = window.UI;
+    const { SHIPS } = window.D;
+    const { A } = window.E;
+    const ctx = state.encounterContext;
 
-const InterceptScreen = ({ state, dispatch }) => {
-  const { T, Btn, Bar, panelStyle } = window.UI;
-  const { SHIPS } = window.D;
-  const { A } = window.E;
-  const ctx = state.encounterContext;
+    if (!ctx) return null;
 
-  if (!ctx) return null;
+    const { enemy, flavourText, options } = ctx;
+    const enemyShip = SHIPS[enemy.ship] || {};
 
-  const { enemy, flavourText, options } = ctx;
-  const enemyShip = SHIPS[enemy.ship] || {};
-
-  const Option = ({ actionType, label, sublabel, reason, available, v = "default" }) => (
-    <div style={{ marginBottom: 8 }}>
-      <Btn
-        v={available ? v : "ghost"}
-        disabled={!available}
-        onClick={() => dispatch({ type: actionType })}
-        style={{ width: "100%", textAlign: "left", opacity: available ? 1 : 0.45 }}
-      >
-        {label}
-        {sublabel && (
-          <span style={{ color: T.gold, marginLeft: 8, fontSize: 10 }}>{sublabel}</span>
+    const Option = ({ actionType, label, sublabel, reason, available, v = "default" }) => (
+      <div style={{ marginBottom: 8 }}>
+        <Btn
+          v={available ? v : "ghost"}
+          disabled={!available}
+          onClick={() => dispatch({ type: actionType })}
+          style={{ width: "100%", textAlign: "left", opacity: available ? 1 : 0.45 }}
+        >
+          {label}
+          {sublabel && (
+            <span style={{ color: T.gold, marginLeft: 8, fontSize: 10 }}>{sublabel}</span>
+          )}
+        </Btn>
+        {!available && reason && (
+          <div style={{ color: T.textFaint, fontSize: 10, marginTop: 2, marginLeft: 4 }}>
+            ✗ {reason}
+          </div>
         )}
-      </Btn>
-      {!available && reason && (
-        <div style={{ color: T.textFaint, fontSize: 10, marginTop: 2, marginLeft: 4 }}>
-          ✗ {reason}
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <div style={{
-      padding: 20,
-      maxWidth: 560,
-      margin: "0 auto",
-      display: "flex",
-      flexDirection: "column",
-      gap: 14,
-    }}>
-      <div style={{ color: T.gold, fontSize: 16, fontWeight: "bold", letterSpacing: "0.08em" }}>
-        ⚠ ENCOUNTER
       </div>
+    );
 
-      <div style={panelStyle({ borderColor: T.borderBr })}>
-        <p style={{ color: T.text, fontSize: 12, lineHeight: 1.6 }}>{flavourText}</p>
+    return (
+      <div style={{
+        padding: 20,
+        maxWidth: 560,
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}>
+        <div style={{ color: T.gold, fontSize: 16, fontWeight: "bold", letterSpacing: "0.08em" }}>
+          ⚠ ENCOUNTER
+        </div>
+
+        <div style={panelStyle({ borderColor: T.borderBr })}>
+          <p style={{ color: T.text, fontSize: 12, lineHeight: 1.6 }}>{flavourText}</p>
+        </div>
+
+        <div style={panelStyle()}>
+          <div style={{ color: T.redBr, fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>
+            {enemy.name}
+            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: 10 }}>
+              {enemyShip.name ?? enemy.ship}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 16 }}>
+            {[
+              ["Hull",    `${enemy.hull}/${enemy.maxHull || enemy.hull}`],
+              ["Cannons", enemy.cannons],
+              ["Crew",    enemy.crew],
+              ["Speed",   enemyShip.speed ?? "?"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div style={{ color: T.textDim, fontSize: 9 }}>{label}</div>
+                <div style={{ color: T.text,    fontSize: 13 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={6} />
+          </div>
+        </div>
+
+        <div style={panelStyle()}>
+          <div style={{ color: T.textDim, fontSize: 10, marginBottom: 10, letterSpacing: "0.08em" }}>
+            CHOOSE YOUR RESPONSE:
+          </div>
+
+          <Option
+            actionType={A.INTERCEPT_FIGHT}
+            label="⚔  Engage"
+            available={true}
+            reason={null}
+            v="red"
+          />
+          <Option
+            actionType={A.INTERCEPT_FLEE}
+            label="💨  Attempt to Flee"
+            sublabel={options.flee.available
+              ? `Speed check: you ${options.flee.speedCheck.player} vs ${options.flee.speedCheck.enemy}`
+              : null}
+            available={options.flee.available}
+            reason={options.flee.reason}
+          />
+          <Option
+            actionType={A.INTERCEPT_PARLEY}
+            label="🤝  Parley"
+            sublabel={options.parley.available ? `Rep: ${state.reputation[state.destination ?? state.currentPort] ?? 0}` : null}
+            available={options.parley.available}
+            reason={options.parley.reason}
+          />
+          <Option
+            actionType={A.INTERCEPT_BRIBE}
+            label="💰  Bribe"
+            sublabel={options.bribe.available ? `Cost: ${options.bribe.cost}g` : null}
+            available={options.bribe.available}
+            reason={options.bribe.reason}
+            v="gold"
+          />
+          <Option
+            actionType={A.INTERCEPT_SURRENDER}
+            label="🏳  Surrender"
+            available={options.surrender.available}
+            reason={options.surrender.reason}
+            v="ghost"
+          />
+        </div>
       </div>
+    );
+  };
 
-      <div style={panelStyle()}>
-        <div style={{ color: T.redBr, fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>
-          {enemy.name}
-          <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: 10 }}>
-            {enemyShip.name ?? enemy.ship}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 16 }}>
-          {[
-            ["Hull",    `${enemy.hull}/${enemy.maxHull || enemy.hull}`],
-            ["Cannons", enemy.cannons],
-            ["Crew",    enemy.crew],
-            ["Speed",   enemyShip.speed ?? "?"],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <div style={{ color: T.textDim, fontSize: 9 }}>{label}</div>
-              <div style={{ color: T.text,    fontSize: 13 }}>{value}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={6} />
-        </div>
-      </div>
-
-      <div style={panelStyle()}>
-        <div style={{ color: T.textDim, fontSize: 10, marginBottom: 10, letterSpacing: "0.08em" }}>
-          CHOOSE YOUR RESPONSE:
-        </div>
-
-        <Option
-          actionType={A.INTERCEPT_FIGHT}
-          label="⚔  Engage"
-          available={true}
-          reason={null}
-          v="red"
-        />
-        <Option
-          actionType={A.INTERCEPT_FLEE}
-          label="💨  Attempt to Flee"
-          sublabel={options.flee.available
-            ? `Speed check: you ${options.flee.speedCheck.player} vs ${options.flee.speedCheck.enemy}`
-            : null}
-          available={options.flee.available}
-          reason={options.flee.reason}
-        />
-        <Option
-          actionType={A.INTERCEPT_PARLEY}
-          label="🤝  Parley"
-          sublabel={options.parley.available ? `Rep: ${state.reputation[state.destination ?? state.currentPort] ?? 0}` : null}
-          available={options.parley.available}
-          reason={options.parley.reason}
-        />
-        <Option
-          actionType={A.INTERCEPT_BRIBE}
-          label="💰  Bribe"
-          sublabel={options.bribe.available ? `Cost: ${options.bribe.cost}g` : null}
-          available={options.bribe.available}
-          reason={options.bribe.reason}
-          v="gold"
-        />
-        <Option
-          actionType={A.INTERCEPT_SURRENDER}
-          label="🏳  Surrender"
-          available={options.surrender.available}
-          reason={options.surrender.reason}
-          v="ghost"
-        />
-      </div>
-    </div>
-  );
-};
-
-
+  // ── BATTLE SCREEN ────────────────────────────────────────────────────
   function BattleScreen({ state, dispatch }) {
     const bs = state.battleState;
     if (!bs) return null;
@@ -1358,6 +1308,159 @@ const InterceptScreen = ({ state, dispatch }) => {
     );
   }
 
+  // ── MARKET SCREEN ────────────────────────────────────────────────────
+  const MarketScreen = ({ state, dispatch }) => {
+    const { T, Btn, Bar, panelStyle, SectionTitle, EmptyState } = window.UI;
+    const { RESOURCES } = window.D;
+    const { A } = window.E;
+    const { useState } = React;
+
+    const market = state.portMarket;
+    const portName = window.D.PORTS[state.currentPort]?.name || "Port";
+
+    const [pending, setPending] = useState({});
+
+    if (!market) {
+      return (
+        <div style={{ padding: 14 }}>
+          <button onClick={() => dispatch({ type: A.LEAVE_MARKET })}
+            style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>
+            ← Back to Port
+          </button>
+          <EmptyState message="No market data available for this port." />
+        </div>
+      );
+    }
+
+    const holdItems = state.hold?.items || {};
+    const capacity = state.hold?.capacity || 0;
+
+    const previewItems = { ...holdItems };
+    Object.entries(pending).forEach(([good, p]) => {
+      previewItems[good] = (previewItems[good] || 0) + (p.buy || 0) - (p.sell || 0);
+    });
+
+    const used = L.getHoldUsed(previewItems);
+    const loadPct = L.getHoldLoadPct(previewItems, capacity);
+    const speedMult = L.getHoldSpeedMultiplier(loadPct);
+    const goldDelta = Object.entries(pending).reduce((sum, [good, p]) => {
+      const pg = market.goods[good];
+      if (!pg) return sum;
+      return sum + (p.sell || 0) * pg.sellToPort - (p.buy || 0) * pg.buyFromPort;
+    }, 0);
+
+    const hasPending = Object.values(pending).some(p => (p.buy || 0) > 0 || (p.sell || 0) > 0);
+
+    const confirmTrade = () => {
+      const buys = {};
+      const sells = {};
+      Object.entries(pending).forEach(([good, p]) => {
+        if (p.buy > 0) buys[good] = p.buy;
+        if (p.sell > 0) sells[good] = p.sell;
+      });
+      dispatch({ type: A.CONFIRM_TRADE, buys, sells });
+      setPending({});
+    };
+
+    const adjust = (good, field, delta) => {
+      setPending(prev => {
+        const cur = prev[good] || { buy:0, sell:0 };
+        const newVal = { ...cur };
+
+        if (field === "buy") {
+          // If there's a pending sell, cancel it first
+          if (cur.sell > 0) newVal.sell = 0;
+          newVal.buy = Math.max(0, (cur.buy || 0) + delta);
+        } else {
+          // If there's a pending buy, cancel it first
+          if (cur.buy > 0) newVal.buy = 0;
+          newVal.sell = Math.max(0, (cur.sell || 0) + delta);
+        }
+
+        return { ...prev, [good]: newVal };
+      });
+    };
+
+    const shownGoods = Object.keys(RESOURCES).filter(good => {
+      if (good === "food" || good === "water") return true;
+      return market.goods[good] || (holdItems[good] || 0) > 0;
+    });
+
+    return (
+      <div style={{ padding: 14, overflowY: "auto", flex: 1 }}>
+        <button onClick={() => dispatch({ type: A.LEAVE_MARKET })}
+          style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>
+          ← Back to Port
+        </button>
+
+        <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
+
+        <div style={panelStyle({ marginBottom: 10 })}>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.textDim, marginBottom:4 }}>
+            <span>Hold: {used} / {capacity}</span>
+            <span>{Math.round(loadPct * 100)}% full</span>
+          </div>
+          <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={8} />
+          {speedMult > 1 && (
+            <div style={{ color: T.gold, fontSize: 10, marginTop: 4 }}>
+              ⚠ Hold over 50% — voyages take {Math.round((speedMult - 1) * 100)}% longer.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {shownGoods.map(good => {
+            const res = RESOURCES[good];
+            const pg = market.goods[good];
+            const inHold = holdItems[good] || 0;
+            const p = pending[good] || { buy:0, sell:0 };
+            const preview = (previewItems[good] || 0);
+            const maxBuy = pg ? Math.min(pg.available, capacity - used + (p.sell || 0)) : 0;
+            const maxSell = inHold + (p.buy || 0);
+
+            return (
+              <div key={good} style={panelStyle({ background: T.panelAlt })}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                  <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
+                    {res.name}
+                    {res.illegal && <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>}
+                  </span>
+                  {pg ? (
+                    <span style={{ color:T.textDim, fontSize:10 }}>
+                      Base: {pg.basePrice}g | Buy: {pg.buyFromPort}g | Sell: {pg.sellToPort}g | Avail: {pg.available}
+                    </span>
+                  ) : (
+                    <span style={{ color:T.textFaint, fontSize:10 }}>Not traded here</span>
+                  )}
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:10, color:T.textDim }}>
+                  <span>In hold: {inHold} → {preview}</span>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    <Btn sm v="ghost" onClick={() => adjust(good, "sell", 1)} disabled={(p.sell || 0) >= maxSell}>- Sell</Btn>
+                    <span style={{ color:T.text, minWidth:20, textAlign:"center" }}>{preview}</span>
+                    <Btn sm v="ghost" onClick={() => adjust(good, "buy", 1)} disabled={(p.buy || 0) >= maxBuy}>+ Buy</Btn>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {hasPending && (
+          <div style={{ ...panelStyle(), marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize:13 }}>
+              {goldDelta >= 0 ? "+" : ""}{goldDelta}g
+            </span>
+            <div style={{ display:"flex", gap:8 }}>
+              <Btn sm v="ghost" onClick={() => setPending({})}>Reset</Btn>
+              <Btn sm v="gold" onClick={confirmTrade}>Confirm Trade</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return {
     StartScreen,
     PortScreen,
@@ -1369,5 +1472,6 @@ const InterceptScreen = ({ state, dispatch }) => {
     EventScreen,
     InterceptScreen,
     BattleScreen,
+    MarketScreen,
   };
 })();

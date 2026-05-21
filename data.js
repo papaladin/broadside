@@ -454,12 +454,12 @@ const RESOURCES = {
   timber:  { name: "Timber",  basePrice: 25,  variance: 0.10, illegal: false, infamyOnBuy: 0, unit: "plank"  },
   cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "bale"   },
   spices:  { name: "Spices",  basePrice: 120, variance: 0.45, illegal: false, infamyOnBuy: 0, unit: "chest"  },
-  silk:    { name: "Silk",    basePrice: 160, variance: 0.50, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
+  silk:    { name: "Silk",    basePrice: 160, variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
   coffee:  { name: "Coffee",  basePrice: 70,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "bag"    },
   cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "crate"  },
   weapons: { name: "Weapons", basePrice: 80,  variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "crate"  },
   tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale"   },
-  silver:  { name: "Silver",  basePrice: 250, variance: 0.70, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  silver:  { name: "Silver",  basePrice: 250, variance: 0.50, illegal: false, infamyOnBuy: 0, unit: "chest"  },
   slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person" },
 };
 
@@ -467,19 +467,39 @@ const RESOURCES = {
 // food, water, rum, sugar, timber, cloth, spices, silk, coffee, cocoa, weapons, tobacco, silver, slaves
 
 const GOODS_AVAILABILITY = {
+  //english
   portRoyal:   [ "always","always","frequently","sometimes","frequently","frequently","sometimes","rarely","sometimes","rarely","sometimes","sometimes","rarely","rarely" ],
   kingston:    [ "always","always","sometimes","sometimes","frequently","sometimes","rarely","rarely","frequently","rarely","rarely","frequently","never","never" ],
+  bridgetown:  [ "always","always","frequently","always","rarely","frequently","sometimes","rarely","frequently","sometimes","rarely","sometimes","rarely","rarely" ],
+  bermuda:     [ "always","always","rarely","rarely","rarely","sometimes","frequently","rarely","rarely","never","sometimes","sometimes","never","never" ],
+
+  //spanish
   havana:      [ "always","always","frequently","frequently","rarely","frequently","sometimes","rarely","sometimes","sometimes","sometimes","always","sometimes","rarely" ],
+  santiagoDeCuba:[ "always","always","frequently","sometimes","rarely","frequently","sometimes","rarely","sometimes","sometimes","rarely","frequently","sometimes","rarely" ],
+  santoDomingo:[ "always","always","sometimes","sometimes","sometimes","frequently","sometimes","rarely","sometimes","frequently","rarely","sometimes","sometimes","rarely" ],
   cartagena:   [ "always","always","sometimes","sometimes","rarely","frequently","sometimes","sometimes","sometimes","frequently","rarely","sometimes","frequently","sometimes" ],
-  tortuga:     [ "always","always","always","rarely","sometimes","rarely","rarely","never","rarely","never","frequently","frequently","rarely","sometimes" ],
-  nassau:      [ "always","always","frequently","rarely","rarely","rarely","rarely","never","rarely","never","sometimes","sometimes","rarely","sometimes" ],
-  portDePaix:  [ "always","always","sometimes","frequently","rarely","sometimes","rarely","never","frequently","sometimes","rarely","sometimes","never","rarely" ],
   maracaibo:   [ "always","always","rarely","sometimes","frequently","sometimes","rarely","rarely","sometimes","frequently","rarely","sometimes","sometimes","rarely" ],
-  curacao:     [ "always","always","sometimes","sometimes","sometimes","frequently","frequently","sometimes","sometimes","sometimes","frequently","sometimes","sometimes","rarely" ],
-  stEustatius: [ "always","always","sometimes","rarely","rarely","frequently","sometimes","sometimes","sometimes","rarely","frequently","sometimes","rarely","sometimes" ],
+  portobelo:   [ "always","always","sometimes","rarely","rarely","frequently","sometimes","sometimes","rarely","always","rarely","sometimes","frequently","sometimes" ],
+  campeche:    [ "always","always","rarely","sometimes","frequently","rarely","sometimes","never","sometimes","rarely","rarely","sometimes","frequently","never" ],
+  veracruz:    [ "always","always","sometimes","sometimes","sometimes","frequently","sometimes","sometimes","sometimes","always","rarely","sometimes","frequently","sometimes" ],
+  trinidad:    [ "always","always","sometimes","frequently","sometimes","sometimes","sometimes","rarely","sometimes","rarely","rarely","sometimes","sometimes","rarely" ],
+
+  //french
+  portDePaix:  [ "always","always","sometimes","frequently","rarely","sometimes","rarely","never","frequently","sometimes","rarely","sometimes","never","rarely" ],
+  petitGoave:  [ "always","always","sometimes","frequently","rarely","sometimes","rarely","never","frequently","rarely","sometimes","sometimes","never","rarely" ],
   martinique:  [ "always","always","frequently","always","rarely","sometimes","sometimes","rarely","frequently","sometimes","rarely","sometimes","never","rarely" ],
 
-  // Hidden ports
+  //dutch
+  curacao:     [ "always","always","sometimes","sometimes","sometimes","frequently","frequently","sometimes","sometimes","sometimes","frequently","sometimes","sometimes","rarely" ],
+  stEustatius: [ "always","always","sometimes","rarely","rarely","frequently","sometimes","sometimes","sometimes","rarely","frequently","sometimes","rarely","sometimes" ],
+
+  //pirate
+  tortuga:     [ "always","always","always","rarely","sometimes","rarely","rarely","never","rarely","never","frequently","frequently","rarely","sometimes" ],
+  nassau:      [ "always","always","frequently","rarely","rarely","rarely","rarely","never","rarely","never","sometimes","sometimes","rarely","sometimes" ],
+  providencia: [ "sometimes","sometimes","rarely","rarely","rarely","rarely","never","never","sometimes","never","frequently","frequently","never","rarely" ],
+  roatan:      [ "sometimes","sometimes","rarely","never","rarely","rarely","never","never","sometimes","never","frequently","sometimes","never","rarely" ],
+
+  //hidden, to unlock.
   dryTortugas: [ "sometimes","sometimes","sometimes","never","never","never","never","never","never","never","rarely","sometimes","rarely","never" ],
   lasAves:     [ "sometimes","sometimes","never","never","never","never","never","never","never","never","never","rarely","rarely","rarely" ],
   libertalia:  [ "always","always","always","rarely","rarely","rarely","rarely","sometimes","sometimes","sometimes","frequently","frequently","sometimes","frequently" ],

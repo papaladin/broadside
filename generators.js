@@ -325,7 +325,7 @@ const generatePortMarket = (portKey) => {
     "coffee","cocoa","weapons","tobacco","silver","slaves"
   ];
 
-  // Appearance chance per tier
+  // Appearance chance per tier and quantities per tier
   const tierChance = {
     always:     1.0,
     frequently: 0.66,
@@ -333,6 +333,14 @@ const generatePortMarket = (portKey) => {
     rarely:     0.10,
     never:      0.0,
   };
+
+  const tierQtyRanges = {
+  always:     { min: 40, max: 80  },
+  frequently: { min: 20, max: 40  },
+  sometimes:  { min: 8,  max: 20  },
+  rarely:     { min: 2,  max: 8   },
+  never:      null,
+};
 
   const goods = {};
 
@@ -353,12 +361,14 @@ const generatePortMarket = (portKey) => {
     const buyFromPort  = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
     const sellToPort   = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
 
-    // Quantity
+    // Quantity – tier-based for trade goods, 999 for food/water
     let available;
     if (good === "food" || good === "water") {
       available = 999;
     } else {
-      available = randInt(40, 100);   // common trade-good range
+      const tier = availability[idx] || "never";
+      const qtyRange = tierQtyRanges[tier];
+      available = qtyRange ? randInt(qtyRange.min, qtyRange.max) : 0;
     }
 
     goods[good] = { basePrice: res.basePrice, buyFromPort, sellToPort, available };
