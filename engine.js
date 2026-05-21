@@ -784,13 +784,49 @@ case A.CONFIRM_TRADE: {
         }
         if (choice.outcome.daysLost) {
           const lost = choice.outcome.daysLost;
+
+          // Advance the calendar
           newState.day += lost;
-          newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
-          newState.sailingDaysLeft = (state.sailingDaysLeft || 0) + lost;
-          newState.gold = Math.max(0, newState.gold - L.payCrewWages(state) * lost);
+
+          // Wages for all lost days
+          const dailyWage = L.payCrewWages(state);
+          newState.gold = Math.max(0, newState.gold - dailyWage * lost);
+
+          // Reputation decay for each lost day
           let rep = { ...state.reputation };
           for (let i = 0; i < lost; i++) rep = L.decayReputation({ reputation: rep });
           newState.reputation = rep;
+
+          // Provision consumption for each lost day, with morale penalty
+          let food = newState.hold?.items?.food ?? state.hold?.items?.food ?? 0;
+          let water = newState.hold?.items?.water ?? state.hold?.items?.water ?? 0;
+          const consumption = L.getProvisionConsumptionPerDay(state);
+          let morale = newState.crew?.morale ?? state.crew.morale ?? 0;
+          let crisisApplied = false;
+
+          for (let i = 0; i < lost; i++) {
+            const prevFood = food;
+            const prevWater = water;
+            food = Math.max(0, food - consumption.food);
+            water = Math.max(0, water - consumption.water);
+            const foodOut = food === 0 && prevFood > 0;
+            const waterOut = water === 0 && prevWater > 0;
+            if ((foodOut || waterOut) && !crisisApplied) {
+              morale = Math.max(0, morale - 1);
+              crisisApplied = true;
+              newState.log = [...(newState.log || state.log), foodOut ? "⚠ The food stores are empty. The crew grows hungry." : "⚠ The water barrels are dry. The crew suffers."];
+            }
+          }
+
+          newState.hold = {
+            ...(newState.hold || state.hold),
+            items: {
+              ...((newState.hold || state.hold)?.items || {}),
+              food,
+              water,
+            },
+          };
+          newState.crew = { ...(newState.crew || state.crew), morale };
         }
         if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
         if (choice.outcome.moraleBonus) newState.crew = { ...newState.crew, morale: Math.max(0, Math.min(100, (newState.crew.morale || state.crew.morale) + choice.outcome.moraleBonus)) };

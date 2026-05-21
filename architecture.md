@@ -150,36 +150,27 @@ key used by both `logic.js` and `engine.js`. Do not introduce a second key.
 ```
 broadside/
 broadside/
-├── index.html Entry point. Loads dependencies and game files in order.
-├── data.js All game constants. Exposes window.D
-├── logic.js All pure game functions. Exposes window.L
-├── generators.js       All runtime content generators. Exposes window.G
-├── engine.js State shape, reducer, action constants. Exposes window.E
-├── ui.jsx React primitives and theme tokens. Exposes window.UI
-├── screens.jsx All game screens. Exposes window.S
-├── App.jsx Root component, HUD, screen router. Renders to #root
-├── architecture.md This document
-├── README.md Setup and running instructions
+├── index.html              Entry point. Loads dependencies and game files in order.
+├── data.js                 All game constants. Exposes window.D
+├── logic.js                All pure game functions. Exposes window.L
+├── generators.js           All runtime content generators. Exposes window.G
+├── engine.js               State shape, reducer, action constants. Exposes window.E
+├── ui.jsx                  React primitives and theme tokens. Exposes window.UI
+├── screens_shared.jsx      Shared micro‑components (FactionPill, RepPill, ShipSprite)
+├── screens_port.jsx        Port‑zone screens (Start, Port, Shipyard, Crew, Status, Market)
+├── screens_voyage.jsx      Voyage‑zone screens (Map, Sailing, Event, Intercept, Battle)
+├── App.jsx                 Root component, HUD, screen router. Renders to #root
+├── architecture.md         This document
+├── README.md               Setup and running instructions
 └── tests/
-├── tests.html Test runner UI
-├── tests_helpers.js   Shared helpers (fillRoster, makeState, testMission)
-├── tests_logic.js     Unit tests (logic.js + generators.js)
-├── tests_engine.js    Reducer tests
-├── tests_flows.js     Integration + Scenario tests
-└── tests_ui.js        UI smoke + Edge case tests
+    ├── tests.html          Test runner UI
+    ├── tests_helpers.js    Shared helpers (fillRoster, makeState, testMission)
+    ├── tests_logic.js      Unit tests (logic.js + generators.js)
+    ├── tests_engine.js     Reducer tests
+    ├── tests_flows.js      Integration + Scenario tests
+    └── tests_ui.js         UI smoke + Edge case tests
 ```
 
-### Planned split — screens.jsx (at Phase 2 boundary)
-
-When `screens.jsx` approaches 1000 lines, split into three files. Each extends
-`window.S` using `Object.assign`:
-
-```
-screens_port.jsx      PortScreen, ShipyardScreen, CrewScreen, TavernScreen,
-                      FactionsScreen, StartScreen
-screens_voyage.jsx    MapScreen, SailingScreen, InterceptScreen, EventScreen
-screens_action.jsx    BattleScreen, QuestScreen, RetirementScreen, PrizeScreen
-```
 
 `index.html` load order becomes:
 ```html
@@ -188,21 +179,6 @@ screens_action.jsx    BattleScreen, QuestScreen, RetirementScreen, PrizeScreen
 <script type="text/babel" src="screens_action.jsx"></script>
 ```
 
-### Planned split — data.js (at Phase 1.5 boundary)
-
-When crew names, trait definitions, and content pools are added, split `data.js`:
-
-```
-data.js           Stable definitions rarely edited: PORTS, SHIPS, FACTIONS,
-                  EQUIPMENT, STARTS, FACTION_RELATIONS.
-                  Exposes window.D
-
-data_content.js   Frequently edited content pools: CREW_NAME_POOLS,
-                  TRAIT_DEFINITIONS, MISSION_TEMPLATES, RANDOM_EVENTS,
-                  WORLD_EVENTS, RUMOR_TEMPLATES, ENCOUNTER_FLAVOUR,
-                  SURRENDER_CONSEQUENCE, EPILOGUES.
-                  Exposes window.C
-```
 
 ---
 
@@ -221,13 +197,15 @@ Reads `window.D` and `window.L`. Exposes `window.G`.
 
 ```
 index.html
-  ├── data.js        (window.D)  ← no dependencies
-  ├── logic.js       (window.L)  ← reads D
-  ├── generators.js  (window.G)  ← reads D, L
-  ├── engine.js      (window.E)  ← reads D, L, G
-  ├── ui.jsx         (window.UI) ← no game dependencies
-  ├── screens.jsx    (window.S)  ← reads D, L, G, E, UI
-  └── App.jsx                    ← reads D, L, G, E, UI, S
+  ├── data.js              (window.D)  ← no dependencies
+  ├── logic.js             (window.L)  ← reads D
+  ├── generators.js        (window.G)  ← reads D, L
+  ├── engine.js            (window.E)  ← reads D, L, G
+  ├── ui.jsx               (window.UI) ← no game dependencies
+  ├── screens_shared.jsx   (window.S)  ← reads D, UI
+  ├── screens_port.jsx     (window.S)  ← reads D, L, G, E, UI, S (extends)
+  ├── screens_voyage.jsx   (window.S)  ← reads D, L, G, E, UI, S (extends)
+  └── App.jsx                          ← reads D, L, G, E, UI, S
 
 tests/tests.html    ← loads all game files above, then test files
 ```
@@ -285,6 +263,8 @@ partial state objects only.
 | `CREW_FIRST_NAMES` | First name pools per faction |
 | `CREW_LAST_NAMES` | Last name pools per faction |
 | `CREW_ROLES` | Role definitions with weights |
+| `RESOURCES` | Goods definitions: name, basePrice, variance, illegal, infamyOnBuy, unit |
+| `GOODS_AVAILABILITY` | Per‑port tier table controlling market appearance and quantity |
 | `MISSION_GOLD_RANGES` | Gold reward ranges by fame tier and risk level |
 | `MISSION_ENEMY_RANGES` | Enemy stat ranges (hull, cannons, crew) by fame tier |
 | `MISSION_REP_IMPACTS` | Reputation impact values per mission type and risk |
@@ -321,6 +301,13 @@ partial state objects only.
 | `meetsRequirement` | `(state, item)` | Returns `{ allowed, reason }` for fame-gated items |
 | `getRepPerk` | `(rep)` | Returns `{ tier, repairMult, missionMult, servicesBlocked }` |
 | `getInfamyLabel` | `(infamy)` | Returns label (Clean → Legendary Outlaw) |
+| `getHoldUsed` | `(holdItems)` | Total cargo units |
+| `getHoldLoadPct` | `(holdItems, capacity)` | Load fraction 0–1 |
+| `getHoldSpeedMultiplier` | `(loadPct)` | Travel time multiplier (1.0, 1.11, 1.33) |
+| `getProvisionConsumptionPerDay` | `(state)` | `{ food, water }` per day |
+| `getDaysOfProvisions` | `(holdItems, consumptionPerDay)` | `{ food, water }` days remaining |
+| `applyLoseCargoPercent` | `(holdItems, percent)` | Reduced hold items after loss |
+| `applyLoseContraband` | `(holdItems)` | Hold with illegal goods removed |
 | `canBribe` | `(state)` | Boolean — infamy < 50 |
 | `buildEncounterContext` | `(state, type, enemy)` | Builds context object for InterceptScreen |
 | `triggerRandomEvent` | `(state)` | Selects event from pool filtered by conditions |
@@ -369,7 +356,7 @@ No pure game logic — that lives in `logic.js`.
 | `generateMissionText` | `(type, faction, targetPortKey, risk, enemy)` | Returns `{ name, desc }` |
 | `pickTargetPort` | `(currentPortKey, type, state, faction)` | Picks a valid destination port |
 | `opposingFaction` | `(factionKey)` | Returns a random rival faction |
-
+| `generatePortMarket` | `(portKey)` | Generates `{ portKey, goods: { … } }` for a port visit |
 
 
 ---
@@ -462,18 +449,19 @@ calculation belongs in `logic.js`. Screens read and render; they do not decide.
 
 **Current screens:**
 
-| Screen | `state.screen` value | Description |
-|---|---|---|
-| `StartScreen` | `"start"` | Scenario selection, load game |
-| `PortScreen` | `"port"` | Main hub: mission board, log, ship status, services |
-| `MapScreen` | `"map"` | Interactive SVG world map, click to sail |
-| `SailingScreen` | `"sailing"` | Day-advance, voyage progress, wind display |
-| `InterceptScreen` | `"intercept"` | Pre-combat encounter: fight, flee, parley, bribe, surrender |
-| `BattleScreen` | `"battle"` | Turn-based naval combat with battle log |
-| `ShipyardScreen` | `"shipyard"` | Buy ships/upgrades, repair (fame-gated, rep-discounted) |
-| `CrewScreen` | `"crew"` | Named crew manifest, hire, buy drinks for morale |
-| `StatusScreen` | `"status"` | Captain's Standing (fame/infamy), faction relations, reputation per port with perk info |
-| `EventScreen` | `"event"` | Random event resolution with choices |
+| Screen           | `state.screen` value | Description |
+|------------------|----------------------|-------------|
+| StartScreen      | `"start"`            | Scenario selection, load game |
+| PortScreen       | `"port"`             | Main hub: mission board, log, ship status, services, market button |
+| MapScreen        | `"map"`              | Interactive SVG world map, click to sail |
+| SailingScreen    | `"sailing"`          | Day-advance, voyage progress, provisions, log |
+| InterceptScreen  | `"intercept"`        | Pre-combat encounter: fight, flee, parley, bribe, surrender |
+| BattleScreen     | `"battle"`           | Turn-based naval combat with battle log |
+| ShipyardScreen   | `"shipyard"`         | Buy ships/upgrades, repair (fame-gated, reputation-discounted) |
+| CrewScreen       | `"crew"`             | Named crew manifest, hire, buy drinks for morale |
+| StatusScreen     | `"status"`           | Captain's Standing (fame/infamy), faction relations, reputation per port with perk info |
+| EventScreen      | `"event"`            | Random event resolution with choices |
+| MarketScreen     | `"market"`           | Buy/sell provisions and trade goods; shows hold, prices, and cargo penalty |
 
 **Export pattern:**
 
@@ -588,6 +576,17 @@ Authoritative state shape. Update this section when adding new fields.
     max:        50,
     morale:     80,         // 0–100
   },
+
+    // ── Cargo & Economy ───────────────────────────────────────────────
+  hold: {
+    capacity: 200,      // from SHIPS[type].holdCapacity
+    items: {
+      food: 10, water: 10,
+      rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,
+      coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
+    },
+  },
+  portMarket: null,     // generated on ENTER_PORT; { portKey, goods: { [good]: { basePrice, buyFromPort, sellToPort, available } } }
 
   // ── Navigation ──────────────────────────────────────────────────
   currentPort:      "portRoyal",
@@ -709,6 +708,9 @@ dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
 | `INTERCEPT_PARLEY` | — |
 | `INTERCEPT_BRIBE` | — |
 | `INTERCEPT_SURRENDER` | — |
+| `CONFIRM_TRADE` | `buys` object, `sells` object |
+| `ENTER_MARKET` | — |
+| `LEAVE_MARKET` | — |
 
 ---
 
@@ -746,9 +748,12 @@ fewer slots, the player chooses which items to keep before purchase confirms.
 
 ### Travel and range
 
+### Travel and range
+
 `travelDays(fromKey, toKey, state)` computes effective days using port SVG
 coordinates for distance, divided by effective speed from `getShipStats(state)`.
-Future cargo load penalty will reduce speed proportionally to fill percentage.
+A cargo‑load multiplier is then applied: <50% → ×1.00, 50‑75% → ×1.11, ≥75% → ×1.33.
+The final value is rounded, minimum 1 day.
 
 `canReach(state, fromKey, toKey)` compares `travelDays` result against
 `getShipStats(state).maxDaysAtSea`. Used by MapScreen to grey out unreachable
@@ -826,6 +831,31 @@ the reducer (port entry) and screen components (service access, mission filterin
 - **Events**: Certain choices (e.g., whale sighting "Leave them be") give morale bonuses.
 - **Recovery**: "Buy Drinks" button on CrewScreen costs `crew.roster.length * 5` gold for +5 morale (capped at 100).
 - **Effective morale**: `crew.morale + ship.moraleBonus` (from figurehead upgrade), displayed in HUD. Affects combat damage and crew wages.
+
+### Economy System
+
+**Hold:** All cargo shares a single hold with capacity `SHIPS[type].holdCapacity`.
+Food and water are provision types; all other goods are trade goods.
+
+**Provision consumption:** Each day at sea, `Math.ceil(crew.roster.length / 10)`
+units of food and water are deducted. When either reaches zero, a morale penalty
+of −1 is applied (max once per day from provision/wages crisis).
+
+**Port market:** On entering a port, `G.generatePortMarket(portKey)` builds a
+fresh market. Each good has a chance to appear based on the port's tier in
+`GOODS_AVAILABILITY` (always / frequently / sometimes / rarely / never). Prices
+are rolled around the base price with the good's variance. The player sees
+base price, buy price (×1.10 of rolled market price), and sell price (×0.90).
+Food and water always appear with quantity 999; other goods use tier‑based
+quantity ranges (40‑80, 20‑40, 8‑20, 2‑8).
+
+**Trade:** `CONFIRM_TRADE` processes sells first (freeing space), then buys.
+Buys are validated holistically against gold and hold capacity. Buying illegal
+goods adds infamy.
+
+**Cargo penalties:** Surrender events apply `loseCargoPercent` (removes a
+fraction of all items) or `loseContraband` (removes all illegal goods). Defeat
+in battle clears the entire hold.
 
 ### Parametric Mission Generation
 
@@ -946,6 +976,17 @@ whenever the state shape changes between versions.
 2. `apply` functions must return plain partial state objects only — no `L.*` calls
 3. Add weight or condition if the event should not fire in all contexts
 4. Test: verify `L.applyEvent` returns valid partial state for each branch
+
+### Tuning the economy
+
+To adjust trade balance, modify these constants in `data.js`:
+
+- `RESOURCES` — base prices, variance, legality, infamy cost.
+- `GOODS_AVAILABILITY` — per‑port tier table for appearance and quantity.
+- `MISSION_GOLD_RANGES` — interacts with trade income; adjust together.
+
+The speed‑penalty thresholds are in `logic.js` (`getHoldSpeedMultiplier`).
+Provision consumption rate is in `getProvisionConsumptionPerDay`.
 
 ### Tuning mission generation
 
@@ -1086,6 +1127,7 @@ Read this section before making any changes to the codebase.
 - Using `rep < 10` instead of `L.getRepPerk(rep).servicesBlocked` for At War checks
 - Using string literals like `"pirates_save"` instead of the canonical `"piratesSave"` key
 - Using `crew.max` instead of `getShipStats(state).maxCrew` for hire limits
+- Forgetting to update `hold.capacity` in `BUY_SHIP` when the new ship has a different hold size
 
 ### Always do
 

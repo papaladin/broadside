@@ -162,7 +162,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.2 — Provisions system (food, water, medicine, ammunition)
+### P1.2 — Provisions system (food, water, medicine, ammunition) --> DONE
 **What:** Ships consume provisions daily at sea. Each provision type has a current stock and a max capacity (scaled to ship size). Running out of food/water causes morale loss per day. Running out of medicine means combat injuries become permanent crew losses. Running out of ammunition disables certain combat actions. Ports always have food and water (safeguard against hardlock), other provisions are available per port resource table. Player must consciously stock up before sailing.
 **Complexity:** Medium
 **Dependencies:** P1.1 (morale), P0.7 (crew capacity)
@@ -170,7 +170,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.3 — Port resource system (fixed + parametric prices)
+### P1.3 — Port resource system (fixed + parametric prices) --> DONE
 **What:** Each port in `data.js` gets a resource table defining what goods it stocks, base prices, supply tier, and price variance range. Price is recalculated on port entry (not simulated continuously). Certain ports have structural cheapness in certain goods (Tortuga: rum cheap; Cartagena: weapons expensive; Nassau: no medicine). Food and water always available at minimum stock. Creates logical trade routes from the fixed differentials.
 **Complexity:** Medium
 **Dependencies:** P1.2 (provisions system defines what resources matter)
@@ -178,7 +178,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.4 — Cargo system (capacity, weight, speed tradeoff)
+### P1.4 — Cargo system (capacity, weight, speed tradeoff) --> DONE
 **What:** Ships have a cargo capacity (scaled by ship type, increased by cargo hold upgrade). Filling cargo slows the ship (speed penalty proportional to load %). Player must balance profit from cargo against the risk of being slower to flee or maneuver. Plundered goods from combat victories go into cargo and must be sold at port.
 **Complexity:** Medium
 **Dependencies:** P1.3 (resource system defines what cargo exists)
@@ -186,7 +186,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.5 — Fame display in HUD + basic fame gating
+### P1.5 — Fame display in HUD + basic fame gating --> DONE
 **What:** Add `★ {state.fame}` to HUD. In `data.js`, add `requiredFame` to certain ships, upgrades, and high-risk missions. Shipyard and mission board filter/grey out items below fame threshold with visible requirement shown.
 **Complexity:** Low
 **Dependencies:** None (fame already exists in state)
@@ -214,7 +214,7 @@ This phase makes the existing systems matter. Nothing here is a new system — i
 
 ---
 
-### P1.7 — Reputation perks (threshold behaviors)
+### P1.7 — Reputation perks (threshold behaviors) --> DONE
 **What:** Reputation thresholds unlock or restrict concrete mechanical behaviors, not just narrative flavor. Proposed tiers:
 - **At War (< 10):** entering port triggers combat (already partially exists). Black market only (no official services).
 - **Hostile (10–29):** port fee to dock. No crew hire. Reduced mission pool.
@@ -330,7 +330,24 @@ Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat:
 
 ---
 
-### P2.7 — Infamy track (separate from Fame)
+### P2.6b — Plunder Screen
+
+**What:** After a combat victory, a dedicated screen shows an estimate of the
+enemy’s cargo. The player chooses how much to take, limited by available hold
+space. Goods are added directly to the player’s hold — plunder becomes actual
+cargo instead of abstract gold. The existing gold reward is reduced accordingly,
+making plunder the primary economic payoff from combat.
+**Complexity:** Medium (new screen, hold‑space validation, integration with
+existing cargo system)
+**Dependencies:** P1.4 (cargo system)
+**Design impact:** Every combat victory creates a genuine inventory decision.
+The player must balance immediate gold against valuable trade goods, and a full
+hold forces hard choices. Embodies “every success creates a new problem.”
+
+
+---
+
+### P2.7 — Infamy track (separate from Fame)  --> DONE
 **What:** Add `infamy` to state alongside `fame`. Fame rises from heroic acts (rescues, defending merchants, completing good-faction missions). Infamy rises from piracy, raiding, attacking civilians. Both are visible in HUD. High infamy triggers bounty hunters and makes law-abiding ports hostile. High fame opens governor missions and reduces hostile encounters. High in both (the notorious privateer) is the most interesting state — attracts hunters from criminal side AND attracts challengers from the heroic side.
 **Complexity:** Medium (new state field, new event triggers for both tracks, UI)
 **Dependencies:** P1.5, P1.7 (reputation perks need the distinction to be meaningful)
@@ -438,10 +455,10 @@ Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat:
 | Procedural rumor generation | NLP-style template expansion from game state. Deferred until rumor system is stable. |
 | Dynamic faction wars (autonomous) | Factions act and expand without player. Risks runaway domination. Very high complexity. |
 | Fleet system | Player owns multiple ships, assigns crew and routes. Transforms the game's scope significantly. |
-| Multiplayer | Shared world, competing captains. Entirely different architecture. |
 | Mobile-optimized UI | Responsive layout, touch controls. After core game is feature-complete. |
 | Procedural music (sea shanties) | Web Audio API, mood-reactive. Fun but purely cosmetic. |
 | Visual sailing mode (real-time) | Upgrade SailingScreen from day-counter to animated top-down sailing. Medium complexity, high feel — but only after all systems are stable. |
+| Medicine & Ammunition | Two additional provision types with triggered consumption: medicine used on crew loss in combat, ammunition per battle. Deferred until combat and provision systems mature. |
 
 ---
 
