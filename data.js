@@ -785,40 +785,179 @@ const ENEMY_SHIP_NAMES = {
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  STARTS: Starting scenarios for new games.
-  //  bonuses: Array of starting bonuses (e.g., "+2000 gold", "ship: frigate").
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const STARTS = [
-    {
-      id: "merchant",
-      name: "Merchant Captain",
-      desc: "Start with extra gold and a trade-focused ship. Ideal for peaceful traders.",
-      bonuses: ["+2000 gold", "ship: merchantman"]
+  // ── English ───────────────────────────────────────────────────
+  {
+    id: "english_william",
+    name: "The Forged Commission",
+    faction: "english",
+    tagline: "You carry papers you did not earn.",
+    story: "William Calder forged a letter of commission after his employer died. The ink is passable. The signature is not. He needs to become the kind of captain who doesn't need the letter before someone in Port Royal looks closely enough to notice.",
+    startPort: "portRoyal",
+    ship: "dinghy",
+    gold: 190,
+    crewCount: 1,
+    crewFaction: "english",
+    hold: { food: 8, water: 8 },
+    repAdjust: { english: +10, pirate: -5 },
+    openingLog: [
+      "Cleared Port Royal on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
+      "Okafor is useful and incurious. I paid his debt to get him. Worth every coin.",
+      "I need a real reputation before someone calls my bluff. That means work. English work, legal work — at least for now.",
+    ],
+    starterMission: {
+      type: "escort", name: "Carry the Dispatch to Kingston",
+      description: "An official packet needs to reach the governor's secretary at Kingston. The harbormaster was very clear it should arrive sealed. It's routine paperwork — or it would be, if you were a real Sailing Master.",
+      faction: "english", targetPort: "kingston", risk: "low",
+      gold: 240, fame: 1, infamyGain: 0,
+      repImpact: { english: 2 }, enemy: null,
+      starter: true,
     },
-    {
-      id: "privateer",
-      name: "Privateer",
-      desc: "Start with a letter of marque and a fast ship. Hunt enemies of your nation for profit.",
-      bonuses: ["+10 reputation with English", "ship: sloop", "+500 gold"]
+  },
+
+  // ── Spanish ───────────────────────────────────────────────────
+  {
+    id: "spanish_elena",
+    name: "The Governor's Errand",
+    faction: "spanish",
+    tagline: "Don Luis gave you the boat and a vague instruction. Make yourself useful.",
+    story: "Elena Vargas was handed a dinghy, a sealed crate, and a debt she didn't owe. She has no crew. She prefers it that way. Fewer people know she exists. Fewer people know where she's going.",
+    startPort: "havana",
+    ship: "dinghy",
+    gold: 205,
+    crewCount: 0,
+    crewFaction: "spanish",
+    hold: { food: 8, water: 8 },
+    repAdjust: { spanish: +10, english: -5 },
+    openingLog: [
+      "Don Luis watched the harbour from his window this morning. I did not look back when I cast off.",
+      "The crate makes no sound. It's heavier than it looks. I've decided not to think about it.",
+      "First delivery: Santiago de Cuba. After that, I'll know if I have a choice in any of this.",
+      "Sailing alone is harder than I expected. I'll need crew. Someone who doesn't ask questions.",
+    ],
+    starterMission: {
+      type: "escort", name: "The Package for Santiago",
+      description: "Don Luis's crate must reach a contact in Santiago de Cuba. No questions. No inspection. A sealed delivery, prompt and quiet.",
+      faction: "spanish", targetPort: "santiagoDeCuba", risk: "low",
+      gold: 280, fame: 1, infamyGain: 0,
+      repImpact: { spanish: 3 }, enemy: null,
+      starter: true, plotItem: true,
     },
-    {
-      id: "pirate",
-      name: "Pirate King",
-      desc: "Start with a fearsome reputation and a crew of cutthroats. The sea is yours to plunder.",
-      bonuses: ["ship: brigantine", "+20 reputation with Pirate", "+1000 gold"]
+  },
+
+  // ── French ────────────────────────────────────────────────────
+  {
+    id: "french_luc",
+    name: "The Cartographer's Debt",
+    faction: "french",
+    tagline: "Your master left you his boat, his charts, and a debt he forgot to mention in the will.",
+    story: "Luc Fontaine inherited his mentor's dinghy, his instruments, and a six‑month charting contract the late cartographer had been paid for in advance. The navy wants the charts delivered by the agreed date. Luc prefers the dinghy. Marie‑Ange Desroches, the former cook, agreed to stay on. She is more competent than Luc at most sailing tasks and less diplomatic about saying so.",
+    startPort: "martinique",
+    ship: "dinghy",
+    gold: 190,
+    crewCount: 1,
+    crewFaction: "french",
+    hold: { food: 8, water: 8 },
+    repAdjust: { french: +10, english: -5 },
+    openingLog: [
+      "Deschamps's charts are better than anything the navy has. That's why they want them finished. That's also why I have leverage, if I'm careful.",
+      "Desroches says I navigate like I'm reading someone else's handwriting. She is not wrong.",
+      "The naval officer said 'by the agreed date' twice. The date is in six months. I have time — if I keep moving.",
+      "There is a note in Deschamps's margin on the passage to Port‑de‑Paix. Something that doesn't appear on any official chart. I'll look when I'm there.",
+    ],
+    starterMission: {
+      type: "patrol", name: "Chart the Northern Passage",
+      description: "The French naval office wants updated soundings on the route between Martinique and Port‑de‑Paix. Sail the passage and return. Deschamps's notes mention something interesting near the northern end that no official chart acknowledges.",
+      faction: "french", targetPort: "portDePaix", risk: "low",
+      gold: 220, fame: 1, infamyGain: 0,
+      repImpact: { french: 2 }, enemy: null,
+      starter: true,
     },
-    {
-      id: "admiral",
-      name: "Naval Admiral",
-      desc: "Start with a powerful warship and the respect of the navy. Serve your nation with honor.",
-      bonuses: ["ship: frigate", "+30 reputation with English", "+1500 gold"]
+  },
+
+  // ── Dutch ─────────────────────────────────────────────────────
+  {
+    id: "dutch_pieter",
+    name: "The Company's Ledger",
+    faction: "dutch",
+    tagline: "The Dutch West India Company gave you the boat, the freedom, and a quota. The freedom, you have learned, is the trap.",
+    story: "Pieter van Houten found a discrepancy in a senior partner's account. He was 'promoted' to independent trade contractor within the week. His own vessel. His own routes. A quarterly gold quota. No cargo provided. Plenty of implied understanding about consequences.",
+    startPort: "curacao",
+    ship: "dinghy",
+    gold: 205,
+    crewCount: 0,
+    crewFaction: "dutch",
+    hold: { food: 8, water: 8 },
+    repAdjust: { dutch: +10, spanish: -5 },
+    openingLog: [
+      "The Company gave me a list of contacts. Portobelo is on it. I did not expect Portobelo.",
+      "First quarter quota: 1,200 gold delivered to Company warehouses. Thirty days. I'd better start.",
+      "The freedom is real enough. It's the accounting that isn't free.",
+      "I'll need crew. A one‑man dinghy in these waters is a statement of either poverty or arrogance. I can't afford either.",
+    ],
+    starterMission: {
+      type: "escort", name: "The Consignment for Sint Eustatius",
+      description: "A Dutch merchant factor on Sint Eustatius is waiting for a consignment order Pieter is to collect from Curaçao's company warehouse and deliver. The manifest is signed by someone Pieter recognises from the discrepancy he recorded. He chooses not to think about that.",
+      faction: "dutch", targetPort: "stEustatius", risk: "low",
+      gold: 250, fame: 1, infamyGain: 0,
+      repImpact: { dutch: 3 }, enemy: null,
+      starter: true,
     },
-    {
-      id: "smuggler",
-      name: "Smuggler",
-      desc: "Start with a small, fast ship and a knack for avoiding the law.",
-      bonuses: ["ship: sloop", "+1000 gold", "+15 reputation with Dutch"]
-    }
-  ];
+  },
+
+  // ── Pirate ────────────────────────────────────────────────────
+  {
+    id: "pirate_rosa",
+    name: "The Survivor",
+    faction: "pirate",
+    tagline: "The Marguerite is at the bottom of the sea. You and Cacao are the only ones left.",
+    story: "Rosa Esperanza spent two years on Captain Bouchard's ship, learning which ports ran real patrols and which ran theater. When a storm took the Marguerite, Rosa and Cacao Santos — a Cuban gunner — survived on a dinghy. They made Tortuga on the fifth day. Everyone else is gone. Rosa has a boat, a friend, two years of knowledge, and no particular loyalty to anyone who isn't standing next to her.",
+    startPort: "tortuga",
+    ship: "dinghy",
+    gold: 190,
+    crewCount: 1,
+    crewFaction: "pirate",
+    hold: { food: 8, water: 8 },
+    repAdjust: { pirate: +10, spanish: -5 },
+    openingLog: [
+      "Tortuga smells like rum and bad decisions. I've missed it.",
+      "Cacao says we should find a crew and a real ship before we do anything else. He's right, as usual.",
+      "Bouchard knew every useful person in the Caribbean. I know who they are. He kept the introductions to himself. Time to make my own.",
+      "Two years of watching from the deck. I know the routes. I know the prices. I know the mistakes people make. Now I find out if knowing is enough.",
+    ],
+    starterMission: {
+      type: "escort", name: "Find Renard in Nassau",
+      description: "A message from Tortuga's port master needs to reach Captain Renard, last seen in Nassau. Renard is someone Bouchard dealt with — Rosa knows the name but not the face. Delivering the message is a way to introduce herself to the network Bouchard left behind.",
+      faction: "pirate", targetPort: "nassau", risk: "low",
+      gold: 200, fame: 1, infamyGain: 0,
+      repImpact: { pirate: 3 }, enemy: null,
+      starter: true,
+    },
+  },
+
+  // ── Debug ─────────────────────────────────────────────────────
+  {
+    id: "debug",
+    name: "⚙ Developer Mode",
+    faction: "english",
+    tagline: "Skip the early game. Test what you need to test.",
+    story: "Start at fame 100 with 5,000 gold. All ports Friendly. Sloop. Full hold of trade goods.",
+    startPort: "portRoyal",
+    ship: "sloop",
+    gold: 5000,
+    crewCount: 20,
+    crewFaction: "pirate",
+    hold: { food: 20, water: 20, rum: 10, spices: 5, silk: 3 },
+    repAdjust: { english: +30, spanish: +15, french: +15, dutch: +15, pirate: +10 },
+    openingLog: [
+      "DEBUG MODE: Gold 5000, Fame 100. All ports at minimum Friendly standing.",
+      "Use the ⚙ debug panel in the HUD for quick adjustments.",
+    ],
+    starterMission: null,
+    debugStartFame: 100,
+  },
+];
 
 
   const ENCOUNTER_FLAVOUR = {

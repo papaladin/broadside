@@ -35,6 +35,13 @@ window.E = (() => {
     CONFIRM_TRADE: "CONFIRM_TRADE",
     ENTER_MARKET:  "ENTER_MARKET",
     LEAVE_MARKET:  "LEAVE_MARKET",
+    DEBUG_ADD_GOLD:     "DEBUG_ADD_GOLD",
+    DEBUG_SET_FAME:     "DEBUG_SET_FAME",
+    DEBUG_SET_INFAMY:   "DEBUG_SET_INFAMY",
+    DEBUG_SET_SHIP:     "DEBUG_SET_SHIP",
+    DEBUG_SET_PORT_REP: "DEBUG_SET_PORT_REP",
+    DEBUG_FILL_HOLD:    "DEBUG_FILL_HOLD",
+    DEBUG_REPAIR:       "DEBUG_REPAIR",
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -84,45 +91,71 @@ window.E = (() => {
 
       // --- START GAME ---
       case A.START_GAME: {
-        const start = STARTS.find(s => s.id === action.scenarioId);
-        if (!start) return { ...initialState, screen: "start" };
+  const start = STARTS.find(s => s.id === action.scenarioId);
+  if (!start) return { ...initialState, screen: "start" };
 
-        const newState = { ...initialState, screen: "port", currentPort: "portRoyal", day: 1, log: [`Started as ${start.name}.`], reputation: {},infamy: 0, portMarket: null, };
+  // 1. Base state
+  const newState = {
+    ...initialState,
+    screen: "port",
+    day: 1,
+    infamy: 0,
+    fame: start.debugStartFame ?? 0,
+    gold: start.gold,
+    currentPort: start.startPort,
+    portMarket: null,
+    log: [...(start.openingLog || [])],
+  };
 
-        start.bonuses.forEach(bonus => {
-          if (bonus.includes("gold")) {
-            newState.gold += parseInt(bonus.replace(/[^0-9]/g, "")) || 0;
-          } else if (bonus.includes("ship:")) {
-            const shipType = bonus.split(":")[1].trim();
-            if (SHIPS[shipType]) {
-              newState.ship = { ...newState.ship, type: shipType, name: SHIPS[shipType].name, hull: SHIPS[shipType].maxHull, cannons: SHIPS[shipType].cannons };
-              newState.hold = {
-                capacity: SHIPS[newState.ship.type].holdCapacity,
-                items: { food: 10, water: 10, rum:0, sugar:0, timber:0, cloth:0, spices:0, silk:0, coffee:0, cocoa:0, weapons:0, tobacco:0, silver:0, slaves:0 },
-              };
-              newState.crew = { ...newState.crew, max: SHIPS[shipType].maxCrew };
-            }
-          } else if (bonus.includes("reputation with")) {
-            const faction = bonus.split("with")[1].trim().toLowerCase();
-            const repBonus = parseInt(bonus.match(/\+\d+/)?.[0] || 0);
-            Object.keys(PORTS).forEach(portKey => {
-              if (PORTS[portKey].faction === faction) newState.reputation[portKey] = (newState.reputation[portKey] || 50) + repBonus;
-            });
-          }
-        });
+  // 2. Ship and hold
+  const shipData = SHIPS[start.ship];
+  newState.ship = {
+    type: start.ship,
+    name: shipData.name,
+    hull: shipData.maxHull,
+    cannons: shipData.cannons,
+    upgrades: [],
+  };
+  newState.hold = {
+    capacity: shipData.holdCapacity,
+    items: {
+      food: 0, water: 0, rum: 0, sugar: 0, timber: 0, cloth: 0,
+      spices: 0, silk: 0, coffee: 0, cocoa: 0, weapons: 0,
+      tobacco: 0, silver: 0, slaves: 0,
+      ...(start.hold || {}),
+    },
+  };
+  newState.crew = {
+    ...newState.crew,
+    max: shipData.maxCrew,
+    roster: start.crewCount > 0
+      ? G.generateRoster(start.crewCount, start.crewFaction || start.faction)
+      : [],
+    morale: 80,
+  };
 
-        const startFaction = PORTS["portRoyal"].faction; // English
-        const crewCount = Math.floor(newState.crew.max * 0.6);
-        newState.crew.roster = G.generateRoster(crewCount, startFaction);
-
-        Object.keys(PORTS).forEach(portKey => {
-          if (newState.reputation[portKey] === undefined) newState.reputation[portKey] = 50;
-        });
-        // Generate initial market and missions for the starting port
-        newState.portMarket = G.generatePortMarket(newState.currentPort);
-        newState.missions  = G.generateMissions(newState.currentPort, newState);
-        return newState;
+  // 3. Reputation
+  const rep = {};
+  Object.keys(PORTS).forEach(portKey => { rep[portKey] = 50; });
+  Object.entries(start.repAdjust || {}).forEach(([faction, delta]) => {
+    Object.keys(PORTS).forEach(portKey => {
+      if (PORTS[portKey].faction === faction) {
+        rep[portKey] = Math.max(0, Math.min(100, 50 + delta));
       }
+    });
+  });
+  newState.reputation = rep;
+
+  // 4. Market and missions
+  newState.portMarket = G.generatePortMarket(start.startPort);
+  const generatedMissions = G.generateMissions(start.startPort, newState);
+  const missions = start.starterMission
+    ? [start.starterMission, ...generatedMissions]
+    : generatedMissions;
+  newState.missions = missions;
+
+  return newState;
+}
 
       // --- NAVIGATION ---
       case A.NAVIGATE: return { ...state, screen: action.screen };
@@ -373,47 +406,54 @@ window.E = (() => {
       }
 
       case A.COMPLETE_MISSION: {
-        const mission = state.activeMission;
-        if (!mission) return state;
-        if (mission.targetPort && state.currentPort !== mission.targetPort) {
-          return { ...state };
-        }
+  const mission = state.activeMission;
+  if (!mission) return state;
+  if (mission.targetPort && state.currentPort !== mission.targetPort) {
+    return { ...state };
+  }
 
-        // Reputation-based gold multiplier
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        const baseGold = mission.gold;
-        const finalGold = Math.floor(baseGold * perk.missionMult);
-        const goldDelta = finalGold - baseGold;
-        const bonusNote = goldDelta > 0 ? ` (+${goldDelta}g ${perk.tier} bonus)`
-                        : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
+  // Reputation-based gold multiplier
+  const rep = state.reputation[state.currentPort] ?? 50;
+  const perk = L.getRepPerk(rep);
+  const baseGold = mission.gold;
+  const finalGold = Math.floor(baseGold * perk.missionMult);
+  const goldDelta = finalGold - baseGold;
+  const bonusNote = goldDelta > 0 ? ` (+${goldDelta}g ${perk.tier} bonus)`
+                  : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
 
-        const newRep = L.applyReputationImpact(state, mission.repImpact);
+  const newRep = L.applyReputationImpact(state, mission.repImpact);
 
-        // Infamy gain
-        const infamyGain = mission.infamyGain || 0;
-        const oldInfamy = state.infamy ?? 0;
-        const newInfamy = Math.min(999, oldInfamy + infamyGain);
-        const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
+  // Infamy gain
+  const infamyGain = mission.infamyGain || 0;
+  const oldInfamy = state.infamy ?? 0;
+  const newInfamy = Math.min(999, oldInfamy + infamyGain);
+  const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
 
-        const newLog = [
-          ...state.log,
-          `Completed mission: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`
-        ];
-        if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
-        if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
+  const newLog = [
+    ...state.log,
+    `Completed mission: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`
+  ];
+  if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
+  if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
 
-        return {
-          ...state,
-          gold: state.gold + finalGold,
-          fame: state.fame + mission.fame,
-          infamy: newInfamy,
-          reputation: newRep,
-          activeMission: null,
-          missions: G.generateMissions(state.currentPort, state),
-          log: newLog
-        };
-      }
+  // Remove plot item if mission had one
+  let holdItems = { ...(state.hold?.items || {}) };
+  if (mission.plotItem) {
+    holdItems = { ...holdItems, plot_item: 0 };
+  }
+
+  return {
+    ...state,
+    gold: state.gold + finalGold,
+    fame: state.fame + mission.fame,
+    infamy: newInfamy,
+    reputation: newRep,
+    activeMission: null,
+    missions: G.generateMissions(state.currentPort, state),
+    hold: { ...state.hold, items: holdItems },
+    log: newLog
+  };
+}
 
       case A.ABANDON_MISSION: return { ...state, activeMission: null, reputation: L.applyReputationImpact(state, { [state.activeMission?.faction || "pirate"]: -10 }), log: [...state.log, `Abandoned mission: ${state.activeMission?.name}.`] };
 
@@ -860,6 +900,54 @@ case A.CONFIRM_TRADE: {
           return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
         }
       }
+
+      // ── Debug actions (dev tooling only) ─────────────────────────────
+      case A.DEBUG_ADD_GOLD:
+        return { ...state, gold: state.gold + action.amount };
+
+      case A.DEBUG_SET_FAME:
+        return { ...state, fame: action.fame };
+
+      case A.DEBUG_SET_INFAMY:
+        return { ...state, infamy: action.infamy };
+
+      case A.DEBUG_SET_SHIP: {
+        const s = SHIPS[action.shipType];
+        if (!s) return state;
+        return { ...state,
+          ship: { type: action.shipType, name: s.name,
+                  hull: s.maxHull, cannons: s.cannons, upgrades: [] },
+          hold: { ...state.hold, capacity: s.holdCapacity },
+          crew: { ...state.crew, max: s.maxCrew },
+        };
+      }
+
+      case A.DEBUG_SET_PORT_REP: {
+        return { ...state,
+          reputation: { ...state.reputation, [action.port]: action.amount }
+        };
+      }
+
+      case A.DEBUG_FILL_HOLD:
+        return { ...state, hold: { ...state.hold, items: {
+          food: 20, water: 20, rum: 10, sugar: 8, spices: 4,
+          silk: 3, cloth: 6, weapons: 5, coffee: 5, cocoa: 4,
+          timber: 0, tobacco: 3, silver: 2, slaves: 0,
+        }}};
+
+      case A.DEBUG_REPAIR: {
+        const stats = L.getShipStats(state);
+        return { ...state,
+          ship: { ...state.ship, hull: stats.maxHull },
+          hold: { ...state.hold, items: {
+            ...state.hold.items,
+            food: Math.ceil(state.crew.roster.length / 10) * 10,
+            water: Math.ceil(state.crew.roster.length / 10) * 10,
+          }},
+        };
+      }
+
+
 
       default: return state;
     }

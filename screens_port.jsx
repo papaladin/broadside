@@ -11,36 +11,59 @@ window.S = window.S || {};
 
   // ── START SCREEN ─────────────────────────────────────────────────────
   function StartScreen({ dispatch }) {
-    const hasSave = L.hasSave();
-    return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: 20,
-        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
-      }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
-        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+  const hasSave = L.hasSave();
+  const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+  const visibleStarts = isDebug ? STARTS : STARTS.filter(s => s.id !== 'debug');
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 540, width: "100%", marginBottom: 20 }}>
-          {STARTS.map(s => (
-            <div key={s.id} onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
-              style={{ ...panelStyle({ cursor: "pointer", transition: "border-color 0.15s" }) }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
-              onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
-            >
-              <div style={{ color: T.gold, fontSize: 13, fontWeight: "bold", marginBottom: 4 }}>{s.name}</div>
-              <p style={{ color: T.textDim, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.desc}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                {s.bonuses.map((b, i) => (<div key={i} style={{ color: T.greenBr, fontSize: 10 }}>✓ {b}</div>))}
-              </div>
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh", padding: 20,
+      background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+    }}>
+      <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+      <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 640, width: "100%", marginBottom: 20 }}>
+        {visibleStarts.map(s => (
+          <div key={s.id}
+            onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
+            style={{
+              ...panelStyle({ cursor: "pointer", transition: "border-color 0.15s" }),
+              borderLeft: `3px solid ${FACTIONS[s.faction]?.color ?? T.gold}`,
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
+            onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+          >
+            <div style={{ color: FACTIONS[s.faction]?.color ?? T.gold, fontSize: 10, letterSpacing: "0.08em", marginBottom: 4 }}>
+              {FACTIONS[s.faction]?.label?.toUpperCase()} · {s.ship?.toUpperCase()}
             </div>
-          ))}
-        </div>
-
-        {hasSave && (<Btn v="gold" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue Saved Game</Btn>)}
+            <div style={{ color: T.gold, fontSize: 14, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
+            <div style={{ color: T.textDim, fontSize: 10, fontStyle: "italic", marginBottom: 8 }}>{s.tagline}</div>
+            <p style={{ color: T.text, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.story}</p>
+            {s.starterMission && (
+              <div style={{ background: "#081a10", border: `1px solid ${T.greenBr}`, borderRadius: 3, padding: 6, marginBottom: 8 }}>
+                <div style={{ color: T.greenBr, fontSize: 9, marginBottom: 2 }}>OPENING QUEST</div>
+                <div style={{ color: T.text, fontSize: 10, fontWeight: "bold" }}>{s.starterMission.name}</div>
+                <div style={{ color: T.textDim, fontSize: 9 }}>{s.starterMission.description}</div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
+              <span>💰 {s.gold}g</span>
+              <span>👥 {s.crewCount} crew</span>
+              <span>🍖 8 food · 💧 8 water</span>
+              <span style={{ color: T.greenBr }}>{Object.entries(s.repAdjust || {}).map(([f, d]) => `${f} ${d >= 0 ? '+' : ''}${d}`).join(', ')}</span>
+            </div>
+          </div>
+        ))}
       </div>
-    );
-  }
+
+      {hasSave && (
+        <Btn v="gold" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue Saved Game</Btn>
+      )}
+    </div>
+  );
+}
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
   function PortScreen({ state, dispatch }) {
