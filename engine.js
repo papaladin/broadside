@@ -524,8 +524,8 @@ case A.CONFIRM_TRADE: {
         const ctx = state.encounterContext;
         if (!ctx) return state;
         const { player, enemy } = ctx.options.flee.speedCheck;
-        const playerRoll = player + L.roll(3);
-        const enemyRoll  = enemy  + L.roll(3);
+        const playerRoll = player + L.roll(6);
+        const enemyRoll  = enemy  + L.roll(6);
         if (playerRoll >= enemyRoll) {
           return { ...state, encounterContext: null, screen: state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port", log: [...state.log, "You pulled clear — the enemy couldn't keep up."] };
         }

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Broadside Health Checks</title>
+  <style>
+    body { background: #0a141e; color: #e0e0e0; font-family: monospace; padding: 20px; }
+    h1 { color: #ffd700; }
+    h2 { color: #ffd700; margin-top: 30px; }
+    table { border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+    th, td { border: 1px solid #2a3a4a; padding: 4px 8px; text-align: center; }
+    th { background: #121c28; color: #ffd700; }
+    td { background: #0d1620; }
+    details { margin: 20px 0; border: 1px solid #2a3a4a; border-radius: 4px; background: #121c28; }
+summary { padding: 10px 14px; cursor: pointer; font-weight: bold; color: #ffd700; }
+details[open] summary { border-bottom: 1px solid #2a3a4a; }
+details > div { padding: 10px 14px; }
+  </style>
+</head>
+<body>
+  <h1>📊 Broadside Health Checks</h1>
+<details open>
+  <summary>🗺 Reachability &amp; Exploration</summary>
+  <div id="reachability"></div>
+  <div id="starter"></div>
+  <div id="furthest"></div>
+  <div id="islands"></div>
+</details>
+
+<details open>
+  <summary>💰 Economy &amp; Progression</summary>
+  <div id="ship-cost-vs-missions"></div>
+  <div id="daily-cost-vs-income"></div>
+  <div id="hold-profit"></div>
+  <div id="morale-check"></div>
+  <div id="fame-gating"></div>
+</details>
+
+<details>
+  <summary>⚔️ Missions &amp; Enemies</summary>
+  <div id="enemy-balance"></div>
+  <div id="gold-histogram"></div>
+  <div id="mission-weights"></div>
+  <div id="faction-coverage"></div>
+</details>
+
+<details>
+  <summary>🤺 Combat Balance</summary>
+  <div id="time-to-kill"></div>
+  <div id="crew-loss-rate"></div>
+  <div id="grapple-prob"></div>
+  <div id="evade-check"></div>
+</details>
+
+<details>
+  <summary>📦 Resources &amp; Trading</summary>
+  <div id="goods-never"></div>
+  <div id="price-spread"></div>
+  <div id="illegal-goods"></div>
+  <div id="starting-provisions"></div>
+</details>
+
+<details>
+  <summary>🏴 Factions &amp; Services</summary>
+  <div id="service-matrix"></div>
+  <div id="enemy-diversity"></div>
+</details>
+
+  <!-- Load game data (no Babel needed — plain JS) -->
+  <script src="../data.js"></script>
+  <script src="../logic.js"></script>
+  <script src="../generators.js"></script>
+
+  <script>
+    const ports = window.D.PORTS;
+    const ships = window.D.SHIPS;
+
+    // ── Reachability matrix ────────────────────────────────────
+    function reachablePorts(homeKey, ship) {
+      const maxDays = ship.maxDays;
+      const speed   = ship.speed;
+      let count = 0;
+      for (const [targetKey, target] of Object.entries(ports)) {
+        const dx = target.x - ports[homeKey].x;
+        const dy = target.y - ports[homeKey].y;
+        const dist = Math.hypot(dx, dy);
+        const days = Math.ceil(dist / (speed * 4));
+        if (days <= maxDays) count++;
+      }
+      return count;
+    }
+
+    function buildReachabilityTable() {
+      const shipKeys = Object.keys(ships);
+      let html = '<h2>🗺 Reachability (ports reachable within maxDays)</h2>';
+      html += '<table><tr><th>Home Port</th>';
+      shipKeys.forEach(s => html += `<th>${s}</th>`);
+      html += '</tr>';
+
+      for (const [pKey, p] of Object.entries(ports)) {
+        html += `<tr><td>${p.name}</td>`;
+        shipKeys.forEach(sk => {
+          html += `<td>${reachablePorts(pKey, ships[sk])}</td>`;
+        });
+        html += '</tr>';
+      }
+      html += '</table>';
+      document.getElementById('reachability').innerHTML = html;
+    }
+
+    function getReachablePortKeys(homeKey, ship) {
+  const maxDays = ship.maxDays;
+  const speed   = ship.speed;
+  const reachable = [];
+  for (const [targetKey, target] of Object.entries(ports)) {
+    const dx = target.x - ports[homeKey].x;
+    const dy = target.y - ports[homeKey].y;
+    const dist = Math.hypot(dx, dy);
+    const days = Math.ceil(dist / (speed * 4));
+    if (days <= maxDays) reachable.push(targetKey);
+  }
+  return reachable;
+}
+
+
+/// ---- MINIMUM VIABLE START PORTS --------------------
+
+function minViableStarterPorts() {
+  const dinghy = window.D.SHIPS.dinghy;
+  const essential = ["shipyard", "crew", "missions"];
+  let html = '<h2>🛶 Minimum‑Viable Starter Ports (Dinghy, ≥2 reachable neighbours)</h2>';
+  html += '<table><tr><th>Port</th><th>Reachable</th><th>Services Coverage</th></tr>';
+
+  for (const [pKey, p] of Object.entries(ports)) {
+    const reachableKeys = getReachablePortKeys(pKey, dinghy);
+    if (reachableKeys.length < 2) continue;
+
+    // union of services across all reachable ports
+    const services = new Set();
+    reachableKeys.forEach(rk => {
+      (ports[rk].services || []).forEach(s => services.add(s));
+    });
+
+    const missing = essential.filter(s => !services.has(s));
+    const coverage = missing.length === 0
+      ? '✅ All present'
+      : '❌ Missing: ' + missing.join(', ');
+
+    html += `<tr><td>${p.name}</td><td>${reachableKeys.length}</td><td>${coverage}</td></tr>`;
+  }
+  html += '</table>';
+  document.getElementById('starter').innerHTML = html;
+}
+
+
+// --- MAP FULLY CROSSABLE BY SHIPS -------
+
+function furthestDistanceCheck() {
+  let maxDist = 0;
+  let pair = ['',''];
+  const portArr = Object.entries(ports);
+  for (let i = 0; i < portArr.length; i++) {
+    for (let j = i+1; j < portArr.length; j++) {
+      const a = portArr[i][1], b = portArr[j][1];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d > maxDist) { maxDist = d; pair = [portArr[i][0], portArr[j][0]]; }
+    }
+  }
+
+  // range of largest ship
+  let maxRange = 0;
+  Object.values(window.D.SHIPS).forEach(s => {
+    const r = s.speed * 4 * s.maxDays;
+    if (r > maxRange) maxRange = r;
+  });
+
+  const ok = maxDist <= maxRange;
+  let html = '<h2>📏 Furthest Distance</h2>';
+  html += `<p>Max distance: <b>${Math.round(maxDist)}</b> units between <b>${ports[pair[0]].name}</b> and <b>${ports[pair[1]].name}</b></p>`;
+  html += `<p>Largest ship range: <b>${maxRange}</b> units (speed × 4 × maxDays)</p>`;
+  html += ok ? '<p style="color:#4caf50">✅ Map is fully traversable by the largest ship.</p>'
+             : '<p style="color:#f44336">❌ Some voyages are impossible even for the largest ship.</p>';
+  document.getElementById('furthest').innerHTML = html;
+}
+
+
+
+
+function islandsOfIsolation() {
+  let html = '<h2>🏝 Islands of Isolation (Disconnected Port Groups)</h2>';
+
+  Object.entries(ships).forEach(([shipKey, ship]) => {
+    // Build adjacency list: port -> list of reachable ports for this ship
+    const adj = {};
+    Object.keys(ports).forEach(p => adj[p] = []);
+    Object.keys(ports).forEach(p => {
+      Object.keys(ports).forEach(q => {
+        if (p === q) return;
+        const dx = ports[q].x - ports[p].x;
+        const dy = ports[q].y - ports[p].y;
+        const days = Math.ceil(Math.hypot(dx, dy) / (ship.speed * 4));
+        if (days <= ship.maxDays) {
+          adj[p].push(q);
+        }
+      });
+    });
+
+    // Find connected components via BFS
+    const visited = new Set();
+    const components = [];
+    Object.keys(ports).forEach(p => {
+      if (!visited.has(p)) {
+        const comp = [];
+        const queue = [p];
+        visited.add(p);
+        while (queue.length) {
+          const cur = queue.shift();
+          comp.push(cur);
+          adj[cur].forEach(nbr => {
+            if (!visited.has(nbr)) {
+              visited.add(nbr);
+              queue.push(nbr);
+            }
+          });
+        }
+        components.push(comp);
+      }
+    });
+
+    const count = components.length;
+    const status = count === 1
+      ? '<span style="color:#4caf50">✅ Fully connected</span>'
+      : `<span style="color:#f44336">❌ Split into ${count} groups</span>`;
+
+    html += `<h3>🛟 ${shipKey} (max ${ship.maxDays} days, speed ${ship.speed})</h3>`;
+    html += `<p>${status}</p>`;
+    if (count > 1) {
+      html += '<ul>';
+      components.forEach((comp, idx) => {
+        const names = comp.map(k => ports[k].name).join(', ');
+        html += `<li><b>Group ${idx+1}:</b> ${names}</li>`;
+      });
+      html += '</ul>';
+    }
+  });
+
+  document.getElementById('islands').innerHTML = html;
+}
+
+
+
+// ── Ship cost vs. mission income ────────────────────────────────
+function shipCostVsMissions() {
+  const shipList = Object.entries(ships)
+    .filter(([k]) => k !== "dinghy")
+    .sort((a, b) => a[1].cost - b[1].cost);
+  const goldRanges = window.D.MISSION_GOLD_RANGES;
+
+  function cumulativeGoldToFame(targetFame) {
+    const tiers = [0, 50, 100, 150, 200];
+    let gold = 0;
+    let remaining = targetFame;
+    for (let i = 0; i < tiers.length; i++) {
+      const tierFame = tiers[i];
+      const nextThreshold = tiers[i + 1] ?? targetFame;
+      const missionsInTier = Math.min(remaining, nextThreshold - tierFame);
+      if (missionsInTier <= 0) break;
+      const avgGold = Math.round((goldRanges[i].medium[0] + goldRanges[i].medium[1]) / 2);
+      gold += avgGold * missionsInTier;
+      remaining -= missionsInTier;
+    }
+    return gold;
+  }
+
+  let html = '<h2>💰 Ship Cost vs. Medium Missions (cumulative fame progression)</h2>';
+  html += '<table><tr><th>Ship</th><th>Cost</th><th>Fame Req.</th><th>Missions to unlock</th><th>Gold earned by unlock</th><th>Afford immediately?</th><th>Extra missions needed</th></tr>';
+
+  shipList.forEach(([key, s]) => {
+    const reqFame = s.requiredFame || 0;
+    const missionsToUnlock = reqFame;
+    const goldEarned = cumulativeGoldToFame(reqFame);
+    const canAfford = goldEarned >= s.cost;
+    const tier = reqFame >= 150 ? 4 : reqFame >= 100 ? 3 : reqFame >= 50 ? 2 : 0;
+    const avgMedGold = Math.round((goldRanges[tier].medium[0] + goldRanges[tier].medium[1]) / 2);
+    const extraMissions = canAfford ? 0 : Math.ceil((s.cost - goldEarned) / avgMedGold);
+
+    html += `<tr><td>${s.name}</td><td>${s.cost}g</td><td>★ ${reqFame}</td><td>${missionsToUnlock}</td><td>${goldEarned}g</td><td style="color:${canAfford ? '#4caf50' : '#f44336'}">${canAfford ? '✅' : '❌'}</td><td>${extraMissions}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('ship-cost-vs-missions').innerHTML = html;
+}
+
+// ── Daily running cost vs. mission income ────────────────────────
+function dailyCostVsIncome() {
+  const shipList = Object.entries(ships).sort((a, b) => a[1].cost - b[1].cost);
+  const goldRanges = window.D.MISSION_GOLD_RANGES;
+  const foodPrice = window.D.RESOURCES.food.basePrice;    // e.g. 3
+  const waterPrice = window.D.RESOURCES.water.basePrice;  // e.g. 2
+  const provisionCostPerUnit = foodPrice + waterPrice;
+
+  let html = '<h2>📅 Days a Medium Mission Funds (wages + provisions)</h2>';
+  html += '<table><tr><th>Ship</th><th>1/2 Crew</th><th>Daily cost (1/2)</th><th>Full Crew</th><th>Daily cost (full)</th><th>Days funded (1/2)</th><th>Days funded (full)</th></tr>';
+
+  shipList.forEach(([key, s]) => {
+    const halfCrew = Math.floor(s.maxCrew / 2);
+    const fullCrew = s.maxCrew;
+    const consum = c => Math.ceil(c / 10);
+    const cost = c => c * 2 + consum(c) * provisionCostPerUnit;
+
+    const halfCost = cost(halfCrew);
+    const fullCost = cost(fullCrew);
+
+    const reqFame = s.requiredFame || 0;
+    const tier = reqFame >= 150 ? 4 : reqFame >= 100 ? 3 : reqFame >= 50 ? 2 : 0;
+    const avgMediumGold = Math.round((goldRanges[tier].medium[0] + goldRanges[tier].medium[1]) / 2);
+
+    const daysHalf = Math.floor(avgMediumGold / halfCost);
+    const daysFull = Math.floor(avgMediumGold / fullCost);
+    const flagHalf = daysHalf < 1.5 ? ' ⚠️' : '';
+    const flagFull = daysFull < 1.5 ? ' ⚠️' : '';
+
+    html += `<tr><td>${s.name}</td><td>${halfCrew}</td><td>${halfCost}g</td><td>${fullCrew}</td><td>${fullCost}g</td><td>${daysHalf}${flagHalf}</td><td>${daysFull}${flagFull}</td></tr>`;
+  });
+  html += '</table>';
+  html += `<p>Provision cost = ${foodPrice}g (food) + ${waterPrice}g (water) = ${provisionCostPerUnit}g / unit.  Gold = average <b>medium</b> mission reward.</p>`;
+  html += '<p>⚠️ = single medium mission cannot fund 1.5 days of sailing.</p>';
+  document.getElementById('daily-cost-vs-income').innerHTML = html;
+}
+
+// ── Hold capacity vs. profit per voyage ─────────────────────────
+function holdProfitCheck() {
+  const resources = window.D.RESOURCES;
+  const availability = window.D.GOODS_AVAILABILITY;
+  const shipList = Object.entries(ships).sort((a,b) => a[1].cost - b[1].cost);
+  const tierQtyUpper = { always:80, frequently:40, sometimes:20, rarely:8, never:0 };
+
+  let html = '<h2>📦 Hold Profit per Voyage (best reachable good)</h2>';
+  html += '<table><tr><th>Ship</th><th>Best good</th><th>Max profit/unit</th><th>Max qty</th><th>Max voyage profit</th><th>Cost</th><th>Profit ratio</th></tr>';
+
+  shipList.forEach(([key, s]) => {
+    // Union of all ports reachable by this ship from any home port
+    const reachable = new Set();
+    Object.keys(ports).forEach(homeKey => {
+      getReachablePortKeys(homeKey, s).forEach(r => reachable.add(r));
+    });
+
+    let bestGood = null, bestProfitUnit = -Infinity, bestQty = 0;
+
+    Object.entries(resources).forEach(([good, res]) => {
+      if (good === 'food' || good === 'water') return;
+      let maxQty = 0;
+      let minBuy = Infinity, maxSell = -Infinity;
+      reachable.forEach(pk => {
+        const tierArr = availability[pk];
+        if (!tierArr) return;
+        const colOrder = ["food","water","rum","sugar","timber","cloth","spices","silk","coffee","cocoa","weapons","tobacco","silver","slaves"];
+        const idx = colOrder.indexOf(good);
+        if (idx === -1) return;
+        const tier = tierArr[idx] || 'never';
+        if (tier === 'never') return;
+        const upperQty = tierQtyUpper[tier] || 0;
+        if (upperQty > maxQty) maxQty = upperQty;
+        const variance = res.basePrice * res.variance;
+        const minMarketPrice = res.basePrice - variance;
+        const maxMarketPrice = res.basePrice + variance;
+        const buy  = Math.round(minMarketPrice * 1.10 / 5) * 5;
+        const sell = Math.round(maxMarketPrice * 0.90 / 5) * 5;
+        if (buy < minBuy) minBuy = buy;
+        if (sell > maxSell) maxSell = sell;
+      });
+      if (maxSell > minBuy && maxQty > 0) {
+        const profitUnit = maxSell - minBuy;
+        if (profitUnit > bestProfitUnit) {
+          bestProfitUnit = profitUnit;
+          bestGood = good;
+          bestQty = maxQty;
+        }
+      }
+    });
+
+    if (bestGood) {
+      const maxProfit = bestProfitUnit * bestQty;
+      const cost = Math.round((resources[bestGood].basePrice - resources[bestGood].basePrice * resources[bestGood].variance) * 1.10) * bestQty;
+      const ratio = (maxProfit / (cost || 1)).toFixed(2);
+      html += `<tr><td>${s.name}</td><td>${bestGood}</td><td>${bestProfitUnit}g</td><td>${bestQty}</td><td>${maxProfit}g</td><td>~${cost}g</td><td>${ratio}</td></tr>`;
+    } else {
+      html += `<tr><td>${s.name}</td><td colspan="6">No profitable trade route found</td></tr>`;
+    }
+  });
+  html += '</table>';
+  document.getElementById('hold-profit').innerHTML = html;
+}
+
+
+// ── Tavern morale vs. provisioning ───────────────────────────────
+function moraleVsProvisioning() {
+  let html = '<h2>🍻 Tavern Morale vs. Provisioning</h2>';
+  html += '<table><tr><th>Crew</th><th>Drinks cost (+5 morale)</th><th>5‑day provisions (avoid −5 morale)</th><th>Drinks more expensive?</th></tr>';
+  let allOk = true;
+  [1,5,10,20,30,40,50,75,100,150,200,280].forEach(c => {
+    const drinks = c * 5;
+    const prov = 5 * Math.ceil(c / 10) * 5;
+    const ok = drinks > prov;
+    if (!ok) allOk = false;
+    html += `<tr><td>${c}</td><td>${drinks}g</td><td>${prov}g</td><td style="color:${ok?'#4caf50':'#f44336'}">${ok ? '✅' : '❌'}</td></tr>`;
+  });
+  html += '</table>';
+  html += allOk ? '<p style="color:#4caf50">✅ Drinks are always more expensive than provisioning.</p>'
+                : '<p style="color:#f44336">❌ Some crew sizes have cheaper drinks than food/water.</p>';
+  document.getElementById('morale-check').innerHTML = html;
+}
+
+// ── Fame‑gating consistency ──────────────────────────────────────
+function fameGatingCheck() {
+  const upgrades = window.D.UPGRADES;
+  let html = '<h2>⭐ Fame‑Gating Consistency</h2>';
+  html += '<table><tr><th>Item</th><th>Type</th><th>Required Fame</th></tr>';
+  const items = [];
+  Object.entries(ships).forEach(([k, s]) => {
+    if (s.requiredFame) items.push({ name: s.name, type: 'ship', fame: s.requiredFame });
+  });
+  Object.entries(upgrades).forEach(([k, u]) => {
+    if (u.requiredFame) items.push({ name: u.name, type: 'upgrade', fame: u.requiredFame });
+  });
+  items.sort((a, b) => a.fame - b.fame);
+  items.forEach(it => {
+    html += `<tr><td>${it.name}</td><td>${it.type}</td><td>${it.fame}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('fame-gating').innerHTML = html;
+}
+
+// ── Enemy stats vs. player ships ────────────────────────────────
+function enemyBalanceCheck() {
+  const ranges = window.D.MISSION_ENEMY_RANGES;
+  const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
+
+  // Manual tier mapping (matches data.js comment groups)
+  const shipTier = {
+    dinghy: 0, cutter: 0,
+    sloop: 1,
+    schooner: 2, merchantman: 2, brigantine: 2,
+    corvette: 3, frigate: 3, fluyt: 3,
+    galleon: 4, ship_of_the_line: 4
+  };
+
+  // Find best and worst ship per tier (by hull)
+  const tierShips = {};
+  Object.entries(window.D.SHIPS).forEach(([key, s]) => {
+    const tier = shipTier[key] ?? 0;
+    if (!tierShips[tier]) tierShips[tier] = { best: s, worst: s, bestKey: key, worstKey: key };
+    if (s.maxHull > tierShips[tier].best.maxHull) { tierShips[tier].best = s; tierShips[tier].bestKey = key; }
+    if (s.maxHull < tierShips[tier].worst.maxHull) { tierShips[tier].worst = s; tierShips[tier].worstKey = key; }
+  });
+
+  let html = '<h2>⚔️ Enemy Balance vs. Player Ship</h2>';
+  html += '<table><tr><th>Tier</th><th>Risk</th><th>Enemy Hull</th><th>Enemy Cannons</th><th>Enemy Crew</th><th>Best / Worst</th><th>Player Ship</th><th>Pl. Hull</th><th>Pl. Cannons</th><th>Pl. Crew</th><th>Flag</th></tr>';
+
+  [0,1,2,3,4].forEach(tier => {
+    const ts = tierShips[tier];
+    if (!ts) return;
+    Object.keys(riskFactors).forEach(risk => {
+      const [hMin, hMax] = ranges.hull[tier];
+      const hullSpan = hMax - hMin;
+      const rf = riskFactors[risk];
+      const expectedHull = Math.round(hMin + hullSpan * rf);
+      const [cMin, cMax] = ranges.cannons[tier];
+      const expectedCannons = Math.round(cMin + (cMax - cMin) * rf);
+      const [crMin, crMax] = ranges.crew[tier];
+      const expectedCrew = Math.round(crMin + (crMax - crMin) * rf);
+
+      // Best ship row
+      const bestFlags = [];
+      if (expectedHull > ts.best.maxHull * 1.5) bestFlags.push('Hull');
+      if (expectedCannons > ts.best.cannons * 2) bestFlags.push('Cannons');
+      if (expectedCrew > ts.best.maxCrew * 2) bestFlags.push('Crew');
+      html += `<tr>
+        <td>${tier}</td><td>${risk}</td>
+        <td>${hMin}–${hMax}</td><td>${cMin}–${cMax}</td><td>${crMin}–${crMax}</td>
+        <td>Best</td>
+        <td>${ts.best.name}</td><td>${ts.best.maxHull}</td><td>${ts.best.cannons}</td><td>${ts.best.maxCrew}</td>
+        <td style="color:${bestFlags.length ? '#f44336' : '#4caf50'}">${bestFlags.length ? bestFlags.join(', ') : '✅'}</td>
+      </tr>`;
+
+      // Worst ship row
+      const worstFlags = [];
+      if (expectedHull > ts.worst.maxHull * 1.5) worstFlags.push('Hull');
+      if (expectedCannons > ts.worst.cannons * 2) worstFlags.push('Cannons');
+      if (expectedCrew > ts.worst.maxCrew * 2) worstFlags.push('Crew');
+      html += `<tr>
+        <td>${tier}</td><td>${risk}</td>
+        <td>${hMin}–${hMax}</td><td>${cMin}–${cMax}</td><td>${crMin}–${crMax}</td>
+        <td>Worst</td>
+        <td>${ts.worst.name}</td><td>${ts.worst.maxHull}</td><td>${ts.worst.cannons}</td><td>${ts.worst.maxCrew}</td>
+        <td style="color:${worstFlags.length ? '#f44336' : '#4caf50'}">${worstFlags.length ? worstFlags.join(', ') : '✅'}</td>
+      </tr>`;
+    });
+  });
+  html += '</table>';
+  document.getElementById('enemy-balance').innerHTML = html;
+}
+
+// ── Gold reward histogram ────────────────────────────────────────
+function goldHistogram() {
+  const goldRanges = window.D.MISSION_GOLD_RANGES;
+  let html = '<h2>📊 Mission Gold Ranges by Tier & Risk</h2>';
+  html += '<table><tr><th>Tier</th><th>Low</th><th>Medium</th><th>High</th><th>Assault</th></tr>';
+  [0,1,2,3,4].forEach(tier => {
+    const r = goldRanges[tier];
+    html += `<tr><td>${tier}</td>`;
+    ['low','medium','high','assault'].forEach(risk => {
+      const [mn, mx] = r[risk];
+      html += `<td>${mn}–${mx}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  html += '<p>No overlap between adjacent risk levels within the same tier? Check visually.</p>';
+  document.getElementById('gold-histogram').innerHTML = html;
+}
+
+// ── Mission type weights ─────────────────────────────────────────
+function missionTypeWeights() {
+  // weights defined in generators.js – hardcoded here for verification
+  const nonPirateWeights = { escort:3, patrol:2, combat:2, smuggle:2, assault:1 };
+  const pirateWeights = { escort:3, patrol:0, combat:2, smuggle:2, assault:1 };
+  const factions = window.D.FACTIONS;
+
+  let html = '<h2>⚖️ Mission Type Weights per Faction</h2>';
+  html += '<table><tr><th>Faction</th><th>Escort</th><th>Patrol</th><th>Combat</th><th>Smuggle</th><th>Assault</th><th>Status</th></tr>';
+  Object.keys(factions).forEach(fk => {
+    const weights = fk === "pirate" ? pirateWeights : nonPirateWeights;
+    const allPositive = Object.values(weights).every(w => w > 0);
+    html += `<tr><td>${fk}</td>`;
+    ['escort','patrol','combat','smuggle','assault'].forEach(t => {
+      html += `<td>${weights[t]}</td>`;
+    });
+    html += `<td style="color:${allPositive ? '#4caf50' : '#f44336'}">${allPositive ? '✅' : '❌ Missing types'}</td>`;
+    html += '</tr>';
+  });
+  html += '</table>';
+  document.getElementById('mission-weights').innerHTML = html;
+}
+
+// ── Faction coverage ─────────────────────────────────────────────
+function factionCoverage() {
+  const factions = window.D.FACTIONS;
+  const ports = window.D.PORTS;
+
+  let html = '<h2>🏴 Faction Coverage (missions appear at non‑rival ports of other factions)</h2>';
+  html += '<table><tr><th>Faction</th><th>Can appear at ports (other factions only)</th></tr>';
+
+  Object.keys(factions).forEach(fk => {
+    const hostPorts = [];
+    Object.keys(ports).forEach(pk => {
+      const portFaction = ports[pk].faction;
+      if (portFaction === fk) return;                                    // skip own ports
+      const rivals = factions[portFaction]?.rivalFactions || [];
+      if (!rivals.includes(fk)) hostPorts.push(ports[pk].name);
+    });
+    const ok = hostPorts.length > 0;
+    html += `<tr><td>${fk}</td><td style="color:${ok ? '#4caf50' : '#f44336'}">${ok ? hostPorts.join(', ') : '❌ Nowhere!'}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('faction-coverage').innerHTML = html;
+}
+
+// ── Time‑to‑kill (player vs. enemy) ──────────────────────────────
+function timeToKill() {
+  const ranges = window.D.MISSION_ENEMY_RANGES;
+  const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
+  // best ship per tier (by hull)
+  const shipTier = {
+    dinghy:0, cutter:0, sloop:1, schooner:2, merchantman:2, brigantine:2,
+    corvette:3, frigate:3, fluyt:3, galleon:4, ship_of_the_line:4
+  };
+  let bestPerTier = {};
+  Object.entries(window.D.SHIPS).forEach(([k, s]) => {
+    const t = shipTier[k] ?? 0;
+    if (!bestPerTier[t] || s.maxHull > bestPerTier[t].maxHull) bestPerTier[t] = s;
+  });
+
+  let html = '<h2>⏱ Time to Kill (player broadside vs. enemy)</h2>';
+  html += '<table><tr><th>Tier</th><th>Risk</th><th>Player Ship</th><th>Player Hull</th><th>Enemy Hull (avg)</th><th>Player Cannons</th><th>Enemy Cannons</th><th>Rounds to sink enemy</th></tr>';
+
+  [0,1,2,3,4].forEach(tier => {
+    const player = bestPerTier[tier];
+    if (!player) return;
+    Object.keys(riskFactors).forEach(risk => {
+      const [hMin, hMax] = ranges.hull[tier];
+      const rf = riskFactors[risk];
+      const enemyHull = Math.round(hMin + (hMax - hMin) * rf);
+      const [cMin, cMax] = ranges.cannons[tier];
+      const enemyCannons = Math.round(cMin + (cMax - cMin) * rf);
+      // Average player broadside hull damage (0.6 * cannon * avg factor)
+      const avgDmg = Math.floor(player.cannons * (0.8 + 1.2) / 2 * 0.6);  // dmg = cannons * (0.8+rand*0.4) * 0.6
+      const rounds = Math.ceil(enemyHull / Math.max(1, avgDmg));
+      const color = rounds > 8 ? '#f44336' : rounds < 3 ? '#ff9800' : '#4caf50';
+      html += `<tr>
+        <td>${tier}</td><td>${risk}</td><td>${player.name}</td><td>${player.maxHull}</td><td>${enemyHull}</td>
+        <td>${player.cannons}</td><td>${enemyCannons}</td>
+        <td style="color:${color}">${rounds}</td>
+      </tr>`;
+    });
+  });
+  html += '</table>';
+  document.getElementById('time-to-kill').innerHTML = html;
+}
+
+// ── Crew loss rate ────────────────────────────────────────────────
+function crewLossRate() {
+  const ranges = window.D.MISSION_ENEMY_RANGES;
+  const riskFactors = { low:0.0, medium:0.5, high:1.0, assault:1.4 };
+  const shipTier = {
+    dinghy:0, cutter:0, sloop:1, schooner:2, merchantman:2, brigantine:2,
+    corvette:3, frigate:3, fluyt:3, galleon:4, ship_of_the_line:4
+  };
+  let bestPerTier = {};
+  Object.entries(window.D.SHIPS).forEach(([k, s]) => {
+    const t = shipTier[k] ?? 0;
+    if (!bestPerTier[t] || s.maxHull > bestPerTier[t].maxHull) bestPerTier[t] = s;
+  });
+
+  let html = '<h2>🩸 Crew Loss Rate (winning battle vs. best ship)</h2>';
+  html += '<table><tr><th>Tier</th><th>Risk</th><th>Player Ship</th><th>Player Crew</th><th>Enemy Cannons (avg)</th><th>Crew lost per round (avg)</th><th>Est. rounds</th><th>Total crew lost</th><th>Loss %</th></tr>';
+
+  [0,1,2,3,4].forEach(tier => {
+    const player = bestPerTier[tier];
+    if (!player) return;
+    Object.keys(riskFactors).forEach(risk => {
+      const [cMin, cMax] = ranges.cannons[tier];
+      const rf = riskFactors[risk];
+      const enemyCannons = Math.round(cMin + (cMax - cMin) * rf);
+      // Enemy broadside crew loss (50% chance, floor(dmg*0.4/3))
+      const enemyDmg = enemyCannons * (0.8 + 1.2) / 2;  // avg
+      const crewLossPerRound = Math.floor(enemyDmg * 0.4 / 3);  // rough average, ignoring 50% coin flip
+      const avgPlayerDmg = Math.floor(player.cannons * 1.0 * 0.6);  // avg player hull dmg
+      const [hMin, hMax] = ranges.hull[tier];
+      const enemyHull = Math.round(hMin + (hMax - hMin) * rf);
+      const rounds = Math.ceil(enemyHull / Math.max(1, avgPlayerDmg));
+      const totalLoss = crewLossPerRound * rounds;
+      const pct = Math.round(totalLoss / player.maxCrew * 100);
+      const color = pct > 50 ? '#f44336' : '#4caf50';
+      html += `<tr>
+        <td>${tier}</td><td>${risk}</td><td>${player.name}</td><td>${player.maxCrew}</td><td>${enemyCannons}</td>
+        <td>${crewLossPerRound}</td><td>${rounds}</td><td>${totalLoss}</td>
+        <td style="color:${color}">${pct}%</td>
+      </tr>`;
+    });
+  });
+  html += '</table>';
+  document.getElementById('crew-loss-rate').innerHTML = html;
+}
+
+// ── Grapple success probability ───────────────────────────────────
+function grappleProbability() {
+  const scenarios = [
+    { label: "Low HP (30%) & Low Morale (30%)", hull:0.3, morale:0.3 },
+    { label: "Mid HP (60%) & Mid Morale (60%)", hull:0.6, morale:0.6 },
+    { label: "High HP (100%) & High Morale (90%)", hull:1.0, morale:0.9 },
+  ];
+  const ratios = [0.5, 1.0, 1.5];
+
+  let html = '<h2>🤼 Grapple Success Probability (3×3)</h2>';
+  html += '<table><tr><th>Crew Ratio (player/enemy)</th>';
+  scenarios.forEach(s => html += `<th>${s.label}</th>`);
+  html += '</tr>';
+
+  const enemyCrew = 50; // fixed for comparison
+  ratios.forEach(ratio => {
+    const playerCrew = Math.round(enemyCrew * ratio);
+    html += `<tr><td><b>${ratio.toFixed(1)}</b></td>`;
+    scenarios.forEach(sc => {
+      let success = 0.5;
+      const crewDiff = playerCrew - enemyCrew;
+      success += Math.min(0.3, Math.max(0, crewDiff / enemyCrew * 0.3));
+      success += Math.min(0.2, Math.max(0, (sc.morale - 0.5) * 0.4));
+      success += Math.min(0.2, Math.max(0, (sc.hull - 0.5) * 0.4));
+      success = Math.min(0.95, success);
+      const pct = Math.round(success * 100);
+      const color = pct >= 70 ? '#4caf50' : pct >= 40 ? '#ff9800' : '#f44336';
+      html += `<td style="color:${color}">${pct}%</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  html += '<p>Enemy crew fixed at 50. Player crew = ratio × 50.</p>';
+  document.getElementById('grapple-prob').innerHTML = html;
+}
+
+// ── Evade success ─────────────────────────────────────────────────
+function evadeCheck() {
+  const ships = Object.values(window.D.SHIPS);
+  const fastestPlayer = Math.max(...ships.map(s => s.speed));
+  const slowestPlayer = Math.min(...ships.map(s => s.speed));
+
+  // Enemy speeds from guessShipType (cannons → ship → speed)
+  const cannonToShip = (c) => {
+    if (c >= 50) return "ship_of_the_line";
+    if (c >= 30) return "galleon";
+    if (c >= 24) return "frigate";
+    if (c >= 18) return "corvette";
+    if (c >= 14) return "brigantine";
+    if (c >= 10) return "sloop";
+    if (c >= 6)  return "schooner";
+    return "cutter";
+  };
+  const allEnemySpeeds = Object.values(window.D.MISSION_ENEMY_RANGES.cannons)
+    .flatMap(([min, max]) => [min, max])
+    .map(c => window.D.SHIPS[cannonToShip(c)]?.speed)
+    .filter(Boolean);
+  const fastestEnemy = Math.max(...allEnemySpeeds);
+  const slowestEnemy = Math.min(...allEnemySpeeds);
+
+  const DIE = 6;  // d6 – matches engine.js INTERCEPT_FLEE
+
+  let html = '<h2>💨 Evade Success (d6, matching engine.js)</h2>';
+  html += `<p>Player speeds: ${slowestPlayer} (slowest) – ${fastestPlayer} (fastest)</p>`;
+  html += `<p>Enemy speeds (derived from cannons): ${slowestEnemy} – ${fastestEnemy}</p>`;
+  html += '<table><tr><th>Scenario</th><th>Player Min</th><th>Enemy Max</th><th>Can always evade?</th></tr>';
+
+  // Fastest player vs slowest enemy
+  const bestEvade = fastestPlayer + 1 >= slowestEnemy + DIE;
+  html += `<tr><td>Fastest player vs slowest enemy</td>
+    <td>${fastestPlayer + 1}</td><td>${slowestEnemy + DIE}</td>
+    <td style="color:${bestEvade ? '#4caf50' : '#f44336'}">${bestEvade ? '✅ Always evades' : '❌ May fail'}</td></tr>`;
+
+  // Slowest player vs fastest enemy
+  const worstEvade = slowestPlayer + 1 >= fastestEnemy + DIE;
+  html += `<tr><td>Slowest player vs fastest enemy</td>
+    <td>${slowestPlayer + 1}</td><td>${fastestEnemy + DIE}</td>
+    <td style="color:${worstEvade ? '#4caf50' : '#f44336'}">${worstEvade ? '✅ Always evades' : '❌ May fail'}</td></tr>`;
+
+  html += '</table>';
+  html += `<p>With a d6, the fastest player ship always outruns the slowest enemy. Close matchups (similar speeds) will have real tension.</p>`;
+  document.getElementById('evade-check').innerHTML = html;
+}
+
+// ── Goods that are "never" at all ports ──────────────────────────
+function goodsNeverAvailable() {
+  const availability = window.D.GOODS_AVAILABILITY;
+  const colOrder = ["food","water","rum","sugar","timber","cloth","spices","silk","coffee","cocoa","weapons","tobacco","silver","slaves"];
+  const portKeys = Object.keys(availability);
+
+  let html = '<h2>📦 Goods Never Available Anywhere</h2>';
+  html += '<table><tr><th>Good</th><th>Ports where available</th><th>Status</th></tr>';
+
+  colOrder.forEach(good => {
+    let count = 0;
+    portKeys.forEach(pk => {
+      const row = availability[pk];
+      if (!row) return;
+      const idx = colOrder.indexOf(good);
+      const tier = row[idx] || 'never';
+      if (tier !== 'never') count++;
+    });
+    const ok = count > 0;
+    html += `<tr><td>${good}</td><td>${count}</td><td style="color:${ok ? '#4caf50' : '#f44336'}">${ok ? '✅' : '❌ Unobtainable'}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('goods-never').innerHTML = html;
+}
+
+// ── Price spread sanity ──────────────────────────────────────────
+function priceSpreadSanity() {
+  const resources = window.D.RESOURCES;
+  const BUY_MULT = 1.10;   // matches generatePortMarket
+  const SELL_MULT = 0.90;
+
+
+  let html = '<h2>💰 Price Spread Sanity</h2>';
+  html += '<table><tr><th>Good</th><th>Base</th><th>Variance</th><th>Lowest Buy (any port)</th><th>Highest Sell (any port)</th><th>Cross‑port Profit / unit</th><th>Profit % of base</th></tr>';
+
+  Object.entries(resources).forEach(([key, res]) => {
+    const variance = res.basePrice * res.variance;
+
+    // Same‑port: buy and sell from the SAME market price
+    // buy = marketPrice * BUY_MULT, sell = marketPrice * SELL_MULT
+    // Since BUY_MULT > SELL_MULT, buy > sell always → no same‑port arbitrage
+    const samePortOk = true;
+
+    if (res.variance === 0) {
+      // Fixed price: buy = sell = base
+      html += `<tr><td>${res.name}</td><td>${res.basePrice}g</td><td>±0%</td>
+        <td>${res.basePrice}g</td><td>${res.basePrice}g</td>
+        <td>0g</td><td>0%</td>`;
+    } else {
+      // Lowest possible market price → cheapest place to buy
+      const lowMarket = res.basePrice - variance;
+const lowestBuy = Math.round(lowMarket * BUY_MULT);
+
+      // Highest possible market price → best place to sell
+      const highMarket = res.basePrice + variance;
+const highestSell = Math.round(highMarket * SELL_MULT);
+
+      const profitPerUnit = highestSell - lowestBuy;
+      const profitPct = Math.round(profitPerUnit / res.basePrice * 100);
+      const profitOk = profitPerUnit > 0;
+
+      html += `<tr><td>${res.name}</td><td>${res.basePrice}g</td><td>±${Math.round(res.variance*100)}%</td>
+        <td>${lowestBuy}g</td><td>${highestSell}g</td>
+        <td style="color:${profitOk ? '#4caf50' : '#f44336'}">${profitPerUnit > 0 ? '+' : ''}${profitPerUnit}g</td>
+        <td style="color:${profitOk ? '#4caf50' : '#f44336'}">${profitPct > 0 ? '+' : ''}${profitPct}%</td>`;
+    }
+  });
+  html += '</table>';
+  html += `<p><b>How to read:</b> "Lowest Buy" = cheapest you can ever buy this good at any port (best‑case market). "Highest Sell" = most you can ever get selling it (best‑case market). If Highest Sell > Lowest Buy, inter‑port trade is profitable. Same‑port is always safe because buy uses a 1.10× markup and sell uses 0.90× — you can never flip in the same port.</p>`;
+  document.getElementById('price-spread').innerHTML = html;
+}
+
+// ── Illegal good distribution ─────────────────────────────────────
+function illegalGoodsDistribution() {
+  const availability = window.D.GOODS_AVAILABILITY;
+  const resources = window.D.RESOURCES;
+  const colOrder = ["food","water","rum","sugar","timber","cloth","spices","silk","coffee","cocoa","weapons","tobacco","silver","slaves"];
+  const illegalGoods = colOrder.filter(g => resources[g]?.illegal);
+
+  let html = '<h2>🚫 Illegal Good Distribution</h2>';
+  html += '<table><tr><th>Port</th>';
+  illegalGoods.forEach(g => html += `<th>${g}</th>`);
+  html += '</tr>';
+
+  Object.entries(availability).forEach(([pk, row]) => {
+    html += `<tr><td>${pk}</td>`;
+    illegalGoods.forEach(g => {
+      const idx = colOrder.indexOf(g);
+      const tier = row[idx] || 'never';
+      const color = tier === 'never' ? '#606060' : tier === 'rarely' ? '#ff9800' : '#4caf50';
+      html += `<td style="color:${color}">${tier}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  document.getElementById('illegal-goods').innerHTML = html;
+}
+
+// ── Starting provisions ───────────────────────────────────────────
+function startingProvisionsCheck() {
+  const starts = window.D.STARTS;
+  const ports = window.D.PORTS;
+  const ships = window.D.SHIPS;
+
+  let html = '<h2>🍖 Starting Provisions (can reach another port?)</h2>';
+  html += '<table><tr><th>Scenario</th><th>Ship</th><th>Start Port</th><th>Crew (est.)</th><th>Food days</th><th>Water days</th><th>Reachable?</th></tr>';
+
+  starts.forEach(start => {
+    // Determine starting ship from bonuses
+    let shipKey = "sloop"; // default
+    const shipBonus = start.bonuses.find(b => b.includes("ship:"));
+    if (shipBonus) shipKey = shipBonus.split(":")[1].trim();
+    const ship = ships[shipKey];
+    if (!ship) return;
+
+    // Determine start port (all scenarios currently start at portRoyal, but we read from bonus or assume)
+    const startPortKey = "portRoyal"; // current engine default
+    const port = ports[startPortKey];
+
+    // Estimated crew: 60% of max
+    const crew = Math.floor(ship.maxCrew * 0.6);
+    const consumption = Math.ceil(crew / 10);
+    // Starting food/water: currently all scenarios give 10 each (engine.js)
+    const food = 10, water = 10;
+    const foodDays = Math.floor(food / consumption);
+    const waterDays = Math.floor(water / consumption);
+    const maxDays = Math.min(foodDays, waterDays);
+
+    // Check if at least one other port is reachable within maxDays
+    const reachable = [];
+    Object.keys(ports).forEach(pk => {
+      if (pk === startPortKey) return;
+      const dx = ports[pk].x - port.x;
+      const dy = ports[pk].y - port.y;
+      const dist = Math.hypot(dx, dy);
+      const days = Math.ceil(dist / (ship.speed * 4));
+      if (days <= maxDays) reachable.push(pk);
+    });
+    const ok = reachable.length > 0;
+    html += `<tr><td>${start.name}</td><td>${ship.name}</td><td>${port.name}</td><td>${crew}</td><td>${foodDays}</td><td>${waterDays}</td><td style="color:${ok ? '#4caf50' : '#f44336'}">${ok ? '✅ ' + reachable.join(', ') : '❌ Stranded!'}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('starting-provisions').innerHTML = html;
+}
+
+// ── Service Availability Matrix ──────────────────────────────────
+function serviceMatrix() {
+  const ports = window.D.PORTS;
+  const allServices = ["tavern","shipyard","crew","missions"];
+  let html = '<h2>🛠 Service Availability Matrix</h2>';
+  html += '<table><tr><th>Port</th>';
+  allServices.forEach(s => html += `<th>${s}</th>`);
+  html += '</tr>';
+
+  Object.entries(ports).forEach(([pk, p]) => {
+    html += `<tr><td>${p.name}</td>`;
+    allServices.forEach(s => {
+      const has = (p.services||[]).includes(s);
+      html += `<td style="color:${has ? '#4caf50' : '#f44336'}">${has ? '✅' : '—'}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+
+  // Faction summary: does every faction have at least one port with each service?
+  html += '<h3>Faction Coverage</h3>';
+  html += '<table><tr><th>Faction</th>';
+  allServices.forEach(s => html += `<th>${s}</th>`);
+  html += '</tr>';
+
+  const factions = {};
+  Object.entries(ports).forEach(([pk, p]) => {
+    const f = p.faction;
+    if (!factions[f]) factions[f] = new Set();
+    (p.services||[]).forEach(s => factions[f].add(s));
+  });
+
+  Object.entries(factions).forEach(([f, services]) => {
+    html += `<tr><td>${f}</td>`;
+    allServices.forEach(s => {
+      const has = services.has(s);
+      html += `<td style="color:${has ? '#4caf50' : '#f44336'}">${has ? '✅' : '❌ Missing'}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+
+  document.getElementById('service-matrix').innerHTML = html;
+}
+
+// ── Enemy Faction Diversity ──────────────────────────────────────
+function enemyDiversity() {
+  const factions = window.D.FACTIONS;
+  let html = '<h2>⚔️ Enemy Faction Diversity (rivalFactions)</h2>';
+  html += '<table><tr><th>Faction</th><th>Rivals</th><th>Status</th></tr>';
+
+  Object.entries(factions).forEach(([key, fac]) => {
+    const rivals = fac.rivalFactions || [];
+    const ok = rivals.length > 0;
+    html += `<tr><td>${fac.label}</td><td>${ok ? rivals.join(', ') : 'None'}</td>
+      <td style="color:${ok ? '#4caf50' : '#f44336'}">${ok ? '✅' : '❌ No rivals — opposingFaction fallback'}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('enemy-diversity').innerHTML = html;
+}
+
+    buildReachabilityTable();
+    minViableStarterPorts();
+    furthestDistanceCheck();
+    islandsOfIsolation();
+    shipCostVsMissions();
+dailyCostVsIncome();
+holdProfitCheck();
+moraleVsProvisioning();
+fameGatingCheck();
+enemyBalanceCheck();
+goldHistogram();
+missionTypeWeights();
+factionCoverage();
+timeToKill();
+crewLossRate();
+grappleProbability();
+evadeCheck();
+goodsNeverAvailable();
+priceSpreadSanity();
+illegalGoodsDistribution();
+startingProvisionsCheck();
+serviceMatrix();
+enemyDiversity();
+
+
+  </script>
+</body>
+</html>

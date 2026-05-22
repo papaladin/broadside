@@ -49,7 +49,7 @@ These decisions are locked. New features must respect them.
 
 ---
 
-### Development Constraints
+## Development Constraints
 
 These apply to every phase, every feature, without exception:
 
@@ -59,221 +59,229 @@ These apply to every phase, every feature, without exception:
 
 ---
 
-## Roadmap Overview
-**Standing rule across all phases:** a phase is not closed until its test coverage is written and `architecture.md` reflects any state shape changes introduced. Doc and test work are part of the feature, not a follow-up.
+## ✅ COMPLETED
 
-```
-Phase 0 — Stabilization          (prerequisite for everything) --> DONE
-Phase 1 — Core Loop Pressure      (morale, time, money matter) --> started
-Phase 1.5 — Crew as Characters    (names, traits, scars) --> started
-Phase 2 — World Comes Alive       (economy, world events, crew drama)
-Phase 3 — Depth & Replayability   (unlockable world, named NPCs, officers)
-Phase 4 — Save & Polish           (robust persistence, UI feedback)
-Long-term Vision                  (flags only — low priority)
-```
+Everything below has been implemented, tested, and closed.
 
-Each phase is designed so the game is fully playable at the end of it. No phase creates a broken intermediate state.
+### Foundation & Stabilisation
+- **P0.1** Fix duplicate `getEffectiveMorale` declaration
+- **P0.2** Fix `L.calculateTravelDays` wrong function name
+- **P0.3** Fix `localStorage` key mismatch (save/load)
+- **P0.4** Fix `START_GAME` mutating `initialState`
+- **P0.5** Remove/fix dead `completeMissionOnCombatVictory`
+- **P0.6** Fix victory gold display in BattleScreen
+- **P0.7** Fix HIRE_CREW using base maxCrew instead of state.crew.max
+- **P0.8** Pre-battle intercept screen (negotiate / bribe / flee / surrender)
 
----
+### Core Loop Pressure
+- **P1.1** Morale recovery in port (Tavern service)
+- **P1.2** Provisions system — food and water (medicine and ammunition deferred → see N1.4)
+- **P1.3** Port resource system (parametric prices, GOODS_AVAILABILITY per port)
+- **P1.4** Cargo system (shared hold, speed penalty, buy/sell market screen)
+- **P1.5** Fame display in HUD + fame gating on ships, upgrades, and missions
+- **P1.7** Reputation perks (threshold behaviours: repair discount, mission gold multiplier, At War service block)
 
-## Phase 0 — Stabilization --> DONE
-> **Goal: the foundation is trustworthy before we build on it.**
+### Crew as Characters
+- **P1.5.1** Named crew roster (roster array replaces crew.current number)
 
-Nothing in Phase 1+ should be built on buggy infrastructure. This phase has no new features — only fixes.
-
----
-
-### P0.1 — Fix duplicate `getEffectiveMorale` declaration --> DONE
-**What:** `logic.js` declares `getEffectiveMorale` twice with `const` in the same scope. Fatal `SyntaxError` — `window.L` never loads, entire game is a blank screen.
-**Complexity:** Trivial (delete 5 lines)
-**Dependencies:** None
-**Design impact:** Prerequisite for morale system functioning at all.
-
----
-
-### P0.2 — Fix `L.calculateTravelDays` wrong function name in engine.js --> DONE
-**What:** `engine.js` calls `L.calculateTravelDays()` but the function is named `L.travelDays()`. Crashes on every sail attempt.
-**Complexity:** Trivial (rename call)
-**Dependencies:** None
-**Design impact:** Prerequisite for sailing to work.
+### Progression Tracks
+- **P1.6 (renamed P1.6a)** Parametric mission generation (generators.js split, MISSION_POOL removed, all mission types generated at runtime)
+- **P2.7** Infamy track (state.infamy, bribe block at 50, label display, infamy gain from smuggle and assault missions)
 
 ---
 
-### P0.3 — Fix `localStorage` key mismatch (save/load broken) --> DONE
-**What:** `logic.js` save functions use key `"pirates_save"`, engine.js reducer uses `"piratesSave"`. The Continue button never appears. `L.saveGame` and `L.loadGame` are effectively dead code.
-**Complexity:** Low (unify key, route engine SAVE/LOAD through `L.saveGame`/`L.loadGame`)
-**Dependencies:** None
-**Design impact:** Save/load must work before long campaigns have any meaning.
+## RECOMMENDED IMPLEMENTATION ORDER
+
+The phases below are ordered by dependency and impact. Each item is independently shippable unless noted. The game is always in a playable state at any phase boundary.
 
 ---
 
-### P0.4 — Fix `START_GAME` mutating `initialState` --> DONE
-**What:** `newState.crew.max = ...` mutates the shared `initialState` object. After the first game, a new game starts with corrupted initial state.
-**Complexity:** Low (spread `crew` before mutating)
-**Dependencies:** None
-**Design impact:** Prerequisite for New Game and multiple sessions working correctly.
+## Phase N1 — Foundation & Feel
+> **Goal: the game feels like a real game world from the first minute. Starting experience is polished, the map has spatial meaning, and the game runs on mobile.**
+
+These items have no dependencies on each other and can be tackled in any order within the phase. Do all four before moving to Phase 1.5 crew work, because they affect every play session.
 
 ---
 
-### P0.5 — Remove/fix dead `completeMissionOnCombatVictory` in logic.js --> DONE
-**What:** Function internally calls `L.xxx` inside the IIFE where `L` doesn't exist yet. Never called anywhere. Either remove it or fix the references.
-**Complexity:** Low
-**Dependencies:** None
-**Design impact:** Dead code cleanup — reduces confusion when extending the mission system.
+### N1.1 — Starting Scenarios Redesign
+**What:** All scenarios start with a **dinghy** (or very small sloop) and minimal crew. The persona differentiation moves away from ship class and toward starting position, faction affiliation, and initial reputation — not starting power. Proposed personas:
+
+| Persona | Start Port | Gold | Rep profile | Crew | Flavour |
+|---|---|---|---|---|---|
+| Runaway Sailor | Nassau | 150g | All neutral | 0 | No ship yet — first mission: steal or buy a dinghy |
+| Merchant Apprentice | Bridgetown | 400g | English +20 | 5 | Dinghy + small trade goods in hold |
+| Disgraced Privateer | Port Royal | 200g | English +10, Pirate −20 | 3 | Dinghy + one low-risk English mission pre-loaded |
+| Pirate Recruit | Tortuga | 180g | Pirate +20, English −15 | 4 | Dinghy + infamy 3 already |
+| Smuggler | Petit-Goâve | 300g | French +10, infamy 5 | 3 | Dinghy with 10 tobacco in hold |
+
+All personas: dinghy, max 5 crew initially, enough gold to provision for 2–3 short voyages. The player is immediately forced into a mission or trade decision. No persona is given a comfortable starting position.
+
+Persona differentiation is through: starting port (defines accessible missions and faction baseline), reputation pre-set (some factions warmer or cooler), infamy pre-set (smuggler/pirate starts already flagged), and one small unique starting condition (trade goods, pre-loaded mission, or ship event in log).
+
+**Complexity:** Low-medium (rewrite STARTS in data.js, adjust START_GAME reducer to handle infamy/rep pre-sets, update StartScreen UI to reflect the persona narrative)
+**Dependencies:** None — but benefits from N1.2 (max days at sea) being implemented first, so starting ship range is meaningful from day one
+**Design impact:** The first 10 minutes define every player's emotional relationship with the game. Starting small makes every upgrade meaningful. Starting different makes every replay feel like a different story. Removes the "I chose Merchant and already have the best trade ship" problem.
 
 ---
 
-### P0.6 — Fix victory gold display in BattleScreen --> DONE
-**What:** `bs.goldReward` is never set in `battleState`. Victory screen always shows blank reward. Players receive gold silently with no feedback.
-**Complexity:** Low (store `goldReward` in battleState when building it)
-**Dependencies:** None
-**Design impact:** Feedback. Players must know what they earned. Combat feels unrewarding without it.
+### N1.2 — Max Days at Sea / Geographic Progression
+**What:** Activate the `maxDays` field already present on SHIPS. Ships cannot reach ports whose travel time exceeds `state.ship.maxDays` at current provisions level. MapScreen shows out-of-range ports greyed/locked with a tooltip: "Requires a ship with more than X days range." Ports marked `remote: true` in data.js are visible on the map but unreachable by small ships. This creates a natural exploration arc: dinghy → reach 4–6 nearby ports → upgrade to sloop → Caribbean opens → upgrade to brigantine/frigate → remote Gulf and Atlantic ports accessible.
+
+The range check uses `L.travelDays(state, portKey)` (already includes cargo penalty) against `SHIPS[state.ship.type].maxDays`. Hidden/unlockable ports are a separate mechanic (P3.1) — this item only gates by ship capability, not by discovery.
+
+**Complexity:** Low (add `canReach(state, portKey)` to logic.js, update MapScreen to grey and disable out-of-range ports, mark `remote: true` on appropriate ports in data.js)
+**Dependencies:** Provisions system (P1.2 ✅), SHIPS.maxDays already set
+**Design impact:** The map has spatial meaning beyond just "how many days does this take." A dinghy captain genuinely cannot reach Veracruz. The Brigantine is not just a bigger sloop — it opens the western Caribbean. Ship upgrades become geographic unlocks. Combined with N1.1 (small starting ship), the early game feels genuinely constrained and the mid-game feels like expansion.
 
 ---
 
-### P0.7 — Fix HIRE_CREW and CrewScreen using base maxCrew instead of state.crew.max --> DONE
-**What:** Two places read `SHIPS[type].maxCrew` instead of `state.crew.max`. Will break silently when any upgrade modifies crew capacity.
-**Complexity:** Trivial
-**Dependencies:** None
-**Design impact:** Correctness prerequisite for upgrade system and crew capacity changes.
+### N1.3 — Mobile Browser Support
+**What:** The game currently runs on desktop browsers only. Add responsive layout so it plays on phone browsers (Chrome/Safari mobile, ~390px wide viewport). Changes required:
+- HUD: wrap onto two lines or collapse non-critical stats behind a toggle on small screens
+- All screens: replace fixed pixel widths with `min(90vw, 480px)` patterns
+- Buttons: minimum 44px touch target height throughout
+- Map screen: add pinch-zoom or fixed zoom level for small viewports; port tap targets sized appropriately
+- Market screen: column layout collapses to single column on mobile
+- Battle screen: action buttons stacked vertically
+- Font size: all `fontSize: 10` → `fontSize: max(10, 12)` responsive minimum
+- No new game logic — purely layout and touch target changes
+
+**Complexity:** Medium (systematic CSS pass across all screen components; no logic changes)
+**Dependencies:** None — but do after N1.1 and N1.2 so the screens being resized are in their final structure
+**Design impact:** Broadside is a turn-based game with short decision loops — it is naturally suited to mobile. Mobile access dramatically expands the audience. The game should be genuinely playable during a commute, not just technically loadable on a phone.
 
 ---
 
-### P0.8 — Pre-battle intercept screen --> DONE
-**What:** Currently every encounter jumps straight to combat. Add a brief intercept screen with options: Engage, Attempt to flee (speed check), Demand surrender (reputation-gated), Parley (faction-gated). This is the last Phase 0 item because it costs almost nothing structurally but has outsized impact on feel.
-**Complexity:** Low-medium (new screen, new action, route existing battle trigger through it)
-**Dependencies:** P0.2
-**Design impact:** Encounters become *events* instead of interruptions. Supports faction reputation having practical meaning. Introduces player agency before combat begins. High feel-per-effort ratio — do early.
+### N1.4 — Economy & Balance Health Check Tool
+**What:** A dedicated `balance.html` developer tool (does not ship as part of the game) that reads `window.D` and `window.L` and displays calculated balance metrics:
+- **Port reachability matrix:** for each ship type × each origin port, how many ports are reachable within maxDays
+- **Provisions cost vs. morale purchase cost:** confirm buying food+water is always cheaper per morale-point than tavern drinks
+- **Voyage cost vs. mission reward:** for each fame tier and risk level, average mission gold vs. average voyage cost (wages + provisions for average trip length)
+- **Trade profit ceiling:** for each good, maximum possible profit per voyage at each port pair (best buy × worst sell, quantity-capped by tier) — flags if any route exceeds 3× the mission reward for that fame tier
+- **Ship price vs. accumulated gold:** estimated sessions (missions × net gold per mission) to afford each ship at the appropriate fame tier
+- **Enemy scaling vs. player scaling:** at each fame tier, compare average enemy hull/cannons/crew against player ship stats — flag if enemy is ever stronger than player's current-tier ship
+- **Infamy bribe block check:** confirm that average infamy accumulated from a standard playstyle hits the bribe-block threshold (50) only after the player has had meaningful opportunities to clear infamy
+
+**Complexity:** Medium (standalone HTML file, reads window.D and window.L, renders results as tables and colour-coded pass/fail indicators)
+**Dependencies:** All completed systems (provisions, cargo, missions, ships) — this is a verification tool, not a feature
+**Design impact:** Not visible to players. Prevents balance regressions as new content is added. Gives the designer a live dashboard to sanity-check any data change before committing.
 
 ---
 
-## Phase 1 — Core Loop Pressure
-> **Goal: every day at sea has a cost. Every port has a purpose. The player cannot idle.**
-
-This phase makes the existing systems matter. Nothing here is a new system — it's adding the *cost side* and *time pressure* that make current mechanics feel consequential.
+## Phase N2 — Combat Depth & Plunder
+> **Goal: combat has consequences beyond gold. Grapple victory means a choice. Provisions matter in battle.**
 
 ---
 
-### P1.1 — Morale recovery in port (Tavern service) --> DONE
-**What:** Morale currently only decays. Add a Tavern service at eligible ports where the player can spend gold to raise crew morale. Also add passive morale recovery: each day in port (not at sea) restores 2 morale. Morale decay at sea continues.
-**Complexity:** Low
-**Dependencies:** P0.1
-**Design impact:** Morale becomes a real resource with a natural cycle: decay at sea → recover in port → costs gold → drives the need for missions. Without recovery, morale is a permanent death spiral.
+### N2.1 — Plunder Screen (post-grapple boarding)
+**What:** When the player wins via grapple (boarding action), instead of immediately showing the victory screen, show a **Plunder Screen**. This screen shows:
+- Enemy ship's estimated cargo (parametrically generated based on enemy ship type, faction, and route — not tied to the cargo system yet, generates gold-equivalent lots: "4 crates of spices", "12 barrels of rum")
+- Player's current hold: used / capacity
+- A selection UI: player allocates which goods to take, up to available hold space
+- Taking contraband (tobacco, slaves) adds infamy
+- Taking all cargo takes full time (adds 1 sailing day); partial takes are faster (flavour)
+- "Take nothing — sink her" option: full gold reward (current system), no cargo, no infamy from cargo
+- "Take the lot": cargo added to hold as actual goods, gold reward reduced (you took the goods instead)
+
+This requires generating enemy cargo at encounter build time (new function in generators.js: `generateEnemyCargo(enemy, risk)`).
+
+**Complexity:** Medium (new screen, new generator function, integration with hold state, partial dispatch of TAKE_PLUNDER action)
+**Dependencies:** Cargo system (P1.4 ✅), intercept screen (P0.8 ✅)
+**Design impact:** Every grapple victory becomes a decision with spatial consequences. A hold full of silk is a problem when you just captured a Spanish galleon's tobacco. The "sink her" option exists so players who want clean gold can still have it. Embodies "every success creates a new problem" — great loot means you travel slower and attract more attention.
 
 ---
 
-### P1.2 — Provisions system (food, water, medicine, ammunition) --> DONE
-**What:** Ships consume provisions daily at sea. Each provision type has a current stock and a max capacity (scaled to ship size). Running out of food/water causes morale loss per day. Running out of medicine means combat injuries become permanent crew losses. Running out of ammunition disables certain combat actions. Ports always have food and water (safeguard against hardlock), other provisions are available per port resource table. Player must consciously stock up before sailing.
-**Complexity:** Medium
-**Dependencies:** P1.1 (morale), P0.7 (crew capacity)
-**Design impact:** This is the single most important pressure mechanic. Every long voyage becomes a calculation: "can I make it?" Short routes are safe. Long routes require planning. The sea becomes the real game board. Also creates the first meaningful reason to visit certain ports over others.
+### N2.2 — Ammunition as Combat Resource
+**What:** Add `ammo` to the hold alongside food and water. Ammo is consumed per combat round (1 unit per broadside or precision shot fired, not per round of evade/grapple). Ammo is available at most ports (see GOODS_AVAILABILITY). Running out of ammo mid-battle disables Broadside and Precision actions — only Grapple and Evade remain. Player is warned at battle start if ammo is below 5 units ("Low ammunition — cannon actions may not be available for long"). Ammo does not consume hold units (it is a separate ship resource, like provisions — this avoids forcing the player to choose between ammo and cargo on every voyage).
+
+**Complexity:** Low-medium (add `ammo` to hold.items as a tracked-separately provision; modify BATTLE_ACTION reducer to decrement ammo; modify combat action availability check; update MarketScreen to show ammo as a provision)
+**Dependencies:** Cargo system (P1.4 ✅), BattleScreen
+**Design impact:** Pre-battle preparation becomes meaningful. A trader with a full hold of silk and no ammo is genuinely vulnerable. Pirates are incentivised to carry more ammo, which means less trade cargo — creating a real identity trade-off between combat and commerce builds.
 
 ---
 
-### P1.3 — Port resource system (fixed + parametric prices) --> DONE
-**What:** Each port in `data.js` gets a resource table defining what goods it stocks, base prices, supply tier, and price variance range. Price is recalculated on port entry (not simulated continuously). Certain ports have structural cheapness in certain goods (Tortuga: rum cheap; Cartagena: weapons expensive; Nassau: no medicine). Food and water always available at minimum stock. Creates logical trade routes from the fixed differentials.
-**Complexity:** Medium
-**Dependencies:** P1.2 (provisions system defines what resources matter)
-**Design impact:** Trading becomes strategic rather than arbitrary. The player learns the map through its economic logic. Combined with P1.2, provisioning becomes a genuine pre-voyage decision.
+### N2.3 — Medicine as Combat Consequence Modifier
+**What:** Add `medicine` to the hold as a provision. Medicine is not consumed daily — it is consumed when crew are lost in combat or in certain random events. Without medicine, all combat crew losses are permanent (current system). With medicine, each combat that causes crew loss has a `salvageable` portion: `Math.floor(crewLost × 0.4)` crew are "injured not dead" and recover after 3 days at sea (they are removed from active roster temporarily but return). Medicine is consumed per salvage event (1 unit per injured crew member saved). Running out of medicine fires a log warning before battle: "No medicine aboard — all losses will be permanent."
+
+**Complexity:** Low-medium (add `medicine` to hold.items; modify DISMISS_BATTLE to check medicine and create a `recoveringCrew` array in state; modify ADVANCE_DAY to decrement recovery timers and restore recovered crew)
+**Dependencies:** N2.2 (ammo — implement both provisions together in the same session), named crew (P1.5.1 ✅)
+**Design impact:** Medicine makes named crew survivable, increasing attachment. A veteran gunner who gets injured in battle and recovers three days later is a story. Without medicine he's just gone. Creates a new preparation decision: trade cargo vs. medicine stock. Also creates a compelling risk at high infamy: the fight where you run out of medicine and lose four veterans permanently.
 
 ---
 
-### P1.4 — Cargo system (capacity, weight, speed tradeoff) --> DONE
-**What:** Ships have a cargo capacity (scaled by ship type, increased by cargo hold upgrade). Filling cargo slows the ship (speed penalty proportional to load %). Player must balance profit from cargo against the risk of being slower to flee or maneuver. Plundered goods from combat victories go into cargo and must be sold at port.
-**Complexity:** Medium
-**Dependencies:** P1.3 (resource system defines what cargo exists)
-**Design impact:** Every combat victory creates a new decision (take the cargo or leave it?). Trade becomes a genuine risk/reward tradeoff. Speed upgrades become more meaningful when the player is regularly hauling cargo.
+## Phase N3 — Smuggling & Mission Rework
+> **Goal: mission types reflect the cargo system. Smuggling requires actual cargo. The mission board is fully meaningful.**
 
 ---
 
-### P1.5 — Fame display in HUD + basic fame gating --> DONE
-**What:** Add `★ {state.fame}` to HUD. In `data.js`, add `requiredFame` to certain ships, upgrades, and high-risk missions. Shipyard and mission board filter/grey out items below fame threshold with visible requirement shown.
-**Complexity:** Low
-**Dependencies:** None (fame already exists in state)
-**Design impact:** Fame becomes a visible progression axis. Players understand what they're working toward. High-tier content feels earned rather than bought.
-- [ ] **data.js** – Add `requiredFame` field to `SHIPS` (e.g., galleon 200, frigate 100, etc.).
-- [ ] **data.js** – Add `requiredFame` to selected `UPGRADES` (e.g., copper hull 100, extra cannons 50).
-- [ ] **data.js** – Add `requiredFame` to `MISSION_POOL` entries for high‑risk missions.
-- [ ] **logic.js** – (No pure functions needed, filtering done in UI).
-- [ ] **engine.js** – No reducer changes required; fame is already in state.
-- [ ] **screens.jsx** – Modify `ShipyardScreen` to grey out ships/upgrades if `fame < requiredFame`, show requirement.
-- [ ] **screens.jsx** – Modify `PortScreen` mission board filter to hide missions requiring more fame.
-- [ ] **App.jsx** – Add fame display to HUD (next to gold, e.g., `★ {state.fame}`).
-- [ ] **tests.js** – Add unit/reducer tests for fame gating (try buying gated ship with insufficient fame).
-- [ ] **tests.js** – Add UI smoke test for fame visibility in HUD and shipyard.
-- [ ] **architecture.md** – Document fame field and its effects on unlocks.
-- [ ] **README.md** – Update feature list to mention fame progression.
+### N3.1 — Smuggling Mission Rework
+**What:** Smuggling missions now require the player to purchase contraband goods (tobacco or slaves) and carry them to the target port. The mission board shows: what contraband, quantity required, target port, gold reward. Player must buy the goods at the current port (or a nearby port that stocks them), sail with contraband in hold, and deliver. Navy patrol random event now checks hold for contraband when inspection occurs — if found, contraband is seized (loseContraband consequence) and rep takes a hit. Completing delivery gives gold + infamy + pirate rep, as currently.
+
+**Complexity:** Medium (update mission generator to produce contraband-specific missions; update COMPLETE_MISSION to verify correct cargo in hold; update navy_patrol event to inspect hold)
+**Dependencies:** N2.1 (plunder screen), cargo system (P1.4 ✅), parametric missions (✅)
+**Design impact:** Smuggling becomes a full system loop rather than a mission that generates a port and a number. The risk is real — you carry illegal goods across the sea and can be caught at any moment. High infamy players face more patrols, making smuggling progressively riskier as you specialize in it.
 
 ---
 
-### P1.6 — Morale decay in port (idle pressure)
-**What:** Crew morale decays 1 point per day in port when the player hasn't done a mission or sailed in 3+ days. This is a gentle push — not punishing, but clearly present. Log entry: "The crew grows restless in harbour."
-**Complexity:** Low
-**Dependencies:** P1.1 (morale recovery must exist before adding decay pressure)
-**Design impact:** The player cannot park indefinitely. There is always a soft reason to act. Embodies the core design principle: pressure.
+### N3.2 — Trade Delivery Mission Type
+**What:** A new mission type: "deliver X units of [good] to [port] within [days]." Player must purchase the goods (at their own cost), transport them, and deliver for a reward that exceeds the purchase cost by a margin worth the risk. The mission board shows: good type, quantity, delivery port, reward, and days remaining. If the player doesn't have enough hold space, the mission is shown with a warning. No time limit in the first implementation — add time pressure in N3.3.
+
+**Complexity:** Low (new mission type in generator; COMPLETE_MISSION checks hold.items for required goods; no new reducer logic beyond the check)
+**Dependencies:** N3.1 (smuggling rework — do both mission types in the same session), cargo system (P1.4 ✅)
+**Design impact:** Trade and missions converge. A player doing a spice delivery mission is also a trader — their commerce and their quest are the same action. Hold space becomes contested between personal speculation and contracted delivery. Embodies the interaction-between-systems principle.
 
 ---
 
-### P1.7 — Reputation perks (threshold behaviors) --> DONE
-**What:** Reputation thresholds unlock or restrict concrete mechanical behaviors, not just narrative flavor. Proposed tiers:
-- **At War (< 10):** entering port triggers combat (already partially exists). Black market only (no official services).
-- **Hostile (10–29):** port fee to dock. No crew hire. Reduced mission pool.
-- **Neutral (30–49):** standard access.
-- **Friendly (50–69):** repair discount 10%. Better mission quality.
-- **Allied (≥ 80):** repair discount 20%. Elite crew available. Governor missions unlock. Patrol ships ignore minor crimes.
-**Complexity:** Low-medium (add threshold lookup to existing service-access checks)
-**Dependencies:** P0.3 (save must work — reputation is a long-term investment)
-**Design impact:** Reputation becomes mechanical, not cosmetic. Building relationship with a faction has practical payoff. Burning bridges has practical costs. Supports the conflicting-faction design principle.
-
----
-
-### P1.8 — Campaign clock
-**What:** Display the current year (starting 1695). Every 365 days, the year advances. At certain year thresholds, world difficulty increases: more patrols, stronger enemy ships, fewer pirate-friendly ports. The golden age of piracy ends around 1730. If the player hasn't retired by then, the world becomes actively hostile. This creates a soft long-term deadline.
-**Complexity:** Low (year is `Math.floor(state.day / 365) + 1695`, thresholds are checked in world state)
-**Dependencies:** P1.5 (fame/retirement system needs to exist for the deadline to be meaningful)
-**Design impact:** Every voyage has a place in time. The player is building toward something before the window closes. Embodies the pressure principle at the macro scale.
-
----
-
-## Phase 1.5 — Crew as Characters
+## Phase 1.5 (Remaining) — Crew as Characters
 > **Goal: the crew are people. Losing them means something.**
 
-This phase transforms the crew from a number into a cast. It makes every existing event more emotionally resonant without adding new content — the storm now kills someone with a name. Build before economy (Phase 2) because crew attachment makes dangerous voyages feel significant.
-
 ---
 
-### P1.5.1 — Named crew roster (Layer 1) -> DONE
-**What:** Replace `crew.current` (a number) with `crew.roster` (an array of crew member objects). Each member has: `id`, `name` (drawn from faction-appropriate name list in data.js), `role` (deckhand/gunner/cook/carpenter/navigator — weighted random), `daysAboard`. `crew.current` becomes `crew.roster.length`. Hire/fire/lose crew becomes array add/remove. Events reference specific crew members by name.
-**Complexity:** Medium (refactor all `crew.current` references in engine.js, logic.js, screens.jsx — systematic but not conceptually hard)
-**Dependencies:** Phase 0 complete
-**Design impact:** Immediate emotional resonance. "Lost 3 crew" becomes "Torres and Marta didn't make it." Players remember names. Attachment begins here.
+### P1.5.2 — Crew Traits, Visible and Hidden
+**What:** Each crew member gets 1 positive and 1 negative trait at hire. Negative traits marked `hidden: true` are not shown until their trigger fires. Traits are dormant flags activating at specific moments (combat, sailing, port, long voyage). `logic.js` gets `checkCrewTraits(state, trigger)` returning a list of effects. Reducer calls this at trigger points.
 
----
-
-### P1.5.2 — Crew traits, visible and hidden (Layer 2)
-**What:** Each crew member gets 1 positive and 1 negative trait at hire. Negative traits marked `hidden: true` are not shown to the player until their trigger fires. Traits are dormant flags that activate at specific game moments (combat, sailing, port, long voyage). Logic.js gets `checkCrewTraits(state, trigger)` which returns a list of effects. Reducer calls this at trigger points.
-
-Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat: save crew from death), `navigator` (sailing: reduce travel days), `drunkard` (in port: lose rum stock — hidden), `coward` (high-risk battle: morale penalty), `informant` (enemy port: reputation leak — hidden), `troublemaker` (long voyage: tension spark).
+Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat: save crew — interacts with N2.3 medicine), `navigator` (sailing: reduce travel days), `drunkard` (in port: consume rum from hold — hidden), `coward` (high-risk battle: morale penalty), `informant` (enemy port: reputation leak — hidden), `troublemaker` (long voyage: tension spark).
 
 **Complexity:** Medium-high (new logic hook system, data structure, trigger points in engine)
-**Dependencies:** P1.5.1
-**Design impact:** Stories happen without scripting. The drunkard seems like a normal deckhand for two weeks. The surgeon reveals himself when he saves someone's life. The coward reveals himself at the worst moment. This is the core of the emergent story engine.
+**Dependencies:** P1.5.1 ✅, N2.3 (surgeon trait is more meaningful with the medicine system)
+**Design impact:** Stories happen without scripting. The drunkard consumes your rum stock. The surgeon saves lives when you have medicine. The coward deserts before an assault. This is the core of the emergent story engine.
 
 ---
 
-### P1.5.3 — Crew scars and permanent consequences (Layer 3)
-**What:** Certain combat outcomes or events permanently modify a crew member's state via a `scars[]` array. A crew member who survives a bad boarding loses `"lost_hand"` — suppressing their `strong` trait bonus but not removing them from the roster. A sailor who survives plague gets `"survived_plague"`. Some scars are penalties, some are badges of honor (minor morale bonus from the rest of the crew toward a scarred veteran). Scars displayed in CrewScreen.
-**Complexity:** Low (Layer 2 infrastructure handles the modifier logic — scars are just persistent negative traits)
+### P1.5.3 — Crew Scars and Permanent Consequences
+**What:** Combat outcomes and certain events permanently modify a crew member's state via a `scars[]` array. Surviving a boarding adds `"battle_scarred"`. Surviving plague adds `"plague_survivor"`. Some scars are penalties, some are badges of honour (minor morale bonus from veteran's presence). Displayed in CrewScreen.
+**Complexity:** Low (Layer 2 infrastructure handles modifier logic — scars are persistent trait overrides)
 **Dependencies:** P1.5.2
-**Design impact:** Players remember scars more than stats. A one-handed veteran navigator who is still your best navigator creates genuine attachment. The cost of keeping them is the story.
+**Design impact:** Players remember scars more than stats. A one-handed veteran navigator who is still your best navigator creates genuine attachment.
 
 ---
 
-### P1.5.4 — Crew tensions (Layer 4)
-**What:** A `tensions[]` array in crew state tracks active feuds between specific crew members (identified by id). Tension level increments from trait interaction events (troublemaker near gambler, coward near veteran after a battle the coward ran from). When tension hits threshold (5), a conflict event fires with player choices: side with one, lock both up, mediate. Resolution either removes one crew member or resets tension with morale consequences for all.
+### P1.5.4 — Crew Tensions
+**What:** A `tensions[]` array in crew state tracks active feuds between specific crew members by id. Tension increments from trait interaction events. At threshold (5), a conflict event fires with player choices: side with one, lock both up, mediate. Resolution either removes a crew member or resets tension with morale consequences.
 **Complexity:** Medium (tension table management, conflict event pool, trigger logic in ADVANCE_DAY)
-**Dependencies:** P1.5.2 (traits are what cause tension), robust event system
-**Design impact:** "I've been managing the feud between my navigator and my gunner since Nassau" is the exact story this creates. Crew drama becomes a management challenge the player actively navigates. Embodies emergent storytelling.
+**Dependencies:** P1.5.2 (traits cause tension)
+**Design impact:** "I've been managing the feud between my navigator and my gunner since Nassau" is the exact story this creates. Crew drama becomes a management challenge the player actively navigates.
+
+---
+
+## Phase 1 (Remaining) — Core Loop Completion
+> **Goal: remaining pressure mechanics that close the loop on the original design.**
+
+---
+
+### P1.6 — Morale Decay in Port (Idle Pressure)
+**What:** Crew morale decays 1 point per day in port when the player hasn't completed a mission or sailed in 3+ days. A gentle push — not punishing, but clearly present. Log entry: "The crew grows restless in harbour."
+**Complexity:** Low (add idle day counter to state, check in a future ADVANCE_IN_PORT action, or approximate with a port-days counter)
+**Dependencies:** P1.1 ✅ (recovery must exist before decay pressure), note: there is currently no time advancement in port — this item requires deciding whether to add a "Rest in Port" button that advances time, or to approximate with a different mechanism
+**Design impact:** The player cannot park indefinitely. There is always a soft reason to act.
+
+---
+
+### P1.8 — Campaign Clock
+**What:** Display the current year (starting 1695). Every 365 days the year advances. At certain year thresholds, world difficulty increases: more patrols, stronger enemy ships, fewer pirate-friendly ports. The golden age of piracy ends around 1730. If the player hasn't retired by then, the world becomes actively hostile — a soft long-term deadline.
+**Complexity:** Low (year is `Math.floor(state.day / 365) + 1695`; thresholds checked in world state)
+**Dependencies:** P1.5 ✅ (retirement needs to exist for the deadline to be meaningful)
+**Design impact:** Every voyage has a place in time. The player is building toward something before the window closes.
 
 ---
 
@@ -282,85 +290,59 @@ Example traits: `veteran` (combat: reduce damage taken), `surgeon` (post-combat:
 
 ---
 
-### P2.1 — World state flags (Layer 1)
-**What:** Add a `world` object to `initialState`: `{ wars: [], plagues: [], sieges: [], treasureFleets: [], eventLog: [] }`. These flags are read by existing systems to modify behavior. A `getWorldModifiers(state, context)` function in logic.js returns relevant modifiers for any query (encounter rate, price multiplier, available services).
+### P2.1 — World State Flags (Layer 1)
+**What:** Add a `world` object to `initialState`: `{ wars: [], plagues: [], sieges: [], treasureFleets: [], eventLog: [] }`. A `getWorldModifiers(state, context)` function in logic.js returns relevant modifiers for any query (encounter rate, price multiplier, available services).
 **Complexity:** Low (new state object, one new logic function, reads in existing systems)
-**Dependencies:** Phase 1 complete
-**Design impact:** Infrastructure that enables everything else in Phase 2. On its own, minimal impact — it's the foundation layer.
+**Dependencies:** All Phase 1 and N-phase items complete
+**Design impact:** Infrastructure layer. On its own, minimal impact — it is the foundation for everything else in Phase 2.
 
 ---
 
-### P2.2 — Scripted world events (Layer 2)
-**What:** A `WORLD_EVENTS` pool in data.js with condition-gated, weighted events that fire in `ADVANCE_DAY` (separate roll from personal events, ~5% per day, conditions prevent spam). Events set world state flags and have durations after which they expire with a resolution entry in the event log. Initial event set: war between two factions, plague at a port, treasure fleet in transit, navy moves on a pirate haven. Each event has `effects` that modify encounter rates, prices, available missions, and services at affected ports.
-**Complexity:** Medium (new event pool, new daily check in engine, duration tracking)
-**Dependencies:** P2.1, P1.3 (price system must exist for price effects to matter)
-**Design impact:** The world breathes. The player logs into a Caribbean that has changed since their last session. Wars create danger and opportunity simultaneously. Plague creates moral choices (price-gouge medicine or deliver it?). Treasure fleets create timed high-risk high-reward windows.
+### P2.2 — Scripted World Events (Layer 2)
+**What:** A `WORLD_EVENTS` pool in data.js with condition-gated, weighted events that fire in `ADVANCE_DAY` (~5% per day). Events set world state flags with durations. Initial set: war between two factions, plague at a port, treasure fleet in transit, navy moves on a pirate haven. Each event has `effects` modifying encounter rates, prices, missions, and services.
+**Complexity:** Medium (new event pool, daily check in engine, duration tracking)
+**Dependencies:** P2.1, P1.3 ✅ (price system must exist for price effects to matter)
+**Design impact:** The world breathes. Wars create danger and opportunity simultaneously. Plague creates moral choices. Treasure fleets create timed high-risk windows.
 
 ---
 
-### P2.3 — Player interaction with world events via missions (Layer 3)
-**What:** World events in P2.2 include a `missionPool` field listing mission templates to activate at affected ports while the event is live. `generateMissions` checks active world events and adds these to the available pool. No new architecture — world events simply feed the existing mission system. Examples: war → blockade-run missions and supply convoy missions appear; plague → medicine delivery mission; treasure fleet → escort or intercept mission.
-**Complexity:** Low (world events already carry the data, mission generator reads it)
+### P2.3 — Player Interaction with World Events via Missions (Layer 3)
+**What:** World events include a `missionPool` field listing mission templates active while the event is live. `generateMissions` checks active world events and adds these to the pool. No new architecture — world events feed the existing mission system.
+**Complexity:** Low (world events carry the data; mission generator reads it)
 **Dependencies:** P2.2
-**Design impact:** The player now has concrete reasons to engage with or ignore world events. The world doesn't just happen to them — they can shape it through their choices of which missions to take. Embodies the agency principle.
+**Design impact:** The player now has concrete reasons to engage with or ignore world events. The world doesn't just happen to them — they can shape it.
 
 ---
 
-### P2.4 — Dynamic prices reacting to world events
-**What:** World events modify the `priceModifier` field that `getWorldModifiers` already returns. War raises weapon and food prices. Plague raises medicine prices dramatically. A blockaded port raises all prices. These modifiers stack on top of the parametric base variance from P1.3. Calculated at port entry.
+### P2.4 — Dynamic Prices Reacting to World Events
+**What:** World events modify the `priceModifier` field that `getWorldModifiers` returns. War raises weapon and food prices. Plague raises medicine prices dramatically. A blockaded port raises all prices. Modifiers stack on top of the parametric base variance.
 **Complexity:** Low (P2.1 infrastructure already designed for this)
-**Dependencies:** P2.2, P1.3
-**Design impact:** Prices tell a story. A medicine price spike tells you something is wrong before you know what. Trade routes are not static — the profitable route last month might be unprofitable now. Economy becomes a source of world information.
+**Dependencies:** P2.2, P1.3 ✅
+**Design impact:** Prices tell a story. A medicine price spike tells you something is wrong before you know what. Economy becomes a source of world information.
 
 ---
 
-### P2.5 — Rumor system
-**What:** Taverns (port service) generate 2-3 rumors per visit. Rumors are parametric sentence templates filled from live game state: world events, active world flags, known NPC locations, port prices. Template examples: "[Faction] warships are patrolling the [region] route", "Medicine prices are high in [plague port]", "A treasure fleet was spotted near [port]", "[NPC name] was seen in [port] three days ago". Rumors have a `reliability` flag (true/outdated/false) that the player cannot see — they must evaluate whether to act on them.
-**Complexity:** Medium (template system + state query functions + UI in port screen)
-**Dependencies:** P2.2 (world events give rumors content), P1.5.1 (named crew give rumors texture)
-**Design impact:** Information becomes a resource. The player has reasons to visit taverns even without missions. False rumors create risk — acting on bad intel is a real loss. Supports exploration motivation and faction intrigue.
+### P2.5 — Rumor System
+**What:** Taverns generate 2–3 rumors per visit. Rumors are parametric sentence templates filled from live game state: world events, active flags, known NPC locations, port prices. Rumors have a `reliability` flag (true/outdated/false) the player cannot see — they must evaluate whether to act on them.
+**Complexity:** Medium (template system, state query functions, UI in port screen)
+**Dependencies:** P2.2 (world events give rumors content), P1.5.1 ✅ (named crew give rumors texture)
+**Design impact:** Information becomes a resource. False rumors create risk. Supports exploration motivation and faction intrigue.
 
 ---
 
-### P2.6 — Captured ships and prize system
-**What:** After a combat victory, the intercept screen (P0.8) gets a post-battle option: sink, loot and let go, or take as prize. Taking a prize means the ship sails alongside you to the next port where it can be sold for gold (scaled to ship class and hull condition). Cannot fight effectively while escorting a prize (speed reduced, cannot flee easily). Gives combat a second reward layer — a big galleon is worth as much as 10 standard missions.
-**Complexity:** Medium (new state field `escortedPrize`, modifiers to speed/flee, sale UI in shipyard)
-**Dependencies:** P0.8 (intercept screen), P1.4 (cargo system for loot)
-**Design impact:** Every combat victory becomes a decision. The temptation of a prize creates risk — escorting it makes you vulnerable. Embodies the "success creates new problems" principle.
-
----
-
-### P2.6b — Plunder Screen
-
-**What:** After a combat victory, a dedicated screen shows an estimate of the
-enemy’s cargo. The player chooses how much to take, limited by available hold
-space. Goods are added directly to the player’s hold — plunder becomes actual
-cargo instead of abstract gold. The existing gold reward is reduced accordingly,
-making plunder the primary economic payoff from combat.
-**Complexity:** Medium (new screen, hold‑space validation, integration with
-existing cargo system)
-**Dependencies:** P1.4 (cargo system)
-**Design impact:** Every combat victory creates a genuine inventory decision.
-The player must balance immediate gold against valuable trade goods, and a full
-hold forces hard choices. Embodies “every success creates a new problem.”
-
-
----
-
-### P2.7 — Infamy track (separate from Fame)  --> DONE
-**What:** Add `infamy` to state alongside `fame`. Fame rises from heroic acts (rescues, defending merchants, completing good-faction missions). Infamy rises from piracy, raiding, attacking civilians. Both are visible in HUD. High infamy triggers bounty hunters and makes law-abiding ports hostile. High fame opens governor missions and reduces hostile encounters. High in both (the notorious privateer) is the most interesting state — attracts hunters from criminal side AND attracts challengers from the heroic side.
-**Complexity:** Medium (new state field, new event triggers for both tracks, UI)
-**Dependencies:** P1.5, P1.7 (reputation perks need the distinction to be meaningful)
-**Design impact:** Player identity becomes mechanical. A pure pirate plays differently from a privateer differently from a trader. Replayability increases because each identity has different pressures.
+### P2.6 — Captured Ships and Prize System
+**What:** After combat victory, a post-battle option: sink, loot and let go, or take as prize. A prize ship sails alongside you to the next port and can be sold (scaled to class and hull condition). Cannot fight effectively while escorting a prize — speed reduced, cannot flee easily.
+**Complexity:** Medium (new state field `escortedPrize`, speed/flee modifiers, sale UI in shipyard)
+**Dependencies:** P0.8 ✅ (intercept screen), N2.1 (plunder screen — do prizes and plunder in the same combat-reward pass)
+**Design impact:** Every victory becomes a decision. The temptation of a prize creates risk — escorting it makes you vulnerable. Embodies "success creates new problems."
 
 ---
 
 ### P2.8 — Bounty Hunter Spawns
-**What:** High infamy attracts hired hunters. A `calculateNotoriety(state)` function in logic.js combines infamy score and negative reputation across factions into a single notoriety value. A `shouldSpawnHunter(state)` function rolls against notoriety daily — low notoriety means rare spawns, high notoriety means near-certain. When a hunter spawns, it routes through the intercept screen (P0.8) as a special encounter type (`bounty_hunt`) with fight as the only real option and flavour text naming the hiring faction. Hunter ships are templates in `data.js` scaled to player fame tier — a low-fame player gets a sloop, a high-fame player gets a frigate with veteran crew. Defeating a hunter yields high gold, high fame, and a notoriety reduction. Notoriety is displayed on the FactionsScreen.
-**Complexity:** Medium (new logic functions, new encounter type, new data templates, notoriety display)
-**Dependencies:** P2.7 (infamy track is the input to notoriety), P0.8 (intercept screen handles the encounter)
-**Design impact:** High infamy has real teeth. The player cannot raid indefinitely without consequences finding them at sea. Embodies "every success creates new problems" — a string of profitable raids summons increasingly dangerous hunters. Notoriety display on FactionsScreen gives the player visible warning before hunters become overwhelming.
-
+**What:** High infamy attracts hired hunters. `calculateNotoriety(state)` combines infamy and negative faction reputation. `shouldSpawnHunter(state)` rolls daily against notoriety. Hunter ships route through the intercept screen as `bounty_hunt` encounter type with scaling templates (sloop at low fame, frigate at high fame). Defeating a hunter yields high gold, fame, and notoriety reduction.
+**Complexity:** Medium (new logic functions, encounter type, data templates, notoriety display)
+**Dependencies:** P2.7 ✅ (infamy track), P0.8 ✅ (intercept screen)
+**Design impact:** High infamy has real teeth. A string of profitable raids summons increasingly dangerous hunters. Notoriety display gives visible warning before hunters become overwhelming.
 
 ---
 
@@ -369,44 +351,43 @@ hold forces hard choices. Embodies “every success creates a new problem.”
 
 ---
 
-### P3.1 — Unlockable map areas
-**What:** Certain ports and sea areas are hidden on the map until unlock conditions are met. Conditions can be: fame threshold, specific item (map fragment found via random event or quest), minimum ship size (certain straits require a frigate or larger), faction relationship threshold (a hidden pirate haven only revealed by high pirate rep). Locked areas shown as fog on the map with a faint hint that something exists there. Unlock is permanent for that save.
+### P3.1 — Unlockable Map Areas
+**What:** Certain ports are hidden until unlock conditions are met: fame threshold, specific item (map fragment from event or quest), minimum ship size, or faction relationship threshold. Locked areas shown as fog with a faint hint. Unlock is permanent for that save.
 **Complexity:** Medium (unlock condition check in MapScreen, `unlockedAreas[]` in state)
-**Dependencies:** P1.5 (fame gating), P2.2 (map fragments can come from world events)
-**Design impact:** The map is not a solved space. Experienced players know where secrets are. New players discover them through play. Replay value comes from deliberately pursuing different unlock paths.
+**Dependencies:** P1.5 ✅, N1.2 (max days at sea — range and discovery are related gatings), P2.2 (map fragments can come from world events)
+**Design impact:** The map is not a solved space. Experienced players know where secrets are. New players discover them through play.
 
 ---
 
-### P3.2 — Named rival NPC captains
-**What:** 3-5 named rival captains exist in the game world. Generated once at game start (name from faction word list + ship name + 2 traits + faction). They appear at ports, feature in rumors, occasionally cross the player's path as combat encounters. They have a `history[]` array populated by actual game events (survived a fight with the player, sacked a port, gained notoriety). When encountered in combat, their ship has a name and they taunt you in the battle log. They can be defeated permanently or escape (at low hull they flee). Defeating a named rival gives a large fame/infamy reward.
+### P3.2 — Named Rival NPC Captains
+**What:** 3–5 named rival captains generated at game start (name + ship name + 2 traits + faction). They appear at ports, feature in rumors, occasionally cross the player's path as combat encounters. They have a `history[]` populated by actual game events. When encountered, their ship has a name and they taunt you in the battle log. They can be defeated permanently or escape.
 **Complexity:** Medium-high (NPC state management, persistence, encounter routing, rumor integration)
-**Dependencies:** P2.5 (rumors reference them), P1.5.1 (named characters infrastructure)
-**Design impact:** Players LOVE recurring enemies. The rival who escaped in Nassau, built up their ship, and comes back stronger is one of the most memorable things a game can generate. Rivals create personal narrative arcs within the systemic game.
+**Dependencies:** P2.5 (rumors reference them), P1.5.1 ✅
+**Design impact:** Players love recurring enemies. The rival who escaped in Nassau, rebuilt, and returned stronger is one of the most memorable things a game can generate.
 
 ---
 
-### P3.3 — Governor missions and Letters of Marque
-**What:** At Allied ports (rep ≥ 80), the governor becomes accessible as a special NPC with unique missions unavailable on the standard board. These are higher stakes, higher reward, and push the world state in meaningful directions (defeat a rival, break a blockade, deliver a treaty). Completing enough governor missions for a faction can earn a Letter of Marque — a formal commission that makes you a legal privateer. With a Letter of Marque, attacking that faction's enemies gives no negative reputation with them, but attacking their allies becomes a severe betrayal.
+### P3.3 — Governor Missions and Letters of Marque
+**What:** At Allied ports (rep ≥ 80), the governor has unique high-stakes missions. Completing enough earns a Letter of Marque — a legal commission making you a privateer. With a Letter, attacking that faction's enemies gives no negative reputation with them; attacking their allies is a severe betrayal.
 **Complexity:** Medium (new NPC type, governor mission pool, Letter of Marque state flag and modifier)
-**Dependencies:** P1.7 (reputation perks), P2.7 (infamy track — the Letter is about legal identity)
-**Design impact:** High reputation has a tangible endgame payoff. The Letter of Marque is a meaningful political choice — committing to one faction closes doors with others. Supports the conflicting-faction design principle.
+**Dependencies:** P1.7 ✅, P2.7 ✅
+**Design impact:** High reputation has tangible endgame payoff. The Letter is a meaningful political choice — committing to one faction closes doors with others.
 
 ---
 
-### P3.4 — Crew officers (Layer 5)
-**What:** A small number of named officer slots: Navigator, Surgeon, Gunner, Bosun. Hired separately at taverns for higher cost and with specific trait requirements. Each officer has a `loyalty` score (separate from morale) that tracks their personal relationship with the captain — influenced by player decisions during events. Officers provide passive bonuses to their domain (navigator reduces travel days, surgeon reduces combat crew loss, gunner increases combat damage, bosun maintains discipline). Losing an officer (killed, deserted due to low loyalty) is a significant setback.
+### P3.4 — Crew Officers
+**What:** Named officer slots: Navigator, Surgeon, Gunner, Bosun. Hired separately at taverns for higher cost with specific trait requirements. Each has a `loyalty` score influenced by player decisions. Officers provide passive bonuses (navigator reduces travel days, surgeon reduces combat crew loss with or without medicine, gunner increases combat damage, bosun maintains discipline). Losing an officer is a significant setback.
 **Complexity:** High (officer slots interact with almost every system)
-**Dependencies:** P1.5 complete and stable, P2.5 (rumors can reference officers)
-**Design impact:** Small cast of named characters the player actively manages and protects. Creates attachment at a higher intensity than roster crew. Losing your surgeon before a long voyage is a real tactical decision: do you delay and find a new one, or risk it?
-**Note — subsumes Crew Specialists from earlier design:** The officer system is the intended implementation of the "crew specialists" concept (named hireable roles with mechanical effects: Gunner, Navigator, Doctor/Surgeon, Bosun). The distinction is that officers are slot-based, loyalty-tracked, and deeply integrated rather than a flat array of stat modifiers. Any tasks previously listed under "Crew Specialists" (tavern hire flow, `crew.specialists` state array, `getShipStats` modifier integration) are implemented here instead, not as a separate prior system.
+**Dependencies:** P1.5 fully complete and stable
+**Design impact:** Small cast of named characters the player actively manages and protects. Losing your surgeon before a long voyage is a real tactical decision.
 
 ---
 
-### P3.5 — Personal quest line (optional, narrative layer)
-**What:** A loose multi-part quest that provides long-term narrative purpose without railroading. Classic pirate framing: a personal wrong to right (a stolen ship, a betrayed family, a past to escape). Each chapter requires sailing to specific ports, gathering intel, completing difficult missions. The quest exists alongside all other systems — it doesn't replace emergent play, it gives it direction. Implemented as a special mission chain with unique events, not a new system.
+### P3.5 — Personal Quest Line
+**What:** A loose multi-part quest providing long-term narrative purpose. Classic pirate framing: a personal wrong to right (a stolen ship, a betrayed family, a past to escape). Each chapter requires sailing to specific ports, gathering intel, completing difficult missions. Implemented as a special mission chain with unique events, not a new system.
 **Complexity:** Medium-high (content work more than system work)
 **Dependencies:** Phase 2 stable, P3.2 (the antagonist is a named rival NPC)
-**Design impact:** Gives the player a "why" beneath the systemic loop. Transforms a series of voyages into a story with a shape. Not required for the game to be good — but makes it memorable.
+**Design impact:** Gives the player a "why" beneath the systemic loop. Transforms voyages into a story with a shape.
 
 ---
 
@@ -415,66 +396,74 @@ hold forces hard choices. Embodies “every success creates a new problem.”
 
 ---
 
-### P4.1 — Auto-save at key moments
-**What:** Automatically call `L.saveGame()` on every `ADVANCE_DAY`, port entry, and mission completion. Show a brief "Saved" indicator in HUD. Player can always continue from last meaningful state.
+### P4.1 — Auto-Save at Key Moments
+**What:** Automatically call `L.saveGame()` on every `ADVANCE_DAY`, port entry, and mission completion. Show a brief "Saved" indicator in HUD.
 **Complexity:** Low
-**Dependencies:** P0.3 (save must be fixed first)
-**Design impact:** Removes fear of progress loss. Players take more risks when they know they can continue.
+**Dependencies:** P0.3 ✅
+**Design impact:** Removes fear of progress loss. Players take more risks.
 
 ---
 
-### P4.2 — Multiple save slots + JSON export
-**What:** Three manual save slots plus the auto-save. Each slot shows: captain name, day, gold, ship, fame. JSON export button for backup and sharing.
+### P4.2 — Multiple Save Slots + JSON Export
+**What:** Three manual save slots plus auto-save. Each slot shows: captain name, day, gold, ship, fame. JSON export button for backup and sharing.
 **Complexity:** Medium
 **Dependencies:** P4.1
-**Design impact:** Enables experimentation. Players can try a risky play and reload if it goes wrong — or export their save to continue on another device.
+**Design impact:** Enables experimentation. Players can try risky plays and reload, or continue on another device.
 
 ---
 
-### P4.3 — Endgame: retirement and final score
-**What:** Retirement available from port screen when fame ≥ 500. Triggers a retirement screen showing final score (formula: gold + fame × 100 + ship value + crew size + years active), a text epilogue based on score tier and dominant faction reputation, and options for New Game+ (carries over one persistent bonus) or main menu.
-**Complexity:** Medium (score calculation, epilogue text bank, retirement screen)
-**Dependencies:** P1.5 (fame gating), P3.3 (Letters of Marque affect epilogue)
-**Design impact:** The game has a shape. There is a destination, and the journey to it matters. Retirement transforms a score into a story summary.
+### P4.3 — Endgame: Retirement and Final Score
+**What:** Retirement available from port screen when fame ≥ 500. Triggers a retirement screen with final score (gold + fame × 100 + ship value + crew size + years active), a text epilogue based on score tier and dominant faction reputation, and options for New Game+ or main menu.
+**Complexity:** Medium
+**Dependencies:** P1.5 ✅ (fame gating), P3.3 (Letters of Marque affect epilogue)
+**Design impact:** The game has a shape and a destination. Retirement transforms a score into a story summary.
 
 ---
 
-### P4.4 — Difficulty settings
-**What:** Three settings at game start affecting: encounter rates, wage multipliers, provision consumption rate, and starting gold. Easy/Normal/Brutal. Brutal mode: morale decay is faster, provisions run out quicker, every success creates more pressure.
+### P4.4 — Difficulty Settings
+**What:** Three settings at game start affecting: encounter rates, wage multipliers, provision consumption rate, and starting gold. Easy / Normal / Brutal. Brutal: morale decay faster, provisions run out quicker, every success creates more pressure.
 **Complexity:** Low (multipliers on existing calculations)
-**Dependencies:** Phase 1 complete (difficulty settings only mean something once pressure systems exist)
-**Design impact:** Accessibility for new players. Brutal mode becomes the intended experience for veterans — maximum pressure, maximum emergence.
+**Dependencies:** Phase 1 complete and N-phases complete (difficulty settings only mean something once all pressure systems exist)
+**Design impact:** Accessibility for new players. Brutal mode becomes the intended experience for veterans.
 
 ---
 
 ## Long-Term Vision
-> These are design ideas worth keeping in mind but not scheduling. They should only be built if the game is stable, fun, and the team has capacity.
+> Design ideas worth keeping in mind but not scheduling. Build only if the game is stable, fun, and there is capacity.
 
 | Idea | Notes |
 |---|---|
-| Procedural rumor generation | NLP-style template expansion from game state. Deferred until rumor system is stable. |
+| Equipment slot system | Replace the current simple upgrade list with physical ship slots (hull, rigging, armament, figurehead). Each slot accepts one item. Creates tradeoffs between upgrade types. Prerequisite before adding more upgrade items. |
+| Cargo hold upgrade | Deferred from P1.4. Part of the equipment slot redesign — increases hold.capacity as an upgrade effect. |
+| Infamy reduction mechanic | Paying a debt to governors to reduce infamy. Gives high-infamy players an expensive escape valve. Natural fit with P3.3 (governor relationship). |
+| Procedural rumor generation | NLP-style template expansion from game state. Deferred until rumor system (P2.5) is stable. |
 | Dynamic faction wars (autonomous) | Factions act and expand without player. Risks runaway domination. Very high complexity. |
-| Fleet system | Player owns multiple ships, assigns crew and routes. Transforms the game's scope significantly. |
-| Mobile-optimized UI | Responsive layout, touch controls. After core game is feature-complete. |
+| Fleet system | Player owns multiple ships, assigns crew and routes. Transforms game scope significantly. |
+| Visual sailing mode | Upgrade SailingScreen from day-counter to animated top-down sailing. Medium complexity, high feel — only after all systems are stable. |
 | Procedural music (sea shanties) | Web Audio API, mood-reactive. Fun but purely cosmetic. |
-| Visual sailing mode (real-time) | Upgrade SailingScreen from day-counter to animated top-down sailing. Medium complexity, high feel — but only after all systems are stable. |
-| Medicine & Ammunition | Two additional provision types with triggered consumption: medicine used on crew loss in combat, ammunition per battle. Deferred until combat and provision systems mature. |
+| Multiplayer | Shared world, competing captains. Entirely different architecture. |
 
 ---
 
-## Summary: Phase Sequence and Rationale
+## Phase Sequence Summary
 
 ```
-Phase 0    Fix what's broken before building anything.
-Phase 1    Add pressure. Make existing systems matter.
-Phase 1.5  Give the crew names and personalities.
-           Now every system has emotional weight.
-Phase 2    The world moves. Economy, events, rivals begin.
-           Crew drama and world events interact for the first time.
-Phase 3    Depth and secrets. Rivals, unlocks, narrative arcs.
-Phase 4    Protect progress. Communicate clearly. Provide closure.
+✅ Phase 0     Fix what's broken before building anything.
+✅ Phase 1     Add pressure. Make existing systems matter.
+✅ Phase 1.5a  Named crew roster. Crew are people now.
+✅ P2.7        Infamy track — player identity has mechanical weight.
+✅ P1.6a       Parametric missions — the board generates, not selects.
+
+→ Phase N1     Start right. Dinghy starts, map range, mobile, balance tool.
+→ Phase N2     Combat depth. Plunder, ammo, medicine.
+→ Phase N3     Mission rework. Smuggling and trade delivery are real loops.
+→ Phase 1.5b   Crew traits, scars, tensions. Crew become cast.
+→ Phase 1 rem  Idle morale decay, campaign clock.
+→ Phase 2      World comes alive. Events, prices, rumors, prizes, bounties.
+→ Phase 3      Depth. Rivals, unlocks, governors, officers, quest line.
+→ Phase 4      Polish. Auto-save, multiple slots, retirement, difficulty.
 ```
 
-The sequence avoids rework by establishing foundations before features. Morale recovery (P1.1) must exist before morale decay pressure (P1.6). The resource system (P1.3) must exist before world event price effects (P2.4). Named crew (P1.5.1) must exist before trait triggers (P1.5.2) before tensions (P1.5.4). Each layer is stable before the next builds on it.
+The sequence avoids rework by establishing foundations before features. Geographic range (N1.2) must exist before unlockable areas (P3.1) are meaningful. Medicine (N2.3) must exist before the surgeon crew trait (P1.5.2) has mechanical depth. Named rivals (P3.2) must exist before the personal quest line (P3.5) has an antagonist. Each layer is stable before the next builds on it.
 
-The early phases produce a playable, pressured, emotionally resonant game. Later phases add replayability and narrative depth. The game is never in a broken intermediate state — every phase boundary is a shippable version.
+The game is always in a fully playable state at any phase boundary.

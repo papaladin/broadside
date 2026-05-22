@@ -118,7 +118,7 @@ window.D = (() => {
   martinique: {
     name: "Martinique", faction: "french",
     x: 700, y: 335,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", , "shipyard", "crew", "missions"],
     desc: "A proud French colony rich in sugar and rum. The most cultivated port in the eastern Caribbean.",
   },
  
@@ -241,18 +241,19 @@ window.D = (() => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const SHIPS = {
 
-  // Tier 1
+  // Tier 0
   dinghy: { name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 20,
     upgradeable: [],
     desc: "A tiny boat. Barely seaworthy, but cheap."
   },
 
-  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 4, speed: 20, cost: 600, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 600, requiredFame: 0, maxDays: 8, holdCapacity: 80,
     upgradeable: ["reinforced_hull"],
     desc: "Small, fast, and agile. Excellent for scouting and smuggling."
   },
 
-  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 1000, requiredFame: 0, maxDays: 10, holdCapacity: 200,
+  // Tier 1
+  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 1000, requiredFame: 10, maxDays: 10, holdCapacity: 200,
     upgradeable: ["reinforced_hull", "extra_cannons"],
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
@@ -264,7 +265,7 @@ const SHIPS = {
     desc: "Favored by smugglers and pirates for its speed and shallow draft."
   },
 
-  merchantman: { name: "Merchantman", maxHull: 120, maxCrew: 60, cannons: 5, speed: 10, cost: 1500, requiredFame: 50, maxDays: 14, holdCapacity: 336,
+  merchantman: { name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 1500, requiredFame: 50, maxDays: 14, holdCapacity: 600,
     upgradeable: ["reinforced_hull"],
     desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
   },
@@ -447,11 +448,11 @@ const CREW_LAST_NAMES = {
   // ---- RESOURCES AND ECONOMY SYSTEM -------------------------------
 
 const RESOURCES = {
-  food:    { name: "Food",    basePrice: 5,   variance: 0.02, illegal: false, infamyOnBuy: 0, unit: "ration" },
-  water:   { name: "Water",   basePrice: 3,   variance: 0.02, illegal: false, infamyOnBuy: 0, unit: "barrel" },
+  food:    { name: "Food",    basePrice: 3,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "ration" },
+  water:   { name: "Water",   basePrice: 2,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "barrel" },
   rum:     { name: "Rum",     basePrice: 30,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "cask"   },
   sugar:   { name: "Sugar",   basePrice: 40,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "sack"   },
-  timber:  { name: "Timber",  basePrice: 25,  variance: 0.10, illegal: false, infamyOnBuy: 0, unit: "plank"  },
+  timber:  { name: "Timber",  basePrice: 25,  variance: 0.15, illegal: false, infamyOnBuy: 0, unit: "plank"  },
   cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "bale"   },
   spices:  { name: "Spices",  basePrice: 120, variance: 0.45, illegal: false, infamyOnBuy: 0, unit: "chest"  },
   silk:    { name: "Silk",    basePrice: 160, variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
@@ -496,12 +497,12 @@ const GOODS_AVAILABILITY = {
   //pirate
   tortuga:     [ "always","always","always","rarely","sometimes","rarely","rarely","never","rarely","never","frequently","frequently","rarely","sometimes" ],
   nassau:      [ "always","always","frequently","rarely","rarely","rarely","rarely","never","rarely","never","sometimes","sometimes","rarely","sometimes" ],
-  providencia: [ "sometimes","sometimes","rarely","rarely","rarely","rarely","never","never","sometimes","never","frequently","frequently","never","rarely" ],
-  roatan:      [ "sometimes","sometimes","rarely","never","rarely","rarely","never","never","sometimes","never","frequently","sometimes","never","rarely" ],
+  providencia: [ "always","always","rarely","rarely","rarely","rarely","never","never","sometimes","never","frequently","frequently","never","rarely" ],
+  roatan:      [ "always","always","rarely","never","rarely","rarely","never","never","sometimes","never","frequently","sometimes","never","rarely" ],
 
   //hidden, to unlock.
-  dryTortugas: [ "sometimes","sometimes","sometimes","never","never","never","never","never","never","never","rarely","sometimes","rarely","never" ],
-  lasAves:     [ "sometimes","sometimes","never","never","never","never","never","never","never","never","never","rarely","rarely","rarely" ],
+  dryTortugas: [ "always","always","sometimes","never","never","never","never","never","never","never","rarely","sometimes","rarely","never" ],
+  lasAves:     [ "always","always","never","never","never","never","never","never","never","never","never","rarely","rarely","rarely" ],
   libertalia:  [ "always","always","always","rarely","rarely","rarely","rarely","sometimes","sometimes","sometimes","frequently","frequently","sometimes","frequently" ],
 };
 

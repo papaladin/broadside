@@ -356,7 +356,7 @@ const generatePortMarket = (portKey) => {
     const variance = res.basePrice * res.variance;
     const marketPrice = isFixed
       ? res.basePrice
-      : Math.round((res.basePrice + randBetween(-variance, variance)) / 5) * 5;
+      : Math.round(res.basePrice + randBetween(-variance, variance));
 
     const buyFromPort  = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
     const sellToPort   = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
