@@ -25,6 +25,7 @@ details > div { padding: 10px 14px; }
   <div id="starter"></div>
   <div id="furthest"></div>
   <div id="islands"></div>
+  <div id="dinghy-groups"></div>
 </details>
 
 <details open>
@@ -185,7 +186,6 @@ function furthestDistanceCheck() {
 
 
 
-
 function islandsOfIsolation() {
   let html = '<h2>🏝 Islands of Isolation (Disconnected Port Groups)</h2>';
 
@@ -245,6 +245,72 @@ function islandsOfIsolation() {
   });
 
   document.getElementById('islands').innerHTML = html;
+}
+
+function dinghyGroupMembership() {
+    console.log("🟢 dinghyGroupMembership called");
+
+  const dinghy = window.D.SHIPS.dinghy;
+  // Build connectivity groups for the dinghy
+  const adj = {};
+  Object.keys(ports).forEach(p => adj[p] = []);
+  Object.keys(ports).forEach(p => {
+    Object.keys(ports).forEach(q => {
+      if (p === q) return;
+      const dx = ports[q].x - ports[p].x;
+      const dy = ports[q].y - ports[p].y;
+      const days = Math.ceil(Math.hypot(dx, dy) / (dinghy.speed * 4));
+      if (days <= dinghy.maxDays) adj[p].push(q);
+    });
+  });
+
+  const visited = new Set();
+  const groups = [];
+  Object.keys(ports).forEach(p => {
+    if (!visited.has(p)) {
+      const comp = [];
+      const queue = [p];
+      visited.add(p);
+      while (queue.length) {
+        const cur = queue.shift();
+        comp.push(cur);
+        adj[cur].forEach(nbr => {
+          if (!visited.has(nbr)) { visited.add(nbr); queue.push(nbr); }
+        });
+      }
+      groups.push(comp);
+    }
+  });
+
+  let html = '<h2>🏝 Dinghy Group Membership</h2>';
+  html += '<table><tr><th>Persona</th><th>Start Port</th><th>Dinghy Group</th><th>Starter Mission Target</th><th>Target Group</th><th>Reachable?</th></tr>';
+
+  const personaPorts = {
+    "english_william": "portRoyal",
+    "spanish_elena": "havana",
+    "french_luc": "martinique",
+    "dutch_pieter": "curacao",
+    "pirate_rosa": "tortuga",
+  };
+  const missionTargets = {
+    "english_william": "kingston",
+    "spanish_elena": "santiagoDeCuba",
+    "french_luc": "portDePaix",
+    "dutch_pieter": "stEustatius",
+    "pirate_rosa": "nassau",
+  };
+
+  Object.entries(personaPorts).forEach(([persona, startPort]) => {
+    const startGroup = groups.findIndex(g => g.includes(startPort)) + 1;
+    const targetPort = missionTargets[persona];
+    const targetGroup = groups.findIndex(g => g.includes(targetPort)) + 1;
+    const ok = startGroup === targetGroup;
+    html += `<tr><td>${persona}</td><td>${ports[startPort].name}</td><td>Group ${startGroup}</td><td>${ports[targetPort].name}</td><td>Group ${targetGroup}</td><td style="color:${ok ? '#4caf50' : '#f44336'}">${ok ? '✅' : '❌'}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('dinghy-groups').innerHTML = html;
+     console.log("✅ dinghyGroupMembership finished");
+
 }
 
 
@@ -332,24 +398,25 @@ function holdProfitCheck() {
   const resources = window.D.RESOURCES;
   const availability = window.D.GOODS_AVAILABILITY;
   const shipList = Object.entries(ships).sort((a,b) => a[1].cost - b[1].cost);
-  const tierQtyUpper = { always:80, frequently:40, sometimes:20, rarely:8, never:0 };
+  // Average quantity per tier (midpoint of the range)
+  const tierQtyAvg = { always: 60, frequently: 30, sometimes: 14, rarely: 5, never: 0 };
 
-  let html = '<h2>📦 Hold Profit per Voyage (best reachable good)</h2>';
-  html += '<table><tr><th>Ship</th><th>Best good</th><th>Max profit/unit</th><th>Max qty</th><th>Max voyage profit</th><th>Cost</th><th>Profit ratio</th></tr>';
+  let html = '<h2>📦 Hold Profit per Voyage (average tier quantity)</h2>';
+  html += '<table><tr><th>Ship</th><th>Best good</th><th>Avg profit/unit</th><th>Avg qty</th><th>Expected voyage profit</th><th>Cost</th><th>Profit ratio</th></tr>';
 
   shipList.forEach(([key, s]) => {
-    // Union of all ports reachable by this ship from any home port
     const reachable = new Set();
     Object.keys(ports).forEach(homeKey => {
       getReachablePortKeys(homeKey, s).forEach(r => reachable.add(r));
     });
 
-    let bestGood = null, bestProfitUnit = -Infinity, bestQty = 0;
+    let bestGood = null, bestExpectedProfit = -Infinity;
 
     Object.entries(resources).forEach(([good, res]) => {
       if (good === 'food' || good === 'water') return;
-      let maxQty = 0;
+      let totalProfit = 0, totalQty = 0, count = 0;
       let minBuy = Infinity, maxSell = -Infinity;
+
       reachable.forEach(pk => {
         const tierArr = availability[pk];
         if (!tierArr) return;
@@ -358,39 +425,44 @@ function holdProfitCheck() {
         if (idx === -1) return;
         const tier = tierArr[idx] || 'never';
         if (tier === 'never') return;
-        const upperQty = tierQtyUpper[tier] || 0;
-        if (upperQty > maxQty) maxQty = upperQty;
+
+        const avgQty = tierQtyAvg[tier] || 0;
         const variance = res.basePrice * res.variance;
-        const minMarketPrice = res.basePrice - variance;
-        const maxMarketPrice = res.basePrice + variance;
-        const buy  = Math.round(minMarketPrice * 1.10 / 5) * 5;
-        const sell = Math.round(maxMarketPrice * 0.90 / 5) * 5;
+        const lowMarket = res.basePrice - variance;
+        const highMarket = res.basePrice + variance;
+        const buy = Math.round(lowMarket * 1.10);
+        const sell = Math.round(highMarket * 0.90);
         if (buy < minBuy) minBuy = buy;
         if (sell > maxSell) maxSell = sell;
+        totalQty += avgQty;
+        count++;
       });
-      if (maxSell > minBuy && maxQty > 0) {
+
+      if (count > 0 && maxSell > minBuy) {
         const profitUnit = maxSell - minBuy;
-        if (profitUnit > bestProfitUnit) {
-          bestProfitUnit = profitUnit;
-          bestGood = good;
-          bestQty = maxQty;
+        const avgQty = Math.round(totalQty / count);
+        const expectedProfit = profitUnit * avgQty;
+        if (expectedProfit > bestExpectedProfit) {
+          bestExpectedProfit = expectedProfit;
+          bestGood = {
+            good, profitUnit, avgQty, expectedProfit,
+            cost: Math.round((resources[good].basePrice - resources[good].basePrice * resources[good].variance) * 1.10) * avgQty
+          };
         }
       }
     });
 
     if (bestGood) {
-      const maxProfit = bestProfitUnit * bestQty;
-      const cost = Math.round((resources[bestGood].basePrice - resources[bestGood].basePrice * resources[bestGood].variance) * 1.10) * bestQty;
-      const ratio = (maxProfit / (cost || 1)).toFixed(2);
-      html += `<tr><td>${s.name}</td><td>${bestGood}</td><td>${bestProfitUnit}g</td><td>${bestQty}</td><td>${maxProfit}g</td><td>~${cost}g</td><td>${ratio}</td></tr>`;
+      const ratio = (bestGood.expectedProfit / (bestGood.cost || 1)).toFixed(2);
+      html += `<tr><td>${s.name}</td><td>${bestGood.good}</td><td>${bestGood.profitUnit}g</td><td>${bestGood.avgQty}</td><td>${bestGood.expectedProfit}g</td><td>~${bestGood.cost}g</td><td>${ratio}</td></tr>`;
     } else {
       html += `<tr><td>${s.name}</td><td colspan="6">No profitable trade route found</td></tr>`;
     }
   });
   html += '</table>';
+  html += '<p>Quantities use the midpoint of the tier range (always 60, frequently 30, sometimes 14, rarely 5).</p>';
   document.getElementById('hold-profit').innerHTML = html;
 }
-
 
 // ── Tavern morale vs. provisioning ───────────────────────────────
 function moraleVsProvisioning() {
@@ -435,7 +507,6 @@ function enemyBalanceCheck() {
   const ranges = window.D.MISSION_ENEMY_RANGES;
   const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
 
-  // Manual tier mapping (matches data.js comment groups)
   const shipTier = {
     dinghy: 0, cutter: 0,
     sloop: 1,
@@ -444,7 +515,6 @@ function enemyBalanceCheck() {
     galleon: 4, ship_of_the_line: 4
   };
 
-  // Find best and worst ship per tier (by hull)
   const tierShips = {};
   Object.entries(window.D.SHIPS).forEach(([key, s]) => {
     const tier = shipTier[key] ?? 0;
@@ -454,7 +524,7 @@ function enemyBalanceCheck() {
   });
 
   let html = '<h2>⚔️ Enemy Balance vs. Player Ship</h2>';
-  html += '<table><tr><th>Tier</th><th>Risk</th><th>Enemy Hull</th><th>Enemy Cannons</th><th>Enemy Crew</th><th>Best / Worst</th><th>Player Ship</th><th>Pl. Hull</th><th>Pl. Cannons</th><th>Pl. Crew</th><th>Flag</th></tr>';
+  html += '<table><tr><th>Tier</th><th>Risk</th><th>Enemy Hull</th><th>Enemy Cannons</th><th>Enemy Crew</th><th>Best / Worst</th><th>Player Ship</th><th>Pl. Hull</th><th>Pl. Cannons</th><th>Pl. Crew</th><th>Viability</th></tr>';
 
   [0,1,2,3,4].forEach(tier => {
     const ts = tierShips[tier];
@@ -469,17 +539,26 @@ function enemyBalanceCheck() {
       const [crMin, crMax] = ranges.crew[tier];
       const expectedCrew = Math.round(crMin + (crMax - crMin) * rf);
 
+      // Helper to determine viability label from flags
+      const viabilityLabel = (flags) => {
+        if (flags.length === 0) return 'Combat';
+        if (flags.includes('Hull') || flags.includes('Crew')) return 'Avoid';
+        return 'Flee‑only';
+      };
+
       // Best ship row
       const bestFlags = [];
       if (expectedHull > ts.best.maxHull * 1.5) bestFlags.push('Hull');
       if (expectedCannons > ts.best.cannons * 2) bestFlags.push('Cannons');
       if (expectedCrew > ts.best.maxCrew * 2) bestFlags.push('Crew');
+      const bestViability = viabilityLabel(bestFlags);
+
       html += `<tr>
         <td>${tier}</td><td>${risk}</td>
         <td>${hMin}–${hMax}</td><td>${cMin}–${cMax}</td><td>${crMin}–${crMax}</td>
         <td>Best</td>
         <td>${ts.best.name}</td><td>${ts.best.maxHull}</td><td>${ts.best.cannons}</td><td>${ts.best.maxCrew}</td>
-        <td style="color:${bestFlags.length ? '#f44336' : '#4caf50'}">${bestFlags.length ? bestFlags.join(', ') : '✅'}</td>
+        <td style="color:${bestViability === 'Combat' ? '#4caf50' : bestViability === 'Flee‑only' ? '#ff9800' : '#f44336'}">${bestViability}</td>
       </tr>`;
 
       // Worst ship row
@@ -487,16 +566,19 @@ function enemyBalanceCheck() {
       if (expectedHull > ts.worst.maxHull * 1.5) worstFlags.push('Hull');
       if (expectedCannons > ts.worst.cannons * 2) worstFlags.push('Cannons');
       if (expectedCrew > ts.worst.maxCrew * 2) worstFlags.push('Crew');
+      const worstViability = viabilityLabel(worstFlags);
+
       html += `<tr>
         <td>${tier}</td><td>${risk}</td>
         <td>${hMin}–${hMax}</td><td>${cMin}–${cMax}</td><td>${crMin}–${crMax}</td>
         <td>Worst</td>
         <td>${ts.worst.name}</td><td>${ts.worst.maxHull}</td><td>${ts.worst.cannons}</td><td>${ts.worst.maxCrew}</td>
-        <td style="color:${worstFlags.length ? '#f44336' : '#4caf50'}">${worstFlags.length ? worstFlags.join(', ') : '✅'}</td>
+        <td style="color:${worstViability === 'Combat' ? '#4caf50' : worstViability === 'Flee‑only' ? '#ff9800' : '#f44336'}">${worstViability}</td>
       </tr>`;
     });
   });
   html += '</table>';
+  html += '<p>Viability labels: <b>Combat</b> = can fight evenly. <b>Flee‑only</b> = outgunned, evade recommended. <b>Avoid</b> = cannot survive this tier.</p>';
   document.getElementById('enemy-balance').innerHTML = html;
 }
 
@@ -631,10 +713,9 @@ function crewLossRate() {
       const [cMin, cMax] = ranges.cannons[tier];
       const rf = riskFactors[risk];
       const enemyCannons = Math.round(cMin + (cMax - cMin) * rf);
-      // Enemy broadside crew loss (50% chance, floor(dmg*0.4/3))
-      const enemyDmg = enemyCannons * (0.8 + 1.2) / 2;  // avg
-      const crewLossPerRound = Math.floor(enemyDmg * 0.4 / 3);  // rough average, ignoring 50% coin flip
-      const avgPlayerDmg = Math.floor(player.cannons * 1.0 * 0.6);  // avg player hull dmg
+      // Enemy crew loss per round: at least 1 for medium+ risk, 0 for low
+      const crewLossPerRound = risk === 'low' ? 0 : Math.max(1, Math.floor(enemyCannons / 10));
+      const avgPlayerDmg = Math.floor(player.cannons * 1.0 * 0.6);
       const [hMin, hMax] = ranges.hull[tier];
       const enemyHull = Math.round(hMin + (hMax - hMin) * rf);
       const rounds = Math.ceil(enemyHull / Math.max(1, avgPlayerDmg));
@@ -649,8 +730,10 @@ function crewLossRate() {
     });
   });
   html += '</table>';
+  html += '<p>Low risk = 0 crew loss per round. Medium+ risk = at least 1 crew lost per round from enemy broadsides.</p>';
   document.getElementById('crew-loss-rate').innerHTML = html;
 }
+
 
 // ── Grapple success probability ───────────────────────────────────
 function grappleProbability() {
@@ -836,35 +919,34 @@ function illegalGoodsDistribution() {
 
 // ── Starting provisions ───────────────────────────────────────────
 function startingProvisionsCheck() {
+  console.log("✅ New startingProvisionsCheck is running");
   const starts = window.D.STARTS;
   const ports = window.D.PORTS;
   const ships = window.D.SHIPS;
 
   let html = '<h2>🍖 Starting Provisions (can reach another port?)</h2>';
-  html += '<table><tr><th>Scenario</th><th>Ship</th><th>Start Port</th><th>Crew (est.)</th><th>Food days</th><th>Water days</th><th>Reachable?</th></tr>';
+  html += '<table><tr><th>Persona</th><th>Ship</th><th>Start Port</th><th>Crew (est.)</th><th>Food days</th><th>Water days</th><th>Reachable?</th></tr>';
 
   starts.forEach(start => {
-    // Determine starting ship from bonuses
-    let shipKey = "sloop"; // default
-    const shipBonus = start.bonuses.find(b => b.includes("ship:"));
-    if (shipBonus) shipKey = shipBonus.split(":")[1].trim();
+    // Read directly from the new structured STARTS format
+    const shipKey = start.ship || "dinghy";
     const ship = ships[shipKey];
     if (!ship) return;
 
-    // Determine start port (all scenarios currently start at portRoyal, but we read from bonus or assume)
-    const startPortKey = "portRoyal"; // current engine default
+    const startPortKey = start.startPort || "portRoyal";
     const port = ports[startPortKey];
+    if (!port) return;
 
-    // Estimated crew: 60% of max
-    const crew = Math.floor(ship.maxCrew * 0.6);
-    const consumption = Math.ceil(crew / 10);
-    // Starting food/water: currently all scenarios give 10 each (engine.js)
-    const food = 10, water = 10;
-    const foodDays = Math.floor(food / consumption);
-    const waterDays = Math.floor(water / consumption);
+    // Crew: use crewCount from the persona (default 0)
+    const crew = start.crewCount || 0;
+    const consumption = crew > 0 ? Math.ceil(crew / 10) : 1;
+    const food = start.hold?.food || 8;
+    const water = start.hold?.water || 8;
+    const foodDays = consumption > 0 ? Math.floor(food / consumption) : 99;
+    const waterDays = consumption > 0 ? Math.floor(water / consumption) : 99;
     const maxDays = Math.min(foodDays, waterDays);
 
-    // Check if at least one other port is reachable within maxDays
+    // Check reachable ports within maxDays
     const reachable = [];
     Object.keys(ports).forEach(pk => {
       if (pk === startPortKey) return;
@@ -946,6 +1028,7 @@ function enemyDiversity() {
     minViableStarterPorts();
     furthestDistanceCheck();
     islandsOfIsolation();
+    dinghyGroupMembership();
     shipCostVsMissions();
 dailyCostVsIncome();
 holdProfitCheck();

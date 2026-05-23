@@ -149,10 +149,15 @@ window.E = (() => {
   // 4. Market and missions
   newState.portMarket = G.generatePortMarket(start.startPort);
   const generatedMissions = G.generateMissions(start.startPort, newState);
-  const missions = start.starterMission
-    ? [start.starterMission, ...generatedMissions]
-    : generatedMissions;
-  newState.missions = missions;
+  if (start.starterMission) {
+    // Auto‑accept the starter mission – it goes straight into activeMission
+    newState.activeMission = { ...start.starterMission, encounterOccurred: false };
+    // Show the generated missions on the board (starter is already active, so don't list it)
+    newState.missions = generatedMissions;
+    newState.log = [...newState.log, `Accepted opening quest: ${start.starterMission.name}.`];
+  } else {
+    newState.missions = generatedMissions;
+  }
 
   return newState;
 }

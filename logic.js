@@ -147,6 +147,11 @@ window.L = (() => {
     return Math.max(1, Math.round(baseDays * mult)); // Minimum 1 day
   };
 
+const canReach = (state, portKey) => {
+  return travelDays(state.currentPort, portKey, state) <= SHIPS[state.ship.type].maxDays;
+};
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REPUTATION FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -642,6 +647,7 @@ const applyLoseContraband = (holdItems) => {
 
     // Travel
     travelDays,
+    canReach,
 
     // Reputation
     decayReputation,

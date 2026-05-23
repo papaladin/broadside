@@ -103,7 +103,7 @@ These items have no dependencies on each other and can be tackled in any order w
 
 ---
 
-### N1.1 — Starting Scenarios Redesign
+### N1.1 — Starting Scenarios Redesign ✅
 **What:** All scenarios start with a **dinghy** (or very small sloop) and minimal crew. The persona differentiation moves away from ship class and toward starting position, faction affiliation, and initial reputation — not starting power. Proposed personas:
 
 | Persona | Start Port | Gold | Rep profile | Crew | Flavour |

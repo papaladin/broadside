@@ -24,7 +24,7 @@ window.D = (() => {
     desc: "A lawless haven for pirates and buccaneers. The most notorious port in the Caribbean.",
   },
  
-  portDepaix: {
+  portDePaix: {
     name: "Port-de-Paix", faction: "french",
     x: 476, y: 228,
     services: ["tavern", "crew", "missions"],
@@ -460,7 +460,7 @@ const RESOURCES = {
   cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "crate"  },
   weapons: { name: "Weapons", basePrice: 80,  variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "crate"  },
   tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale"   },
-  silver:  { name: "Silver",  basePrice: 250, variance: 0.50, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  silver:  { name: "Silver",  basePrice: 250, variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "chest"  },
   slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person" },
 };
 
