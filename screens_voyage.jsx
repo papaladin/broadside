@@ -1,4 +1,4 @@
-// screens_voyage.jsx — Voyage-zone screens
+// screens_voyage.jsx — Voyage-zone screens (responsive)
 window.S = window.S || {};
 
 (() => {
@@ -11,73 +11,73 @@ window.S = window.S || {};
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
-  const [hov, setHov] = useState(null);
-  const W = 760, H = 460;
-  return (
-    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden", minHeight: "100%" }}>
-      <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
-      <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, minHeight: 400 }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep, minHeight: 400 }}>
-          <defs>
-            <pattern id="seaGrid" width="50" height="25" patternUnits="userSpaceOnUse">
-              <path d="M0 12 Q12 7 25 12 Q38 17 50 12" stroke="#080f1a" strokeWidth="0.8" fill="none" />
-            </pattern>
-          </defs>
-          <rect width={W} height={H} fill="url(#seaGrid)" />
-          <g opacity="0.75">
-            <path d="M 0 110 Q 18 175 38 258 L 92 252 L 148 248 Q 185 240 210 212 Q 224 195 222 182 Q 220 205 206 238 Q 192 270 178 300 Q 166 330 162 366 Q 170 395 214 418 Q 270 438 355 430 Q 398 423 440 415 Q 478 406 515 410 Q 540 396 558 390 Q 575 386 590 388 Q 620 392 672 415 Q 690 425 700 440 Q 715 452 760 458 L 760 460 L 0 460 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 325 0 Q 332 34 338 72 Q 344 108 342 138 Q 340 154 332 160 Q 322 165 312 160 Q 304 148 304 122 Q 308 90 314 54 Q 320 24 325 0 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 278 205 Q 292 188 310 190 Q 360 180 405 190 Q 435 200 445 218 Q 440 236 415 238 Q 370 248 328 244 Q 292 230 278 205 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 458 262 Q 460 256 466 252 Q 470 240 476 228 Q 482 240 488 248 Q 494 252 518 242 Q 548 228 572 245 Q 578 262 576 278 Q 568 284 545 268 Q 515 282 488 280 Q 468 278 460 270 Q 452 268 458 262 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-          </g>
-          {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
-          {Object.entries(PORTS).map(([key, p]) => {
-            const isCur = key === state.currentPort;
-            const isHov = hov === key;
-            const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
-            const days = L.travelDays(state.currentPort, key, state);
-            const rep = state.reputation[key] ?? 20;
-            const reachable = L.canReach(state, key);
-            return (
-              <g key={key} onClick={() => !isCur && reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: isCur ? "default" : (reachable ? "pointer" : "default") }}>
-                {(isCur || isHov) && <circle cx={p.x} cy={p.y} r={20} fill={isCur ? T.gold : fColor} opacity="0.10" />}
-                {isCur && <circle cx={p.x} cy={p.y} r={14} fill="none" stroke={T.gold} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.7" />}
-                <circle cx={p.x} cy={p.y} r={isCur ? 8 : 5}
-                  fill={isCur ? T.gold : (reachable ? fColor : T.textFaint)}
-                  stroke={T.bgDeep} strokeWidth="2"
-                  opacity={reachable ? 1 : 0.4} />
-                {isCur && <text x={p.x} y={p.y - 18} textAnchor="middle" fontSize="12" fill={T.gold}>⚓</text>}
-                <text x={p.x} y={p.y + 16} textAnchor="middle" fontSize="8" fill={isCur || isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text>
-                {isHov && !isCur && (
-                  reachable ? (
-                    <>
-                      <text x={p.x} y={p.y + 26} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
-                      <text x={p.x} y={p.y + 36} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
-                    </>
-                  ) : (
-                    <text x={p.x} y={p.y + 26} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>Out of range — {days} day{days !== 1 ? "s" : ""}</text>
-                  )
-                )}
-              </g>
-            );
-          })}
-          <g transform="translate(724, 36)">
-            <circle cx={0} cy={0} r={22} fill="#040c18" stroke={T.border} strokeWidth="1" />
-            {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{d}</text>)}
-            <g transform={`rotate(${state.wind.angle})`}><line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" /><polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} /></g>
-            <text x={0} y={32} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
-          </g>
-        </svg>
+    const [hov, setHov] = useState(null);
+    const W = 760, H = 460;
+    return (
+      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden", minHeight: "100%" }}>
+        <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
+        <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, minHeight: 400 }}>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep, minHeight: 400 }}>
+            <defs>
+              <pattern id="seaGrid" width="50" height="25" patternUnits="userSpaceOnUse">
+                <path d="M0 12 Q12 7 25 12 Q38 17 50 12" stroke="#080f1a" strokeWidth="0.8" fill="none" />
+              </pattern>
+            </defs>
+            <rect width={W} height={H} fill="url(#seaGrid)" />
+            <g opacity="0.75">
+              <path d="M 0 110 Q 18 175 38 258 L 92 252 L 148 248 Q 185 240 210 212 Q 224 195 222 182 Q 220 205 206 238 Q 192 270 178 300 Q 166 330 162 366 Q 170 395 214 418 Q 270 438 355 430 Q 398 423 440 415 Q 478 406 515 410 Q 540 396 558 390 Q 575 386 590 388 Q 620 392 672 415 Q 690 425 700 440 Q 715 452 760 458 L 760 460 L 0 460 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
+              <path d="M 325 0 Q 332 34 338 72 Q 344 108 342 138 Q 340 154 332 160 Q 322 165 312 160 Q 304 148 304 122 Q 308 90 314 54 Q 320 24 325 0 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
+              <path d="M 278 205 Q 292 188 310 190 Q 360 180 405 190 Q 435 200 445 218 Q 440 236 415 238 Q 370 248 328 244 Q 292 230 278 205 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
+              <path d="M 458 262 Q 460 256 466 252 Q 470 240 476 228 Q 482 240 488 248 Q 494 252 518 242 Q 548 228 572 245 Q 578 262 576 278 Q 568 284 545 268 Q 515 282 488 280 Q 468 278 460 270 Q 452 268 458 262 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
+            </g>
+            {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
+            {Object.entries(PORTS).map(([key, p]) => {
+              const isCur = key === state.currentPort;
+              const isHov = hov === key;
+              const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
+              const days = L.travelDays(state.currentPort, key, state);
+              const rep = state.reputation[key] ?? 20;
+              const reachable = L.canReach(state, key);
+              return (
+                <g key={key} onClick={() => !isCur && reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: isCur ? "default" : (reachable ? "pointer" : "default") }}>
+                  {(isCur || isHov) && <circle cx={p.x} cy={p.y} r={22} fill={isCur ? T.gold : fColor} opacity="0.10" />}
+                  {isCur && <circle cx={p.x} cy={p.y} r={16} fill="none" stroke={T.gold} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.7" />}
+                  <circle cx={p.x} cy={p.y} r={isCur ? 10 : 7}
+                    fill={isCur ? T.gold : (reachable ? fColor : T.textFaint)}
+                    stroke={T.bgDeep} strokeWidth="2"
+                    opacity={reachable ? 1 : 0.4} />
+                  {isCur && <text x={p.x} y={p.y - 20} textAnchor="middle" fontSize="12" fill={T.gold}>⚓</text>}
+                  <text x={p.x} y={p.y + 18} textAnchor="middle" fontSize="8" fill={isCur || isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text>
+                  {isHov && !isCur && (
+                    reachable ? (
+                      <>
+                        <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
+                        <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
+                      </>
+                    ) : (
+                      <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>Out of range — {days} day{days !== 1 ? "s" : ""}</text>
+                    )
+                  )}
+                </g>
+              );
+            })}
+            <g transform="translate(724, 36)">
+              <circle cx={0} cy={0} r={22} fill="#040c18" stroke={T.border} strokeWidth="1" />
+              {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{d}</text>)}
+              <g transform={`rotate(${state.wind.angle})`}><line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" /><polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} /></g>
+              <text x={0} y={32} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
+            </g>
+          </svg>
+        </div>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+          {Object.entries(FACTIONS).map(([k, f]) => <div key={k} style={{ display: "flex", gap: 5, alignItems: "center" }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color }} /><span style={{ color: T.textDim, fontSize: 11 }}>{f.label}</span></div>)}
+          <span style={{ color: T.textFaint, fontSize: 10, marginLeft: "auto" }}>Click a port to sail there · Hover to see distance & standing</span>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {Object.entries(FACTIONS).map(([k, f]) => <div key={k} style={{ display: "flex", gap: 5, alignItems: "center" }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color }} /><span style={{ color: T.textDim, fontSize: 11 }}>{f.label}</span></div>)}
-        <span style={{ color: T.textFaint, fontSize: 10, marginLeft: "auto" }}>Click a port to sail there · Hover to see distance & standing</span>
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
-  // ── SAILING SCREEN ───────────────────────────────────────────────────
+  // ── SAILING SCREEN (responsive single‑column on narrow) ────────
   function SailingScreen({ state, dispatch }) {
     const from = PORTS[state.currentPort] ?? { x: 380, y: 230 };
     const to = PORTS[state.destination] ?? { x: 380, y: 230 };
@@ -92,8 +92,8 @@ window.S = window.S || {};
     const loadPct = L.getHoldLoadPct(state.hold?.items, state.hold?.capacity);
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
     return (
-      <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden" }}>
-        <div style={{ flex: 2, display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
+      <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden", flexWrap: "wrap" }}>
+        <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
             <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
             <rect width={W} height={H} fill="url(#sailWaves)" />
@@ -122,9 +122,28 @@ window.S = window.S || {};
             </g>
           </svg>
         </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 220, maxWidth: 320, overflowY: "auto" }}>
+                <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", gap: 10, minWidth: 220, overflowY: "auto" }}>
           <div style={{ color: T.gold, fontSize: 14, textAlign: "center" }}>⛵ En route to <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span></div>
           <div style={{ color: T.textDim, fontSize: 12, textAlign: "center" }}>{arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}</div>
+
+          {/* Controls come first so they're never hidden on narrow screens */}
+          <div style={panelStyle()}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>▶ Advance Day</Btn>
+              <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>⚓ Enter Port</Btn>
+            </div>
+            <div style={{ color: T.textDim, fontSize: 10 }}>
+              Wind {state.wind.speed}kt at {state.wind.angle}°
+              {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
+              {speedMult > 1 && (
+                <span style={{ color: T.gold }}>
+                  {' '}— {speedMult >= 1.33 ? "very heavy load" : "heavy load"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Provisions panel */}
           <div style={panelStyle()}>
             <SectionTitle>PROVISIONS</SectionTitle>
             <div style={{ fontSize: 11, color: T.text }}>
@@ -133,24 +152,11 @@ window.S = window.S || {};
               <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>Crew consumes {consumption.food} food + {consumption.water} water / day</div>
             </div>
           </div>
+
+          {/* Captain's Log (can grow, so keep at bottom) */}
           <div style={{ ...panelStyle(), flex: 1, display: "flex", flexDirection: "column", minHeight: 120 }}>
             <SectionTitle>CAPTAIN'S LOG</SectionTitle>
             <LogList entries={state.log} maxEntries={15} />
-          </div>
-          <div style={panelStyle()}>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>▶ Advance Day</Btn>
-              <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>⚓ Enter Port</Btn>
-            </div>
-              <div style={{ color: T.textDim, fontSize: 10 }}>
-                Wind {state.wind.speed}kt at {state.wind.angle}°
-                {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
-                {speedMult > 1 && (
-                  <span style={{ color: T.gold }}>
-                    {' '}— {speedMult >= 1.33 ? "very heavy load" : "heavy load"}
-                  </span>
-                )}
-              </div>
           </div>
         </div>
       </div>
@@ -199,10 +205,10 @@ window.S = window.S || {};
         <div style={panelStyle({ borderColor: T.borderBr })}><p style={{ color: T.text, fontSize: 12, lineHeight: 1.6 }}>{flavourText}</p></div>
         <div style={panelStyle()}>
           <div style={{ color: T.redBr, fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>{enemy.name}<span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: 10 }}>{enemyShip.name ?? enemy.ship}</span></div>
-          <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             {[["Hull",`${enemy.hull}/${enemy.maxHull||enemy.hull}`],["Cannons",enemy.cannons],["Crew",enemy.crew],["Speed",enemyShip.speed??"?"]].map(([l,v])=><div key={l}><div style={{color:T.textDim,fontSize:9}}>{l}</div><div style={{color:T.text,fontSize:13}}>{v}</div></div>)}
           </div>
-          <div style={{ marginTop: 8 }}><Bar value={enemy.hull} max={enemy.maxHull||enemy.hull} color={T.redBr} h={6} /></div>
+          <div style={{ marginTop: 8 }}><Bar value={enemy.hull} max={enemy.maxHull||enemy.hull} color={T.redBr} h={10} /></div>
         </div>
         <div style={panelStyle()}>
           <div style={{ color: T.textDim, fontSize: 10, marginBottom: 10, letterSpacing: "0.08em" }}>CHOOSE YOUR RESPONSE:</div>
@@ -216,7 +222,7 @@ window.S = window.S || {};
     );
   };
 
-  // ── BATTLE SCREEN ────────────────────────────────────────────────────
+  // ── BATTLE SCREEN (actions stack vertically on narrow) ──────────
   function BattleScreen({ state, dispatch }) {
     const bs = state.battleState;
     if (!bs) return null;
@@ -249,7 +255,7 @@ window.S = window.S || {};
         {!done ? (
           <div>
             <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
               {[{ a: "broadside", label: "🔥 Broadside", desc: "Full cannon volley. Reliable damage." },{ a: "precision", label: "🎯 Precision", desc: "Aimed shot. Miss or massive damage." },{ a: "grapple", label: "⚔ Grapple", desc: "Board them. Requires crew advantage." },{ a: "evade", label: "💨 Evade", desc: "Flee if faster. Reduced incoming fire." }].map(({ a, label, desc }) => (
                 <div key={a} onClick={() => dispatch({ type: A.BATTLE_ACTION, action: a })} style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }} onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
                   <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 2 }}>{label}</div>

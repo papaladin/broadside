@@ -1,4 +1,4 @@
-// screens_port.jsx — Port-zone screens
+// screens_port.jsx — Port-zone screens (responsive)
 window.S = window.S || {};
 
 (() => {
@@ -9,61 +9,60 @@ window.S = window.S || {};
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.S;
 
+
   // ── START SCREEN ─────────────────────────────────────────────────────
   function StartScreen({ dispatch }) {
-  const hasSave = L.hasSave();
-  const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
-  const visibleStarts = isDebug ? STARTS : STARTS.filter(s => s.id !== 'debug');
+    const hasSave = L.hasSave();
+    const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+    const visibleStarts = isDebug ? STARTS : STARTS.filter(s => s.id !== 'debug');
 
-  return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      minHeight: "100vh", padding: 20,
-      background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
-    }}>
-      <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
-      <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        minHeight: "100vh", padding: 20,
+        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+      }}>
+        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 640, width: "100%", marginBottom: 20 }}>
-        {visibleStarts.map(s => (
-          <div key={s.id}
-            onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
-            style={{
-              ...panelStyle({ cursor: "pointer", transition: "border-color 0.15s" }),
-              borderLeft: `3px solid ${FACTIONS[s.faction]?.color ?? T.gold}`,
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
-            onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
-          >
-            <div style={{ color: FACTIONS[s.faction]?.color ?? T.gold, fontSize: 10, letterSpacing: "0.08em", marginBottom: 4 }}>
-              {FACTIONS[s.faction]?.label?.toUpperCase()} · {s.ship?.toUpperCase()}
-            </div>
-            <div style={{ color: T.gold, fontSize: 14, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
-            <div style={{ color: T.textDim, fontSize: 10, fontStyle: "italic", marginBottom: 8 }}>{s.tagline}</div>
-            <p style={{ color: T.text, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.story}</p>
-            {s.starterMission && (
-              <div style={{ background: "#081a10", border: `1px solid ${T.greenBr}`, borderRadius: 3, padding: 6, marginBottom: 8 }}>
-                <div style={{ color: T.greenBr, fontSize: 9, marginBottom: 2 }}>OPENING QUEST</div>
-                <div style={{ color: T.text, fontSize: 10, fontWeight: "bold" }}>{s.starterMission.name}</div>
-                <div style={{ color: T.textDim, fontSize: 9 }}>{s.starterMission.description}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(90vw, 280px), 1fr))", gap: 12, maxWidth: 640, width: "100%", marginBottom: 20 }}>
+          {visibleStarts.map(s => (
+            <div key={s.id}
+              onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
+              style={{
+                ...panelStyle({ cursor: "pointer", transition: "border-color 0.15s" }),
+                borderLeft: `3px solid ${FACTIONS[s.faction]?.color ?? T.gold}`,
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
+              onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+            >
+              <div style={{ color: FACTIONS[s.faction]?.color ?? T.gold, fontSize: 10, letterSpacing: "0.08em", marginBottom: 4 }}>
+                {FACTIONS[s.faction]?.label?.toUpperCase()} · {s.ship?.toUpperCase()}
               </div>
-            )}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
-              <span>💰 {s.gold}g</span>
-              <span>👥 {s.crewCount} crew</span>
-              <span>🍖 8 food · 💧 8 water</span>
-              <span style={{ color: T.greenBr }}>{Object.entries(s.repAdjust || {}).map(([f, d]) => `${f} ${d >= 0 ? '+' : ''}${d}`).join(', ')}</span>
+              <div style={{ color: T.gold, fontSize: 14, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
+              <div style={{ color: T.textDim, fontSize: 10, fontStyle: "italic", marginBottom: 8 }}>{s.tagline}</div>
+              <p style={{ color: T.text, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.story}</p>
+              {s.starterMission && (
+                <div style={{ background: "#081a10", border: `1px solid ${T.greenBr}`, borderRadius: 3, padding: 6, marginBottom: 8 }}>
+                  <div style={{ color: T.greenBr, fontSize: 9, marginBottom: 2 }}>OPENING QUEST</div>
+                  <div style={{ color: T.text, fontSize: 10, fontWeight: "bold" }}>{s.starterMission.name}</div>
+                  <div style={{ color: T.textDim, fontSize: 9 }}>{s.starterMission.description}</div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
+                <span>💰 {s.gold}g</span>
+                <span>👥 {s.crewCount} crew</span>
+                <span>🍖 8 food · 💧 8 water</span>
+                <span style={{ color: T.greenBr }}>{Object.entries(s.repAdjust || {}).map(([f, d]) => `${f} ${d >= 0 ? '+' : ''}${d}`).join(', ')}</span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {hasSave && (
-        <Btn v="gold" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue Saved Game</Btn>
-      )}
-    </div>
-  );
-}
+        {hasSave && (<Btn v="gold" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue Saved Game</Btn>)}
+      </div>
+    );
+  }
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
   function PortScreen({ state, dispatch }) {
@@ -75,7 +74,7 @@ window.S = window.S || {};
     const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
 
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: 14, overflowY: "auto", flex: 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, padding: 14, overflowY: "auto", flex: 1 }}>
         {/* Port card */}
         <div style={panelStyle()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -223,7 +222,7 @@ window.S = window.S || {};
           </div>
         </div>
         <SectionTitle>SHIPS FOR SALE</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
           {Object.entries(SHIPS).map(([key, s]) => {
             const isCur = key === state.ship.type;
             const shipReq = L.meetsRequirement(state, s);
@@ -248,7 +247,7 @@ window.S = window.S || {};
         {PORTS[state.currentPort]?.services.includes("upgrades") && (
           <>
             <SectionTitle>UPGRADES</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
               {currentShip.upgradeable.map(key => {
                 const upg = UPGRADES[key];
                 const installed = L.hasUpgrade(state, key);
@@ -288,7 +287,7 @@ window.S = window.S || {};
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
         <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           <div style={panelStyle()}>
             <SectionTitle>ROSTER</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
@@ -359,7 +358,7 @@ window.S = window.S || {};
         </div>
         <div style={panelStyle()}>
           <SectionTitle>🤝 FACTION RELATIONS</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
             {Object.entries(FACTIONS).map(([factionKey, fac]) => (
               <div key={factionKey} style={{ background: T.panelAlt, padding: 8, borderRadius: 3, borderLeft: `3px solid ${fac.color}` }}>
                 <div style={{ color: fac.color, fontSize: 12, fontWeight: "bold", marginBottom: 4 }}>{fac.label}</div>
@@ -368,7 +367,7 @@ window.S = window.S || {};
             ))}
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           {Object.entries(portsByFaction).map(([faction, ports]) => {
             const fac = FACTIONS[faction];
             const avgRep = Math.round(ports.reduce((s, p) => s + (state.reputation[p.key] ?? 20), 0) / ports.length);
@@ -386,7 +385,7 @@ window.S = window.S || {};
                   return (
                     <div key={p.key} style={{ marginBottom: 8 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ color: T.text, fontSize: 11 }}>{p.name}</span><span style={{ color: rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr, fontSize: 10 }}>{rep}</span></div>
-                      <Bar value={rep} max={100} color={rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr} h={5} />
+                      <Bar value={rep} max={100} color={rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr} h={10} />
                     </div>
                   );
                 })}
@@ -401,201 +400,172 @@ window.S = window.S || {};
 
   // ── MARKET SCREEN ────────────────────────────────────────────────────
   const MarketScreen = ({ state, dispatch }) => {
-  const market = state.portMarket;
-  const portName = PORTS[state.currentPort]?.name || "Port";
-  const [buyPending, setBuyPending] = useState({});   // { [good]: quantity }
-  const [sellPending, setSellPending] = useState({}); // { [good]: quantity }
+    const market = state.portMarket;
+    const portName = PORTS[state.currentPort]?.name || "Port";
+    const [buyPending, setBuyPending] = useState({});
+    const [sellPending, setSellPending] = useState({});
 
-  if (!market) return (
-    <div style={{ padding: 14 }}>
-      <button onClick={() => dispatch({ type: A.LEAVE_MARKET })}
-        style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>
-        ← Back to Port
-      </button>
-      <EmptyState message="No market data available for this port." />
-    </div>
-  );
+    if (!market) return (
+      <div style={{ padding: 14 }}>
+        <button onClick={() => dispatch({ type: A.LEAVE_MARKET })} style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>← Back to Port</button>
+        <EmptyState message="No market data available for this port." />
+      </div>
+    );
 
-  const holdItems = state.hold?.items || {};
-  const capacity = state.hold?.capacity || 0;
-
-  // Compute preview after pending trades
-  const previewItems = { ...holdItems };
-  Object.keys(buyPending).forEach(good => {
-    previewItems[good] = (previewItems[good] || 0) + (buyPending[good] || 0);
-  });
-  Object.keys(sellPending).forEach(good => {
-    previewItems[good] = (previewItems[good] || 0) - (sellPending[good] || 0);
-  });
-
-  const used = L.getHoldUsed(previewItems);
-  const loadPct = L.getHoldLoadPct(previewItems, capacity);
-  const speedMult = L.getHoldSpeedMultiplier(loadPct);
-
-  const goldDelta = Object.keys(market.goods).reduce((sum, good) => {
-    const pg = market.goods[good];
-    if (!pg) return sum;
-    return sum
-      + (sellPending[good] || 0) * pg.sellToPort
-      - (buyPending[good] || 0) * pg.buyFromPort;
-  }, 0);
-
-  const hasPending = Object.values(buyPending).some(v => (v || 0) > 0) ||
-                     Object.values(sellPending).some(v => (v || 0) > 0);
-
-  const confirmTrade = () => {
-    const buys = {};
-    const sells = {};
-    Object.entries(buyPending).forEach(([good, qty]) => { if (qty > 0) buys[good] = qty; });
-    Object.entries(sellPending).forEach(([good, qty]) => { if (qty > 0) sells[good] = qty; });
-    dispatch({ type: A.CONFIRM_TRADE, buys, sells });
-    setBuyPending({});
-    setSellPending({});
-  };
-
-  const adjustBuy = (good, delta) => {
-    setBuyPending(prev => {
-      const cur = prev[good] || 0;
-      const newVal = Math.max(0, cur + delta);
-      // Limit to available stock and hold space
+    const holdItems = state.hold?.items || {};
+    const capacity = state.hold?.capacity || 0;
+    const previewItems = { ...holdItems };
+    Object.entries(buyPending).forEach(([good, qty]) => { previewItems[good] = (previewItems[good] || 0) + (qty || 0); });
+    Object.entries(sellPending).forEach(([good, qty]) => { previewItems[good] = (previewItems[good] || 0) - (qty || 0); });
+    const used = L.getHoldUsed(previewItems);
+    const loadPct = L.getHoldLoadPct(previewItems, capacity);
+    const speedMult = L.getHoldSpeedMultiplier(loadPct);
+    const goldDelta = Object.keys(market.goods).reduce((sum, good) => {
       const pg = market.goods[good];
-      if (!pg) return prev;
-      const freeSpace = capacity - used + (sellPending[good] || 0);
-      const max = Math.min(pg.available, freeSpace + cur);
-      return { ...prev, [good]: Math.min(newVal, max) };
+      if (!pg) return sum;
+      return sum + (sellPending[good] || 0) * pg.sellToPort - (buyPending[good] || 0) * pg.buyFromPort;
+    }, 0);
+    const hasPending = Object.values(buyPending).some(v => (v || 0) > 0) || Object.values(sellPending).some(v => (v || 0) > 0);
+
+    const confirmTrade = () => {
+      const buys = {}, sells = {};
+      Object.entries(buyPending).forEach(([g, qty]) => { if (qty > 0) buys[g] = qty; });
+      Object.entries(sellPending).forEach(([g, qty]) => { if (qty > 0) sells[g] = qty; });
+      dispatch({ type: A.CONFIRM_TRADE, buys, sells });
+      setBuyPending({}); setSellPending({});
+    };
+
+    const adjustBuy = (good, delta) => {
+      setBuyPending(prev => {
+        const cur = prev[good] || 0;
+        const newVal = Math.max(0, cur + delta);
+        const pg = market.goods[good];
+        if (!pg) return prev;
+        const freeSpace = capacity - used + (sellPending[good] || 0);
+        const max = Math.min(pg.available, freeSpace + cur);
+        return { ...prev, [good]: Math.min(newVal, max) };
+      });
+    };
+
+    const adjustSell = (good, delta) => {
+      setSellPending(prev => {
+        const cur = prev[good] || 0;
+        const newVal = Math.max(0, cur + delta);
+        const max = (holdItems[good] || 0) + (buyPending[good] || 0);
+        return { ...prev, [good]: Math.min(newVal, max) };
+      });
+    };
+
+    const shownGoods = Object.keys(RESOURCES).filter(good => {
+      if (good === "food" || good === "water") return true;
+      return market.goods[good] || (holdItems[good] || 0) > 0;
     });
-  };
 
-  const adjustSell = (good, delta) => {
-    setSellPending(prev => {
-      const cur = prev[good] || 0;
-      const newVal = Math.max(0, cur + delta);
-      const max = (holdItems[good] || 0) + (buyPending[good] || 0);
-      return { ...prev, [good]: Math.min(newVal, max) };
-    });
-  };
+    return (
+      <div style={{ padding: 14, overflowY: "auto", flex: 1 }}>
+        <button onClick={() => dispatch({ type: A.LEAVE_MARKET })} style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>← Back to Port</button>
 
-  const shownGoods = Object.keys(RESOURCES).filter(good => {
-    if (good === "food" || good === "water") return true;
-    return market.goods[good] || (holdItems[good] || 0) > 0;
-  });
+        <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
 
-  return (
-    <div style={{ padding: 14, overflowY: "auto", flex: 1 }}>
-      <button onClick={() => dispatch({ type: A.LEAVE_MARKET })}
-        style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>
-        ← Back to Port
-      </button>
-
-      <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
-
-      <div style={panelStyle({ marginBottom: 10 })}>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.textDim, marginBottom:4 }}>
-          <span>Hold: {used} / {capacity}</span>
-          <span>{Math.round(loadPct * 100)}% full</span>
+        <div style={panelStyle({ marginBottom: 10 })}>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.textDim, marginBottom:4 }}>
+            <span>Hold: {used} / {capacity}</span>
+            <span>{Math.round(loadPct * 100)}% full</span>
+          </div>
+          <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={10} />
+          {speedMult > 1 && (
+            <div style={{ color: T.gold, fontSize: 10, marginTop: 4 }}>
+              ⚠ Hold over 50% — voyages take {Math.round((speedMult - 1) * 100)}% longer.
+            </div>
+          )}
         </div>
-        <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={8} />
-        {speedMult > 1 && (
-          <div style={{ color: T.gold, fontSize: 10, marginTop: 4 }}>
-            ⚠ Hold over 50% — voyages take {Math.round((speedMult - 1) * 100)}% longer.
+
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {shownGoods.map(good => {
+            const res = RESOURCES[good];
+            const pg = market.goods[good];
+            const inHold = holdItems[good] || 0;
+            const buyQty = buyPending[good] || 0;
+            const sellQty = sellPending[good] || 0;
+            const afterTrade = previewItems[good] || 0;
+            const maxBuy = pg ? Math.min(pg.available, capacity - used + sellQty) : 0;
+            const maxSell = inHold + buyQty;
+
+            return (
+              <div key={good} style={panelStyle({ background: T.panelAlt })}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, flexWrap:"wrap" }}>
+                  <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
+                    {res.name}
+                    {res.illegal && <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>}
+                  </span>
+                  <span style={{ color:T.textDim, fontSize:10 }}>
+                    In hold: {inHold} — {pg ? `Base: ${pg.basePrice}g  Buy: ${pg.buyFromPort}g  Sell: ${pg.sellToPort}g  Avail: ${pg.available}` : "Not traded here"}
+                  </span>
+                </div>
+
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, flexWrap:"wrap" }}>
+                  <span style={{ color:T.textDim, fontSize:10, width:120 }}>Buy from port:</span>
+                  <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                    <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={buyQty <= 0}>-</Btn>
+                    <input type="number" value={buyQty}
+                      onChange={e => {
+                        const v = parseInt(e.target.value, 10) || 0;
+                        const pg = market.goods[good];
+                        if (!pg) return;
+                        const freeSpace = capacity - used + sellQty;
+                        const max = Math.min(pg.available, freeSpace);
+                        setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+                      }}
+                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                    />
+                    <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={buyQty >= maxBuy}>+</Btn>
+                  </div>
+                  <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
+                    cost: {pg ? pg.buyFromPort * buyQty : 0}g
+                  </span>
+                </div>
+
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, flexWrap:"wrap" }}>
+                  <span style={{ color:T.textDim, fontSize:10, width:120 }}>Sell to port:</span>
+                  <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                    <Btn sm v="ghost" onClick={() => adjustSell(good, -1)} disabled={sellQty <= 0}>-</Btn>
+                    <input type="number" value={sellQty}
+                      onChange={e => {
+                        const v = parseInt(e.target.value, 10) || 0;
+                        const max = (holdItems[good] || 0) + buyQty;
+                        setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+                      }}
+                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                    />
+                    <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={sellQty >= maxSell}>+</Btn>
+                  </div>
+                  <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
+                    revenue: {pg ? pg.sellToPort * sellQty : 0}g
+                  </span>
+                </div>
+
+                <div style={{ color:T.textDim, fontSize:9, marginTop:2 }}>
+                  → After trade: {afterTrade} in hold
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {hasPending && (
+          <div style={{ ...panelStyle(), marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize:13 }}>
+              {goldDelta >= 0 ? "+" : ""}{goldDelta}g
+            </span>
+            <div style={{ display:"flex", gap:8 }}>
+              <Btn sm v="ghost" onClick={() => { setBuyPending({}); setSellPending({}); }}>Reset</Btn>
+              <Btn sm v="gold" onClick={confirmTrade}>Confirm Trade</Btn>
+            </div>
           </div>
         )}
       </div>
-
-      <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-        {shownGoods.map(good => {
-          const res = RESOURCES[good];
-          const pg = market.goods[good];
-          const inHold = holdItems[good] || 0;
-          const buyQty = buyPending[good] || 0;
-          const sellQty = sellPending[good] || 0;
-          const afterTrade = previewItems[good] || 0;
-          const maxBuy = pg ? Math.min(pg.available, capacity - used + sellQty) : 0;
-          const maxSell = inHold + buyQty;
-
-          return (
-            <div key={good} style={panelStyle({ background: T.panelAlt })}>
-              {/* Good name and price info */}
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
-                  {res.name}
-                  {res.illegal && <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>}
-                </span>
-                <span style={{ color:T.textDim, fontSize:10 }}>
-                  In hold: {inHold} — {pg ? `Base: ${pg.basePrice}g  Buy: ${pg.buyFromPort}g  Sell: ${pg.sellToPort}g  Avail: ${pg.available}` : "Not traded here"}
-                </span>
-              </div>
-
-              {/* Buy row */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                <span style={{ color:T.textDim, fontSize:10, width:120 }}>Buy from port:</span>
-                <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-                  <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={buyQty <= 0}>-</Btn>
-                  <input
-                    type="number"
-                    value={buyQty}
-                    onChange={e => {
-                      const v = parseInt(e.target.value, 10) || 0;
-                      const pg = market.goods[good];
-                      if (!pg) return;
-                      const freeSpace = capacity - used + sellQty;
-                      const max = Math.min(pg.available, freeSpace);
-                      setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
-                    }}
-                    style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
-                  />
-                  <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={buyQty >= maxBuy}>+</Btn>
-                </div>
-                <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
-                  cost: {pg ? pg.buyFromPort * buyQty : 0}g
-                </span>
-              </div>
-
-              {/* Sell row */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                <span style={{ color:T.textDim, fontSize:10, width:120 }}>Sell to port:</span>
-                <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-                  <Btn sm v="ghost" onClick={() => adjustSell(good, -1)} disabled={sellQty <= 0}>-</Btn>
-                  <input
-                    type="number"
-                    value={sellQty}
-                    onChange={e => {
-                      const v = parseInt(e.target.value, 10) || 0;
-                      const max = (holdItems[good] || 0) + buyQty;
-                      setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
-                    }}
-                    style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
-                  />
-                  <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={sellQty >= maxSell}>+</Btn>
-                </div>
-                <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
-                  revenue: {pg ? pg.sellToPort * sellQty : 0}g
-                </span>
-              </div>
-
-              {/* After trade preview */}
-              <div style={{ color:T.textDim, fontSize:9, marginTop:2 }}>
-                → After trade: {afterTrade} in hold
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {hasPending && (
-        <div style={{ ...panelStyle(), marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize:13 }}>
-            {goldDelta >= 0 ? "+" : ""}{goldDelta}g
-          </span>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn sm v="ghost" onClick={() => { setBuyPending({}); setSellPending({}); }}>Reset</Btn>
-            <Btn sm v="gold" onClick={confirmTrade}>Confirm Trade</Btn>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+  };
 
   Object.assign(window.S, { StartScreen, PortScreen, ShipyardScreen, CrewScreen, StatusScreen, MarketScreen });
 })();

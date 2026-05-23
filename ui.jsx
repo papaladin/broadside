@@ -46,8 +46,10 @@ window.UI = (() => {
       medium: "#ff9800",
       high: "#f44336"
     },
-    // Fonts
-    font: "'Courier New', monospace"
+    // Fonts & layout
+    font: "'Courier New', monospace",
+    fontSize: 'max(10px, min(1.2vw, 13px))',
+    btnMinHeight: 44,
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -59,6 +61,7 @@ window.UI = (() => {
     borderRadius: 4,
     padding: 10,
     color: T.text,
+    boxSizing: 'border-box',
     ...overrides
   });
 
@@ -71,7 +74,7 @@ window.UI = (() => {
     const variants = {
       default: { bg: T.panel, border: T.border, color: T.text },
       gold:    { bg: T.goldDim, border: T.gold, color: "#000" },
-      ghost:   { bg: T.panel, border: T.gold, color: T.gold }, // <-- FIX: Gold text/color for visibility
+      ghost:   { bg: T.panel, border: T.gold, color: T.gold },
       green:   { bg: T.green + "20", border: T.greenBr, color: T.greenBr },
       red:     { bg: T.red + "20", border: T.redBr, color: T.redBr }
     };
@@ -91,6 +94,8 @@ window.UI = (() => {
           fontSize: sm ? 10 : 12,
           opacity: disabled ? 0.5 : 1,
           fontFamily: T.font,
+          minHeight: T.btnMinHeight,
+          touchAction: 'manipulation',
           ...style
         }}
       >
@@ -100,7 +105,7 @@ window.UI = (() => {
   };
 
   // Progress bar component
-  const Bar = ({ value, max, color = T.greenBr, h = 8 }) => (
+  const Bar = ({ value, max, color = T.greenBr, h = 10 }) => (
     <div style={{
       width: "100%",
       height: h,

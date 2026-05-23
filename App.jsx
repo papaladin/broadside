@@ -25,55 +25,75 @@ const App = () => {
   }
 
   // --- HUD Component ---
-  const HUD = () => {
-    if (screen === "start") return null;
-    const currentPort = PORTS[state.currentPort];
-    const effectiveShipStats = L.getShipStats(state);
-    const effectiveMorale = L.getEffectiveMorale(state);
+ const HUD = () => {
+  if (screen === "start") return null;
+  const currentPort = PORTS[state.currentPort];
+  const effectiveShipStats = L.getShipStats(state);
+  const effectiveMorale = L.getEffectiveMorale(state);
+  const [showDetails, setShowDetails] = React.useState(true);
 
-    return (
-      <div style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        display: "flex",
-        justifyContent: "space-between",
-        background: T.panel + "cc",
-        padding: 8,
-        borderBottom: `1px solid ${T.border}`,
-        fontSize: 11,
-        backdropFilter: "blur(4px)",
-      }}>
-        <div>
-          <span style={{ color: T.gold }}>💰 {state.gold}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>📅 Day {state.day}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>😊 {effectiveMorale}%</span>
-          <span style={{ color: T.gold, marginLeft: 10 }}>★ {state.fame}</span>
-          <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, marginLeft: 10 }}>☠ {state.infamy ?? 0}</span>
-          <span style={{ color: T.textDim, marginLeft: 10 }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
-          <span style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim, marginLeft: 10 }}>🍖 {state.hold?.items?.food ?? 0}</span>
-          <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim, marginLeft: 10 }}>💧 {state.hold?.items?.water ?? 0}</span>
-          {isDebug && (
-            <button onClick={() => setDebugOpen(v => !v)}
-              style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
-                       padding: "2px 6px", borderRadius: 3, cursor: "pointer",
-                       fontSize: 11, fontFamily: T.font, marginLeft: 10 }}>
-              ⚙
-            </button>
-          )}
-        </div>
-        <div>
-          {currentPort && (
-            <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim }}>
-              {currentPort.name}
-            </span>
-          )}
-        </div>
+  return (
+    <div style={{
+      position: "sticky",
+      top: 0,
+      zIndex: 100,
+      display: "flex",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+      alignItems: "center",
+      background: T.panel + "cc",
+      padding: 8,
+      borderBottom: `1px solid ${T.border}`,
+      fontSize: 11,
+      fontFamily: T.font,
+      backdropFilter: "blur(4px)",
+      gap: 6,
+    }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+        <span style={{ color: T.gold }}>💰 {state.gold}</span>
+        <span style={{ color: T.textDim }}>📅 Day {state.day}</span>
+        <button
+          onClick={() => setShowDetails(v => !v)}
+          style={{
+            background: "none", border: "none", color: T.textDim,
+            fontSize: 12, cursor: "pointer", padding: "4px 6px",
+            fontFamily: T.font, minWidth: 30,
+          }}
+          title="Toggle details"
+        >
+          {showDetails ? "📊" : "📊"}
+        </button>
+        {showDetails && (
+          <>
+            <span style={{ color: T.textDim }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
+            <span style={{ color: T.textDim }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
+            <span style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
+            <span style={{ color: T.gold }}>★ {state.fame}</span>
+            <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
+            <span style={{ color: T.textDim }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
+            <span style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
+            <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
+          </>
+        )}
+        {isDebug && (
+          <button onClick={() => setDebugOpen(v => !v)}
+            style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                     padding: "2px 6px", borderRadius: 3, cursor: "pointer",
+                     fontSize: 11, fontFamily: T.font, marginLeft: 10 }}>
+            ⚙
+          </button>
+        )}
       </div>
-    );
-  };
+      <div>
+        {currentPort && (
+          <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim }}>
+            {currentPort.name}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
 
   // --- Screen Router ---
   const renderScreen = () => {
@@ -105,9 +125,9 @@ const App = () => {
       flexDirection: "column",
     }}>
       <HUD />
-      <div style={{ flex: 1, overflow: "auto", paddingBottom: 20 }}>
-        {renderScreen()}
-      </div>
+      <div style={{ flex: 1, overflow: "auto", paddingBottom: 20, minWidth: 0 }}>
+  {renderScreen()}
+</div>
       {isDebug && debugOpen && (
         <DebugPanel state={state} dispatch={dispatch} />
       )}

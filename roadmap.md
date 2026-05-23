@@ -103,7 +103,7 @@ These items have no dependencies on each other and can be tackled in any order w
 
 ---
 
-### N1.1 — Starting Scenarios Redesign ✅
+### N1.1 — Starting Scenarios Redesign -> ✅ COMPLETED
 **What:** All scenarios start with a **dinghy** (or very small sloop) and minimal crew. The persona differentiation moves away from ship class and toward starting position, faction affiliation, and initial reputation — not starting power. Proposed personas:
 
 | Persona | Start Port | Gold | Rep profile | Crew | Flavour |
@@ -124,7 +124,7 @@ Persona differentiation is through: starting port (defines accessible missions a
 
 ---
 
-### N1.2 — Max Days at Sea / Geographic Progression
+### N1.2 — Max Days at Sea / Geographic Progression -> ✅ COMPLETED
 **What:** Activate the `maxDays` field already present on SHIPS. Ships cannot reach ports whose travel time exceeds `state.ship.maxDays` at current provisions level. MapScreen shows out-of-range ports greyed/locked with a tooltip: "Requires a ship with more than X days range." Ports marked `remote: true` in data.js are visible on the map but unreachable by small ships. This creates a natural exploration arc: dinghy → reach 4–6 nearby ports → upgrade to sloop → Caribbean opens → upgrade to brigantine/frigate → remote Gulf and Atlantic ports accessible.
 
 The range check uses `L.travelDays(state, portKey)` (already includes cargo penalty) against `SHIPS[state.ship.type].maxDays`. Hidden/unlockable ports are a separate mechanic (P3.1) — this item only gates by ship capability, not by discovery.
@@ -135,7 +135,7 @@ The range check uses `L.travelDays(state, portKey)` (already includes cargo pena
 
 ---
 
-### N1.3 — Mobile Browser Support
+### N1.3 — Mobile Browser Support -> ✅ COMPLETED
 **What:** The game currently runs on desktop browsers only. Add responsive layout so it plays on phone browsers (Chrome/Safari mobile, ~390px wide viewport). Changes required:
 - HUD: wrap onto two lines or collapse non-critical stats behind a toggle on small screens
 - All screens: replace fixed pixel widths with `min(90vw, 480px)` patterns
@@ -152,7 +152,7 @@ The range check uses `L.travelDays(state, portKey)` (already includes cargo pena
 
 ---
 
-### N1.4 — Economy & Balance Health Check Tool
+### N1.4 — Economy & Balance Health Check Tool -> ✅ COMPLETED
 **What:** A dedicated `balance.html` developer tool (does not ship as part of the game) that reads `window.D` and `window.L` and displays calculated balance metrics:
 - **Port reachability matrix:** for each ship type × each origin port, how many ports are reachable within maxDays
 - **Provisions cost vs. morale purchase cost:** confirm buying food+water is always cheaper per morale-point than tavern drinks
