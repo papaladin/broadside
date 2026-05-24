@@ -9,7 +9,6 @@ window.S = window.S || {};
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.S;
 
-
   // ── START SCREEN ─────────────────────────────────────────────────────
   function StartScreen({ dispatch }) {
     const hasSave = L.hasSave();
@@ -135,6 +134,63 @@ window.S = window.S || {};
                    Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
                  </div>
                )}
+               {/* ── Cargo requirement block (trade & smuggle) ── */}
+               {(m.requiredGood && m.requiredQty) && (() => {
+                 const res = window.D.RESOURCES[m.requiredGood];
+                 const inHold = state.hold?.items?.[m.requiredGood] || 0;
+                 const alreadyHave = inHold >= m.requiredQty;
+                 const partialHave = inHold > 0 && inHold < m.requiredQty;
+                 const isIllegal = res?.illegal;
+                 const holdFree = (state.hold?.capacity || 0) - L.getHoldUsed(state.hold?.items || {});
+                 const canFit = holdFree >= (m.requiredQty - inHold);
+
+                 return (
+                   <div style={{
+                     margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
+                     background: T.bgDeep,
+                     border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
+                   }}>
+                     <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
+                       {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
+                     </div>
+                     <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
+                       {m.requiredQty} × {res?.name || m.requiredGood}
+                       {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
+                     </div>
+                     <div style={{ fontSize: 10, marginTop: 3 }}>
+                       {alreadyHave
+                         ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
+                         : partialHave
+                           ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
+                           : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
+                       }
+                     </div>
+                     {!alreadyHave && !canFit && (
+                       <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
+                         ⚠ Only {holdFree} hold space free — sell cargo first
+                       </div>
+                     )}
+                     {m.type === "smuggle" && res?.sourceHint && (
+                       <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
+                         {res.sourceHint}
+                       </div>
+                     )}
+                     {m.type === "trade" && (
+                       <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
+                         Est. cost: ~{res?.basePrice * m.requiredQty}g
+                         · Payment on delivery: {m.gold}g
+                         · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
+                       </div>
+                     )}
+                     {m.type === "smuggle" && (
+                       <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
+                         +{m.infamyGain} infamy on completion
+                         {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
+                       </div>
+                     )}
+                   </div>
+                 );
+               })()}
                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                  <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
                  <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
@@ -158,11 +214,44 @@ window.S = window.S || {};
                 <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
                 <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
               </div>
+              {/* ── Cargo status for trade/smuggle ── */}
+              {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
+                const res = window.D.RESOURCES[state.activeMission.requiredGood];
+                const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
+                const hasGoods = inHold >= state.activeMission.requiredQty;
+                const goodName = res?.name || state.activeMission.requiredGood;
+                return (
+                  <div style={{ marginBottom: 8, fontSize: 10 }}>
+                    <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
+                      {hasGoods
+                        ? `✓ ${inHold} ${goodName} in hold — ready`
+                        : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
+                    </div>
+                  </div>
+                );
+              })()}
               <div style={{ display: "flex", gap: 8 }}>
-                {canFinish && <Btn v="green" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}>Complete Mission</Btn>}
-                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
+                {canFinish && (
+                  <Btn
+                    v="gold"
+                    onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
+                    disabled={
+                      state.activeMission.requiredGood &&
+                      (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty
+                    }
+                  >
+                    Complete Mission
+                  </Btn>
+                )}
+                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>
+                  Abandon
+                </Btn>
               </div>
-              {!canFinish && <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.</div>}
+              {!canFinish && (
+                <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
+                  Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -456,8 +545,11 @@ window.S = window.S || {};
       });
     };
 
+    // Exclude illegal goods from the main list
     const shownGoods = Object.keys(RESOURCES).filter(good => {
       if (good === "food" || good === "water") return true;
+      const res = RESOURCES[good];
+      if (res.illegal) return false;   // illegal goods moved to Black Market section
       return market.goods[good] || (holdItems[good] || 0) > 0;
     });
 
@@ -551,6 +643,103 @@ window.S = window.S || {};
             );
           })}
         </div>
+
+        {/* ── Black Market section ─────────────────────────────────── */}
+        {(() => {
+          const illegalGoods = Object.keys(RESOURCES).filter(
+            g => RESOURCES[g].illegal && (market.goods[g] || (holdItems[g] || 0) > 0)
+          );
+          if (illegalGoods.length === 0) return null;
+
+          return (
+            <div>
+              <div style={{
+                margin: "12px 0 6px",
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <div style={{ flex: 1, height: 1, background: T.red + "40" }} />
+                <span style={{ color: T.red, fontSize: 10, letterSpacing: "0.1em" }}>
+                  ⚠ BLACK MARKET
+                </span>
+                <div style={{ flex: 1, height: 1, background: T.red + "40" }} />
+              </div>
+              <div style={{ fontSize: 10, color: T.redBr, marginBottom: 8 }}>
+                These goods are illegal. Carrying them risks inspection and seizure.
+                {illegalGoods.includes("slaves") &&
+                  " Purchasing slaves increases your infamy."}
+              </div>
+              {illegalGoods.map(good => {
+                const res = RESOURCES[good];
+                const pg = market.goods[good];
+                const inHold = holdItems[good] || 0;
+                const pBuy = buyPending[good] || 0;
+                const pSell = sellPending[good] || 0;
+                const afterTrade = previewItems[good] || 0;
+                const maxBuy = pg ? Math.min(pg.available, capacity - used + pSell) : 0;
+                const maxSell = inHold + pBuy;
+
+                return (
+                  <div key={good} style={panelStyle({ background: T.panelAlt, borderColor: T.red + "40" })}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, flexWrap:"wrap" }}>
+                      <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
+                        {res.name}
+                        <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>
+                      </span>
+                      <span style={{ color:T.textDim, fontSize:10 }}>
+                        In hold: {inHold} — {pg ? `Base: ${pg.basePrice}g  Buy: ${pg.buyFromPort}g  Sell: ${pg.sellToPort}g  Avail: ${pg.available}` : "Not traded here"}
+                      </span>
+                    </div>
+
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, flexWrap:"wrap" }}>
+                      <span style={{ color:T.textDim, fontSize:10, width:120 }}>Buy from port:</span>
+                      <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                        <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={(buyPending[good]||0) <= 0}>-</Btn>
+                        <input type="number" value={buyPending[good]||0}
+                          onChange={e => {
+                            const v = parseInt(e.target.value, 10) || 0;
+                            const pg = market.goods[good];
+                            if (!pg) return;
+                            const freeSpace = capacity - used + (sellPending[good]||0);
+                            const max = Math.min(pg.available, freeSpace);
+                            setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+                          }}
+                          style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                        />
+                        <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= maxBuy}>+</Btn>
+                      </div>
+                      <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
+                        cost: {pg ? pg.buyFromPort * (buyPending[good]||0) : 0}g
+                      </span>
+                    </div>
+
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, flexWrap:"wrap" }}>
+                      <span style={{ color:T.textDim, fontSize:10, width:120 }}>Sell to port:</span>
+                      <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                        <Btn sm v="ghost" onClick={() => adjustSell(good, -1)} disabled={(sellPending[good]||0) <= 0}>-</Btn>
+                        <input type="number" value={sellPending[good]||0}
+                          onChange={e => {
+                            const v = parseInt(e.target.value, 10) || 0;
+                            const max = (holdItems[good]||0) + (buyPending[good]||0);
+                            setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+                          }}
+                          style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                        />
+                        <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= maxSell}>+</Btn>
+                      </div>
+                      <span style={{ color:T.textDim, fontSize:9, width:80, textAlign:"right" }}>
+                        revenue: {pg ? pg.sellToPort * (sellPending[good]||0) : 0}g
+                      </span>
+                    </div>
+
+                    <div style={{ color:T.textDim, fontSize:9, marginTop:2 }}>
+                      → After trade: {afterTrade} in hold
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {hasPending && (
           <div style={{ ...panelStyle(), marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>

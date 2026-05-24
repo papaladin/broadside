@@ -865,5 +865,106 @@ window.TESTS.push({
     }
   }
 },
+// ── Trade & Smuggle mission generators ──
+{
+  name: "G.40 generateTradeMission returns mission with requiredGood and requiredQty",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
+    u.assert(mission !== null, "Should return a mission");
+    u.assert(mission.requiredGood, "Has requiredGood");
+    u.assert(typeof mission.requiredQty === "number", "Has requiredQty");
+    u.assert(mission.requiredGood !== "food" && mission.requiredGood !== "water", "Good is not food/water");
+  }
+},
+{
+  name: "G.41 generateTradeMission requiredQty is ~10% of hold (low risk)",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
+    u.assert(mission.requiredQty >= 18 && mission.requiredQty <= 22, `Qty ${mission.requiredQty} should be ~10% of 200`);
+  }
+},
+{
+  name: "G.42 generateTradeMission gold > base cost (profitable)",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
+    const res = D.RESOURCES[mission.requiredGood];
+    const baseCost = res.basePrice * mission.requiredQty;
+    u.assert(mission.gold > baseCost, `Gold ${mission.gold} should be > base cost ${baseCost}`);
+  }
+},
+{
+  name: "G.43 generateSmuggleMission returns mission with requiredGood in [rum, tobacco, slaves]",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const mission = G.generateSmuggleMission("portRoyal", state, "low");
+    u.assert(mission !== null, "Should return a mission");
+    u.assert(["rum", "tobacco", "slaves"].includes(mission.requiredGood), `Good is ${mission.requiredGood}`);
+  }
+},
+{
+  name: "G.44 smuggle mission never gives slaves at fame 0 and low infamy",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    // Run 20 times – slaves should never appear at tier 0
+    for (let i = 0; i < 20; i++) {
+      const mission = G.generateSmuggleMission("portRoyal", state, "low");
+      u.assert(mission.requiredGood !== "slaves", "Slaves should not appear at fame 0");
+    }
+  }
+},
+{
+  name: "G.45 smuggle mission has interceptChance matching risk",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const low = G.generateSmuggleMission("portRoyal", state, "low");
+    const med = G.generateSmuggleMission("portRoyal", state, "medium");
+    const high = G.generateSmuggleMission("portRoyal", state, "high");
+    u.assertEqual(low.interceptChance, 0.70, "Low risk = 0.70");
+    u.assertEqual(med.interceptChance, 0.80, "Medium risk = 0.80");
+    u.assertEqual(high.interceptChance, 0.90, "High risk = 0.90");
+  }
+},
+{
+  name: "G.46 smuggle mission target port is never pirate faction",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    for (let i = 0; i < 10; i++) {
+      const mission = G.generateSmuggleMission("portRoyal", state, "low");
+      if (mission?.targetPort) {
+        u.assert(D.PORTS[mission.targetPort].faction !== "pirate", `Target ${mission.targetPort} should not be pirate`);
+      }
+    }
+  }
+},
+{
+  name: "G.47 smuggle mission repImpact includes negative value for target faction",
+  type: "unit",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
+    const mission = G.generateSmuggleMission("portRoyal", state, "low");
+    if (mission?.targetPort) {
+      const targetFaction = D.PORTS[mission.targetPort].faction;
+      u.assert(mission.repImpact[targetFaction] < 0, "Target faction should have negative rep impact");
+    }
+  }
+},
   ]
 });

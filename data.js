@@ -450,7 +450,7 @@ const CREW_LAST_NAMES = {
 const RESOURCES = {
   food:    { name: "Food",    basePrice: 3,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "ration" },
   water:   { name: "Water",   basePrice: 2,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "barrel" },
-  rum:     { name: "Rum",     basePrice: 30,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "cask"   },
+  rum:     { name: "Rum",     basePrice: 30,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "cask", smuggleHint: "Commonly found in pirate ports and French islands.",   },
   sugar:   { name: "Sugar",   basePrice: 40,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "sack"   },
   timber:  { name: "Timber",  basePrice: 25,  variance: 0.15, illegal: false, infamyOnBuy: 0, unit: "plank"  },
   cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "bale"   },
@@ -459,9 +459,9 @@ const RESOURCES = {
   coffee:  { name: "Coffee",  basePrice: 70,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "bag"    },
   cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "crate"  },
   weapons: { name: "Weapons", basePrice: 80,  variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "crate"  },
-  tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale"   },
+  tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale" , sourceHint: "Found in Havana, Tortuga, Providencia, and Nassau.",  },
   silver:  { name: "Silver",  basePrice: 250, variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "chest"  },
-  slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person" },
+  slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person",  sourceHint: "Available in Portobelo, Cartagena, Libertalia, and Veracruz.", },
 };
 
 // Column order:
@@ -533,6 +533,36 @@ const MISSION_REP_IMPACTS = {
   combat:  { low: 3, medium: 4, high: 5 },
   smuggle: { any: 2 },
   assault: { any: 5 },
+};
+
+// ── Trade & Smuggle Mission Config ──────────────────────────────
+
+const TRADE_MISSION_PROFIT_MARGINS = {
+  low:    0.60,
+  medium: 0.80,
+  high:   1.10,
+};
+
+const SMUGGLE_PROFIT_MARGINS = {
+  low:    0.80,
+  medium: 1.20,
+  high:   1.80,
+};
+
+const TRADE_GOODS_BY_TIER = {
+  0: ["rum", "sugar", "timber", "cloth"],
+  1: ["rum", "sugar", "timber", "cloth", "coffee", "cocoa"],
+  2: ["coffee", "cocoa", "cloth", "weapons", "spices"],
+  3: ["spices", "silk", "weapons", "cocoa"],
+  4: ["spices", "silk", "weapons", "cocoa"],
+};
+
+const SMUGGLE_GOODS_BY_TIER = {
+  0: ["rum", "tobacco"],
+  1: ["rum", "tobacco"],
+  2: ["rum", "tobacco", "slaves"],
+  3: ["rum", "tobacco", "slaves"],
+  4: ["rum", "tobacco", "slaves"],
 };
 
 const MISSION_NAME_PARTS = {
@@ -1010,6 +1040,10 @@ const ENEMY_SHIP_NAMES = {
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
     MISSION_REP_IMPACTS,
+TRADE_MISSION_PROFIT_MARGINS,
+SMUGGLE_PROFIT_MARGINS,
+ TRADE_GOODS_BY_TIER,
+ SMUGGLE_GOODS_BY_TIER,
     MISSION_NAME_PARTS,
     ENEMY_SHIP_NAMES,
     UPGRADES,

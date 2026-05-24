@@ -57,6 +57,10 @@ details > div { padding: 10px 14px; }
   <summary>📦 Resources &amp; Trading</summary>
   <div id="goods-never"></div>
   <div id="price-spread"></div>
+  <div id="trade-profit"></div>
+<div id="smuggle-risk"></div>
+<div id="trade-qty"></div>
+<div id="goods-by-tier"></div>
   <div id="illegal-goods"></div>
   <div id="starting-provisions"></div>
 </details>
@@ -463,6 +467,82 @@ function holdProfitCheck() {
   html += '<p>Quantities use the midpoint of the tier range (always 60, frequently 30, sometimes 14, rarely 5).</p>';
   document.getElementById('hold-profit').innerHTML = html;
 }
+
+// -- trade profit per tier ----------------------
+
+function tradeProfitByTier() {
+  const ships = window.D.SHIPS;
+  const margins = window.D.TRADE_MISSION_PROFIT_MARGINS;
+  const goldRanges = window.D.MISSION_GOLD_RANGES;
+  let html = '<h2>📦 Trade Mission Profit vs. Standard Mission</h2>';
+  html += '<table><tr><th>Fame Tier</th><th>Example Ship</th><th>Hold Capacity</th><th>Trade Qty (low risk)</th><th>Avg Trade Gold</th><th>Avg Standard Gold (low)</th><th>Trade Premium</th></tr>';
+
+  [0,1,2,3,4].forEach(tier => {
+    // Find a representative ship for this tier
+    const shipEntry = Object.entries(ships).find(([k,s]) => (s.requiredFame||0) >= (tier===4?150:tier===3?100:tier===2?50:tier===1?10:0));
+    const ship = shipEntry ? shipEntry[1] : ships.sloop;
+    const cap = ship.holdCapacity || 200;
+    const qty = Math.max(3, Math.round(cap * 0.10));
+    const avgGoodPrice = 50; // middle of trade goods
+    const tradeGold = Math.round(avgGoodPrice * qty * (1 + (margins.low||0.60)) / 25) * 25;
+    const standardGold = Math.round((goldRanges[tier].low[0] + goldRanges[tier].low[1]) / 2);
+
+    html += `<tr><td>${tier}</td><td>${ship.name}</td><td>${cap}</td><td>${qty}</td><td>${tradeGold}g</td><td>${standardGold}g</td><td>${(tradeGold/standardGold).toFixed(1)}x</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('trade-profit').innerHTML = html;
+}
+
+function smuggleRiskReward() {
+  const margins = window.D.SMUGGLE_PROFIT_MARGINS;
+  const interceptChances = { low: 0.70, medium: 0.80, high: 0.90 };
+  let html = '<h2>🚫 Smuggle Risk vs. Reward</h2>';
+  html += '<table><tr><th>Risk</th><th>Profit Margin</th><th>Intercept Chance</th><th>Avg Profit (200 cap, tobacco 90g)</th><th>Expected Loss if Caught</th><th>Net Expected Value</th></tr>';
+
+  ['low','medium','high'].forEach(risk => {
+    const qty = Math.max(2, Math.round(200 * ({low:0.08,medium:0.18,high:0.35}[risk])));
+    const margin = margins[risk] || 0.80;
+    const baseCost = 90 * qty;
+    const profit = Math.round(baseCost * (1 + margin) / 25) * 25 - baseCost;
+    const intercept = interceptChances[risk];
+    const lossIfCaught = baseCost + Math.round(baseCost * 0.5); // cargo + fine
+    const expectedValue = profit * (1 - intercept) - lossIfCaught * intercept;
+
+    html += `<tr><td>${risk}</td><td>+${Math.round(margin*100)}%</td><td>${Math.round(intercept*100)}%</td><td>+${profit}g</td><td>-${lossIfCaught}g</td><td style="color:${expectedValue>=0?'#4caf50':'#f44336'}">${expectedValue>=0?'+':''}${Math.round(expectedValue)}g</td></tr>`;
+  });
+  html += '</table>';
+  html += '<p>Expected value = profit × (1 - intercept) - loss × intercept. Assumes tobacco at 90g/unit, sloop hold (200 cap).</p>';
+  document.getElementById('smuggle-risk').innerHTML = html;
+}
+
+function tradeQuantityScaling() {
+  const ships = window.D.SHIPS;
+  let html = '<h2>📏 Trade Quantity Scaling by Ship</h2>';
+  html += '<table><tr><th>Ship</th><th>Hold</th><th>Low risk qty</th><th>Medium risk qty</th><th>High risk qty</th></tr>';
+
+  Object.entries(ships).forEach(([key, s]) => {
+    const cap = s.holdCapacity || 0;
+    const low = Math.max(3, Math.round(cap * 0.10));
+    const med = Math.max(3, Math.round(cap * 0.25));
+    const high = Math.max(3, Math.round(cap * 0.50));
+    html += `<tr><td>${s.name}</td><td>${cap}</td><td>${low}</td><td>${med}</td><td>${high}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('trade-qty').innerHTML = html;
+}
+
+function tradeGoodsByTier() {
+  const tradeGoods = window.D.TRADE_GOODS_BY_TIER;
+  const smuggleGoods = window.D.SMUGGLE_GOODS_BY_TIER;
+  let html = '<h2>📋 Goods by Fame Tier</h2>';
+  html += '<table><tr><th>Tier</th><th>Trade Goods</th><th>Smuggle Goods</th></tr>';
+  [0,1,2,3,4].forEach(tier => {
+    html += `<tr><td>${tier}</td><td>${(tradeGoods[tier]||[]).join(', ')}</td><td>${(smuggleGoods[tier]||[]).join(', ')}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('goods-by-tier').innerHTML = html;
+}
+
 
 // ── Tavern morale vs. provisioning ───────────────────────────────
 function moraleVsProvisioning() {
@@ -1048,6 +1128,10 @@ illegalGoodsDistribution();
 startingProvisionsCheck();
 serviceMatrix();
 enemyDiversity();
+tradeProfitByTier();
+smuggleRiskReward();
+tradeQuantityScaling();
+tradeGoodsByTier();
 
 
   </script>

@@ -1144,5 +1144,75 @@ window.TESTS.push({
     u.assertEqual(s.hold.items.rum, 10, "Legal goods untouched");
   }
 },
+// ── Trade & Smuggle cargo completion ──
+{
+  name: "E.90 COMPLETE_MISSION trade: removes goods from hold and pays gold",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = {
+      ...E.initialState,
+      currentPort: "kingston",
+      activeMission: mission,
+      gold: 1000, fame: 0,
+      hold: { capacity: 200, items: { rum: 15 } },
+      crew: { roster: fillRoster(30), morale: 80 },
+      reputation: { kingston: 50 },
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.hold.items.rum, 5, "10 rum removed from hold");
+    u.assertEqual(s.gold, 1500, "Gold increased by mission gold");
+    u.assert(s.activeMission === null, "Mission cleared");
+  }
+},
+{
+  name: "E.91 COMPLETE_MISSION trade: without required goods fails",
+  type: "reducer",
+  run: (u) => {
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = {
+      ...E.initialState,
+      currentPort: "kingston",
+      activeMission: mission,
+      gold: 1000, fame: 0,
+      hold: { capacity: 200, items: { rum: 3 } },
+      crew: { roster: fillRoster(30), morale: 80 },
+      reputation: { kingston: 50 },
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.hold.items.rum, 3, "Rum untouched");
+    u.assert(s.activeMission !== null, "Mission still active");
+    u.assert(s.log.some(l => l.includes("Cannot complete")), "Failure logged");
+  }
+},
+{
+  name: "E.92 COMPLETE_MISSION trade: no rep multiplier applied",
+  type: "reducer",
+  run: (u) => {
+    u.resetRandomStub();
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = {
+      ...E.initialState,
+      currentPort: "kingston",
+      activeMission: mission,
+      gold: 1000, fame: 0,
+      hold: { capacity: 200, items: { rum: 15 } },
+      crew: { roster: fillRoster(30), morale: 80 },
+      reputation: { kingston: 85 }, // Allied — should give +20% normally
+    };
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.gold, 1500, "Gold exactly equals mission.gold, no multiplier");
+  }
+},
   ]
 });

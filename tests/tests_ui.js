@@ -294,6 +294,83 @@ window.TESTS.push({
     unmount();
   }
 },
+{
+  name: "U.20 Mission card shows cargo requirement for trade mission",
+  type: "ui",
+  run: (u) => {
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = makeState({
+      screen: "port", currentPort: "portRoyal",
+      missions: [mission], activeMission: null,
+      hold: { capacity: 200, items: { rum: 5 } },
+    });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("Cargo required"), "Cargo label visible");
+    u.assert(container.textContent.includes("10"), "Required quantity visible");
+    u.assert(container.textContent.includes("Rum"), "Good name visible");
+    unmount();
+  }
+},
+{
+  name: "U.21 Mission card shows green checkmark when goods are ready",
+  type: "ui",
+  run: (u) => {
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = makeState({
+      screen: "port", currentPort: "portRoyal",
+      missions: [mission], activeMission: null,
+      hold: { capacity: 200, items: { rum: 10 } },
+    });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("In hold"), "In-hold status visible");
+    u.assert(container.textContent.includes("ready to deliver"), "Ready message visible");
+    unmount();
+  }
+},
+{
+  name: "U.22 Complete button disabled when goods missing",
+  type: "ui",
+  run: (u) => {
+    const mission = testMission({
+      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "portRoyal",
+      requiredGood: "rum", requiredQty: 10,
+    });
+    const state = makeState({
+      screen: "port", currentPort: "portRoyal",
+      activeMission: mission,
+      hold: { capacity: 200, items: { rum: 3 } },
+    });
+    const { container, unmount } = u.mountReact(window.S.PortScreen, { state, dispatch: () => {} });
+    const btn = container.querySelector('button[disabled]');
+    u.assert(btn !== null, "Complete button should be disabled");
+    unmount();
+  }
+},
+{
+  name: "U.23 MarketScreen shows Black Market section for illegal goods",
+  type: "ui",
+  run: (u) => {
+    const state = makeState({
+      screen: "market",
+      hold: { capacity: 200, items: {} },
+      portMarket: {
+        goods: {
+          tobacco: { basePrice: 90, buyFromPort: 99, sellToPort: 81, available: 10 },
+        },
+      },
+    });
+    const { container, unmount } = u.mountReact(window.S.MarketScreen, { state, dispatch: () => {} });
+    u.assert(container.textContent.includes("BLACK MARKET"), "Black market label visible");
+    u.assert(container.textContent.includes("(Illegal)"), "Illegal label visible");
+    unmount();
+  }
+},
   ]
 });
 

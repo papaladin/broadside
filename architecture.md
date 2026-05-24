@@ -268,6 +268,10 @@ partial state objects only.
 | `MISSION_GOLD_RANGES` | Gold reward ranges by fame tier and risk level |
 | `MISSION_ENEMY_RANGES` | Enemy stat ranges (hull, cannons, crew) by fame tier |
 | `MISSION_REP_IMPACTS` | Reputation impact values per mission type and risk |
+| `TRADE_MISSION_PROFIT_MARGINS` | Profit margins for trade missions by risk level |
+| `SMUGGLE_PROFIT_MARGINS` | Profit margins for smuggle missions by risk level |
+| `TRADE_GOODS_BY_TIER` | Eligible goods for trade missions per fame tier |
+| `SMUGGLE_GOODS_BY_TIER` | Eligible goods for smuggle missions per fame tier |
 | `MISSION_NAME_PARTS` | Word pools for generating mission names and descriptions |
 | `ENEMY_SHIP_NAMES` | Adjective/noun pools for enemy ship names |
 
@@ -356,6 +360,8 @@ No pure game logic — that lives in `logic.js`.
 | `generateMissionText` | `(type, faction, targetPortKey, risk, enemy)` | Returns `{ name, desc }` |
 | `pickTargetPort` | `(currentPortKey, type, state, faction)` | Picks a valid destination port |
 | `opposingFaction` | `(factionKey)` | Returns a random rival faction |
+| `generateTradeMission` | `(portKey, state, faction, risk)` | Returns a trade mission object with requiredGood, requiredQty, gold |
+| `generateSmuggleMission` | `(portKey, state, risk)` | Returns a smuggle mission object with patrol risk, infamy, and contraband details |
 | `generatePortMarket` | `(portKey)` | Generates `{ portKey, goods: { … } }` for a port visit |
 
 
@@ -602,6 +608,12 @@ Authoritative state shape. Update this section when adding new fields.
   // ── Missions ────────────────────────────────────────────────────
   missions:         [],
   activeMission:    null,
+  Additional fields for trade/smuggle missions:
+  requiredGood: "rum",         // the resource key the player must deliver
+  requiredQty: 20,             // number of units required
+  interceptChance: 0.80,      // (smuggle only) probability of patrol per voyage
+  isContraband: true,         // (smuggle only) whether the good triggers hold scan
+  patrolRisk: 0.30,            // (smuggle only) per-day patrol probability (replaced by interceptChance)
 
   // ── Combat ──────────────────────────────────────────────────────
   battleState:      null,   // { phase, playerHull, enemyHull, playerCrew, enemyCrew,
@@ -681,7 +693,7 @@ dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
 | `NAVIGATE` | `screen` |
 | `SAIL_TO` | `port` |
 | `ENTER_PORT` | — |
-| `ADVANCE_DAY` | — |
+| `ADVANCE_DAY` | — (now triggers a single high-probability navy patrol check per smuggle voyage via the event system) |
 | `START_GAME` | `scenarioKey` |
 | `SAVE_GAME` | — |
 | `LOAD_GAME` | — |
@@ -696,7 +708,7 @@ dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
 | `REMOVE_EQUIPMENT` | `equipmentKey` |
 | `HIRE_CREW` | `count` |
 | `TAKE_MISSION` | `mission` (full mission object — no ID field) |
-| `COMPLETE_MISSION` | — |
+| `COMPLETE_MISSION` | — (now checks cargo satisfaction for trade/smuggle; removes required goods from hold; gold is fixed for trade/smuggle, rep-multiplied for other types) |
 | `ABANDON_MISSION` | — |
 | `REFRESH_MISSIONS` | — |
 | `BATTLE_ACTION` | `action`: `"broadside"` \| `"precision"` \| `"grapple"` \| `"evade"` |
@@ -785,6 +797,7 @@ Encounter types and the options they enable/disable:
 | `"mission_combat"` | ❌ | ❌ | ❌ | ❌ |
 | `"named_rival"` | ✅ speed check | ✅ if history | ❌ | ✅ |
 | `"bounty_target"` | ❌ | ❌ | ❌ | ❌ |
+| `"navy_patrol"` | ❌ | ❌ | ❌ | ✅ (inspection choice) |
 
 Fight is always available in all types.
 
@@ -884,6 +897,27 @@ Assault enemies use the defending port's faction and get extended stat ranges.
 
 **Gold rewards** come from `MISSION_GOLD_RANGES`, scaled by fame tier and risk,
 rounded to the nearest 25.
+
+### Trade & Smuggling Missions
+
+**Trade missions** require the player to source a specific good in a specific quantity
+and deliver it to a non-rival port. The mission appears on the board regardless of
+local market availability. The player must buy the goods (at the current port or
+elsewhere) and transport them to the destination. On arrival, the "Complete Mission"
+button is only active if `hold.items[requiredGood] >= requiredQty`. Completing the
+mission removes the goods from hold and pays the full mission gold (no reputation
+multiplier). Gold is calculated as `basePrice × requiredQty × (1 + profitMargin)`,
+where profit margin is 0.60/0.80/1.10 for low/medium/high risk.
+
+**Smuggling missions** are offered only by the pirate faction. They require illegal
+or contraband goods (tobacco, slaves, or rum in a contraband context). Slaves only
+appear at fame tier 2+ and infamy ≥ 25. Gold margins are higher (0.80/1.20/1.80).
+During the voyage, a single navy patrol check fires per mission (70%/80%/90%
+probability by risk), routing through the `navy_patrol` event. The player may allow
+inspection (contraband seized, fine paid, +1 infamy, -10 morale) or refuse (combat
+via intercept screen, +2 infamy if fighting, 0 if fleeing). Smuggling targets
+non-pirate ports only; the receiving faction takes a -3 reputation hit on completion.
+
 
 ### Named Crew Roster
 
@@ -1128,6 +1162,8 @@ Read this section before making any changes to the codebase.
 - Using string literals like `"pirates_save"` instead of the canonical `"piratesSave"` key
 - Using `crew.max` instead of `getShipStats(state).maxCrew` for hire limits
 - Forgetting to update `hold.capacity` in `BUY_SHIP` when the new ship has a different hold size
+- Forgetting to set `requiredGood` and `requiredQty` on generated trade/smuggle missions — COMPLETE_MISSION will always succeed.
+- Using `mission.interceptChance` instead of the new single-check logic for smuggle patrols (ADVANCE_DAY now reads this field).
 
 ### Always do
 
