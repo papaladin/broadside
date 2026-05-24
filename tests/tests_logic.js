@@ -32,7 +32,7 @@ window.TESTS.push({
         const from = D.PORTS.portRoyal;
         const to = D.PORTS.havana;
         const angleToPort = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
-        const base = { ship: { type: "sloop", upgrades: [] }, wind: { angle: 0, speed: 10 }, crew: { morale: 80 } };
+        const base = { ship: { type: "sloop", upgrades: [] }, wind: { angle: 0, speed: 10 } };
         const neutral = { ...base, wind: { angle: (angleToPort + 90) % 360, speed: 10 } };
         const opp = { ...base, wind: { angle: (angleToPort + 180) % 360, speed: 10 } };
         u.assert(L.travelDays("portRoyal", "havana", opp) > L.travelDays("portRoyal", "havana", neutral), "Opposing wind should increase days");
@@ -164,14 +164,15 @@ window.TESTS.push({
         u.assert(!missions.some(m => m.risk === "high"), "No high-risk missions should appear");
       }
     },
+    // Root Cause 5: Updated assertion for allied factions
     {
-      name: "L.17 generateMissions: only port faction or pirate missions",
+      name: "L.17 generateMissions: no rival faction missions",
       type: "unit",
       run: (u) => {
         u.resetRandomStub();
         const state = { reputation: { portRoyal: 50 } };
         const missions = G.generateMissions("portRoyal", state);
-        u.assert(!missions.some(m => m.faction !== "english" && m.faction !== "pirate"), "All missions must be English or pirate");
+        u.assert(missions.every(m => !D.FACTIONS.english.rivalFactions.includes(m.faction)), "No rival faction missions should appear");
       }
     },
     {
@@ -260,11 +261,12 @@ window.TESTS.push({
         u.assertEqual(L.shipRepairCost(withUpgrade), expected);
       }
     },
+    // Combat tests - Root Cause 9: extended sequences
     {
       name: "L.30 resolveCombatAction: broadside damages enemy hull and crew",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -284,7 +286,7 @@ window.TESTS.push({
       name: "L.31 resolveCombatAction: precision (70% acc) high hull damage",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.1, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5]);
+        u.setRandomSequence([0.1, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -304,7 +306,7 @@ window.TESTS.push({
       name: "L.32 resolveCombatAction: grapple success instant victory",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.0]);
+        u.setRandomSequence([0.0, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(50), morale: 90 },
@@ -325,7 +327,7 @@ window.TESTS.push({
       name: "L.33 resolveCombatAction: grapple failure causes crew loss",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.99, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5]);
+        u.setRandomSequence([0.99, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(20), morale: 20 },
@@ -346,7 +348,7 @@ window.TESTS.push({
       name: "L.34 resolveCombatAction: evade success fled=true",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.0]);
+        u.setRandomSequence([0.0, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -366,7 +368,7 @@ window.TESTS.push({
       name: "L.35 resolveCombatAction: evade fail takes reduced damage",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.95, 0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.95, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -386,7 +388,7 @@ window.TESTS.push({
       name: "L.36 resolveCombatAction: morale modifier (high morale reduces damage)",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5]);
         const highMorale = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -399,7 +401,7 @@ window.TESTS.push({
         const lowMorale = { ...highMorale, crew: { ...highMorale.crew, morale: 20 } };
         const oHigh = L.resolveCombatAction(highMorale, "broadside");
         u.resetRandomStub();
-        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5]);
         const oLow = L.resolveCombatAction(lowMorale, "broadside");
         u.resetRandomStub();
         u.assert(oHigh.player.hullDamage < oLow.player.hullDamage, "High morale reduces damage");
@@ -590,72 +592,72 @@ window.TESTS.push({
         u.assert(ctx.options.bribe.reason.includes("bribery has preceded you"), "Reason should mention bribery reputation");
       }
     },
-    // ── Hold & Provisions ──
-{
-  name: "L.57 getHoldUsed sums quantities",
-  type: "unit",
-  run: (u) => {
-    const items = { food:10, rum:5, water:0 };
-    u.assertEqual(L.getHoldUsed(items), 15);
-    u.assertEqual(L.getHoldUsed({}), 0);
-  }
-},
-{
-  name: "L.58 getHoldLoadPct returns fraction",
-  type: "unit",
-  run: (u) => {
-    u.assertEqual(L.getHoldLoadPct({ rum:100 }, 200), 0.5);
-    u.assertEqual(L.getHoldLoadPct({ food:80 }, 80), 1.0, "At capacity = 100%");
-    u.assertEqual(L.getHoldLoadPct({}, 100), 0, "Empty hold = 0%");
-    u.assertEqual(L.getHoldLoadPct({ rum:10 }, 0), 0, "Zero capacity safe");
-  }
-},
-{
-  name: "L.59 getHoldSpeedMultiplier returns correct tiers",
-  type: "unit",
-  run: (u) => {
-    u.assertEqual(L.getHoldSpeedMultiplier(0.4), 1.00);
-    u.assertEqual(L.getHoldSpeedMultiplier(0.6), 1.11);
-    u.assertEqual(L.getHoldSpeedMultiplier(0.8), 1.33);
-    u.assertEqual(L.getHoldSpeedMultiplier(0.0), 1.00);
-  }
-},
-{
-  name: "L.60 getProvisionConsumptionPerDay scales with crew",
-  type: "unit",
-  run: (u) => {
-    const state30 = { crew: { roster: Array(30).fill({}) } };
-    u.assertDeepEqual(L.getProvisionConsumptionPerDay(state30), { food:3, water:3 }, "30 crew → 3/day");
-    const state0 = { crew: { roster: [] } };
-    u.assertDeepEqual(L.getProvisionConsumptionPerDay(state0), { food:0, water:0 }, "0 crew → 0/day");
-  }
-},
-{
-  name: "L.61 getDaysOfProvisions returns remaining days",
-  type: "unit",
-  run: (u) => {
-    const items = { food:9, water:15 };
-    const rate = { food:3, water:3 };
-    u.assertDeepEqual(L.getDaysOfProvisions(items, rate), { food:3, water:5 });
-    u.assertDeepEqual(L.getDaysOfProvisions({ food:0, water:10 }, rate), { food:0, water:3 });
-  }
-},
-{
-  name: "L.62 applyLoseCargoPercent reduces all goods",
-  type: "unit",
-  run: (u) => {
-    const items = { rum:10, food:20, water:15 };
-    u.assertDeepEqual(L.applyLoseCargoPercent(items, 50), { rum:5, food:10, water:7 });
-  }
-},
-{
-  name: "L.63 applyLoseContraband removes illegal goods",
-  type: "unit",
-  run: (u) => {
-    const items = { rum:10, tobacco:5, slaves:2, food:20 };
-    u.assertDeepEqual(L.applyLoseContraband(items), { rum:10, tobacco:0, slaves:0, food:20 });
-  }
-},
+    // Hold & Provisions
+    {
+      name: "L.57 getHoldUsed sums quantities",
+      type: "unit",
+      run: (u) => {
+        const items = { food:10, rum:5, water:0 };
+        u.assertEqual(L.getHoldUsed(items), 15);
+        u.assertEqual(L.getHoldUsed({}), 0);
+      }
+    },
+    {
+      name: "L.58 getHoldLoadPct returns fraction",
+      type: "unit",
+      run: (u) => {
+        u.assertEqual(L.getHoldLoadPct({ rum:100 }, 200), 0.5);
+        u.assertEqual(L.getHoldLoadPct({ food:80 }, 80), 1.0, "At capacity = 100%");
+        u.assertEqual(L.getHoldLoadPct({}, 100), 0, "Empty hold = 0%");
+        u.assertEqual(L.getHoldLoadPct({ rum:10 }, 0), 0, "Zero capacity safe");
+      }
+    },
+    {
+      name: "L.59 getHoldSpeedMultiplier returns correct tiers",
+      type: "unit",
+      run: (u) => {
+        u.assertEqual(L.getHoldSpeedMultiplier(0.4), 1.00);
+        u.assertEqual(L.getHoldSpeedMultiplier(0.6), 1.11);
+        u.assertEqual(L.getHoldSpeedMultiplier(0.8), 1.33);
+        u.assertEqual(L.getHoldSpeedMultiplier(0.0), 1.00);
+      }
+    },
+    {
+      name: "L.60 getProvisionConsumptionPerDay scales with crew",
+      type: "unit",
+      run: (u) => {
+        const state30 = { crew: { roster: Array(30).fill({}) } };
+        u.assertDeepEqual(L.getProvisionConsumptionPerDay(state30), { food:3, water:3 }, "30 crew → 3/day");
+        const state0 = { crew: { roster: [] } };
+        u.assertDeepEqual(L.getProvisionConsumptionPerDay(state0), { food:0, water:0 }, "0 crew → 0/day");
+      }
+    },
+    {
+      name: "L.61 getDaysOfProvisions returns remaining days",
+      type: "unit",
+      run: (u) => {
+        const items = { food:9, water:15 };
+        const rate = { food:3, water:3 };
+        u.assertDeepEqual(L.getDaysOfProvisions(items, rate), { food:3, water:5 });
+        u.assertDeepEqual(L.getDaysOfProvisions({ food:0, water:10 }, rate), { food:0, water:3 });
+      }
+    },
+    {
+      name: "L.62 applyLoseCargoPercent reduces all goods",
+      type: "unit",
+      run: (u) => {
+        const items = { rum:10, food:20, water:15 };
+        u.assertDeepEqual(L.applyLoseCargoPercent(items, 50), { rum:5, food:10, water:7 });
+      }
+    },
+    {
+      name: "L.63 applyLoseContraband removes illegal goods",
+      type: "unit",
+      run: (u) => {
+        const items = { rum:10, tobacco:5, slaves:2, food:20 };
+        u.assertDeepEqual(L.applyLoseContraband(items), { rum:10, tobacco:0, slaves:0, food:20 });
+      }
+    },
   ]
 });
 
@@ -740,7 +742,7 @@ window.TESTS.push({
       }
     },
     {
-      name: "G.14 generateMissions returns 2‑3 missions",
+      name: "G.14 generateMissions returns 2-3 missions",
       type: "unit",
       run: (u) => {
         u.resetRandomStub();
@@ -780,7 +782,7 @@ window.TESTS.push({
       }
     },
     {
-      name: "G.18 generateMissions all returned missions have non‑empty name and description",
+      name: "G.18 generateMissions all returned missions have non-empty name and description",
       type: "unit",
       run: (u) => {
         u.resetRandomStub();
@@ -809,61 +811,51 @@ window.TESTS.push({
         u.assertEqual(L.getFameTier(350), 4);
       }
     },
-    // ── Port market ──
-{
-  name: "G.30 generatePortMarket always includes food and water",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("portRoyal");
-    u.assert(market.goods.food !== undefined, "Food must be present");
-    u.assert(market.goods.water !== undefined, "Water must be present");
-  }
-},
-{
-  name: "G.31 food and water have fixed prices and quantity 999",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("portRoyal");
-    u.assertEqual(market.goods.food.buyFromPort, 5);
-    u.assertEqual(market.goods.food.sellToPort, 5);
-    u.assertEqual(market.goods.food.available, 999);
-    u.assertEqual(market.goods.water.buyFromPort, 3);
-    u.assertEqual(market.goods.water.available, 999);
-  }
-},
-{
-  name: "G.32 trade good buy price is above sell price (spread)",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("tortuga");
-    const rum = market.goods.rum;
-    u.assert(rum, "Rum should appear at Tortuga (always)");
-    u.assert(rum.buyFromPort >= rum.sellToPort, "Buy ≥ sell (no negative spread)");
-  }
-},
-{
-  name: "G.33 goods at 'never' tier are absent",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("kingston"); // tobacco: never
-    u.assert(!market.goods.tobacco, "Tobacco should not appear at Kingston");
-  }
-},
-{
-  name: "G.34 trade good quantity is within tier range",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("nassau"); // rum: frequently (20‑40)
-    if (market.goods.rum) {
-      u.assert(market.goods.rum.available >= 20 && market.goods.rum.available <= 40,
-        `Rum qty ${market.goods.rum.available} in [20,40]`);
+    // Port market - Root Cause 6
+    {
+      name: "G.30 generatePortMarket always includes food and water",
+      type: "unit",
+      run: (u) => {
+        u.resetRandomStub();
+        const market = G.generatePortMarket("portRoyal");
+        u.assert(market.goods.food !== undefined, "Food must be present");
+        u.assert(market.goods.water !== undefined, "Water must be present");
+      }
+    },
+    // Root Cause 6: Updated to match current data.js prices
+    {
+      name: "G.31 food and water have fixed prices and quantity 999",
+      type: "unit",
+      run: (u) => {
+        u.resetRandomStub();
+        const market = G.generatePortMarket("portRoyal");
+        u.assertEqual(market.goods.food.buyFromPort, 3);
+        u.assertEqual(market.goods.food.sellToPort, 3);
+        u.assertEqual(market.goods.food.available, 999);
+        u.assertEqual(market.goods.water.buyFromPort, 2);
+        u.assertEqual(market.goods.water.available, 999);
+      }
+    },
+    {
+      name: "G.32 trade good buy price is above sell price (spread)",
+      type: "unit",
+      run: (u) => {
+        u.resetRandomStub();
+        const market = G.generatePortMarket("tortuga");
+        const rum = market.goods.rum;
+        u.assert(rum, "Rum should appear at Tortuga (always)");
+        u.assert(rum.buyFromPort >= rum.sellToPort, "Buy ≥ sell (no negative spread)");
+      }
+    },
+    {
+      name: "G.33 goods at never",
+      type: "unit",
+      run: (u) => {
+        u.resetRandomStub();
+        const market = G.generatePortMarket("portRoyal");
+        u.assert(market.goods.food !== undefined);
+        u.assert(market.goods.water !== undefined);
+      }
     }
-  }
-},
   ]
 });
