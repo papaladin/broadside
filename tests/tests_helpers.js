@@ -58,3 +58,22 @@ const testMission = (overrides = {}) => ({
   repImpact: { english: 2 }, enemy: null,
   ...overrides
 });
+
+// ── Helper: count how many Math.random() calls an action will make ──
+// This helps ensure random sequences are long enough for combat tests
+const countRandomCalls = (action) => {
+  const counts = {
+    broadside: 6,
+    precision: 7,
+    grapple: 5,
+    evade: 5,
+  };
+  return counts[action] || 10; // Default to 10 if unknown
+};
+
+// ── Helper: generate a sufficiently long random sequence for combat tests ──
+const setRandomSequenceForCombat = (u, action, extraPadding = 5) => {
+  const count = countRandomCalls(action);
+  const values = Array(count + extraPadding).fill(0.5);
+  u.setRandomSequence(values);
+};
