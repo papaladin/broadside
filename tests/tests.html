@@ -59,9 +59,9 @@
   <script type="text/babel" data-presets="react" src="../generators.js"></script>
   <script type="text/babel" data-presets="react" src="../engine.js"></script>
   <script type="text/babel" data-presets="react" src="../ui.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_shared.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_shared.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_port.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_voyage.jsx"></script>
   <script type="text/babel" data-presets="react" src="../App.jsx"></script>
   <div id="root" style="display: none;"></div>
 
@@ -153,7 +153,7 @@
       const passedSpan = document.getElementById('passed');
       const failedSpan = document.getElementById('failed');
       const copyBtn = document.getElementById('copyFailures');
-      const copyMsg = document.getElementById('copyMsg');
+      const copyMsg = document.getElementId('copyMsg');
 
       let allTests = [];
       let currentFilter = 'all';
@@ -199,8 +199,7 @@
 
             // Before running the test, ensure localStorage is real
             window.__testUtils.restoreLocalStorage();
-            window.__testUtils.resetRandomStub();   // ← ADD THIS LINE
-
+            window.__testUtils.resetRandomStub();
 
             try {
               test.run(window.__testUtils);
