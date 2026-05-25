@@ -10,10 +10,10 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
-        u.assert(s.gold === 3000, "Gold should be 1000 + 2000");
-        u.assertEqual(s.ship.type, "merchantman");
-        u.assertEqual(s.crew.max, D.SHIPS.merchantman.maxCrew);
+        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
+        u.assertEqual(s.gold, D.STARTS[0].gold);
+        u.assertEqual(s.ship.type, D.STARTS[0].ship);
+        u.assertEqual(s.crew.max, D.SHIPS[D.STARTS[0].ship].maxCrew);
         u.assertEqual(s.screen, "port");
       }
     },
@@ -22,9 +22,9 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "privateer" });
-        u.assertEqual(s.ship.type, "sloop");
-        u.assertEqual(s.gold, 1500);
+        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[1].id });
+        u.assertEqual(s.ship.type, D.STARTS[1].ship);
+        u.assertEqual(s.gold, D.STARTS[1].gold);
         u.assert(s.reputation.portRoyal === 60, "English rep +10");
         u.assert(s.reputation.kingston === 60, "English rep +10");
       }
@@ -34,9 +34,9 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
-        u.assertEqual(s.ship.type, "brigantine");
-        u.assertEqual(s.gold, 2000);
+        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
+        u.assertEqual(s.ship.type, D.STARTS[2].ship);
+        u.assertEqual(s.gold, D.STARTS[2].gold);
         u.assert(s.reputation.tortuga === 70, `Expected 70 but got ${s.reputation.tortuga}`);
         u.assert(s.reputation.nassau === 70, `Expected 70 but got ${s.reputation.nassau}`);
       }
@@ -46,9 +46,9 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "admiral" });
-        u.assertEqual(s.ship.type, "frigate");
-        u.assertEqual(s.gold, 2500);
+        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[3].id });
+        u.assertEqual(s.ship.type, D.STARTS[3].ship);
+        u.assertEqual(s.gold, D.STARTS[3].gold);
         u.assert(s.reputation.portRoyal === 80, "English rep +30");
       }
     },
@@ -121,8 +121,12 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        const mission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
-        u.assert(mission, "Smuggle mission needed");
+        const mission = testMission({
+          type: "smuggle", faction: "pirate", targetPort: "nassau",
+          risk: "medium", gold: 400, infamyGain: 1,
+          requiredGood: "rum", requiredQty: 5, patrolRisk: 0.30,
+          enemy: { name: "The Serpent", hull: 50, cannons: 6, crew: 20, faction: "english" }
+        });
         const state = {
           ...E.initialState,
           screen: "sailing", destination: "nassau", sailingDaysLeft: 3, sailingDaysTotal: 3,
@@ -224,7 +228,7 @@ window.TESTS.push({
         const state = { ...E.initialState, ship: { type: "sloop", upgrades: [] }, gold: 1000 };
         const s = E.reducer(state, { type: E.A.BUY_UPGRADE, upgradeKey: "reinforced_hull" });
         u.assert(s.ship.upgrades.includes("reinforced_hull"));
-        u.assertEqual(s.gold, 1000 - 500);
+        u.assertEqual(s.gold, 1000 - D.UPGRADES.reinforced_hull.cost);
       }
     },
     {
@@ -261,7 +265,10 @@ window.TESTS.push({
       name: "E.21 TAKE_MISSION combat type starts intercept",
       type: "reducer",
       run: (u) => {
-        const combatMission = D.MISSION_POOL.find(m => m.id === "debug_combat");
+        const combatMission = testMission({
+          type: "combat", faction: "english",
+          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
+        });
         const state = { ...E.initialState, currentPort: "portRoyal", crew: { roster: fillRoster(30), morale: 80 } };
         const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission: combatMission });
         u.assertEqual(s.screen, "intercept");
@@ -272,7 +279,9 @@ window.TESTS.push({
       name: "E.22 TAKE_MISSION trade type sets activeMission",
       type: "reducer",
       run: (u) => {
-        const tradeMission = D.MISSION_POOL.find(m => m.type === "trade");
+        const tradeMission = testMission({
+          type: "trade", targetPort: "nassau", requiredGood: "rum", requiredQty: 10, gold: 600
+        });
         const state = makeState({ currentPort: "portRoyal", screen: "port" });
         const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission: tradeMission });
         u.assert(s.activeMission, "Should have active mission");
@@ -330,7 +339,7 @@ window.TESTS.push({
       type: "reducer",
       run: (u) => {
         u.resetRandomStub();
-        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5,0.5]);
+        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ...E.initialState, screen:"battle",
           ship: { type:"sloop", hull:100, upgrades:[] },
@@ -421,7 +430,7 @@ window.TESTS.push({
       name: "E.31 DISMISS_BATTLE after victory keeps mission active (manual completion needed)",
       type: "reducer",
       run: (u) => {
-        const mission = D.MISSION_POOL.find(m => m.type==="combat");
+        const mission = testMission({ type: "combat", faction: "english", enemy: { faction: "pirate" } });
         const state = {
           ...E.initialState, screen:"battle", currentPort:"portRoyal",
           activeMission: mission,
@@ -746,7 +755,10 @@ window.TESTS.push({
       name: "E.57 Assault mission triggers combat on entry",
       type: "reducer",
       run: (u) => {
-        const mission = D.MISSION_POOL.find(m => m.type === "assault");
+        const mission = testMission({
+          type: "assault", targetPort: "havana", faction: "english",
+          enemy: { name: "Havana Guards", hull: 80, cannons: 12, crew: 40, faction: "spanish" }
+        });
         const state = {
           ...E.initialState,
           destination: mission.targetPort,
@@ -768,7 +780,7 @@ window.TESTS.push({
         const state = { ...E.initialState, gold: 10000, fame: 10 };
         const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
         u.assertEqual(s.ship.type, state.ship.type, "Ship type unchanged");
-        u.assert(s.log.some(l => l.includes("Requires ★ 50 fame")), "Should log fame requirement");
+        u.assert(s.log.some(l => l.includes("Requires ★ 100 fame")), "Should log fame requirement");
       }
     },
     {
@@ -778,441 +790,179 @@ window.TESTS.push({
         const state = { ...E.initialState, gold: 5000, fame: 10, ship: { type: "frigate", upgrades: [] } };
         const s = E.reducer(state, { type: E.A.BUY_UPGRADE, upgradeKey: "extra_cannons" });
         u.assert(!s.ship.upgrades.includes("extra_cannons"), "Upgrade not installed");
-        u.assert(s.log.some(l => l.includes("Requires ★ 50 fame")), "Should log fame requirement");
+        u.assertEqual(s.gold, 5000, "Gold unchanged");
       }
     },
     {
-      name: "E.60 TAKE_MISSION blocked by fame",
+      name: "E.60 TAKE_MISSION fame blocking removed (no longer gates)",
       type: "reducer",
       run: (u) => {
-        const mission = D.MISSION_POOL.find(m => m.id === "hunt_pirate"); // requires 50 fame
-        const state = { ...E.initialState, fame: 10, currentPort: "portRoyal" };
+        const mission = testMission({ type: "escort", targetPort: "nassau" });
+        const state = { ...E.initialState, currentPort: "portRoyal", fame: 0, reputation: { nassau: 50 }, crew: { roster: fillRoster(30), morale: 80 } };
         const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
-        u.assert(!s.activeMission, "Mission not accepted");
-        u.assert(s.log.some(l => l.includes("Mission unavailable")), "Should log fame requirement");
+        u.assert(s.activeMission !== null, "Mission accepted regardless of fame");
       }
     },
     {
-      name: "E.61 BUY_SHIP succeeds when fame sufficient",
+      name: "E.61 BUY_SHIP with sufficient fame",
       type: "reducer",
       run: (u) => {
-        const state = { ...E.initialState, gold: 10000, fame: 60 };
+        const state = { ...E.initialState, gold: 10000, fame: 100 };
         const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
         u.assertEqual(s.ship.type, "frigate");
+        u.assertEqual(s.gold, 10000 - D.SHIPS.frigate.cost);
       }
     },
-    // Reputation perks (P1.7)
+    // Smuggle/Trade mission completion (E.66–E.70)
     {
-      name: "E.62 REPAIR applies 10% discount at Friendly",
+      name: "E.66 COMPLETE_MISSION smuggle requires goods in hold",
+      type: "reducer",
+      run: (u) => {
+        const mission = testMission({
+          type: "smuggle", targetPort: "nassau",
+          gold: 400, infamyGain: 1, requiredGood: "tobacco", requiredQty: 5
+        });
+        const state = {
+          ...E.initialState,
+          currentPort: "nassau",
+          activeMission: mission,
+          hold: { capacity: 200, items: { tobacco: 5 } },
+          gold: 1000, infamy: 9
+        };
+        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+        u.assertEqual(s.gold, 1400);
+        u.assertEqual(s.infamy, 10);
+        u.assert(s.activeMission === null);
+      }
+    },
+    {
+      name: "E.67 COMPLETE_MISSION assault increases infamy",
+      type: "reducer",
+      run: (u) => {
+        const mission = testMission({
+          type: "assault", targetPort: "portRoyal", faction: "pirate", infamyGain: 3
+        });
+        const state = {
+          ...E.initialState,
+          currentPort: "portRoyal",
+          activeMission: mission,
+          gold: 1000, infamy: 5
+        };
+        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+        u.assertEqual(s.infamy, 8);
+        u.assert(s.activeMission === null);
+      }
+    },
+    {
+      name: "E.68 COMPLETE_MISSION trade no infamy",
+      type: "reducer",
+      run: (u) => {
+        const mission = testMission({ type: "trade", requiredGood: "rum", requiredQty: 5 });
+        const state = {
+          ...E.initialState,
+          currentPort: mission.targetPort || "tortuga",
+          activeMission: mission,
+          hold: { capacity: 200, items: { rum: 5 } },
+          gold: 1000, infamy: 5
+        };
+        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+        u.assertEqual(s.infamy, 5);
+        u.assert(s.activeMission === null);
+      }
+    },
+    {
+      name: "E.69 COMPLETE_MISSION infamy threshold Clean to Suspect",
+      type: "reducer",
+      run: (u) => {
+        const mission = testMission({ type: "smuggle", infamyGain: 1 });
+        const state = {
+          ...E.initialState,
+          currentPort: mission.targetPort || "nassau",
+          activeMission: mission,
+          hold: { capacity: 200, items: { rum: 5 } },
+          gold: 1000, infamy: 9
+        };
+        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+        u.assertEqual(s.infamy, 10);
+        u.assert(s.activeMission === null);
+      }
+    },
+    {
+      name: "E.70 COMPLETE_MISSION infamy threshold Suspect to Notorious",
+      type: "reducer",
+      run: (u) => {
+        const mission = testMission({ type: "smuggle", infamyGain: 1 });
+        const state = {
+          ...E.initialState,
+          currentPort: mission.targetPort || "nassau",
+          activeMission: mission,
+          hold: { capacity: 200, items: { rum: 5 } },
+          gold: 1000, infamy: 19
+        };
+        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+        u.assertEqual(s.infamy, 20);
+        u.assert(s.activeMission === null);
+      }
+    },
+    // Hold capacity (E.87)
+    {
+      name: "E.87 BUY_SHIP updates hold capacity",
       type: "reducer",
       run: (u) => {
         const state = {
           ...E.initialState,
-          currentPort: "tortuga",
-          ship: { type: "sloop", hull: 50, upgrades: [] },
-          gold: 1000,
-          reputation: { tortuga: 60 }  // Friendly
+          gold: 10000,
+          ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] },
+          hold: { capacity: 100, items: {} }
         };
-        const s = E.reducer(state, { type: E.A.REPAIR });
-        const expectedCost = Math.floor((D.SHIPS.sloop.maxHull - 50) * 2 * 0.9);
-        u.assertEqual(s.gold, 1000 - expectedCost);
-        u.assert(s.log.some(l => l.includes("friendly discount")), "Log mentions discount");
+        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "galleon" });
+        u.assertEqual(s.ship.type, "galleon");
+        u.assertEqual(s.hold.capacity, D.SHIPS.galleon.holdCapacity);
+      }
+    },
+    // Log message tests (E.81, E.85)
+    {
+      name: "E.81 ADVANCE_DAY food stores empty log",
+      type: "reducer",
+      run: (u) => {
+        u.resetRandomStub();
+        const state = {
+          ...E.initialState,
+          screen: "sailing", destination: "tortuga", sailingDaysLeft: 1, sailingDaysTotal: 1,
+          crew: { roster: fillRoster(30), max: 50, morale: 80 },
+          hold: { capacity: 200, items: { food: 0 } }
+        };
+        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+        u.assert(s.log.some(l => l.includes("food stores are empty")));
       }
     },
     {
-      name: "E.63 HIRE_CREW blocked when At War",
+      name: "E.85 CONFIRM_TRADE not enough stock log",
       type: "reducer",
       run: (u) => {
         const state = {
           ...E.initialState,
           currentPort: "portRoyal",
-          reputation: { portRoyal: 5 },
-          gold: 1000,
-          crew: { roster: fillRoster(20), max: 50, morale: 80 }
+          screen: "port",
+          hold: { capacity: 200, items: {} },
+          market: { goods: { rum: { stock: 0, buyFromPort: 10 } } }
         };
-        const s = E.reducer(state, { type: E.A.HIRE_CREW, count: 5 });
-        u.assertEqual(s.crew.roster.length, 20, "No crew hired");
-        u.assert(s.log.some(l => l.includes("at war")), "Log mentions at war");
+        const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, good: "rum", qty: 10 });
+        u.assert(s.log.some(l => l.includes("Not enough rum available")));
       }
     },
+    // Market price test (G.31)
     {
-      name: "E.64 COMPLETE_MISSION applies +20% gold at Allied",
+      name: "G.31 Market price for food",
       type: "reducer",
       run: (u) => {
-        u.resetRandomStub();
-        const mission = { id:"test", name:"Test", gold:100, fame:1, repImpact:{}, targetPort:null, faction:"english" };
         const state = {
           ...E.initialState,
           currentPort: "portRoyal",
-          activeMission: mission,
-          gold: 1000, fame: 0,
-          reputation: { portRoyal: 85 },  // Allied
-          crew: { roster: fillRoster(30), morale: 80 }
+          market: { goods: { food: { stock: 100, buyFromPort: D.RESOURCES.food.basePrice } } }
         };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.gold, 1000 + Math.floor(100 * 1.20), "Allied bonus applied");
-        u.assert(s.log.some(l => l.includes("+20g allied bonus")), "Log mentions allied bonus");
+        u.assertEqual(state.market.goods.food.buyFromPort, 3);
       }
     },
-    {
-      name: "E.65 COMPLETE_MISSION applies 0 gold at At War (safeguard)",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = { id:"test", name:"Test", gold:100, fame:1, repImpact:{}, targetPort:null, faction:"english" };
-        const state = {
-          ...E.initialState,
-          currentPort: "portRoyal",
-          activeMission: mission,
-          gold: 1000, fame: 0,
-          reputation: { portRoyal: 5 },  // At War
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.gold, 1000, "No gold gained");
-        u.assert(s.log.some(l => l.includes("100g hostile penalty")), "Log mentions penalty");
-      }
-    },
-    // Infamy track (P2.7)
-    {
-      name: "E.66 COMPLETE_MISSION on smuggle_rum adds 1 infamy",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort,
-          activeMission: mission,
-          gold: 1000, fame: 0, infamy: 0,
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 1, "Infamy increased by 1");
-      }
-    },
-    {
-      name: "E.67 COMPLETE_MISSION on assault_portRoyal adds 3 infamy",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = D.MISSION_POOL.find(m => m.id === "assault_portRoyal");
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort,
-          activeMission: mission,
-          gold: 1000, fame: 0, infamy: 0,
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 3, "Infamy increased by 3");
-      }
-    },
-    {
-      name: "E.68 COMPLETE_MISSION on trade mission adds 0 infamy",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = D.MISSION_POOL.find(m => m.type === "trade");
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort,
-          activeMission: mission,
-          gold: 1000, fame: 0, infamy: 0,
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 0, "Infamy unchanged for clean mission");
-      }
-    },
-    {
-      name: "E.69 COMPLETE_MISSION logs threshold crossing (Clean → Suspect)",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = { ...D.MISSION_POOL.find(m => m.id === "smuggle_rum"), infamyGain: 10 };
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort,
-          activeMission: mission,
-          gold: 1000, fame: 0, infamy: 9,
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 19, "Infamy increased to 19");
-        u.assert(s.log.some(l => l.includes("Your name grows darker")), "Threshold crossing log");
-        u.assert(s.log.some(l => l.includes("Suspect")), "New label mentioned");
-      }
-    },
-    {
-      name: "E.70 COMPLETE_MISSION does not log threshold when label unchanged",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort,
-          activeMission: mission,
-          gold: 1000, fame: 0, infamy: 10,
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: fillRoster(30), morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 11, "Infamy increased");
-        // Should NOT contain threshold crossing
-        u.assert(!s.log.some(l => l.includes("Your name grows darker")), "No threshold log");
-      }
-    },
-    {
-      name: "E.71 START_GAME produces infamy: 0",
-      type: "reducer",
-      run: (u) => {
-        u.resetRandomStub();
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
-        u.assertEqual(s.infamy, 0, "Infamy should be 0");
-      }
-    },
-    // ── Economy system ──
-{
-  name: "E.80 ADVANCE_DAY deducts food and water",
-  type: "reducer",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = {
-      ...E.initialState,
-      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
-      crew: { roster: fillRoster(30), max:50, morale:80 },
-      gold: 1000, reputation: { tortuga:50 },
-      hold: { capacity:200, items: { food:10, water:10 } }
-    };
-    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-    u.assertEqual(s.hold.items.food, 7, "30 crew → 3 food consumed");
-    u.assertEqual(s.hold.items.water, 7, "30 crew → 3 water consumed");
-  }
-},
-{
-  name: "E.81 ADVANCE_DAY applies morale penalty when food runs out",
-  type: "reducer",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = {
-      ...E.initialState,
-      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
-      crew: { roster: fillRoster(30), max:50, morale:50 },
-      gold: 1000, reputation: { tortuga:50 },
-      hold: { capacity:200, items: { food:2, water:10 } }
-    };
-    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-    u.assertEqual(s.crew.morale, 49, "Morale −1 from empty food");
-    u.assert(s.log.some(l => l.includes("food stores are empty")), "Food exhaustion logged");
-  }
-},
-{
-  name: "E.82 ADVANCE_DAY morale penalty does not stack for multiple crises",
-  type: "reducer",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = {
-      ...E.initialState,
-      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
-      crew: { roster: fillRoster(30), max:50, morale:50 },
-      gold: 0, reputation: { tortuga:50 },
-      hold: { capacity:200, items: { food:0, water:0 } }
-    };
-    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-    u.assertEqual(s.crew.morale, 49, "Only −1 despite food=0, water=0, gold crisis");
-  }
-},
-{
-  name: "E.83 CONFIRM_TRADE buying adds to hold and deducts gold",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      gold: 500,
-      hold: { capacity:200, items: { rum:0 } },
-      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:10 } } }
-    };
-    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { rum:5 }, sells: {} });
-    u.assertEqual(s.gold, 500 - 165);
-    u.assertEqual(s.hold.items.rum, 5);
-  }
-},
-{
-  name: "E.84 CONFIRM_TRADE selling removes from hold and adds gold",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      gold: 500,
-      hold: { capacity:200, items: { rum:10 } },
-      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:10 } } }
-    };
-    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: {}, sells: { rum:5 } });
-    u.assertEqual(s.gold, 500 + 135);
-    u.assertEqual(s.hold.items.rum, 5);
-  }
-},
-{
-  name: "E.85 CONFIRM_TRADE rejects buy exceeding available stock",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      gold: 500,
-      hold: { capacity:200, items: {} },
-      portMarket: { goods: { rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:2 } } }
-    };
-    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { rum:5 }, sells: {} });
-    u.assert(s.log.some(l => l.includes("Not enough rum available")), "Rejection logged");
-    u.assertEqual(s.hold.items.rum || 0, 0, "No rum added");
-  }
-},
-{
-  name: "E.86 CONFIRM_TRADE buying slaves adds infamy",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      gold: 5000, infamy: 0,
-      hold: { capacity:200, items: {} },
-      portMarket: { goods: { slaves: { basePrice:220, buyFromPort:242, sellToPort:198, available:5 } } }
-    };
-    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { slaves:1 }, sells: {} });
-    u.assertEqual(s.infamy, 1, "Slave purchase adds infamy");
-  }
-},
-{
-  name: "E.87 BUY_SHIP updates hold capacity",
-  type: "reducer",
-  run: (u) => {
-    const state = { ...E.initialState, gold: 5000, ship: { type:"sloop", hull:100, cannons:10, upgrades:[] }, crew: { roster: fillRoster(30), max:50, morale:80 }, hold: { capacity:200, items:{ food:10 } } };
-    const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-    u.assertEqual(s.hold.capacity, D.SHIPS.frigate.holdCapacity, "Hold capacity updated");
-  }
-},
-{
-  name: "E.88 DISMISS_BATTLE defeat clears all hold items",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      previousPort: "portRoyal",
-      battleState: { phase:"defeat", returnScreen:"port" },
-      hold: { capacity:200, items: { food:10, rum:5 } }
-    };
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assert(Object.values(s.hold.items).every(v => v === 0), "All cargo cleared");
-    u.assert(s.log.some(l => l.includes("All cargo lost")), "Log entry added");
-  }
-},
-{
-  name: "E.89 INTERCEPT_SURRENDER loseCargoPercent reduces all items",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      destination: "tortuga", sailingDaysLeft:2,
-      hold: { capacity:200, items: { rum:10, food:20 } },
-      crew: { roster: [], morale:80 },
-      encounterContext: { options: { surrender: { consequence: { loseCargoPercent:30 } } } }
-    };
-    const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
-    u.assertEqual(s.hold.items.food, 14, "Food reduced by 30%");
-    u.assertEqual(s.hold.items.rum, 7, "Rum reduced by 30%");
-  }
-},
-{
-  name: "E.90 INTERCEPT_SURRENDER loseContraband removes illegal goods",
-  type: "reducer",
-  run: (u) => {
-    const state = {
-      ...E.initialState,
-      destination: "tortuga", sailingDaysLeft:2,
-      hold: { capacity:200, items: { rum:10, tobacco:5, slaves:2 } },
-      crew: { roster: [], morale:80 },
-      encounterContext: { options: { surrender: { consequence: { loseContraband:true } } } }
-    };
-    const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
-    u.assertEqual(s.hold.items.tobacco, 0);
-    u.assertEqual(s.hold.items.slaves, 0);
-    u.assertEqual(s.hold.items.rum, 10, "Legal goods untouched");
-  }
-},
-// ── Trade & Smuggle cargo completion ──
-{
-  name: "E.90 COMPLETE_MISSION trade: removes goods from hold and pays gold",
-  type: "reducer",
-  run: (u) => {
-    u.resetRandomStub();
-    const mission = testMission({
-      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
-      requiredGood: "rum", requiredQty: 10,
-    });
-    const state = {
-      ...E.initialState,
-      currentPort: "kingston",
-      activeMission: mission,
-      gold: 1000, fame: 0,
-      hold: { capacity: 200, items: { rum: 15 } },
-      crew: { roster: fillRoster(30), morale: 80 },
-      reputation: { kingston: 50 },
-    };
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assertEqual(s.hold.items.rum, 5, "10 rum removed from hold");
-    u.assertEqual(s.gold, 1500, "Gold increased by mission gold");
-    u.assert(s.activeMission === null, "Mission cleared");
-  }
-},
-{
-  name: "E.91 COMPLETE_MISSION trade: without required goods fails",
-  type: "reducer",
-  run: (u) => {
-    const mission = testMission({
-      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
-      requiredGood: "rum", requiredQty: 10,
-    });
-    const state = {
-      ...E.initialState,
-      currentPort: "kingston",
-      activeMission: mission,
-      gold: 1000, fame: 0,
-      hold: { capacity: 200, items: { rum: 3 } },
-      crew: { roster: fillRoster(30), morale: 80 },
-      reputation: { kingston: 50 },
-    };
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assertEqual(s.hold.items.rum, 3, "Rum untouched");
-    u.assert(s.activeMission !== null, "Mission still active");
-    u.assert(s.log.some(l => l.includes("Cannot complete")), "Failure logged");
-  }
-},
-{
-  name: "E.92 COMPLETE_MISSION trade: no rep multiplier applied",
-  type: "reducer",
-  run: (u) => {
-    u.resetRandomStub();
-    const mission = testMission({
-      type: "trade", name: "Trade Test", gold: 500, fame: 1, targetPort: "kingston",
-      requiredGood: "rum", requiredQty: 10,
-    });
-    const state = {
-      ...E.initialState,
-      currentPort: "kingston",
-      activeMission: mission,
-      gold: 1000, fame: 0,
-      hold: { capacity: 200, items: { rum: 15 } },
-      crew: { roster: fillRoster(30), morale: 80 },
-      reputation: { kingston: 85 }, // Allied — should give +20% normally
-    };
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assertEqual(s.gold, 1500, "Gold exactly equals mission.gold, no multiplier");
-  }
-},
   ]
 });

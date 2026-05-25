@@ -9,7 +9,7 @@ window.TESTS.push({
       type: "integration",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
         while (s.sailingDaysLeft > 0) s = E.reducer(s, { type: E.A.ADVANCE_DAY });
         s = E.reducer(s, { type: E.A.ENTER_PORT });
@@ -24,7 +24,7 @@ window.TESTS.push({
       type: "integration",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = { ...s, currentPort: "portRoyal", reputation: { portRoyal: 80 } };
         s.missions = G.generateMissions("portRoyal", s);
         const mission = s.missions.find(m => m.targetPort);
@@ -48,8 +48,11 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
-        const combatMission = D.MISSION_POOL.find(m => m.id === "debug_combat");
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
+        const combatMission = testMission({
+          type: "combat", faction: "english",
+          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission: combatMission });
         u.assertEqual(s.screen, "intercept");
         s = E.reducer(s, { type: E.A.INTERCEPT_FIGHT }); // enter battle
@@ -72,8 +75,11 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
-        const combatMission = D.MISSION_POOL.find(m => m.id === "debug_combat");
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
+        const combatMission = testMission({
+          type: "combat", faction: "english",
+          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission: combatMission });
         s = E.reducer(s, { type: E.A.INTERCEPT_FIGHT });
         s = { ...s, battleState: { ...s.battleState, playerHull: 1, enemyHull: 100, enemy: { ...s.battleState.enemy, cannons: 50 } } };
@@ -91,8 +97,13 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "smuggler" });
-        const smugMission = D.MISSION_POOL.find(m => m.id === "smuggle_rum");
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
+        const smugMission = testMission({
+          type: "smuggle", faction: "pirate", targetPort: "nassau",
+          risk: "medium", gold: 400, infamyGain: 1,
+          requiredGood: "rum", requiredQty: 5, patrolRisk: 0.30,
+          enemy: { name: "The Serpent", hull: 50, cannons: 6, crew: 20, faction: "english" }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission: smugMission });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "nassau" });
         u.setRandomSequence([0.5, 0.5, 0.1]); // wind + intercept
@@ -119,7 +130,7 @@ window.TESTS.push({
       type: "integration",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "admiral" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[3].id });
         s = { ...s, gold: 10000 }; // ensure enough
         const frigateCost = D.SHIPS.frigate.cost;
         const upgradeCost = D.UPGRADES.extra_cannons.cost;
@@ -139,7 +150,7 @@ window.TESTS.push({
       run: (u) => {
         u.resetRandomStub();
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         const initialLength = s.crew.roster.length;
         s = E.reducer(s, { type: E.A.HIRE_CREW, count: 10 });
         u.assert(s.crew.roster.length === initialLength + 10, "Crew increased");
@@ -156,7 +167,7 @@ window.TESTS.push({
       run: (u) => {
         u.resetRandomStub();
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
         s = { ...s, reputation: { ...s.reputation, portRoyal: 5 } };
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "portRoyal" });
         while (s.sailingDaysLeft > 0) s = E.reducer(s, { type: E.A.ADVANCE_DAY });
@@ -171,7 +182,7 @@ window.TESTS.push({
       type: "integration",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         const testEvent = { id:"test", type:"reward", title:"Test", desc:"", choices:[{ label:"Take", outcome:{ gold:200, log:"You take gold." } }] };
         s = { ...s, activeEvent: testEvent };
         const goldBefore = s.gold;
@@ -186,7 +197,7 @@ window.TESTS.push({
       type: "integration",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
         const goldBefore = s.gold, dayBefore = s.day;
         s = E.reducer(s, { type: E.A.SAVE_GAME });
         u.assert(localStorage.getItem("piratesSave"), "Save exists");
@@ -203,8 +214,11 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
-        const combatMission = D.MISSION_POOL.find(m => m.id === "debug_combat");
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
+        const combatMission = testMission({
+          type: "combat", faction: "english",
+          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission: combatMission });
         s = E.reducer(s, { type: E.A.INTERCEPT_FIGHT });
         s = { ...s, battleState: { ...s.battleState, enemyHull: 1, enemy: { ...s.battleState.enemy, cannons: 50 }, initialCrewCount: s.crew.roster.length, lostCrewNames: [] } };
@@ -226,7 +240,7 @@ window.TESTS.push({
       type: "scenario",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = E.reducer(s, { type: E.A.NAVIGATE, screen: "map" });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
         while (s.sailingDaysLeft > 0) s = E.reducer(s, { type: E.A.ADVANCE_DAY });
@@ -259,8 +273,11 @@ window.TESTS.push({
       type: "scenario",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "pirate" });
-        const mission = D.MISSION_POOL.find(m => m.id === "debug_combat");
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[2].id });
+        const mission = testMission({
+          type: "combat", faction: "english",
+          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission });
         // go through intercept
         s = E.reducer(s, { type: E.A.INTERCEPT_FIGHT });
@@ -310,7 +327,7 @@ window.TESTS.push({
       type: "scenario",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         const gold = s.gold, day = s.day;
         s = E.reducer(s, { type: E.A.SAVE_GAME });
         const freshState = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
@@ -339,7 +356,7 @@ window.TESTS.push({
       type: "scenario",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = { ...s, currentPort: "portRoyal", reputation: { ...s.reputation, portRoyal: 80 } };
         s.missions = G.generateMissions("portRoyal", s);
         let m1 = s.missions.find(m => m.targetPort);
@@ -369,8 +386,10 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         let s = makeState({ currentPort: "curacao", reputation: { curacao: 60 } });
-        const mission = D.MISSION_POOL.find(m => m.id === "escort_merchant");
-        u.assert(mission, "Escort mission found");
+        const mission = testMission({
+          type: "escort", targetPort: "curacao", faction: "dutch",
+          repImpact: { dutch: 5 }
+        });
         s = E.reducer(s, { type: E.A.TAKE_MISSION, mission });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: mission.targetPort });
         while (s.sailingDaysLeft > 0) s = E.reducer(s, { type: E.A.ADVANCE_DAY });
@@ -387,7 +406,7 @@ window.TESTS.push({
       type: "scenario",
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
-        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "merchant" });
+        let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
         u.setRandomSequence([0.5, 0.5, 0.05, 0.5]); // wind + event
         s = E.reducer(s, { type: E.A.ADVANCE_DAY });
@@ -401,6 +420,6 @@ window.TESTS.push({
         }
         u.restoreLocalStorage();
       }
-    }
+    },
   ]
 });

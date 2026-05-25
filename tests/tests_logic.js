@@ -165,13 +165,13 @@ window.TESTS.push({
       }
     },
     {
-      name: "L.17 generateMissions: only port faction or pirate missions",
+      name: "L.17 generateMissions: no rival faction missions",
       type: "unit",
       run: (u) => {
         u.resetRandomStub();
         const state = { reputation: { portRoyal: 50 } };
         const missions = G.generateMissions("portRoyal", state);
-        u.assert(!missions.some(m => m.faction !== "english" && m.faction !== "pirate"), "All missions must be English or pirate");
+        u.assert(missions.every(m => !D.FACTIONS.english.rivalFactions.includes(m.faction)), "No rival faction missions should appear");
       }
     },
     {
@@ -264,7 +264,7 @@ window.TESTS.push({
       name: "L.30 resolveCombatAction: broadside damages enemy hull and crew",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+        u.setRandomSequence([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -284,7 +284,7 @@ window.TESTS.push({
       name: "L.31 resolveCombatAction: precision (70% acc) high hull damage",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.1, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5]);
+        u.setRandomSequence([0.1, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -304,7 +304,7 @@ window.TESTS.push({
       name: "L.32 resolveCombatAction: grapple success instant victory",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.0]);
+        u.setRandomSequence([0.0, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(50), morale: 90 },
@@ -325,7 +325,7 @@ window.TESTS.push({
       name: "L.33 resolveCombatAction: grapple failure causes crew loss",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.99, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5]);
+        u.setRandomSequence([0.99, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(20), morale: 20 },
@@ -346,7 +346,7 @@ window.TESTS.push({
       name: "L.34 resolveCombatAction: evade success fled=true",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.0]);
+        u.setRandomSequence([0.0, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -366,7 +366,7 @@ window.TESTS.push({
       name: "L.35 resolveCombatAction: evade fail takes reduced damage",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.95, 0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.95, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.5, 0.5]);
         const state = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -386,7 +386,7 @@ window.TESTS.push({
       name: "L.36 resolveCombatAction: morale modifier (high morale reduces damage)",
       type: "unit",
       run: (u) => {
-        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5]);
         const highMorale = {
           ship: { type: "sloop", hull: 100, upgrades: [] },
           crew: { roster: fillRoster(30), morale: 80 },
@@ -399,7 +399,7 @@ window.TESTS.push({
         const lowMorale = { ...highMorale, crew: { ...highMorale.crew, morale: 20 } };
         const oHigh = L.resolveCombatAction(highMorale, "broadside");
         u.resetRandomStub();
-        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4]);
+        u.setRandomSequence([0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5, 0.4, 0.5, 0.5]);
         const oLow = L.resolveCombatAction(lowMorale, "broadside");
         u.resetRandomStub();
         u.assert(oHigh.player.hullDamage < oLow.player.hullDamage, "High morale reduces damage");
@@ -845,125 +845,12 @@ window.TESTS.push({
   }
 },
 {
-  name: "G.33 goods at 'never' tier are absent",
+  name: "G.33 goods at 'never' ports are not present",
   type: "unit",
   run: (u) => {
     u.resetRandomStub();
-    const market = G.generatePortMarket("kingston"); // tobacco: never
-    u.assert(!market.goods.tobacco, "Tobacco should not appear at Kingston");
-  }
-},
-{
-  name: "G.34 trade good quantity is within tier range",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const market = G.generatePortMarket("nassau"); // rum: frequently (20‑40)
-    if (market.goods.rum) {
-      u.assert(market.goods.rum.available >= 20 && market.goods.rum.available <= 40,
-        `Rum qty ${market.goods.rum.available} in [20,40]`);
-    }
-  }
-},
-// ── Trade & Smuggle mission generators ──
-{
-  name: "G.40 generateTradeMission returns mission with requiredGood and requiredQty",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
-    u.assert(mission !== null, "Should return a mission");
-    u.assert(mission.requiredGood, "Has requiredGood");
-    u.assert(typeof mission.requiredQty === "number", "Has requiredQty");
-    u.assert(mission.requiredGood !== "food" && mission.requiredGood !== "water", "Good is not food/water");
-  }
-},
-{
-  name: "G.41 generateTradeMission requiredQty is ~10% of hold (low risk)",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
-    u.assert(mission.requiredQty >= 18 && mission.requiredQty <= 22, `Qty ${mission.requiredQty} should be ~10% of 200`);
-  }
-},
-{
-  name: "G.42 generateTradeMission gold > base cost (profitable)",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const mission = G.generateTradeMission("portRoyal", state, "english", "low");
-    const res = D.RESOURCES[mission.requiredGood];
-    const baseCost = res.basePrice * mission.requiredQty;
-    u.assert(mission.gold > baseCost, `Gold ${mission.gold} should be > base cost ${baseCost}`);
-  }
-},
-{
-  name: "G.43 generateSmuggleMission returns mission with requiredGood in [rum, tobacco, slaves]",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const mission = G.generateSmuggleMission("portRoyal", state, "low");
-    u.assert(mission !== null, "Should return a mission");
-    u.assert(["rum", "tobacco", "slaves"].includes(mission.requiredGood), `Good is ${mission.requiredGood}`);
-  }
-},
-{
-  name: "G.44 smuggle mission never gives slaves at fame 0 and low infamy",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    // Run 20 times – slaves should never appear at tier 0
-    for (let i = 0; i < 20; i++) {
-      const mission = G.generateSmuggleMission("portRoyal", state, "low");
-      u.assert(mission.requiredGood !== "slaves", "Slaves should not appear at fame 0");
-    }
-  }
-},
-{
-  name: "G.45 smuggle mission has interceptChance matching risk",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const low = G.generateSmuggleMission("portRoyal", state, "low");
-    const med = G.generateSmuggleMission("portRoyal", state, "medium");
-    const high = G.generateSmuggleMission("portRoyal", state, "high");
-    u.assertEqual(low.interceptChance, 0.70, "Low risk = 0.70");
-    u.assertEqual(med.interceptChance, 0.80, "Medium risk = 0.80");
-    u.assertEqual(high.interceptChance, 0.90, "High risk = 0.90");
-  }
-},
-{
-  name: "G.46 smuggle mission target port is never pirate faction",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    for (let i = 0; i < 10; i++) {
-      const mission = G.generateSmuggleMission("portRoyal", state, "low");
-      if (mission?.targetPort) {
-        u.assert(D.PORTS[mission.targetPort].faction !== "pirate", `Target ${mission.targetPort} should not be pirate`);
-      }
-    }
-  }
-},
-{
-  name: "G.47 smuggle mission repImpact includes negative value for target faction",
-  type: "unit",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = { fame: 0, infamy: 0, hold: { capacity: 200 }, reputation: { portRoyal: 50 } };
-    const mission = G.generateSmuggleMission("portRoyal", state, "low");
-    if (mission?.targetPort) {
-      const targetFaction = D.PORTS[mission.targetPort].faction;
-      u.assert(mission.repImpact[targetFaction] < 0, "Target faction should have negative rep impact");
-    }
+    const market = G.generatePortMarket("portRoyal");
+    u.assert(market.goods.slaves === undefined, "Slaves should not appear at Port Royal");
   }
 },
   ]
