@@ -148,7 +148,49 @@ window.L = (() => {
   };
 
 const canReach = (state, portKey) => {
-  return travelDays(state.currentPort, portKey, state) <= SHIPS[state.ship.type].maxDays;
+  if (portKey === state.currentPort) return false;
+  const port = PORTS[portKey];
+  if (!port) return false;
+
+  // --- Layer 3: hidden port guard (only affects ports with hidden: true) ---
+  if (port.hidden && !state.discoveredPorts?.includes(portKey)) return false;
+
+  // --- Layer 2: ship size guard (minHull) ---
+  if (port.minHull) {
+    const baseHull = SHIPS[state.ship?.type]?.maxHull ?? 0;
+    if (baseHull < port.minHull) return false;
+  }
+
+  // --- Layer 1: range guard ---
+  const days = travelDays(state.currentPort, portKey, state);
+  const shipMaxDays = SHIPS[state.ship?.type]?.maxDays ?? 10;
+  return days <= shipMaxDays;
+};
+
+const getUnreachableReason = (state, portKey) => {
+  if (portKey === state.currentPort) return null;
+  const port = PORTS[portKey];
+  if (!port) return "Unknown port";
+
+  // --- Layer 3: reveal nothing for undiscovered ports ---
+ if (port.hidden && !state.discoveredPorts?.includes(portKey)) return null;
+
+  // --- Layer 2: ship size ---
+  if (port.minHull) {
+    const baseHull = SHIPS[state.ship?.type]?.maxHull ?? 0;
+    if (baseHull < port.minHull) {
+      return `Requires a heavier vessel (your ship: ${baseHull} hull, required: ${port.minHull}+)`;
+    }
+  }
+
+  // --- Layer 1: range ---
+  const days = travelDays(state.currentPort, portKey, state);
+  const shipMaxDays = SHIPS[state.ship?.type]?.maxDays ?? 10;
+  if (days > shipMaxDays) {
+    return `${days}-day voyage exceeds your ship's range (${shipMaxDays} days)`;
+  }
+
+  return null;
 };
 
 
@@ -648,6 +690,7 @@ const applyLoseContraband = (holdItems) => {
     // Travel
     travelDays,
     canReach,
+    getUnreachableReason,
 
     // Reputation
     decayReputation,

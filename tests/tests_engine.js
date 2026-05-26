@@ -994,6 +994,67 @@ window.TESTS.push({
     u.restoreLocalStorage();
   }
 },
+// ── Hidden port discovery (Layer 3) ──
+{
+  name: "E.DP.1 DISCOVER_PORT adds port and logs entry",
+  type: "reducer",
+  run: (u) => {
+    const s = makeState({
+      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+    });
+    const next = E.reducer(s, { type: E.A.DISCOVER_PORT, portKey: "libertalia" });
+    u.assert(next.discoveredPorts.includes("libertalia"), "Libertalia should be discovered");
+    u.assert(next.log.some(l => l.includes("Libertalia")), "Discovery logged");
+  }
+},
+{
+  name: "E.DP.2 DISCOVER_PORT is idempotent",
+  type: "reducer",
+  run: (u) => {
+    const s = makeState({
+      discoveredPorts: [...Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden), "libertalia"],
+    });
+    const logBefore = s.log.length;
+    const next = E.reducer(s, { type: E.A.DISCOVER_PORT, portKey: "libertalia" });
+    u.assertEqual(next.discoveredPorts.filter(k => k === "libertalia").length, 1, "Should not duplicate");
+    u.assertEqual(next.log.length, logBefore, "Should not re-log");
+  }
+},
+{
+  name: "E.DP.3 ADVANCE_DAY auto-discovers dryTortugas at fame 50",
+  type: "reducer",
+  run: (u) => {
+    const s = {
+      ...makeState({
+        screen: "sailing", destination: "tortuga", sailingDaysLeft: 3,
+        fame: 50,
+        discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+        hold: { capacity: 200, items: { food: 10, water: 10 } },
+        gold: 500,
+      }),
+    };
+    const next = E.reducer(s, { type: E.A.ADVANCE_DAY });
+    u.assert(next.discoveredPorts.includes("dryTortugas"), "Dry Tortugas should be discovered at fame 50");
+    u.assert(next.log.some(l => l.includes("Dry Tortugas")));
+  }
+},
+{
+  name: "E.DP.4 map_libertalia fragment discovers Libertalia",
+  type: "reducer",
+  run: (u) => {
+    const chartEvent = D.RANDOM_EVENTS.find(e => e.id === "mysterious_chart");
+    u.assert(chartEvent, "mysterious_chart event must exist in RANDOM_EVENTS");
+    const s = {
+      ...makeState({ fame: 100, mapFragments: [] }),
+      activeEvent: chartEvent,
+      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+    };
+    // Choice index 0 = "Take the chart"
+    const next = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    u.assert(next.mapFragments.includes("map_fragment_libertalia"), "Fragment added to state");
+    u.assert(next.discoveredPorts.includes("libertalia"), "Libertalia discovered via fragment");
+  }
+},
 
     // Market price test (G.31)
     {

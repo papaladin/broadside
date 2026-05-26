@@ -770,7 +770,7 @@ in the combat formula.
 
 **File: `App.jsx`**
 
-- [ ] **Add saved flash indicator** to HUD. Add a `savedFlash` state and trigger:
+- [X] **Add saved flash indicator** to HUD. Add a `savedFlash` state and trigger:
   ```jsx
   const [savedFlash, setSavedFlash] = React.useState(false);
 
@@ -800,7 +800,7 @@ in the combat formula.
 
 **File: `tests/tests_engine.js`**
 
-- [ ] **Add auto-save integration test** (uses localStorage mock):
+- [X] **Add auto-save integration test** (uses localStorage mock):
   ```js
   {
     name: "E.AS.1 ENTER_PORT auto-saves state",

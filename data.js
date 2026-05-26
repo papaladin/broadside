@@ -138,6 +138,7 @@ window.D = (() => {
   campeche: {
     name: "Campeche", faction: "spanish",
     x: 148, y: 248,
+    minHull: 101,
     services: ["tavern", "shipyard", "missions"],
     desc: "A Gulf of Mexico port famous for logwood. Remote and frequently raided by buccaneers.",
   },
@@ -145,6 +146,7 @@ window.D = (() => {
   veracruz: {
     name: "Veracruz", faction: "spanish",
     x: 38, y: 258,
+    minHull: 101,
     services: ["tavern", "shipyard", "missions"],
     desc: "The origin point of the Spanish treasure fleets. Immensely wealthy and immensely dangerous.",
   },
@@ -152,6 +154,7 @@ window.D = (() => {
   bermuda: {
     name: "Bermuda", faction: "english",
     x: 648, y: 35,
+    minHull: 101,
     services: ["tavern", "crew"],
     desc: "A remote English outpost far to the north. A vital resupply stop for ships making the Atlantic crossing.",
   },
@@ -159,6 +162,7 @@ window.D = (() => {
   providencia: {
     name: "Old Providence", faction: "pirate",
     x: 248, y: 358,
+    minHull: 101,
     services: ["tavern", "crew", "missions"],
     desc: "A remote island off Nicaragua used by buccaneers and rogue English settlers. Off every map that matters.",
   },
@@ -166,6 +170,7 @@ window.D = (() => {
   trinidad: {
     name: "Trinidad", faction: "spanish",
     x: 672, y: 415,
+    minHull: 101,
     services: ["tavern", "missions"],
     desc: "A remote Spanish island at the Caribbean's southeastern edge. Gateway to the South American mainland.",
   },
@@ -184,12 +189,14 @@ window.D = (() => {
   roatan: {
     name: "Roatán", faction: "pirate",
     x: 220, y: 308,
+    minHull: 101,
     services: ["tavern", "crew", "missions"],
     desc: "A secret pirate haven in the Bay Islands of Honduras. No navy has found it yet.",
+    hidden: true,
     unlockCondition: {
       type: "any", conditions: [
-        { type: "fame",       value: 100 },
-        { type: "reputation", faction: "pirate", value: 80 },
+        { type: "fame",       value: 50 },
+        { type: "reputation", faction: "pirate", value: 65 },
       ],
     },
   },
@@ -197,18 +204,25 @@ window.D = (() => {
   dryTortugas: {
     name: "Dry Tortugas", faction: "pirate",
     x: 295, y: 158,
+    minHull: 101,
     services: ["tavern", "missions"],
     desc: "A desolate cluster of islands at the tip of the Florida Keys. A pirate waypoint hidden in plain sight.",
+    hidden: true,
     unlockCondition: {
-      type: "item", value: "map_fragment_tortugas",
+      type: "all", conditions: [
+        { type: "infamy",       value: 25 },
+        { type: "reputation", faction: "pirate", value: 65 },
+      ],
     },
   },
  
   lasAves: {
     name: "Las Aves", faction: "pirate",
     x: 590, y: 388,
+    minHull: 101,
     services: ["tavern", "missions"],
     desc: "A treacherous shoal island group. The wrecks of a French fleet lie here. Pirates know the safe channels.",
+    hidden: true,
     unlockCondition: {
       type: "item", value: "map_fragment_lasAves",
     },
@@ -217,13 +231,14 @@ window.D = (() => {
   libertalia: {
     name: "Libertalia", faction: "pirate",
     x: 718, y: 445,
+    minHull: 101,
     services: ["tavern", "shipyard", "crew", "missions"],
     desc: "The legendary pirate utopia. Some say it does not exist. Those who have been there do not say much at all.",
+    hidden: true,
     unlockCondition: {
       type: "all", conditions: [
-        { type: "fame",  value: 300 },
+        { type: "fame",  value: 200 },
         { type: "item",  value: "map_fragment_libertalia" },
-        { type: "ship",  minSize: "frigate" },
       ],
     },
   },
@@ -810,7 +825,58 @@ const ENEMY_SHIP_NAMES = {
         }
       ],
       condition: (state) => state.reputation[state.currentPort] > 30
+    },
+    //Map fragments
+    {
+      id: "mysterious_chart",
+      title: "A Dying Sailor's Secret",
+      type: "discovery",
+      desc: "A dying sailor presses a folded chart into your hands. The coastline it marks is like nothing on any official map — a sheltered harbour surrounded by reefs, with no name written.",
+      condition: (state) =>
+        state.fame >= 100 &&
+        !(state.mapFragments || []).includes("map_fragment_libertalia"),
+      choices: [
+        {
+          label: "Take the chart",
+          outcome: {
+            mapFragment: "map_fragment_libertalia",
+            log: "The chart marks a place the sailor called Libertalia. You fold it carefully."
+          }
+        },
+        {
+          label: "Leave it with him",
+          outcome: {
+            log: "You leave the chart. Some secrets aren't yours to keep."
+          }
+        }
+      ]
+    },
+    {
+  id: "wreckers_chart",
+  title: "The Wrecker's Map",
+  type: "discovery",
+  desc: "An old wrecker in the tavern offers you a stained, salt‑crusted chart. 'Las Aves,' he says. 'The birds will show you the channel. The wrecks will make you rich.' He wants 50 gold for it.",
+  condition: (state) =>
+    state.fame >= 50 &&
+    !(state.mapFragments || []).includes("map_fragment_lasAves"),
+  choices: [
+    {
+      label: "Buy the chart (‑50g)",
+      outcome: {
+        gold: -50,
+        mapFragment: "map_fragment_lasAves",
+        log: "The chart marks a treacherous shoal called Las Aves. The wrecker wasn't lying about the birds."
+      }
+    },
+    {
+      label: "Decline",
+      outcome: {
+        log: "You hand the chart back. The wrecker shrugs. 'Your loss, Captain.'"
+      }
     }
+  ]
+},
+
   ];
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

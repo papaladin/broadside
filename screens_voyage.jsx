@@ -31,7 +31,7 @@ window.S = window.S || {};
               <path d="M 458 262 Q 460 256 466 252 Q 470 240 476 228 Q 482 240 488 248 Q 494 252 518 242 Q 548 228 572 245 Q 578 262 576 278 Q 568 284 545 268 Q 515 282 488 280 Q 468 278 460 270 Q 452 268 458 262 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
             </g>
             {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
-            {Object.entries(PORTS).map(([key, p]) => {
+            {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
               const isCur = key === state.currentPort;
               const isHov = hov === key;
               const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
@@ -55,7 +55,9 @@ window.S = window.S || {};
                         <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
                       </>
                     ) : (
-                      <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>Out of range — {days} day{days !== 1 ? "s" : ""}</text>
+                      <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>
+                        {L.getUnreachableReason(state, key) || `Out of range — ${days} day${days !== 1 ? "s" : ""}`}
+                      </text>
                     )
                   )}
                 </g>

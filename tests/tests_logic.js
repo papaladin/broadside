@@ -853,5 +853,107 @@ window.TESTS.push({
     u.assert(market.goods.slaves === undefined, "Slaves should not appear at Port Royal");
   }
 },
+
+// ── Range gating (Layer 1) ──
+{
+  name: "L.CR.1 canReach: sloop can reach Tortuga from Port Royal",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    u.assert(L.canReach(s, "tortuga"), "Sloop should reach Tortuga");
+  }
+},
+{
+  name: "L.CR.2 canReach: dinghy cannot reach Bermuda (too many days)",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "dinghy", hull: 30, cannons: 2, upgrades: [] } });
+    u.assert(!L.canReach(s, "bermuda"), "Dinghy should not reach Bermuda");
+  }
+},
+{
+  name: "L.CR.3 getUnreachableReason: returns null for reachable port",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    u.assertEqual(L.getUnreachableReason(s, "tortuga"), null);
+  }
+},
+{
+  name: "L.CR.4 getUnreachableReason: mentions days for out-of-range port",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "dinghy", hull: 30, cannons: 2, upgrades: [] } });
+    const reason = L.getUnreachableReason(s, "bermuda");
+    u.assert(reason !== null && reason.includes("days"), reason);
+  }
+},
+
+// ── Remote gating / ship size (Layer 2) ──
+{
+  name: "L.CR.5 canReach: sloop blocked by minHull at Bermuda",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    u.assert(!L.canReach(s, "bermuda"), "Sloop blocked by minHull");
+  }
+},
+{
+  name: "L.CR.6 canReach: brigantine passes size check for Bermuda",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "brigantine", hull: 180, cannons: 14, upgrades: [] } });
+    // Just check that the reason doesn't mention hull restriction
+    const reason = L.getUnreachableReason(s, "bermuda");
+    u.assert(!reason?.includes("heavier vessel"), "Brigantine should pass size check");
+  }
+},
+{
+  name: "L.CR.7 getUnreachableReason: mentions hull for size-blocked port",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({ ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    const reason = L.getUnreachableReason(s, "bermuda");
+    u.assert(reason?.includes("heavier vessel"), reason);
+  }
+},
+// ── Hidden ports / discovery (Layer 3) ──
+{
+  name: "L.DP.1 canReach: returns false for undiscovered hidden port",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({
+      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+      ship: { type: "galleon", hull: 300, cannons: 30, upgrades: [] },
+      fame: 999,
+    });
+    u.assert(!L.canReach(s, "libertalia"), "Libertalia should not be reachable before discovery");
+  }
+},
+{
+  name: "L.DP.2 canReach: returns true for discovered hidden port within range",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({
+      currentPort: "tortuga",
+      discoveredPorts: [...Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden), "dryTortugas"],
+      ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] },
+      fame: 60,
+    });
+    u.assert(L.canReach(s, "dryTortugas"), "dryTortugas should be reachable after discovery");
+  }
+},
+{
+  name: "L.DP.3 getUnreachableReason: reveals nothing for undiscovered hidden port",
+  type: "unit",
+  run: (u) => {
+    const s = makeState({
+      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+      ship: { type: "galleon", hull: 300, cannons: 30, upgrades: [] },
+    });
+    const reason = L.getUnreachableReason(s, "libertalia");
+    u.assertEqual(reason, null, "Should reveal nothing about undiscovered ports");
+  }
+},
   ]
 });

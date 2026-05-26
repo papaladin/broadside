@@ -42,6 +42,7 @@ window.E = (() => {
     DEBUG_SET_PORT_REP: "DEBUG_SET_PORT_REP",
     DEBUG_FILL_HOLD:    "DEBUG_FILL_HOLD",
     DEBUG_REPAIR:       "DEBUG_REPAIR",
+    DISCOVER_PORT: "DISCOVER_PORT",
   };
 
 
@@ -62,6 +63,13 @@ const migrateState = (loaded) => {
 
   // Ensure version field exists on very old saves
   if (!s.version) s.version = 1;
+
+ if (!s.version || s.version < 2) {
+  s.discoveredPorts = s.discoveredPorts ||
+    Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden);
+  s.mapFragments = s.mapFragments || [];
+  s.version = 2;
+}
 
   // Future patches go here, e.g.:
   // if (s.version < 2) {
@@ -86,6 +94,8 @@ const migrateState = (loaded) => {
     currentPort: "portRoyal",
     previousPort: null,
     destination: null,
+    discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),
+    mapFragments: [],
     sailingDaysLeft: 0,
     sailingDaysTotal: 0,
     wind: { angle: 45, speed: 10 },
@@ -298,6 +308,44 @@ if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOcc
     }
   }
 
+   // ── Hidden port auto‑discovery check ─────────────────────────
+  let autoDiscovered = [...(state.discoveredPorts || [])];
+  let autoDiscoveryLog = [];
+
+  Object.entries(PORTS).forEach(([key, port]) => {
+    if (!port.hidden) return;
+    if (autoDiscovered.includes(key)) return;
+
+    const conditions = port.unlockCondition?.conditions || [];
+    if (port.unlockCondition?.type === "item") return;   // item conditions handled in RESOLVE_EVENT
+
+    const operator = port.unlockCondition?.type || "any";
+    const results = conditions.map(c => {
+      if (c.type === "fame")       return state.fame >= c.value;
+      if (c.type === "infamy")     return (state.infamy ?? 0) >= c.value;
+      if (c.type === "reputation") {
+        const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === c.faction);
+        if (factionPorts.length === 0) return false;
+        const avgRep = factionPorts.reduce((sum, k) => sum + (state.reputation[k] ?? 50), 0) / factionPorts.length;
+        return avgRep >= c.value;
+      }
+      return false;
+    });
+
+    const unlocked = operator === "all"
+      ? results.every(Boolean)
+      : results.some(Boolean);
+
+    if (unlocked) {
+      autoDiscovered.push(key);
+      autoDiscoveryLog.push(`⚓ New port discovered: ${port.name}. Mark it on your charts.`);
+    }
+  });
+
+  if (autoDiscoveryLog.length > 0) {
+    newLog.push(...autoDiscoveryLog);
+  }
+
   // ── Normal sailing day ──
   return {
     ...state,
@@ -307,9 +355,24 @@ if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOcc
     gold: newGold,
     reputation: newRep,
     crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-    hold: { ...state.hold, items: newHoldItems }
+    hold: { ...state.hold, items: newHoldItems },
+    discoveredPorts: autoDiscovered,
   };
 }
+
+      //---- PORT DISCOVERY EVENT -------------------
+
+      case A.DISCOVER_PORT: {
+        const { portKey } = action;
+        if (!portKey || state.discoveredPorts.includes(portKey)) return state;
+        const portName = PORTS[portKey]?.name || portKey;
+        return {
+          ...state,
+          discoveredPorts: [...state.discoveredPorts, portKey],
+          log: [...state.log, `⚓ New port discovered: ${portName}. Mark it on your charts.`],
+        };
+      }
+
 
       // --- ENTER PORT (with assault / hostile priority) ---
       case A.ENTER_PORT: {
@@ -905,143 +968,165 @@ case A.CONFIRM_TRADE: {
       // ── EVENTS ──────────────────────────────────────────────────
 
       case A.RESOLVE_EVENT: {
-  const event = state.activeEvent;
-  if (!event) return state;
+      const event = state.activeEvent;
+      if (!event) return state;
 
-  // ── Special: navy_patrol event ────────────────────────────────
-  if (event.id === "navy_patrol") {
-    const choiceIndex = action.choiceIndex;
+      // ── Special: navy_patrol event ────────────────────────────────
+      if (event.id === "navy_patrol") {
+        const choiceIndex = action.choiceIndex;
 
-    // 0 = Allow inspection
-    if (choiceIndex === 0) {
-      const activeMission = state.activeMission;
-      const hasTobacco = (state.hold?.items?.tobacco || 0) > 0;
-      const hasSlaves  = (state.hold?.items?.slaves  || 0) > 0;
-      const hasRumSmuggle = activeMission?.requiredGood === "rum"
-                         && (state.hold?.items?.rum || 0) >= activeMission.requiredQty;
-      const hasContraband = hasTobacco || hasSlaves || hasRumSmuggle;
+        // 0 = Allow inspection
+        if (choiceIndex === 0) {
+          const activeMission = state.activeMission;
+          const hasTobacco = (state.hold?.items?.tobacco || 0) > 0;
+          const hasSlaves  = (state.hold?.items?.slaves  || 0) > 0;
+          const hasRumSmuggle = activeMission?.requiredGood === "rum"
+                            && (state.hold?.items?.rum || 0) >= activeMission.requiredQty;
+          const hasContraband = hasTobacco || hasSlaves || hasRumSmuggle;
 
-      if (hasContraband) {
-        const items = state.hold?.items || {};
-        let seizedValue = 0;
-        if (hasTobacco) seizedValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
-        if (hasSlaves)  seizedValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
-        if (hasRumSmuggle) seizedValue += activeMission.requiredQty * (window.D.RESOURCES.rum?.basePrice || 30);
-        const fine = Math.round(seizedValue * 0.5 / 25) * 25;
-        const goldAfterFine = Math.max(0, state.gold - fine);
+          if (hasContraband) {
+            const items = state.hold?.items || {};
+            let seizedValue = 0;
+            if (hasTobacco) seizedValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
+            if (hasSlaves)  seizedValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
+            if (hasRumSmuggle) seizedValue += activeMission.requiredQty * (window.D.RESOURCES.rum?.basePrice || 30);
+            const fine = Math.round(seizedValue * 0.5 / 25) * 25;
+            const goldAfterFine = Math.max(0, state.gold - fine);
 
-        const inspectingFaction = window.D.PORTS[state.currentPort]?.faction || null;
-        let newRep = { ...state.reputation };
-        if (inspectingFaction) {
-          Object.keys(window.D.PORTS).forEach(portKey => {
-            if (window.D.PORTS[portKey].faction === inspectingFaction) {
-              newRep[portKey] = Math.max(0, (newRep[portKey] ?? 50) - 5);
+            const inspectingFaction = window.D.PORTS[state.currentPort]?.faction || null;
+            let newRep = { ...state.reputation };
+            if (inspectingFaction) {
+              Object.keys(window.D.PORTS).forEach(portKey => {
+                if (window.D.PORTS[portKey].faction === inspectingFaction) {
+                  newRep[portKey] = Math.max(0, (newRep[portKey] ?? 50) - 5);
+                }
+              });
             }
-          });
+
+            const newHoldItems = L.applyLoseContraband(state.hold?.items || {});
+            const newInfamy = Math.min(999, (state.infamy ?? 0) + 1);
+            const newMorale = Math.max(0, state.crew.morale - 10);
+
+            return {
+              ...state,
+              activeEvent: null,
+              screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port",
+              gold: goldAfterFine,
+              hold: { ...state.hold, items: newHoldItems },
+              infamy: newInfamy,
+              reputation: newRep,
+              crew: { ...state.crew, morale: newMorale },
+              log: [
+                ...state.log,
+                "The patrol found contraband. All illegal goods seized.",
+                `Fine levied: ${fine}g.`,
+                "+1 infamy — your name is in their ledger now.",
+                "The crew's morale drops. They know this will bring more trouble."
+              ]
+            };
+          }
+
+          // Clean hold
+          return {
+            ...state,
+            activeEvent: null,
+            screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port",
+            log: [...state.log, "The patrol found nothing. You are waved through."]
+          };
         }
 
-        const newHoldItems = L.applyLoseContraband(state.hold?.items || {});
-        const newInfamy = Math.min(999, (state.infamy ?? 0) + 1);
-        const newMorale = Math.max(0, state.crew.morale - 10);
+        // 1 = Refuse inspection → combat
+        if (choiceIndex === 1) {
+          const enemy = {
+            name: "Navy Patrol",
+            faction: "english",
+            hull: 100,
+            cannons: 12,
+            crew: 35,
+            gold: 300,
+          };
+          const encounterContext = L.buildEncounterContext(state, "navy_patrol_combat", enemy);
+          encounterContext.isNavyPatrol = true;
+          return {
+            ...state,
+            activeEvent: null,
+            encounterContext,
+            screen: "intercept",
+            log: [...state.log, "You refuse the inspection. The patrol moves to engage!"]
+          };
+        }
 
+        // fallback (shouldn't happen)
         return {
           ...state,
           activeEvent: null,
-          screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port",
-          gold: goldAfterFine,
-          hold: { ...state.hold, items: newHoldItems },
-          infamy: newInfamy,
-          reputation: newRep,
-          crew: { ...state.crew, morale: newMorale },
-          log: [
-            ...state.log,
-            "The patrol found contraband. All illegal goods seized.",
-            `Fine levied: ${fine}g.`,
-            "+1 infamy — your name is in their ledger now.",
-            "The crew's morale drops. They know this will bring more trouble."
-          ]
+          screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port"
         };
       }
 
-      // Clean hold
-      return {
-        ...state,
-        activeEvent: null,
-        screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port",
-        log: [...state.log, "The patrol found nothing. You are waved through."]
-      };
+      // ── All other events ───────────────────────────────────────────
+      const choice = event.choices[action.choiceIndex];
+      const newState = { ...state, activeEvent: null };
+
+      if (choice.outcome.log) newState.log = [...state.log, choice.outcome.log];
+      if (choice.outcome.gold) newState.gold = Math.max(0, state.gold + choice.outcome.gold);
+      if (choice.outcome.fame) newState.fame += choice.outcome.fame;
+      if (choice.outcome.hullDamage) newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
+      if (choice.outcome.crewLoss) {
+        const lost = choice.outcome.crewLoss;
+        const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lost);
+        newState.crew = { ...state.crew, roster: newRoster };
+        const names = removed.map(m => `${m.firstName} ${m.lastName}`).join(", ");
+        newState.log = [...(newState.log || state.log), `Lost ${lost} crew: ${names}.`];
+      }
+      if (choice.outcome.loseCargoPercent) {
+        const newHoldItems = L.applyLoseCargoPercent(state.hold?.items || {}, choice.outcome.loseCargoPercent);
+        newState.hold = { ...state.hold, items: newHoldItems };
+        newState.log = [...(newState.log || state.log), `${choice.outcome.loseCargoPercent}% of your cargo was lost.`];
+      }
+      if (choice.outcome.daysLost) {
+        const lost = choice.outcome.daysLost;
+        newState.day += lost;
+        newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
+        newState.sailingDaysLeft = (state.sailingDaysLeft || 0) + lost;
+        newState.gold = Math.max(0, newState.gold - L.payCrewWages(state) * lost);
+        let rep = { ...state.reputation };
+        for (let i = 0; i < lost; i++) rep = L.decayReputation({ reputation: rep });
+        newState.reputation = rep;
+      }
+      if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
+      if (choice.outcome.moraleBonus) newState.crew = { ...newState.crew, morale: Math.max(0, Math.min(100, (newState.crew.morale || state.crew.morale) + choice.outcome.moraleBonus)) };
+      if (choice.outcome.battle) {
+        newState.encounterContext = L.buildEncounterContext(state, "patrol", choice.outcome.battle.enemy);
+        newState.screen = "intercept";
+      } else {
+        newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
+      }
+
+      // --- Map fragment discovery ---
+    if (choice.outcome.mapFragment) {
+      const fragment = choice.outcome.mapFragment;
+      const alreadyHave = (newState.mapFragments || state.mapFragments).includes(fragment);
+      if (!alreadyHave) {
+        newState.mapFragments = [...(newState.mapFragments || state.mapFragments), fragment];
+        // Check if this fragment unlocks any hidden port
+        Object.entries(PORTS).forEach(([portKey, port]) => {
+          if (!port.hidden) return;
+          if ((newState.discoveredPorts || []).includes(portKey)) return;
+          const cond = port.unlockCondition?.conditions || [];
+          const itemCond = cond.find(c => c.type === "item" && c.value === fragment);
+          if (itemCond) {
+            newState.discoveredPorts = [...(newState.discoveredPorts || []), portKey];
+            newState.log = [...(newState.log || []), `⚓ New port discovered: ${port.name}. The chart reveals everything.`];
+          }
+        });
+      }
     }
 
-    // 1 = Refuse inspection → combat
-    if (choiceIndex === 1) {
-      const enemy = {
-        name: "Navy Patrol",
-        faction: "english",
-        hull: 100,
-        cannons: 12,
-        crew: 35,
-        gold: 300,
-      };
-      const encounterContext = L.buildEncounterContext(state, "navy_patrol_combat", enemy);
-      encounterContext.isNavyPatrol = true;
-      return {
-        ...state,
-        activeEvent: null,
-        encounterContext,
-        screen: "intercept",
-        log: [...state.log, "You refuse the inspection. The patrol moves to engage!"]
-      };
+
+
+      return newState;
     }
-
-    // fallback (shouldn't happen)
-    return {
-      ...state,
-      activeEvent: null,
-      screen: (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port"
-    };
-  }
-
-  // ── All other events ───────────────────────────────────────────
-  const choice = event.choices[action.choiceIndex];
-  const newState = { ...state, activeEvent: null };
-
-  if (choice.outcome.log) newState.log = [...state.log, choice.outcome.log];
-  if (choice.outcome.gold) newState.gold = Math.max(0, state.gold + choice.outcome.gold);
-  if (choice.outcome.fame) newState.fame += choice.outcome.fame;
-  if (choice.outcome.hullDamage) newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
-  if (choice.outcome.crewLoss) {
-    const lost = choice.outcome.crewLoss;
-    const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lost);
-    newState.crew = { ...state.crew, roster: newRoster };
-    const names = removed.map(m => `${m.firstName} ${m.lastName}`).join(", ");
-    newState.log = [...(newState.log || state.log), `Lost ${lost} crew: ${names}.`];
-  }
-  if (choice.outcome.loseCargoPercent) {
-    const newHoldItems = L.applyLoseCargoPercent(state.hold?.items || {}, choice.outcome.loseCargoPercent);
-    newState.hold = { ...state.hold, items: newHoldItems };
-    newState.log = [...(newState.log || state.log), `${choice.outcome.loseCargoPercent}% of your cargo was lost.`];
-  }
-  if (choice.outcome.daysLost) {
-    const lost = choice.outcome.daysLost;
-    newState.day += lost;
-    newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
-    newState.sailingDaysLeft = (state.sailingDaysLeft || 0) + lost;
-    newState.gold = Math.max(0, newState.gold - L.payCrewWages(state) * lost);
-    let rep = { ...state.reputation };
-    for (let i = 0; i < lost; i++) rep = L.decayReputation({ reputation: rep });
-    newState.reputation = rep;
-  }
-  if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
-  if (choice.outcome.moraleBonus) newState.crew = { ...newState.crew, morale: Math.max(0, Math.min(100, (newState.crew.morale || state.crew.morale) + choice.outcome.moraleBonus)) };
-  if (choice.outcome.battle) {
-    newState.encounterContext = L.buildEncounterContext(state, "patrol", choice.outcome.battle.enemy);
-    newState.screen = "intercept";
-  } else {
-    newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
-  }
-
-  return newState;
-}
 
       // --- SAVE/LOAD ---
       case A.SAVE_GAME: { localStorage.setItem("piratesSave", JSON.stringify(state)); return { ...state, log: [...state.log, "Game saved."] }; }
