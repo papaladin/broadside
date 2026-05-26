@@ -308,6 +308,52 @@ if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOcc
     }
   }
 
+// --- Random patrol check (new) ---
+// Only if not arrived, no active event/encounter, and not the final day (arrived).
+// --- Random patrol check (via InterceptScreen) ---
+if (state.sailingDaysLeft > 0 && !state.activeEvent && !state.encounterContext) {
+  if (L.maybeRandomPatrol(state)) {
+    const port = D.PORTS[state.currentPort];
+    const faction = port.faction;
+    const enemy = G.generateEnemy("low", state.fame, faction);
+    const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+
+    // Override the static surrender consequence with a dynamic function
+    context.options.surrender.consequence = function(st) {
+      const illegalGoods = Object.keys(D.RESOURCES).filter(k => D.RESOURCES[k].illegal);
+      const hasIllegal = illegalGoods.some(g => (st.hold?.items?.[g] || 0) > 0);
+
+      if (!hasIllegal) {
+        return {
+          log: "The patrol finds nothing illegal. They let you pass.",
+          reputation: L.updateReputation(st, faction, 5)
+        };
+      } else {
+        const newItems = { ...st.hold.items };
+        illegalGoods.forEach(g => newItems[g] = 0);
+        return {
+          log: "The patrol finds illegal goods! They confiscate everything and fine you.",
+          hold: { ...st.hold, items: newItems },
+          gold: Math.max(0, st.gold - 200),
+          infamy: (st.infamy || 0) + 1,
+          crew: { ...st.crew, morale: Math.max(0, st.crew.morale - 10) },
+          reputation: L.updateReputation(st, faction, -5)
+        };
+      }
+    };
+
+    return {
+      ...state,
+      encounterContext: context,
+      screen: "intercept",
+      log: ["A navy patrol hails you and demands to inspect your cargo.", ...state.log]
+    };
+  }
+}
+
+
+
+
    // ── Hidden port auto‑discovery check ─────────────────────────
   let autoDiscovered = [...(state.discoveredPorts || [])];
   let autoDiscoveryLog = [];
@@ -763,46 +809,71 @@ case A.CONFIRM_TRADE: {
       }
 
       case A.INTERCEPT_SURRENDER: {
-        const ctx = state.encounterContext;
-        if (!ctx) return state;
-        const consequence = ctx.options.surrender.consequence;
-        let s = { ...state, encounterContext: null };
+  const ctx = state.encounterContext;
+  if (!ctx) return state;
+  const consequence = ctx.options.surrender.consequence;
 
-        // Gold penalties
-        if (consequence.goldFine) s.gold = Math.max(0, s.gold - consequence.goldFine);
-        if (consequence.loseGoldPercent) s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
+  // --- Dynamic consequence (random patrol) ---
+  if (typeof consequence === "function") {
+    // Call the function with the current state to get a partial state update
+    const result = consequence(state);
+    let s = { ...state, encounterContext: null };
 
-        // Morale penalty
-        if (consequence.moralePenalty) s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
+    // Merge all fields the function returned
+    if (result.log)          s.log = [result.log, ...state.log];
+    if (result.reputation)   s.reputation = result.reputation;
+    if (result.hold)         s.hold = result.hold;
+    if (result.gold !== undefined) s.gold = result.gold;
+    if (result.infamy !== undefined) s.infamy = result.infamy;
+    if (result.crew)         s.crew = result.crew;
+    // Any other top-level fields the function might return can be added here
 
-        // Days lost
-        if (consequence.loseDays) { s.day += consequence.loseDays; }
+    // Return to sailing (or port if already arrived)
+    s.screen = state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
+    // Append a generic surrender note if not already in the dynamic log
+    if (!(result.log || "").includes("surrender")) {
+      s.log = ["You surrendered to the patrol.", ...s.log];
+    }
+    return s;
+  }
 
-        // Reputation loss
-        if (consequence.rep_loss) {
-          const portKey = state.destination ?? state.currentPort;
-          s.reputation = { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) };
-        }
+  // --- Static consequence (all existing encounter types) ---
+  let s = { ...state, encounterContext: null };
 
-        // ── Cargo seizure ──
-        let newHoldItems = { ...(state.hold?.items || {}) };
-        const logExtra = [];
+  // Gold penalties
+  if (consequence.goldFine) s.gold = Math.max(0, s.gold - consequence.goldFine);
+  if (consequence.loseGoldPercent) s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
 
-        if (consequence.loseCargoPercent) {
-          newHoldItems = L.applyLoseCargoPercent(newHoldItems, consequence.loseCargoPercent);
-          logExtra.push(`${consequence.loseCargoPercent}% of your cargo was seized.`);
-        }
-        if (consequence.loseContraband) {
-          newHoldItems = L.applyLoseContraband(newHoldItems);
-          logExtra.push("Your contraband was confiscated.");
-        }
+  // Morale penalty
+  if (consequence.moralePenalty) s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
 
-        s.hold = { ...state.hold, items: newHoldItems };
-        s.screen = state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
-        s.log = [...state.log, "You surrendered. The consequences were steep.", ...logExtra];
+  // Days lost
+  if (consequence.loseDays) { s.day += consequence.loseDays; }
 
-        return s;
-      }
+  // Reputation loss
+  if (consequence.rep_loss) {
+    const portKey = state.destination ?? state.currentPort;
+    s.reputation = { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) };
+  }
+
+  // Cargo seizure
+  let newHoldItems = { ...(state.hold?.items || {}) };
+  const logExtra = [];
+  if (consequence.loseCargoPercent) {
+    newHoldItems = L.applyLoseCargoPercent(newHoldItems, consequence.loseCargoPercent);
+    logExtra.push(`${consequence.loseCargoPercent}% of your cargo was seized.`);
+  }
+  if (consequence.loseContraband) {
+    newHoldItems = L.applyLoseContraband(newHoldItems);
+    logExtra.push("Your contraband was confiscated.");
+  }
+
+  s.hold = { ...state.hold, items: newHoldItems };
+  s.screen = state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
+  s.log = [...state.log, "You surrendered. The consequences were steep.", ...logExtra];
+
+  return s;
+}
 
       // ── COMBAT ──────────────────────────────────────────────────
 

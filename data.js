@@ -794,95 +794,6 @@ const ENEMY_SHIP_NAMES = {
       condition: (state) => state.crew.morale < 40
     },
 
-    // Random patrol (same mechanic as smuggle mission, but random)
-    {
-      id: "navy_patrol",
-      type: "faction",
-      title: "Navy Patrol!",
-      desc: "A naval patrol hails you and demands to inspect your cargo.",
-      condition: (state) => {
-        // Fire only if the player has decent standing with the local faction
-        // and is not already at war with them.
-        const port = D.PORTS[state.currentPort];
-        if (!port) return false;
-        const rep = state.reputation[port.faction] ?? 50;
-        return rep > 30;
-      },
-      choices: [
-        {
-          label: "Allow inspection",
-          apply: (state) => {
-            // Determine the patrol's faction from current port
-            const port = D.PORTS[state.currentPort];
-            const faction = port ? port.faction : "english";
-            // List of illegal goods (keys from D.RESOURCES where illegal: true)
-            const illegalGoods = Object.entries(D.RESOURCES)
-              .filter(([_, r]) => r.illegal)
-              .map(([key]) => key);
-
-            const hasIllegal = illegalGoods.some(good => (state.hold.items[good] || 0) > 0);
-
-            if (!hasIllegal) {
-              return {
-                log: "The patrol finds nothing illegal. They let you pass.",
-                reputation: {
-                  ...state.reputation,
-                  [faction]: Math.min(100, (state.reputation[faction] || 50) + 5)
-                }
-              };
-            } else {
-              // Confiscate all illegal goods
-              const newItems = { ...state.hold.items };
-              illegalGoods.forEach(good => newItems[good] = 0);
-              const fine = 200; // flat fine, same as a minor bribe
-              const newGold = Math.max(0, state.gold - fine);
-              const newMorale = Math.max(0, state.crew.morale - 10);
-              return {
-                log: "The patrol finds illegal goods! They confiscate everything and fine you.",
-                hold: {
-                  ...state.hold,
-                  items: newItems
-                },
-                gold: newGold,
-                infamy: (state.infamy || 0) + 1,
-                crew: { ...state.crew, morale: newMorale },
-                reputation: {
-                  ...state.reputation,
-                  [faction]: Math.max(0, (state.reputation[faction] || 50) - 5)
-                }
-              };
-            }
-          }
-        },
-        {
-          label: "Refuse inspection",
-          apply: (state) => {
-            const port = D.PORTS[state.currentPort];
-            const faction = port ? port.faction : "english";
-            // Build enemy (static stats for now, can scale with fame later)
-            const enemy = {
-              name: "Navy Patrol",
-              faction: faction,
-              ship: "brig",           // key into D.SHIPS
-              hull: 120,
-              maxHull: 120,
-              cannons: 12,
-              crew: 40,
-              gold: 0,                // no loot from navy patrols (just reputation)
-              fame: 0
-            };
-            const context = L.buildEncounterContext(state, "navy_patrol", enemy);
-            return {
-              log: "You refuse the inspection. The patrol opens fire!",
-              encounterContext: context,
-              screen: "intercept"
-            };
-          }
-        }
-      ]
-    },
-
-
     //Map fragments
     {
       id: "mysterious_chart",
@@ -1118,6 +1029,9 @@ const ENEMY_SHIP_NAMES = {
       ? `A ${enemy.name} opens fire without warning.`
       : `A ${enemy.name} hails you and demands you heave to for inspection.`,
 
+    "navy_patrol": (enemy, rep) =>
+     `A patrol from the ${enemy.faction} faction demands to inspect your cargo.`,
+
     hostile_port_entry: (enemy) =>
       `The harbour battery opens fire. You sailed into hostile waters.`,
 
@@ -1137,7 +1051,7 @@ const ENEMY_SHIP_NAMES = {
       `Your target is in sight: ${enemy.name}. The mission requires engagement.`,
 
     random: (enemy) =>
-      `A ${enemy.name} moves to intercept. They haven't fired yet.`,
+      `${enemy.name} moves to intercept. They haven't fired yet.`,
   };
 
   const SURRENDER_CONSEQUENCE = {
