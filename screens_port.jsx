@@ -297,6 +297,46 @@ window.S = window.S || {};
     const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
     const currentShip = SHIPS[state.ship.type];
     const effectiveShipStats = L.getShipStats(state);
+
+    // --- new local state for comparison ---
+    const [comparing, setComparing] = React.useState(null);
+
+    // --- helper to render stat rows with arrows ---
+function renderShipStats(shipType, compareType) {
+  const s = SHIPS[shipType];
+  const c = compareType ? SHIPS[compareType] : null;
+  const stats = [
+    ["Hull", s.maxHull],
+    ["Cannons", s.cannons],
+    ["Crew", s.maxCrew],
+    ["Hold", s.holdCapacity],
+    ["Speed", s.speed],
+    ["Max days at sea", s.maxDays],   // changed
+  ];
+  return stats.map(([label, val]) => {
+    let arrow = "";
+    let color = T.text;
+    if (c) {
+      const diff = val - (
+        c[label === "Hull" ? "maxHull" :
+          label === "Crew" ? "maxCrew" :
+          label === "Hold" ? "holdCapacity" :
+          label === "Max days at sea" ? "maxDays" :   // explicit mapping
+          label.toLowerCase()]
+      );
+      if (diff > 0) { arrow = " ↑"; color = T.greenBr; }
+      else if (diff < 0) { arrow = " ↓"; color = T.redBr; }
+      else { arrow = " ="; color = T.textDim; }
+    }
+    return (
+      <div key={label} style={{ fontSize: 11, color, marginBottom: 2 }}>
+        {label}: {val}{arrow}
+      </div>
+    );
+  });
+}
+    // --- end new helper ---
+
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
         <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
@@ -317,8 +357,18 @@ window.S = window.S || {};
             const shipReq = L.meetsRequirement(state, s);
             const canBuy = !isCur && shipReq.allowed && state.gold >= s.cost;
             const lack = !isCur && shipReq.allowed && state.gold < s.cost ? s.cost - state.gold : 0;
+            const isComparing = comparing === key; // highlight selected
             return (
-              <div key={key} style={panelStyle({ background: isCur ? T.greenBg : T.panel, borderColor: isCur ? T.greenBr : T.border, opacity: shipReq.allowed ? 1 : 0.55 })}>
+              <div key={key}
+                onClick={() => setComparing(isComparing ? null : key)}
+                style={{
+                  ...panelStyle({
+                    background: isCur ? T.greenBg : T.panel,
+                    borderColor: isCur ? T.greenBr : (isComparing ? T.gold : T.border),
+                  }),
+                  opacity: shipReq.allowed ? 1 : 0.55,
+                  cursor: 'pointer', // make whole card feel clickable
+                }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                   <span style={{ color: T.text, fontSize: 13, fontWeight: "bold" }}>{s.name}</span>
                   {isCur ? <Pill label="Current" color={T.greenBr} /> : <span style={{ color: T.gold, fontSize: 12 }}>{s.cost.toLocaleString()}g</span>}
@@ -328,11 +378,31 @@ window.S = window.S || {};
                   {[["Crew",s.maxCrew],["Guns",s.cannons],["Spd",s.speed],["Hull",s.maxHull]].map(([l,v]) => <StatBlock key={l} label={l} value={v} />)}
                 </div>
                 {!shipReq.allowed && <div style={{ color: T.gold, fontSize: 10, marginBottom: 6 }}>🔒 {shipReq.reason}</div>}
-                {!isCur && <Btn sm v={canBuy ? "gold" : "ghost"} onClick={() => dispatch({ type: A.BUY_SHIP, shipType: key })} disabled={!canBuy}>{!shipReq.allowed ? "Locked" : lack ? `Need ${lack.toLocaleString()}g more` : "Purchase"}</Btn>}
+                {!isCur && <Btn sm v={canBuy ? "gold" : "ghost"} onClick={(e) => { e.stopPropagation(); dispatch({ type: A.BUY_SHIP, shipType: key }); }} disabled={!canBuy}>{!shipReq.allowed ? "Locked" : lack ? `Need ${lack.toLocaleString()}g more` : "Purchase"}</Btn>}
               </div>
             );
           })}
         </div>
+
+        {/* --- new comparison panel --- */}
+        {comparing && (
+          <div style={panelStyle({ marginTop: 12 })}>
+            <SectionTitle>SHIP COMPARISON</SectionTitle>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 6 }}>Current: {currentShip.name}</div>
+                {renderShipStats(state.ship.type, null)}
+              </div>
+              <div>
+                <div style={{ color: T.gold, fontSize: 10, marginBottom: 6 }}>{SHIPS[comparing].name}</div>
+                {renderShipStats(comparing, state.ship.type)}
+              </div>
+            </div>
+            <Btn sm onClick={() => setComparing(null)} style={{ marginTop: 8 }}>Close comparison</Btn>
+          </div>
+        )}
+        {/* --- end comparison panel --- */}
+
         {PORTS[state.currentPort]?.services.includes("upgrades") && (
           <>
             <SectionTitle>UPGRADES</SectionTitle>

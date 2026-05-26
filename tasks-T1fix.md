@@ -1209,7 +1209,7 @@ in the combat formula.
 
 **File: `App.jsx` — HUD component**
 
-- [ ] **Add a `tooltip` state** and tooltip component:
+- [X] **Add a `tooltip` state** and tooltip component:
   ```jsx
   const [tooltip, setTooltip] = React.useState(null);
 

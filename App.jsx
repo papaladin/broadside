@@ -91,6 +91,19 @@ const App = () => {
     };
   }
 
+  const TOOLTIPS = {
+  gold: "Your gold. Spent on repairs, crew wages, provisions, and upgrades.",
+  food: "Food in hold. Crew consumes food daily at sea. Runs out → morale drops.",
+  water: "Water in hold. Consumed daily at sea alongside food.",
+  hold: "Cargo hold: used / capacity. Over 50% full slows your ship.",
+  day: "Days elapsed since campaign start.",
+  crew: "Crew aboard / maximum. More crew = higher wages and faster combat.",
+  hull: "Hull integrity / maximum. Reaches 0 → defeat.",
+  morale: "Crew morale. Below 50 slows travel. Below 30 increases wages. At 0 crew desert.",
+  fame: "Fame — your permanent reputation. Gates ships, upgrades, and missions.",
+  infamy: "Infamy — your criminal notoriety. Reaches 50 → bribe option blocked.",
+  };
+
   // --- HUD Component ---
   const HUD = () => {
     if (screen === "start") return null;
@@ -117,8 +130,8 @@ const App = () => {
         gap: 6,
       }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          <span style={{ color: T.gold }}>💰 {state.gold}</span>
-          <span style={{ color: T.textDim }}>📅 Day {state.day}</span>
+          <span title={TOOLTIPS.gold} style={{ color: T.gold }}>💰 {state.gold}</span>
+          <span title={TOOLTIPS.day} style={{ color: T.textDim }}>📅 Day {state.day}</span>
           <button
             onClick={() => setShowDetails(v => !v)}
             style={{
@@ -132,20 +145,20 @@ const App = () => {
           </button>
           {showDetails && (
             <>
-              <span style={{ color: T.textDim }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
-              <span style={{ color: T.textDim }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
-              <span style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
-              <span style={{ color: T.gold }}>★ {state.fame}</span>
-              <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
+              <span title={TOOLTIPS.crew} style={{ color: T.textDim }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
+              <span title={TOOLTIPS.hull} style={{ color: T.textDim }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
+              <span title={TOOLTIPS.morale} style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
+              <span title={TOOLTIPS.fame} style={{ color: T.gold }}>★ {state.fame}</span>
+              <span title={TOOLTIPS.infamy} style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
               {savedFlash && (
                 <span style={{ color: T.greenBr, marginLeft: 10, fontSize: 10,
                   transition: "opacity 0.3s", opacity: savedFlash ? 1 : 0 }}>
                   ✓ saved
                 </span>
               )}
-              <span style={{ color: T.textDim }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
-              <span style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
-              <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
+              <span title={TOOLTIPS.hold} style={{ color: T.textDim }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
+              <span title={TOOLTIPS.food} style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
+              <span title={TOOLTIPS.water} style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
             </>
           )}
           {isDebug && (
