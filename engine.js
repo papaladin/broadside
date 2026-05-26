@@ -44,10 +44,30 @@ window.E = (() => {
     DEBUG_REPAIR:       "DEBUG_REPAIR",
   };
 
+
+  // ── State migration ──────────────────────────────────────────────
+// Additive patches to bring older saves up to current version.
+// Each patch is gated by version number and must be non‑destructive.
+const migrateState = (loaded) => {
+  let s = { ...loaded };
+
+  // Ensure version field exists on very old saves
+  if (!s.version) s.version = 1;
+
+  // Future patches go here, e.g.:
+  // if (s.version < 2) {
+  //   s.crew = { ...s.crew, moraleZeroDays: s.crew?.moraleZeroDays ?? 0 };
+  //   s.version = 2;
+  // }
+
+  return s;
+};
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  INITIAL STATE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const initialState = {
+    version: 1,
     screen: "start",
     day: 1,
     log: [],
@@ -1007,7 +1027,8 @@ case A.CONFIRM_TRADE: {
         try {
           const raw = localStorage.getItem("piratesSave");
           if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
-          const loaded = JSON.parse(raw);
+          const parsed = JSON.parse(raw);
+          const loaded = migrateState(parsed);                // ← migrate first
           const currentPort = loaded.currentPort || "portRoyal";
           return {
             ...loaded,
@@ -1074,5 +1095,5 @@ case A.CONFIRM_TRADE: {
       default: return state;
     }
   };
-  return { A, initialState, reducer };
+  return { A, initialState, reducer, migrateState  };
 })();

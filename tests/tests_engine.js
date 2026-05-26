@@ -951,6 +951,34 @@ window.TESTS.push({
         u.assert(s.log.some(l => l.includes("Not enough rum available")));
       }
     },
+
+
+{
+  name: "E.M.1 migrateState adds version to old saves",
+  type: "reducer",
+  run: (u) => {
+    const old = { gold: 500, screen: "port" }; // no version field
+    const migrated = E.migrateState(old);
+    u.assertEqual(migrated.version, 1);
+    u.assertEqual(migrated.gold, 500, "Existing fields preserved");
+  }
+},
+{
+  name: "E.M.2 LOAD_GAME migrates versionless save",
+  type: "reducer",
+  run: (u) => {
+    u.installLocalStorageMock();
+    u.clearLocalStorageMock();
+    // Simulate an old save without a version field
+    const old = { ...E.initialState, version: undefined, gold: 9999, screen: "port" };
+    localStorage.setItem("piratesSave", JSON.stringify(old));
+    const s = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
+    u.assertEqual(s.gold, 9999);
+    u.assert(s.version >= 1, "Version should be set after migration");
+    u.restoreLocalStorage();
+  }
+},
+
     // Market price test (G.31)
     {
       name: "G.31 Market price for food",
