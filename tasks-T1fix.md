@@ -939,7 +939,7 @@ in the combat formula.
 
 **File: `data.js`**
 
-- [ ] **Verify `maxDays` exists on all SHIPS entries.** If any ship is missing
+- [X] **Verify `maxDays` exists on all SHIPS entries.** If any ship is missing
   it, add it. Expected values (from roadmap hold capacity table):
   ```
   dinghy: 5, cutter: 8, sloop: 10, schooner: 12, merchantman: 14,
@@ -947,7 +947,7 @@ in the combat formula.
   ship_of_the_line: 28
   ```
 
-- [ ] **Add `remote: true` flag** to ports that should be unreachable by small
+- [X] **Add `remote: true` flag** to ports that should be unreachable by small
   ships regardless of maxDays calculation. These are ports at the geographic
   extremes of the map:
   ```js
@@ -965,7 +965,7 @@ in the combat formula.
 
 **File: `logic.js`**
 
-- [ ] **Add `canReach(state, portKey)` pure function:**
+- [X] **Add `canReach(state, portKey)` pure function:**
   ```js
   const canReach = (state, portKey) => {
     if (portKey === state.currentPort) return false;
@@ -979,7 +979,7 @@ in the combat formula.
   ```
   Export from `window.L`.
 
-- [ ] **Add `getUnreachableReason(state, portKey)` pure function:**
+- [X] **Add `getUnreachableReason(state, portKey)` pure function:**
   Returns a human-readable string explaining why a port is unreachable, or
   `null` if it is reachable:
   ```js
@@ -998,7 +998,7 @@ in the combat formula.
 
 **File: `screens_voyage.jsx` — MapScreen**
 
-- [ ] **Update the port click handler** to check `L.canReach`:
+- [X] **Update the port click handler** to check `L.canReach`:
   ```jsx
   const isReachable = !isCur && L.canReach(state, key);
   const unreachableReason = !isCur && !isReachable
@@ -1009,7 +1009,7 @@ in the combat formula.
   style={{ cursor: isReachable ? "pointer" : "default" }}
   ```
 
-- [ ] **Update port circle visual** for unreachable ports:
+- [X] **Update port circle visual** for unreachable ports:
   ```jsx
   <circle
     cx={p.x} cy={p.y}
@@ -1021,7 +1021,7 @@ in the combat formula.
   />
   ```
 
-- [ ] **Update hover tooltip** to show unreachable reason:
+- [X] **Update hover tooltip** to show unreachable reason:
   ```jsx
   {isHov && !isCur && <>
     <text x={p.x} y={p.y + 26} textAnchor="middle" fontSize="8"
@@ -1045,31 +1045,31 @@ in the combat formula.
 
 **File: `tests/tests_logic.js`**
 
-- [ ] **L.CR.1** — `canReach` returns true for a nearby port within range:
+- [X] **L.CR.1** — `canReach` returns true for a nearby port within range:
   ```js
   const s = makeState({ ship: { type: "sloop", ... } }); // maxDays: 10
   u.assert(L.canReach(s, "tortuga"), "Sloop should reach Tortuga from Port Royal");
   ```
 
-- [ ] **L.CR.2** — `canReach` returns false for a port beyond ship range:
+- [X] **L.CR.2** — `canReach` returns false for a port beyond ship range:
   ```js
   const s = makeState({ ship: { type: "dinghy", ... } });
   u.assert(!L.canReach(s, "veracruz"), "Dinghy should not reach Veracruz");
   ```
 
-- [ ] **L.CR.3** — `canReach` returns false for remote ports:
+- [X] **L.CR.3** — `canReach` returns false for remote ports:
   ```js
   const s = makeState({ ship: { type: "galleon", ... } });
   u.assert(!L.canReach(s, "libertalia"), "Libertalia is remote — not reachable");
   ```
 
-- [ ] **L.CR.4** — `getUnreachableReason` returns null for reachable port:
+- [X] **L.CR.4** — `getUnreachableReason` returns null for reachable port:
   ```js
   const s = makeState({ ship: { type: "sloop", ... } });
   u.assertEqual(L.getUnreachableReason(s, "tortuga"), null);
   ```
 
-- [ ] **L.CR.5** — `getUnreachableReason` returns range message for out-of-range:
+- [X] **L.CR.5** — `getUnreachableReason` returns range message for out-of-range:
   ```js
   const s = makeState({ ship: { type: "dinghy", ... } });
   const reason = L.getUnreachableReason(s, "veracruz");
@@ -1084,7 +1084,7 @@ in the combat formula.
 
 **File: `App.jsx` — HUD**
 
-- [ ] **Wrap HUD spans in responsive flex container** that wraps on narrow screens:
+- [X] **Wrap HUD spans in responsive flex container** that wraps on narrow screens:
   ```jsx
   // Replace the single <div> with two rows on mobile
   <div style={{
@@ -1108,7 +1108,7 @@ in the combat formula.
 
 **File: `screens_port.jsx`**
 
-- [ ] **All panel containers:** replace any hardcoded `width` or `minWidth`
+- [X] **All panel containers:** replace any hardcoded `width` or `minWidth`
   values with responsive equivalents. Pattern:
   ```jsx
   // BEFORE
@@ -1118,18 +1118,18 @@ in the combat formula.
   style={{ width: "min(100%, 480px)", padding: 14 }}
   ```
 
-- [ ] **MarketScreen:** add a `flexWrap: "wrap"` to the main row layout for
+- [X] **MarketScreen:** add a `flexWrap: "wrap"` to the main row layout for
   +/− buttons so they don't overflow on 390px width.
 
-- [ ] **All buttons:** add `minHeight: 44` to every `<button>` and `<Btn>`
+- [X] **All buttons:** add `minHeight: 44` to every `<button>` and `<Btn>`
   element that is interactive (not purely display). This is the iOS minimum
   touch target size.
 
-- [ ] **Modals and overlays:** ensure no fixed-width modals wider than `100vw`.
+- [X] **Modals and overlays:** ensure no fixed-width modals wider than `100vw`.
 
 **File: `screens_voyage.jsx`**
 
-- [ ] **MapScreen:** the SVG viewBox is `0 0 760 460`. On mobile this renders
+- [X] **MapScreen:** the SVG viewBox is `0 0 760 460`. On mobile this renders
   at ~390px width, making ports very small. Add `minHeight: 300` to the SVG
   container and ensure touch targets (port circles) are at least `r={8}` for
   non-current ports on mobile. Use a CSS media query equivalent via JS:
@@ -1138,7 +1138,7 @@ in the combat formula.
   const portRadius = isMobile ? 8 : 5; // larger tap targets on mobile
   ```
 
-- [ ] **SailingScreen:** the flex layout (`flex: 2` for map, `flex: 1` for info)
+- [X] **SailingScreen:** the flex layout (`flex: 2` for map, `flex: 1` for info)
   doesn't work well on mobile portrait. Stack vertically on narrow screens:
   ```jsx
   style={{
@@ -1148,7 +1148,7 @@ in the combat formula.
   }}
   ```
 
-- [ ] **BattleScreen:** action buttons (`Broadside`, `Precision`, `Grapple`,
+- [X] **BattleScreen:** action buttons (`Broadside`, `Precision`, `Grapple`,
   `Evade`) should stack vertically on mobile:
   ```jsx
   style={{ display: "flex", flexDirection: "column", gap: 8 }}
@@ -1156,7 +1156,7 @@ in the combat formula.
 
 **File: `ui.jsx` — Btn component**
 
-- [ ] **Add `minHeight: 44` to the Btn default style** when not `sm`:
+- [X] **Add `minHeight: 44` to the Btn default style** when not `sm`:
   ```jsx
   padding: sm ? "4px 8px" : "8px 14px",
   minHeight: sm ? "auto" : 44,

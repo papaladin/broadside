@@ -597,7 +597,7 @@ window.S = window.S || {};
 
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, flexWrap:"wrap" }}>
                   <span style={{ color:T.textDim, fontSize:10, width:120 }}>Buy from port:</span>
-                  <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                  <div style={{ display:"flex", gap:4, alignItems:"center", flexWrap:"wrap"  }}>
                     <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={buyQty <= 0}>-</Btn>
                     <input type="number" value={buyQty}
                       onChange={e => {

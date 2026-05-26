@@ -94,7 +94,7 @@ window.S = window.S || {};
     const loadPct = L.getHoldLoadPct(state.hold?.items, state.hold?.capacity);
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
     return (
-      <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden", flexWrap: "wrap" }}>
+      <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden", flexWrap: "wrap",flexDirection: window.innerWidth < 480 ? "column" : "row" }}>
         <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
             <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
@@ -257,7 +257,7 @@ window.S = window.S || {};
         {!done ? (
           <div>
             <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+            <div style={{ display: "grid",  gridTemplateColumns: window.innerWidth < 480? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
               {[{ a: "broadside", label: "🔥 Broadside", desc: "Full cannon volley. Reliable damage." },{ a: "precision", label: "🎯 Precision", desc: "Aimed shot. Miss or massive damage." },{ a: "grapple", label: "⚔ Grapple", desc: "Board them. Requires crew advantage." },{ a: "evade", label: "💨 Evade", desc: "Flee if faster. Reduced incoming fire." }].map(({ a, label, desc }) => (
                 <div key={a} onClick={() => dispatch({ type: A.BATTLE_ACTION, action: a })} style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }} onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
                   <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 2 }}>{label}</div>
