@@ -281,7 +281,7 @@ This single fix unblocks all U.* UI smoke tests and S.01, S.02, S.04, S.05.
 
 **File: `tests/tests.html`**
 
-- [ ] Find the three screen script tags and add the `../` prefix:
+- [X] Find the three screen script tags and add the `../` prefix:
   ```html
   <!-- BEFORE (broken) -->
   <script type="text/babel" data-presets="react" src="screens_shared.jsx"></script>
@@ -342,7 +342,7 @@ in the combat formula.
 
 **File: `data.js`**
 
-- [ ] **Replace the existing `STARTS` array** with the five structured persona
+- [X] **Replace the existing `STARTS` array** with the five structured persona
   entries. Each entry follows this shape:
   ```js
   {
@@ -373,7 +373,7 @@ in the combat formula.
   }
   ```
 
-- [ ] **Add the debug persona** (id: `"debug"`) as the sixth entry. Only shown
+- [X] **Add the debug persona** (id: `"debug"`) as the sixth entry. Only shown
   in StartScreen when URL contains `?debug=1`. See debug spec in
   `n1-1-personas-and-debug.md` for field values. Add `debugStartFame: 100` field.
 
@@ -381,7 +381,7 @@ in the combat formula.
 
 **File: `engine.js`**
 
-- [ ] **Rewrite the `START_GAME` case** to read the structured STARTS format
+- [X] **Rewrite the `START_GAME` case** to read the structured STARTS format
   instead of parsing `start.bonuses` strings. The `start.bonuses.forEach` loop
   (lines 92–134) is replaced with direct field reads:
   ```js
@@ -450,7 +450,7 @@ in the combat formula.
 
 **File: `screens_port.jsx` — StartScreen**
 
-- [ ] **Update StartScreen** to render the new persona card format:
+- [X] **Update StartScreen** to render the new persona card format:
   - One card per `D.STARTS` entry, filtered by `?debug=1` URL param for debug persona
   - Card shows: persona name, tagline, faction colour strip, faction label, starting ship name
   - On click/tap: expand card to show `story` paragraph, opening log preview (first 2 entries), starter mission label ("Opening Quest: {mission.name}"), starting conditions summary (gold, crew count, home faction +10)
@@ -464,7 +464,7 @@ in the combat formula.
 
 **File: `tests/tests_engine.js`**
 
-- [ ] **Update E.01–E.04** to use the new structured start data:
+- [X] **Update E.01–E.04** to use the new structured start data:
   ```js
   // E.01 — English persona
   const start = D.STARTS.find(s => s.faction === "english" && s.id !== "debug");
@@ -486,7 +486,7 @@ in the combat formula.
 
 **File: `engine.js`**
 
-- [ ] **Add `version: 1` to `initialState`:**
+- [X] **Add `version: 1` to `initialState`:**
   ```js
   const initialState = {
     version: 1,    // ← new — increment when state shape changes
@@ -495,7 +495,7 @@ in the combat formula.
   };
   ```
 
-- [ ] **Add `migrateState(loaded)` function** inside the `window.E` IIFE,
+- [X] **Add `migrateState(loaded)` function** inside the `window.E` IIFE,
   before the reducer. This function applies additive patches to bring any
   older save up to current shape:
   ```js
@@ -513,7 +513,7 @@ in the combat formula.
   };
   ```
 
-- [ ] **Update `LOAD_GAME` case** to call `migrateState` before applying the
+- [X] **Update `LOAD_GAME` case** to call `migrateState` before applying the
   loaded state:
   ```js
   case A.LOAD_GAME: {
@@ -538,14 +538,14 @@ in the combat formula.
   }
   ```
 
-- [ ] **Expose `migrateState`** in the return object for testing:
+- [X] **Expose `migrateState`** in the return object for testing:
   ```js
   return { A, initialState, reducer, migrateState };
   ```
 
 **File: `tests/tests_engine.js`**
 
-- [ ] **Add migration test:** verify that a v1-shaped state (missing `version`
+- [X] **Add migration test:** verify that a v1-shaped state (missing `version`
   field) is given `version: 1` after migration:
   ```js
   {
@@ -560,7 +560,7 @@ in the combat formula.
   }
   ```
 
-- [ ] **Add LOAD_GAME migration test:** save a versionless state, load it,
+- [X] **Add LOAD_GAME migration test:** save a versionless state, load it,
   verify it gets a version field and loads correctly (uses localStorage mock):
   ```js
   {
@@ -586,7 +586,7 @@ in the combat formula.
 
 **File: `App.jsx`**
 
-- [ ] **Add `ErrorBoundary` class component** before the `App` function
+- [X] **Add `ErrorBoundary` class component** before the `App` function
   definition:
   ```jsx
   class ErrorBoundary extends React.Component {
@@ -647,7 +647,7 @@ in the combat formula.
   }
   ```
 
-- [ ] **Wrap the root render** with the ErrorBoundary:
+- [X] **Wrap the root render** with the ErrorBoundary:
   ```jsx
   const root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(
@@ -657,7 +657,7 @@ in the combat formula.
   );
   ```
 
-- [ ] **No test needed** — ErrorBoundary is dev infrastructure, not game logic.
+- [X] **No test needed** — ErrorBoundary is dev infrastructure, not game logic.
   Verify manually by temporarily throwing in a screen component.
 
 ---
@@ -670,7 +670,7 @@ in the combat formula.
 
 **File: `tests/tests_logic.js`**
 
-- [ ] **Add wind modifier tests** (add to the Unit: logic.js suite):
+- [X] **Add wind modifier tests** (add to the Unit: logic.js suite):
   ```js
   {
     name: "L.W.1 travelDays applies tailwind bonus (-1 day)",
@@ -729,7 +729,7 @@ in the combat formula.
 
 **File: `engine.js`**
 
-- [ ] **Add auto-save helper** inside the `window.E` IIFE:
+- [X] **Add auto-save helper** inside the `window.E` IIFE:
   ```js
   const autoSave = (state) => {
     try {
@@ -740,7 +740,7 @@ in the combat formula.
   };
   ```
 
-- [ ] **Call `autoSave` at the end of three reducer cases**, after building
+- [X] **Call `autoSave` at the end of three reducer cases**, after building
   the return value. In each case, save the state being returned:
 
   In `ADVANCE_DAY` — at the normal sailing day return (line ~232):

@@ -4,7 +4,68 @@
 //  Imports: window.D (data), window.L (logic), window.E (engine), window.UI (UI primitives), window.S (screens)
 // ═══════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════
+//  ERROR BOUNDARY — Catches render errors, prevents white screen
+// ═══════════════════════════════════════════════════════════════════
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("Broadside render error:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          height: "100vh", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          background: "#0a141e", color: "#e0e0e0",
+          fontFamily: "'Courier New', monospace", gap: 16, padding: 20,
+        }}>
+          <div style={{ color: "#ffd700", fontSize: 18 }}>⚠ Something went wrong</div>
+          <div style={{ color: "#a0a0a0", fontSize: 12, maxWidth: 400, textAlign: "center" }}>
+            {this.state.error?.message || "An unexpected error occurred."}
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: "#121c28", border: "1px solid #ffd700", color: "#ffd700",
+                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 3 }}>
+              Reload Page
+            </button>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                if (window.L?.hasSave?.()) {
+                  setTimeout(() => {
+                    document.dispatchEvent(new CustomEvent("broadside:loadSave"));
+                  }, 50);
+                }
+              }}
+              style={{ background: "#121c28", border: "1px solid #2a3a4a", color: "#e0e0e0",
+                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 3 }}>
+              Try Load Last Save
+            </button>
+          </div>
+          <div style={{ color: "#606060", fontSize: 10 }}>
+            Open the browser console for details.
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+
 const App = () => {
+  const [savedFlash, setSavedFlash] = React.useState(false);
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
   const { T } = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
@@ -13,6 +74,14 @@ const App = () => {
   // Debug mode
   const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
   const [debugOpen, setDebugOpen] = React.useState(false);
+
+    const [savedFlash, setSavedFlash] = React.useState(false);
+  React.useEffect(() => {
+    setSavedFlash(true);
+    const t = setTimeout(() => setSavedFlash(false), 1500);
+    return () => clearTimeout(t);
+  }, [state.day, state.currentPort, state.missions.length]);
+
 
   // Console shortcut (debug only)
   if (isDebug) {
@@ -70,6 +139,13 @@ const App = () => {
             <span style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
             <span style={{ color: T.gold }}>★ {state.fame}</span>
             <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
+            {state.infamy ?? 0 > 0 && <span style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>}
+            {savedFlash && (
+              <span style={{ color: T.greenBr, marginLeft: 10, fontSize: 10,
+                transition: "opacity 0.3s", opacity: savedFlash ? 1 : 0 }}>
+                ✓ saved
+              </span>
+            )}
             <span style={{ color: T.textDim }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
             <span style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
             <span style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
@@ -212,4 +288,8 @@ const DebugPanel = ({ state, dispatch }) => {
 
 // --- Initialize and Mount the App ---
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+root.render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);

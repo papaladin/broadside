@@ -45,6 +45,15 @@ window.E = (() => {
   };
 
 
+  // ── Auto-save helper ─────────────────────────────────────────────
+const autoSave = (state) => {
+  try {
+    localStorage.setItem("piratesSave", JSON.stringify(state));
+  } catch (e) {
+    console.warn("Auto-save failed:", e);
+  }
+};
+
   // ── State migration ──────────────────────────────────────────────
 // Additive patches to bring older saves up to current version.
 // Each patch is gated by version number and must be non‑destructive.
@@ -327,7 +336,18 @@ if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOcc
         }
 
         // Normal entry
-        return { ...state, currentPort: state.destination, destination: null, sailingDaysLeft: 0, screen: "port", missions: G.generateMissions(state.destination, state), portMarket: G.generatePortMarket(state.destination), log: [...state.log, `Arrived at ${port.name}.`] };
+        const nextState = {
+          ...state,
+          currentPort: state.destination,
+          destination: null,
+          sailingDaysLeft: 0,
+          screen: "port",
+          missions: G.generateMissions(state.destination, state),
+          portMarket: G.generatePortMarket(state.destination),
+          log: [...state.log, `Arrived at ${port.name}.`]
+        };
+        autoSave(nextState);
+        return nextState;
       }
 
       // --- PORT ACTIONS ---
@@ -496,7 +516,7 @@ case A.COMPLETE_MISSION: {
     holdItems = { ...holdItems, plot_item: 0 };
   }
 
-  return {
+  const nextState = {
     ...state,
     gold: state.gold + finalGold,
     fame: state.fame + mission.fame,
@@ -507,6 +527,8 @@ case A.COMPLETE_MISSION: {
     missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
     log: newLog,
   };
+  autoSave(nextState);
+  return nextState;
 }
 
       case A.ABANDON_MISSION: return { ...state, activeMission: null, reputation: L.applyReputationImpact(state, { [state.activeMission?.faction || "pirate"]: -10 }), log: [...state.log, `Abandoned mission: ${state.activeMission?.name}.`] };

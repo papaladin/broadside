@@ -979,6 +979,22 @@ window.TESTS.push({
   }
 },
 
+{
+  name: "E.AS.1 ENTER_PORT auto-saves state",
+  type: "reducer",
+  run: (u) => {
+    u.installLocalStorageMock();
+    u.clearLocalStorageMock();
+    let s = makeState({ screen: "sailing", destination: "tortuga", sailingDaysLeft: 0 });
+    s = E.reducer(s, { type: E.A.ENTER_PORT });
+    const saved = localStorage.getItem("piratesSave");
+    u.assert(saved !== null, "Should have saved after ENTER_PORT");
+    const parsed = JSON.parse(saved);
+    u.assertEqual(parsed.screen, "port");
+    u.restoreLocalStorage();
+  }
+},
+
     // Market price test (G.31)
     {
       name: "G.31 Market price for food",
