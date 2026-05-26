@@ -98,7 +98,7 @@ Items are ordered by: dependency satisfaction first, then impact-per-complexity,
 
 ---
 
-### T1.1 — Fix Test Suite (74 failing tests)
+### T1.1 — Fix Test Suite (74 failing tests) 
 **What:** Repair all failing tests identified in the last audit. Nine root causes, all in test code except one engine bug:
 - Remove all `D.MISSION_POOL.find()` references — replace with `testMission()` fixtures
 - Fix `screens_shared/port/voyage` path prefix (`../`) in `tests.html`
@@ -117,7 +117,7 @@ Items are ordered by: dependency satisfaction first, then impact-per-complexity,
 
 ---
 
-### T1.2 — State Shape Versioning + Save Migration
+### T1.2 — State Shape Versioning + Save Migration --> DONE
 **What:** Add `state.version: number` to `initialState` (start at 1). On `LOAD_GAME`, after parsing localStorage, run `migrateState(loaded)` in `engine.js` before applying the state. `migrateState` is a chain of version-gated patches: if `loaded.version < 2`, add `state.world = {}` with defaults; if `< 3`, add `state.crew.recoveringCrew = []`; etc. Each migration is additive — never destructive. This means every subsequent state shape change (every Tier 2–6 feature that adds a new field) ships with a corresponding migration patch, and existing saves continue to work.
 
 **Complexity:** Low (one function, one new state field, one call in LOAD_GAME)
@@ -126,7 +126,7 @@ Items are ordered by: dependency satisfaction first, then impact-per-complexity,
 
 ---
 
-### T1.3 — React Error Boundary
+### T1.3 — React Error Boundary --> DONE
 **What:** Wrap the root render in `App.jsx` with a React ErrorBoundary class component. On any unhandled render error, show a recovery UI instead of a blank screen: "Something went wrong. [Reload] [Load Last Save]". The boundary catches component errors, logs them to console, and displays the recovery options. One component, ~30 lines.
 
 **Complexity:** Low
@@ -135,7 +135,7 @@ Items are ordered by: dependency satisfaction first, then impact-per-complexity,
 
 ---
 
-### T1.4 — Wind System Wired to Travel Days
+### T1.4 — Wind System Wired to Travel Days --> DONE
 **What:** `state.wind` (angle 0–360, speed 0–20) already exists and displays in HUD and MapScreen. Wire it to `L.travelDays()`. Headwind (sailing within 45° of directly into the wind) adds 20% to travel days. Tailwind (sailing within 45° of directly with the wind) reduces by 20%. Crosswind: no modifier. The wind angle is compared to the bearing from origin to destination port to determine modifier. Wind already changes daily in ADVANCE_DAY — this makes those changes matter.
 
 If wiring is not feasible in this session, **remove the wind display from HUD and MapScreen entirely**. A stat that means nothing erodes player trust in the UI more than its absence.
@@ -146,7 +146,7 @@ If wiring is not feasible in this session, **remove the wind display from HUD an
 
 ---
 
-### T1.5 — Auto-Save at Key Moments
+### T1.5 — Auto-Save at Key Moments --> DONE
 **What:** Call the existing save function automatically on every `ADVANCE_DAY`, `ENTER_PORT`, and `COMPLETE_MISSION` dispatch. Show a brief "✓ Saved" flash in the HUD (1.5 seconds via CSS transition, then fades). No new save slot logic — this wraps what already exists.
 
 **Complexity:** Low
@@ -155,7 +155,7 @@ If wiring is not feasible in this session, **remove the wind display from HUD an
 
 ---
 
-### T1.6 — Morale Floor Cascade
+### T1.6 — Morale Floor Cascade -> rejected
 **What:** Extend the existing morale system with two escalating consequences when `crew.morale === 0` for sustained periods. Track `state.crew.moraleZeroDays: number` in state, incremented in ADVANCE_DAY when morale is 0.
 - Days 1–3 at zero: existing behaviour (morale stays 0, existing penalties apply)
 - Day 4+: `abandonRate` triggers — 1 random crew member lost per day (they desert). Log entry: "Another sailor slips away in the night."
@@ -169,7 +169,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T1.7 — Max Days at Sea / Geographic Progression
+### T1.7 — Max Days at Sea / Geographic Progression --> DONE
 **What:** Activate the `maxDays` field already on SHIPS. Add `L.canReach(state, portKey)` — returns false when `L.travelDays(state, portKey) > SHIPS[state.ship.type].maxDays`. MapScreen greys and disables out-of-range ports with tooltip: "Requires a ship with more than X days range." Mark remote ports in data.js (`remote: true`): Bermuda, Veracruz, Campeche, Las Aves inaccessible by dinghy; Libertalia requires brigantine or larger.
 
 **Complexity:** Low (one new logic function, MapScreen CSS change, data.js flags)
@@ -178,7 +178,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T1.8 — Mobile Browser Support
+### T1.8 — Mobile Browser Support --> DONE
 **What:** Responsive layout pass so the game is genuinely playable on phones (~390px viewport):
 - HUD: wrap to two lines on narrow viewports; hide hold display unless non-zero
 - All panels: `minWidth: "min(90vw, 480px)"` pattern throughout
@@ -195,7 +195,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T1.9 — Missing UI Polish (no new systems)
+### T1.9 — Missing UI Polish (no new systems) --> done except defeat screen summary, rejected
 **What:** A bundle of high-value, low-complexity UI improvements that make existing systems feel finished. Do as one session:
 
 - **Live hold preview in MarketScreen:** as the player adjusts +/− quantities, the hold bar updates in real time showing post-trade state. Currently updates only on confirm.
@@ -231,7 +231,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T2.1 — Ammunition as Combat Resource
+### T2.1 — Ammunition as Combat Resource --> parked for now.
 **What:** Add `ammo` to `state.hold.items` as a tracked provision (does not consume hold capacity — stored in the ship's magazine separately). Consumption: 1 unit per Broadside or Precision action. If `ammo === 0`, both actions grey out in BattleScreen with "No ammunition." Warn at battle start when `ammo < 5`. Add `ammo` to RESOURCES and GOODS_AVAILABILITY (available wherever `weapons` is stocked). SailingScreen provisions panel shows ammo alongside food and water. HUD shows ammo when at sea.
 
 **Complexity:** Low-medium (new RESOURCES entry, BATTLE_ACTION check, UI changes)
@@ -240,7 +240,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T2.2 — Medicine as Combat Consequence Modifier
+### T2.2 — Medicine as Combat Consequence Modifier --> parked for now.
 **What:** Add `medicine` to `state.hold.items` (same pattern — no hold capacity consumed). Consumed when crew are lost in combat: `Math.floor(crewLost × 0.4)` crew become injured (not dead) when medicine > 0. A `state.crew.recoveringCrew: []` array holds them with a `daysRemaining` counter. ADVANCE_DAY decrements timers and returns recovered crew to `roster`. Without medicine, all losses are permanent. Log warns before battle when medicine = 0: "No medicine aboard — all losses will be permanent."
 
 **Complexity:** Low-medium (new state field, ADVANCE_DAY timer, DISMISS_BATTLE recovery logic)

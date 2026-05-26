@@ -164,21 +164,13 @@ broadside/
 ├── README.md               Setup and running instructions
 └── tests/
     ├── tests.html          Test runner UI
+    ├── tests_balance.html  Test for game balance, not functionality
     ├── tests_helpers.js    Shared helpers (fillRoster, makeState, testMission)
     ├── tests_logic.js      Unit tests (logic.js + generators.js)
     ├── tests_engine.js     Reducer tests
     ├── tests_flows.js      Integration + Scenario tests
     └── tests_ui.js         UI smoke + Edge case tests
 ```
-
-
-`index.html` load order becomes:
-```html
-<script type="text/babel" src="screens_port.jsx"></script>
-<script type="text/babel" src="screens_voyage.jsx"></script>
-<script type="text/babel" src="screens_action.jsx"></script>
-```
-
 
 ---
 
@@ -444,9 +436,16 @@ Pass overrides for border colour, background, or padding adjustments.
 
 ---
 
-### screens.jsx → `window.S`
+### screens_shared.jsx, screens_port.jsx, screens_voyage.jsx → window.S
 
-**Contains:** All game screen components. Each receives `{ state, dispatch }`.
+All screen components. Each receives `{ state, dispatch }`.  
+They extend `window.S` via `Object.assign(window.S, { ... })`.
+
+- `screens_shared.jsx`: tiny shared components (FactionPill, RepPill, ShipSprite)
+- `screens_port.jsx`: port‑zone screens (Start, Port, Shipyard, Crew, Status, Market)
+- `screens_voyage.jsx`: voyage‑zone screens (Map, Sailing, Event, Intercept, Battle)
+
+Each receives `{ state, dispatch }`.
 Screens compose `window.UI` primitives and read from `window.D`, `window.L`,
 `window.E` as needed.
 
@@ -1065,6 +1064,7 @@ mission balance.
 tests/
 tests/
 ├── tests.html          Loads all game files, runs window.TESTS, renders results UI
+├── tests_balance.html
 ├── tests_helpers.js    Shared helpers: fillRoster, makeState, testMission
 ├── tests_logic.js      Unit tests for logic.js (L.*) and generators.js (G.*)
 ├── tests_engine.js     Reducer tests for engine.js (E.*)
