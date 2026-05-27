@@ -101,6 +101,7 @@ Broadside/
 For a deep dive into architecture, data flow, state shape, and game mechanics, see
 ```text
 architecture.md
+specs_*.md
 ```
 
 ---
@@ -110,7 +111,6 @@ architecture.md
 - Patrol mission type is not yet fully integrated into the mission board.
 - Grapple crew‑loss logic has a known bug (losses are sometimes applied to the wrong side). Manual testing is pending.
 - Some UI smoke tests are still being stabilised.
-- The cargo hold does not yet have a visual upgrade (planned for a later phase).
 
 ---
 

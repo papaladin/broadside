@@ -16,11 +16,10 @@
 5. [File Responsibilities](#5-file-responsibilities)
 6. [Global Namespace Convention](#6-global-namespace-convention)
 7. [State Shape Reference](#7-state-shape-reference)
-8. [Action Reference](#8-action-reference)
-9. [Game Mechanics Implementation](#9-game-mechanics-implementation)
-10. [Adding New Content — Patterns](#10-adding-new-content--patterns)
-11. [Testing Infrastructure](#11-testing-infrastructure)
-12. [Constraints for AI Agents](#12-constraints-for-ai-agents)
+8. [Game Mechanics Implementation](#9-game-mechanics-implementation)
+9. [Adding New Content — Patterns](#10-adding-new-content--patterns)
+10. [Testing Infrastructure](#11-testing-infrastructure)
+11. [Constraints for AI Agents](#12-constraints-for-ai-agents)
 
 ---
 
@@ -222,44 +221,7 @@ inline. This is a pragmatic exception to keep event definitions self-contained.
 Event effect functions must not call other `L.*` functions — they return plain
 partial state objects only.
 
-**Current exports:**
-
-| Export | Description |
-|---|---|
-| Export | Description |
-|---|---|
-| `PORTS` | Port definitions: name, faction, coordinates, services, description |
-| `SHIPS` | Ship stats: maxHull, maxCrew, cannons, speed, cost, upgradeable, requiredFame |
-| `FACTIONS` | Faction labels and colours: english, spanish, french, dutch, pirate |
-| `UPGRADES` | Ship upgrades: name, cost, desc, effects object, requiredFame |
-| `RANDOM_EVENTS` | Event pool: id, type, title, desc, condition, choices with outcomes |
-| `STARTS` | Starting scenarios: name, desc, bonuses array |
-| `FACTION_RELATIONS` | Inter-faction stance matrix (currently unused) |
-| `ENCOUNTER_FLAVOUR` | Functions returning flavour text per encounter type |
-| `SURRENDER_CONSEQUENCE` | Consequence objects per encounter type |
-| `CREW_FIRST_NAMES` | First name pools per faction |
-| `CREW_LAST_NAMES` | Last name pools per faction |
-| `CREW_ROLES` | Role definitions with weights |
-| `RESOURCES` | Goods definitions: name, basePrice, variance, illegal, infamyOnBuy, unit |
-| `GOODS_AVAILABILITY` | Per‑port tier table controlling market appearance and quantity |
-| `MISSION_GOLD_RANGES` | Gold reward ranges by fame tier and risk level |
-| `MISSION_ENEMY_RANGES` | Enemy stat ranges (hull, cannons, crew) by fame tier |
-| `MISSION_REP_IMPACTS` | Reputation impact values per mission type and risk |
-| `TRADE_MISSION_PROFIT_MARGINS` | Profit margins for trade missions by risk level |
-| `SMUGGLE_PROFIT_MARGINS` | Profit margins for smuggle missions by risk level |
-| `TRADE_GOODS_BY_TIER` | Eligible goods for trade missions per fame tier |
-| `SMUGGLE_GOODS_BY_TIER` | Eligible goods for smuggle missions per fame tier |
-| `MISSION_NAME_PARTS` | Word pools for generating mission names and descriptions |
-| `ENEMY_SHIP_NAMES` | Adjective/noun pools for enemy ship names |
-
-**Port service keys** used in `port.services[]`:
-
-| Key | Meaning |
-|---|---|
-| `"tavern"` | Rumors, morale recovery, specialist hire (future) |
-| `"shipyard"` | Buy ships, install equipment, repair |
-| `"crew"` | Hire crew members |
-| `"missions"` | Mission board |
+See specs_data.md for details.
 
 ---
 
@@ -268,43 +230,6 @@ partial state objects only.
 **Contains:** Pure functions only. No React, no DOM, no side effects.
 
 **Every function here must be callable in a test with a plain JS object.**
-
-**Current exports:**
-
-| Function | Signature | Description |
-|---|---|---|
-| `travelDays` | `(fromKey, toKey, state)` | Travel days accounting for speed, wind, morale |
-| `getShipStats` | `(state)` | Effective ship stats with all upgrade effects applied |
-| `getEffectiveMorale` | `(state)` | Morale with figurehead bonus applied, capped at 100 |
-| `hasUpgrade` | `(state, key)` | Boolean — upgrade key is installed |
-| `getFameLabel` | `(fame)` | Returns tier label (Unknown → Immortal) |
-| `getFameTier` | `(fame)` | Returns numeric tier 0‑4 for fame value |
-| `meetsRequirement` | `(state, item)` | Returns `{ allowed, reason }` for fame-gated items |
-| `getRepPerk` | `(rep)` | Returns `{ tier, repairMult, missionMult, servicesBlocked }` |
-| `getInfamyLabel` | `(infamy)` | Returns label (Clean → Legendary Outlaw) |
-| `getHoldUsed` | `(holdItems)` | Total cargo units |
-| `getHoldLoadPct` | `(holdItems, capacity)` | Load fraction 0–1 |
-| `getHoldSpeedMultiplier` | `(loadPct)` | Travel time multiplier (1.0, 1.11, 1.33) |
-| `getProvisionConsumptionPerDay` | `(state)` | `{ food, water }` per day |
-| `getDaysOfProvisions` | `(holdItems, consumptionPerDay)` | `{ food, water }` days remaining |
-| `applyLoseCargoPercent` | `(holdItems, percent)` | Reduced hold items after loss |
-| `applyLoseContraband` | `(holdItems)` | Hold with illegal goods removed |
-| `canBribe` | `(state)` | Boolean — infamy < 50 |
-| `buildEncounterContext` | `(state, type, enemy)` | Builds context object for InterceptScreen |
-| `triggerRandomEvent` | `(state)` | Selects event from pool filtered by conditions |
-| `shipRepairCost` | `(state)` | Gold cost to fully repair |
-| `reputationLabel` | `(rep)` | String label for a reputation value |
-| `payCrewWages` | `(state)` | Daily wage amount |
-| `applyReputationImpact` | `(state, impact)` | Updated reputation object |
-| `decayReputation` | `(state)` | Reputation after daily decay (only above 50) |
-| `updateReputation` | `(state, portKey, delta)` | Single port update, clamped 0‑100 |
-| `resolveCombatAction` | `(state, action)` | Returns `{ player, enemy, moraleDelta, goldReward, fled, instantVictory }` |
-| `getNPCAction` | `(enemy)` | NPC's chosen combat action (weighted random, no evade) |
-| `removeRandomCrew` | `(roster, count)` | Removes random members, returns `{ newRoster, removed }` |
-| `roll` | `(sides)` | Random integer 1–sides |
-| `saveGame` | `(state)` | Serialise to localStorage |
-| `loadGame` | `()` | Deserialise from localStorage, returns state or null |
-| `hasSave` | `()` | Boolean |
 
 **Critical:** `getShipStats(state)` is the central stat aggregator. All combat,
 travel, capacity, and UI code must call this rather than reading
@@ -315,6 +240,8 @@ that bypasses this function.
 speed bonuses from equipment and future cargo load penalties. The base distance
 uses port SVG coordinates internally — callers treat the return value as days only.
 
+See specs_logic.md for details.
+
 ---
 
 ### generators.js → `window.G`
@@ -322,25 +249,7 @@ uses port SVG coordinates internally — callers treat the return value as days 
 **Contains:** All functions that use `Math.random` to produce runtime content.
 No pure game logic — that lives in `logic.js`.
 
-**Current exports:**
-
-| Function | Signature | Description |
-|---|---|---|
-| `generateCrewMember` | `(faction, existingNames)` | Creates a named crew member |
-| `generateRoster` | `(count, faction)` | Creates a full roster |
-| `generateMissions` | `(portKey, state)` | Returns 2‑3 parametric mission objects |
-| `generateEnemy` | `(risk, fame, faction)` | Builds enemy object from scaling ranges |
-| `generateEnemyForAssault` | `(targetPortKey, fame)` | Builds assault enemy from port's faction |
-| `generateEnemyName` | `(faction)` | Returns "The Black Serpent" style name |
-| `generateGold` | `(type, risk, fame)` | Gold reward, rounded to nearest 25 |
-| `generateRepImpact` | `(type, faction, risk, defendingFaction)` | Returns rep‑impact object |
-| `generateMissionText` | `(type, faction, targetPortKey, risk, enemy)` | Returns `{ name, desc }` |
-| `pickTargetPort` | `(currentPortKey, type, state, faction)` | Picks a valid destination port |
-| `opposingFaction` | `(factionKey)` | Returns a random rival faction |
-| `generateTradeMission` | `(portKey, state, faction, risk)` | Returns a trade mission object with requiredGood, requiredQty, gold |
-| `generateSmuggleMission` | `(portKey, state, risk)` | Returns a smuggle mission object with patrol risk, infamy, and contraband details |
-| `generatePortMarket` | `(portKey)` | Generates `{ portKey, goods: { … } }` for a port visit |
-
+See specs_generators.md for details.
 
 ---
 
@@ -354,27 +263,8 @@ the calculation to `logic.js` first.
 
 **Exports:** `window.E = { A, initialState, reducer }`
 
-**`addLog` helper** — used by every action producing a captain's log entry:
+See specs_engine.md for details.
 
-```js
-function addLog(state, entry) {
-  return { ...state, log: [entry, ...state.log].slice(0, 30) };
-}
-```
-
-Always call it last, wrapping the final state object.
-
-**Action categories:**
-
-| Category | Actions |
-|---|---|
-| Navigation | `NAVIGATE`, `SAIL_TO`, `ENTER_PORT`, `ADVANCE_DAY` |
-| Game lifecycle | `START_GAME`, `SAVE_GAME`, `LOAD_GAME` |
-| Intercept | `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_PARLEY`, `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER` |
-| Port | `REPAIR`, `BUY_SHIP`, `BUY_UPGRADE`, `HIRE_CREW`, `RAISE_MORALE` |
-| Missions | `TAKE_MISSION`, `COMPLETE_MISSION`, `ABANDON_MISSION`, `REFRESH_MISSIONS` |
-| Combat | `BATTLE_ACTION`, `DISMISS_BATTLE` |
-| Events | `RESOLVE_EVENT` |
 
 ---
 
@@ -384,49 +274,16 @@ Always call it last, wrapping the final state object.
 only primitive props (strings, numbers, booleans, callbacks). They never call
 `dispatch` directly or read from `window.E` or `window.D`.
 
-**Exports:** `{ T, panelStyle, Btn, Bar, Pill, StatBlock, SectionTitle,
-ScreenHeader, LogList, Divider, EmptyState }`
+See specs_jsx.md for details.
 
-**Theme tokens `T`** — all colours and font values live here. Never hardcode
-a colour in a screen component.
-
-Key tokens:
-
-```js
-T.bg          // #0a141e  — page background
-T.panel       // #121c28  — card/panel background
-T.border      // #2a3a4a  — default border
-T.gold        // #ffd700  — primary accent, headings, important values
-T.text        // #e0e0e0  — primary text
-T.textDim     // #a0a0a0  — secondary text, labels
-T.textFaint   // #606060  — placeholder, disabled text
-T.greenBr     // #4caf50  — success, positive values
-T.redBr       // #f44336  — danger, negative values
-T.riskColor   // { low, medium, high } — mission risk pill colours
-T.font        // 'Courier New', monospace
-```
-
-**`Btn` variants** (`v` prop):
-
-| Value | Use case |
-|---|---|
-| `"default"` | Standard secondary action |
-| `"gold"` | Primary / confirm action |
-| `"ghost"` | Back / cancel action |
-| `"green"` | Positive action: hire, accept, confirm |
-| `"red"` | Destructive action: attack, abandon |
-
-**`panelStyle(overrides)`** — returns base style object for panel containers.
-Pass overrides for border colour, background, or padding adjustments.
 
 ---
 
-### screens_shared.jsx, screens_port.jsx, screens_voyage.jsx → window.S
+### screens_port.jsx, screens_voyage.jsx → window.S
 
 All screen components. Each receives `{ state, dispatch }`.  
 They extend `window.S` via `Object.assign(window.S, { ... })`.
 
-- `screens_shared.jsx`: tiny shared components (FactionPill, RepPill, ShipSprite)
 - `screens_port.jsx`: port‑zone screens (Start, Port, Shipyard, Crew, Status, Market)
 - `screens_voyage.jsx`: voyage‑zone screens (Map, Sailing, Event, Intercept, Battle)
 
@@ -437,32 +294,7 @@ Screens compose `window.UI` primitives and read from `window.D`, `window.L`,
 **No business logic in screens.** If a screen calculates something, that
 calculation belongs in `logic.js`. Screens read and render; they do not decide.
 
-**Current screens:**
-
-| Screen           | `state.screen` value | Description |
-|------------------|----------------------|-------------|
-| StartScreen      | `"start"`            | Scenario selection, load game |
-| PortScreen       | `"port"`             | Main hub: mission board, log, ship status, services, market button |
-| MapScreen        | `"map"`              | Interactive SVG world map, click to sail |
-| SailingScreen    | `"sailing"`          | Day-advance, voyage progress, provisions, log |
-| InterceptScreen  | `"intercept"`        | Pre-combat encounter: fight, flee, parley, bribe, surrender |
-| BattleScreen     | `"battle"`           | Turn-based naval combat with battle log |
-| ShipyardScreen   | `"shipyard"`         | Buy ships/upgrades, repair (fame-gated, reputation-discounted) |
-| CrewScreen       | `"crew"`             | Named crew manifest, hire, buy drinks for morale |
-| StatusScreen     | `"status"`           | Captain's Standing (fame/infamy), faction relations, reputation per port with perk info |
-| EventScreen      | `"event"`            | Random event resolution with choices |
-| MarketScreen     | `"market"`           | Buy/sell provisions and trade goods; shows hold, prices, and cargo penalty |
-
-**Export pattern:**
-
-```js
-// Single file
-window.S = { StartScreen, PortScreen, /* ... all screens */ };
-
-// After split — each file extends the object
-// screens_voyage.jsx:
-Object.assign(window.S, { MapScreen, SailingScreen, InterceptScreen, EventScreen });
-```
+See specs_jsx.md for details.
 
 ---
 
@@ -482,6 +314,9 @@ Every screen in `window.S` must have a corresponding case in the router.
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 ```
 
+See specs_jsx.md for details.
+
+
 ---
 
 ### index.html
@@ -499,7 +334,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 <script type="text/babel" data-presets="react" src="logic.js"></script>
 <script type="text/babel" data-presets="react" src="engine.js"></script>
 <script type="text/babel" data-presets="react" src="ui.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens.jsx"></script>
+<script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
+<script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
 <script type="text/babel" data-presets="react" src="App.jsx"></script>
 ```
 
@@ -540,196 +376,12 @@ This makes dependencies explicit and text-searchable.
 
 ## 7. State Shape Reference
 
-Authoritative state shape. Update this section when adding new fields.
-
-```js
-{
-  // ── Game lifecycle ──────────────────────────────────────────────
-  screen:       "start",
-  day:          1,
-  gold:         1000,
-  fame:         0,          // permanent progression, never decays
-  infamy:       0,          // permanent outlaw track, never decays
-
-  // ── Ship ────────────────────────────────────────────────────────
-  ship: {
-    type:       "sloop",
-    hull:       100,
-    cannons:    10,
-    name:       "Sea Dog",
-    upgrades:   [],         // array of UPGRADES keys
-  },
-
-  // ── Crew (named roster) ─────────────────────────────────────────
-  crew: {
-    roster:     [{ id, firstName, lastName, role, faction, daysAboard }],
-    max:        50,
-    morale:     80,         // 0–100
-  },
-
-    // ── Cargo & Economy ───────────────────────────────────────────────
-  hold: {
-    capacity: 200,      // from SHIPS[type].holdCapacity
-    items: {
-      food: 10, water: 10,
-      rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,
-      coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
-    },
-  },
-  portMarket: null,     // generated on ENTER_PORT; { portKey, goods: { [good]: { basePrice, buyFromPort, sellToPort, available } } }
-
-  // ── Navigation ──────────────────────────────────────────────────
-  currentPort:      "portRoyal",
-  previousPort:     null,       // set on SAIL_TO, used for defeat return
-  destination:      null,
-  sailingDaysLeft:  0,
-  sailingDaysTotal: 0,
-  wind:             { angle: 45, speed: 10 },
-
-  // ── Reputation ──────────────────────────────────────────────────
-  reputation: { /* portKey: 0–100 for all ports */ },
-
-  // ── Missions ────────────────────────────────────────────────────
-  missions:         [],
-  activeMission:    null,
-  Additional fields for trade/smuggle missions:
-  requiredGood: "rum",         // the resource key the player must deliver
-  requiredQty: 20,             // number of units required
-  interceptChance: 0.80,      // (smuggle only) probability of patrol per voyage
-  isContraband: true,         // (smuggle only) whether the good triggers hold scan
-  patrolRisk: 0.30,            // (smuggle only) per-day patrol probability (replaced by interceptChance)
-
-  // ── Combat ──────────────────────────────────────────────────────
-  battleState:      null,   // { phase, playerHull, enemyHull, playerCrew, enemyCrew,
-                            //   enemy, round, log, returnScreen, goldReward,
-                            //   initialCrewCount, lostCrewNames }
-  encounterContext: null,   // { type, enemy, flavourText, options: { flee, parley, bribe, surrender, fight } }
-
-  // ── Events ──────────────────────────────────────────────────────
-  activeEvent:      null,
-
-  // ── Captain's log ───────────────────────────────────────────────
-  log:              [],
-}
-```
-
-### battleState shape
-
-```js
-battleState: {
-  enemy: {
-    name:     "Spanish Warship",
-    faction:  "spanish",
-    ship:     "frigate",        // key into SHIPS
-    hull:     280,
-    maxHull:  280,
-    cannons:  32,
-    crew:     120,
-    gold:     1800,             // reward on victory
-    fame:     24,               // fame reward on victory
-  },
-  playerHull:   100,            // tracks independently from state.ship.hull
-  enemyHull:    280,
-  goldReward:   0,              // set when enemy is defeated, displayed in BattleScreen
-  crewLost:     0,              // accumulated this battle
-  round:        1,
-  phase:        "player_turn",  // "player_turn"|"victory"|"defeat"|"fled"
-  log:          [],             // battle event strings, oldest first
-  returnScreen: "sailing",      // screen to return to after battle dismissal
-}
-```
-
-### encounterContext shape
-
-```js
-encounterContext: {
-  type:        "patrol",        // key into ENCOUNTER_FLAVOUR
-  enemy:       { /* same shape as battleState.enemy */ },
-  flavourText: "A Spanish patrol vessel hails you.",
-  options: {
-    flee:      { available: true,  reason: null,
-                 speedCheck: { player: 7, enemy: 5 } },
-    parley:    { available: false,
-                 reason: "Reputation too low (18 — need 30)", repRequired: 30 },
-    bribe:     { available: true,  reason: null, cost: 420 },
-    surrender: { available: true,  reason: null,
-                 consequence: { loseCargoPercent: 30, moralePenalty: 10 } },
-    fight:     { available: true,  reason: null },
-  },
-}
-```
+State Shape, Battle State Shape and Encounter Context State Shape are all fully described in specs_engine.jsx.
 
 ---
 
-## 8. Action Reference
+## 8. Game Mechanics Implementation
 
-Always use `A.ACTION_NAME` constants — never dispatch string literals directly.
-
-```js
-dispatch({ type: A.SAIL_TO, port: "havana" });  // correct
-dispatch({ type: "SAIL_TO", port: "havana" });  // never do this
-```
-
-### Payload reference
-
-| Action | Required payload fields |
-|---|---|
-| `NAVIGATE` | `screen` |
-| `SAIL_TO` | `port` |
-| `ENTER_PORT` | — |
-| `ADVANCE_DAY` | — (now triggers a single high-probability navy patrol check per smuggle voyage via the event system) |
-| `START_GAME` | `scenarioKey` |
-| `SAVE_GAME` | — |
-| `LOAD_GAME` | — |
-| `INTERCEPT_FIGHT` | — |
-| `INTERCEPT_FLEE` | — |
-| `INTERCEPT_PARLEY` | — |
-| `INTERCEPT_BRIBE` | — |
-| `INTERCEPT_SURRENDER` | — |
-| `REPAIR` | — |
-| `BUY_SHIP` | `shipType` |
-| `BUY_EQUIPMENT` | `equipmentKey` |
-| `REMOVE_EQUIPMENT` | `equipmentKey` |
-| `HIRE_CREW` | `count` |
-| `TAKE_MISSION` | `mission` (full mission object — no ID field) |
-| `COMPLETE_MISSION` | — (now checks cargo satisfaction for trade/smuggle; removes required goods from hold; gold is fixed for trade/smuggle, rep-multiplied for other types) |
-| `ABANDON_MISSION` | — |
-| `REFRESH_MISSIONS` | — |
-| `BATTLE_ACTION` | `action`: `"broadside"` \| `"precision"` \| `"grapple"` \| `"evade"` |
-| `DISMISS_BATTLE` | — |
-| `RESOLVE_EVENT` | `choiceIndex` (number, or null for non-choice events) |
-| `RAISE_MORALE` | — |
-| `INTERCEPT_FIGHT` | — |
-| `INTERCEPT_FLEE` | — |
-| `INTERCEPT_PARLEY` | — |
-| `INTERCEPT_BRIBE` | — |
-| `INTERCEPT_SURRENDER` | — |
-| `CONFIRM_TRADE` | `buys` object, `sells` object |
-| `ENTER_MARKET` | — |
-| `LEAVE_MARKET` | — |
-
----
-
-## 9. Game Mechanics Implementation
-
-### getShipStats — the central aggregator
-
-```js
-function getShipStats(state) {
-  const base = { ...SHIPS[state.ship.type] };
-  for (const key of (state.ship.equipment ?? [])) {
-    const eq = EQUIPMENT[key];
-    if (!eq) continue;
-    for (const [stat, delta] of Object.entries(eq.effect)) {
-      base[stat] = (base[stat] ?? 0) + delta;
-    }
-  }
-  return base;
-}
-```
-
-All code that reads ship stats must call this. Never read `SHIPS[state.ship.type]`
-directly in game logic — equipment effects would be invisible.
 
 ### Equipment installation rules
 
@@ -796,7 +448,7 @@ Fight is always available in all types.
 `L.reputationLabel(rep)` returns the label string. Threshold checks happen in
 the reducer (port entry) and screen components (service access, mission filtering).
 
-### Fame System (New)
+### Fame System
 
 - **Earning**: Fame is awarded on mission completion. Most missions give **1 fame**; high‑risk missions give **2–3**.
 - **Decay**: Never.
@@ -946,7 +598,7 @@ whenever the state shape changes between versions.
 
 ---
 
-## 10. Adding New Content — Patterns
+## 9. Adding New Content — Patterns
 
 ### Add a port
 
@@ -1039,21 +691,8 @@ mission balance.
 
 ---
 
-## 11. Testing Infrastructure
+## 10. Testing Infrastructure
 
-### Files
-
-```
-tests/
-tests/
-├── tests.html          Loads all game files, runs window.TESTS, renders results UI
-├── tests_balance.html
-├── tests_helpers.js    Shared helpers: fillRoster, makeState, testMission
-├── tests_logic.js      Unit tests for logic.js (L.*) and generators.js (G.*)
-├── tests_engine.js     Reducer tests for engine.js (E.*)
-├── tests_flows.js      Integration tests (I.*) and Scenario tests (S.*)
-└── tests_ui.js         UI smoke tests (U.*) and Edge case / Regression tests (F.*)
-```
 
 ### Test structure
 
@@ -1115,7 +754,7 @@ Every new system ships with tests written in the same session:
 
 ---
 
-## 12. Constraints for AI Agents
+## 11. Constraints for AI Agents
 
 Read this section before making any changes to the codebase.
 
@@ -1162,4 +801,4 @@ Read this section before making any changes to the codebase.
 ### File size limit
 
 No file should exceed ~1000 lines. If an edit would push a file past this, raise
-the issue rather than proceeding. Planned splits are in Section 3.
+the issue rather than proceeding.
