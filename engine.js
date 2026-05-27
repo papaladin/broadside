@@ -124,6 +124,31 @@ const migrateState = (loaded) => {
     initialState.reputation[portKey] = 50;
   });
 
+
+ const createBattleState = (state, enemy, initialLog = "You engage the enemy!", encounterType = "unknown") => ({
+  phase:            "player_turn",
+  playerHull:       state.ship.hull,
+  playerCrew:       state.crew.roster.length,
+  enemy,
+  enemyHull:        enemy.hull,
+  enemyCrew:        enemy.crew,
+  round:            1,
+  log:              [initialLog],
+  returnScreen:     L.returnScreen(state),
+  initialCrewCount: state.crew.roster.length,
+  lostCrewNames:    [],
+  encounterType,    // ← keeps the refactored field
+});
+
+const checkServicesBlocked = (state) => {
+  const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+  if (repPerk.servicesBlocked) {
+    return { ...state, log: [...state.log, "You are at war with this port. No services available."] };
+  }
+  return null;
+};
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REDUCER
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -439,80 +464,72 @@ if (state.sailingDaysLeft > 0 && !state.activeEvent && !state.encounterContext) 
       }
 
       // --- PORT ACTIONS ---
-      case A.REPAIR: {
-        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-        if (repPerk.servicesBlocked) return {
-          ...state,
-          log: [...state.log, "You are at war with this port. No services available."]
-        };
-        const shipStats = L.getShipStats(state);
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
-        const cost = Math.floor(baseCost * perk.repairMult);
-        if (state.gold < cost) {
-          return { ...state, log: [...state.log, "Not enough gold to repair."] };
-        }
-        const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
-        return {
-          ...state,
-          gold: state.gold - cost,
-          ship: { ...state.ship, hull: shipStats.maxHull },
-          log: [...state.log, `Repaired ship for ${cost}g${discountNote}.`]
-        };
-      }
+case A.REPAIR: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
 
-      case A.BUY_SHIP: {
-        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-        if (repPerk.servicesBlocked) return {
-          ...state,
-          log: [...state.log, "You are at war with this port. No services available."]
-        };
-        const ship = SHIPS[action.shipType];
-        const req = L.meetsRequirement(state, ship);
-        if (!req.allowed) return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
-        if (!ship || state.gold < ship.cost) return { ...state };
-        let newRoster = state.crew.roster;
-        if (ship.maxCrew < newRoster.length) newRoster = newRoster.slice(0, ship.maxCrew);
-        return { ...state, gold: state.gold - ship.cost, ship: { type: action.shipType, name: ship.name, hull: ship.maxHull, cannons: ship.cannons, upgrades: [] }, crew: { ...state.crew, roster: newRoster, max: ship.maxCrew }, hold: {...state.hold, capacity: ship.holdCapacity,}, log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`] };
-      }
+  const shipStats = L.getShipStats(state);
+  const rep = state.reputation[state.currentPort] ?? 50;
+  const perk = L.getRepPerk(rep);
+  const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
+  const cost = Math.floor(baseCost * perk.repairMult);
+  if (state.gold < cost) {
+    return { ...state, log: [...state.log, "Not enough gold to repair."] };
+  }
+  const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
+  return {
+    ...state,
+    gold: state.gold - cost,
+    ship: { ...state.ship, hull: shipStats.maxHull },
+    log: [...state.log, `Repaired ship for ${cost}g${discountNote}.`]
+  };
+}
 
-      case A.BUY_UPGRADE: {
-        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-        if (repPerk.servicesBlocked) return {
-          ...state,
-          log: [...state.log, "You are at war with this port. No services available."]
-        };
-        const req = L.meetsRequirement(state, upgrade);
-        if (!req.allowed) return { ...state, log: [...state.log, `Cannot install: ${req.reason}.`] };
-        if (!upgrade || state.gold < upgrade.cost || state.ship.upgrades.includes(action.upgradeKey) || !SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) return { ...state };
-        return { ...state, gold: state.gold - upgrade.cost, ship: { ...state.ship, upgrades: [...state.ship.upgrades, action.upgradeKey] }, log: [...state.log, `Installed ${upgrade.name} for ${upgrade.cost}g.`] };
-      }
+case A.BUY_SHIP: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
 
-      // --- CREW & MORALE ---
-      case A.HIRE_CREW: {
-        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-        if (repPerk.servicesBlocked) return {
-          ...state,
-          log: [...state.log, "You are at war with this port. No services available."]
-        };
-        const cost = action.count * 50;
-        if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
-        const portFaction = PORTS[state.currentPort]?.faction || "pirate";
-        const newMembers = G.generateRoster(action.count, portFaction);
-        return { ...state, gold: state.gold - cost, crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] }, log: [...state.log, `Hired ${action.count} crew for ${cost}g.`] };
-      }
+  const ship = SHIPS[action.shipType];
+  const req = L.meetsRequirement(state, ship);
+  if (!req.allowed) return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
+  if (!ship || state.gold < ship.cost) return { ...state };
+  let newRoster = state.crew.roster;
+  if (ship.maxCrew < newRoster.length) newRoster = newRoster.slice(0, ship.maxCrew);
+  return { ...state, gold: state.gold - ship.cost, ship: { type: action.shipType, name: ship.name, hull: ship.maxHull, cannons: ship.cannons, upgrades: [] }, crew: { ...state.crew, roster: newRoster, max: ship.maxCrew }, hold: {...state.hold, capacity: ship.holdCapacity,}, log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`] };
+}
 
-      case A.RAISE_MORALE: {
-        const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-        if (repPerk.servicesBlocked) return {
-          ...state,
-          log: [...state.log, "You are at war with this port. No services available."]
-        };
-        const cost = state.crew.roster.length * 5;
-        if (state.gold < cost || state.crew.morale >= 100) return { ...state };
-        return { ...state, gold: state.gold - cost, crew: { ...state.crew, morale: Math.min(100, state.crew.morale + 5) }, log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`] };
-      }
+case A.BUY_UPGRADE: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
+
+  const upgrade = D.UPGRADES[action.upgradeKey];   // ← this line was missing, causing the earlier bug
+  if (!upgrade) return state;
+
+  const req = L.meetsRequirement(state, upgrade);
+  if (!req.allowed) return { ...state, log: [...state.log, `Cannot install: ${req.reason}.`] };
+  if (state.gold < upgrade.cost || state.ship.upgrades.includes(action.upgradeKey) || !SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) return { ...state };
+  return { ...state, gold: state.gold - upgrade.cost, ship: { ...state.ship, upgrades: [...state.ship.upgrades, action.upgradeKey] }, log: [...state.log, `Installed ${upgrade.name} for ${upgrade.cost}g.`] };
+}
+
+case A.HIRE_CREW: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
+
+  const cost = action.count * 50;
+  if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
+  const portFaction = PORTS[state.currentPort]?.faction || "pirate";
+  const newMembers = G.generateRoster(action.count, portFaction);
+  return { ...state, gold: state.gold - cost, crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] }, log: [...state.log, `Hired ${action.count} crew for ${cost}g.`] };
+}
+
+case A.RAISE_MORALE: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
+
+  const cost = state.crew.roster.length * 5;
+  if (state.gold < cost || state.crew.morale >= 100) return { ...state };
+  return { ...state, gold: state.gold - cost, crew: { ...state.crew, morale: Math.min(100, state.crew.morale + 5) }, log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`] };
+}
 
       // --- MISSIONS ---
       case A.REFRESH_MISSIONS: return { ...state, missions: G.generateMissions(state.currentPort, state) };
@@ -707,21 +724,7 @@ case A.CONFIRM_TRADE: {
 case A.INTERCEPT_FIGHT: {
   const ctx = state.encounterContext;
   if (!ctx) return state;
-  const enemy = ctx.enemy;
-  const bs = {
-    phase:             "player_turn",
-    playerHull:        state.ship.hull,
-    playerCrew:        state.crew.roster.length,
-    enemy,
-    enemyHull:         enemy.hull,
-    enemyCrew:         enemy.crew,
-    round:             1,
-    log:               [`You engage the ${enemy.name}!`],
-    returnScreen:      L.returnScreen(state),
-    initialCrewCount:  state.crew.roster.length,
-    lostCrewNames:     [],
-    encounterType:     ctx.encounterType || ctx.type || "unknown",
-  };
+  const bs = createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
   return { ...state, encounterContext: null, battleState: bs, screen: "battle" };
 }
 
@@ -737,23 +740,11 @@ case A.INTERCEPT_FLEE: {
   }
   // Failed flee → battle
   const enemyObj = ctx.enemy;
-  const bs = {
-    phase: "player_turn",
-    playerHull: state.ship.hull,
-    playerCrew: state.crew.roster.length,
-    enemy: enemyObj,
-    enemyHull: enemyObj.hull,
-    enemyCrew: enemyObj.crew,
-    round: 1,
-    log: ["Escape failed! The enemy closes in."],
-    returnScreen: L.returnScreen(state),
-    initialCrewCount: state.crew.roster.length,
-    lostCrewNames: [],
-  };
+  const bs = createBattleState(state, enemyObj, "Escape failed! The enemy closes in.", ctx.encounterType);
   return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Failed to escape — battle unavoidable."] };
 }
 
- case A.INTERCEPT_PARLEY: {
+case A.INTERCEPT_PARLEY: {
   const ctx = state.encounterContext;
   if (!ctx) return state;
   const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
@@ -764,19 +755,7 @@ case A.INTERCEPT_FLEE: {
   }
   // Failed parley → battle
   const enemyObj = ctx.enemy;
-  const bs = {
-    phase: "player_turn",
-    playerHull: state.ship.hull,
-    playerCrew: state.crew.roster.length,
-    enemy: enemyObj,
-    enemyHull: enemyObj.hull,
-    enemyCrew: enemyObj.crew,
-    round: 1,
-    log: ["Parley failed — they attack!"],
-    returnScreen: L.returnScreen(state),
-    initialCrewCount: state.crew.roster.length,
-    lostCrewNames: [],
-  };
+  const bs = createBattleState(state, enemyObj, "Parley failed — they attack!", ctx.encounterType);
   return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Parley failed. Battle unavoidable."] };
 }
 

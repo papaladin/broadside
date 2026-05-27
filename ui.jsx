@@ -1,28 +1,32 @@
 // ═══════════════════════════════════════════════════════════════════
-//  ui.jsx — ALL UI PRIMITIVES AND THEME TOKENS
+//  ui.jsx — ALL UI PRIMITIVES, THEME TOKENS, AND SHARED COMPONENTS
 //  Pure presentational components. No game logic.
 //  Exposed as window.UI for global access.
+//  Depends on: window.D (for faction colours), window.L (for rep labels)
 // ═══════════════════════════════════════════════════════════════════
 
 window.UI = (() => {
+  // ── External dependencies (loaded before this file) ────────────
+  const { FACTIONS } = window.D;
+  const L = window.L;
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  THEME TOKENS (T)
-  //  Colors, fonts, and other design tokens.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const T = {
     // Colors
-    bg: "#0a141e",        // Dark blue-gray background
-    bgDeep: "#040c18",    // Deeper background (map/sea)
-    bgAlt: "#0d1620",     // Alternate background
-    panel: "#121c28",     // Panel background
-    panelAlt: "#0d1620",  // Alternate panel background
-    border: "#2a3a4a",    // Default border
+    bg: "#0a141e",
+    bgDeep: "#040c18",
+    bgAlt: "#0d1620",
+    panel: "#121c28",
+    panelAlt: "#0d1620",
+    border: "#2a3a4a",
     borderFaint: "#1a2a3a",
-    borderBr: "#3a4a5a",  // Brighter border (hover)
-    text: "#e0e0e0",      // Primary text
-    textDim: "#a0a0a0",    // Dim text
+    borderBr: "#3a4a5a",
+    text: "#e0e0e0",
+    textDim: "#a0a0a0",
     textFaint: "#606060",
-    gold: "#ffd700",      // Gold accent
+    gold: "#ffd700",
     goldDim: "#cc9900",
     goldBr: "#ffcc33",
     green: "#4caf50",
@@ -66,10 +70,9 @@ window.UI = (() => {
   });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  COMPONENTS
+  //  BASE COMPONENTS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  // Button component (FIXED: ghost variant now uses gold for visibility)
   const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {} }) => {
     const variants = {
       default: { bg: T.panel, border: T.border, color: T.text },
@@ -104,7 +107,6 @@ window.UI = (() => {
     );
   };
 
-  // Progress bar component
   const Bar = ({ value, max, color = T.greenBr, h = 10 }) => (
     <div style={{
       width: "100%",
@@ -124,7 +126,6 @@ window.UI = (() => {
     </div>
   );
 
-  // Pill component (for labels, tags, etc.)
   const Pill = ({ label, color = T.textDim, style = {} }) => (
     <div style={{
       display: "inline-block",
@@ -141,7 +142,6 @@ window.UI = (() => {
     </div>
   );
 
-  // Stat block (label + value)
   const StatBlock = ({ label, value, color }) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <span style={{ color: T.textDim, fontSize: 9 }}>{label}</span>
@@ -149,7 +149,6 @@ window.UI = (() => {
     </div>
   );
 
-  // Section title with optional action button
   const SectionTitle = ({ children, action }) => (
     <div style={{
       display: "flex",
@@ -166,7 +165,6 @@ window.UI = (() => {
     </div>
   );
 
-  // Screen header with back button (FIXED: Uses visible Btn)
   const ScreenHeader = ({ title, onBack }) => (
     <div style={{
       display: "flex",
@@ -185,7 +183,6 @@ window.UI = (() => {
     </div>
   );
 
-  // Log list (for captain's log, battle log, etc.)
   const LogList = ({ entries, maxEntries = 20 }) => (
     <div style={{
       fontSize: 10,
@@ -201,12 +198,10 @@ window.UI = (() => {
     </div>
   );
 
-  // Horizontal divider
   const Divider = ({ style = {} }) => (
     <hr style={{ border: `1px solid ${T.borderFaint}`, margin: "8px 0", ...style }} />
   );
 
-  // Empty state (for empty mission boards, etc.)
   const EmptyState = ({ message, style = {} }) => (
     <div style={{
       textAlign: "center",
@@ -218,6 +213,34 @@ window.UI = (() => {
       {message}
     </div>
   );
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  SHARED GAME COMPONENTS
+  //  (moved from screens_shared.jsx)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  const FactionPill = ({ faction }) => {
+    const f = FACTIONS[faction];
+    return <Pill label={f?.label ?? faction} color={f?.color ?? T.textDim} />;
+  };
+
+  const RepPill = ({ rep }) => {
+    const color = rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr;
+    return <Pill label={`${L.reputationLabel(rep)} (${rep})`} color={color} />;
+  };
+
+  const ShipSprite = ({ type, size = 40 }) => {
+    const scale = size / 40;
+    return (
+      <svg width={size} height={size * 0.6} viewBox="0 0 40 24" style={{ display: "block" }}>
+        <ellipse cx={20} cy={12} rx={16} ry={6} fill="#3a2a10" stroke={T.goldDim} strokeWidth="1" />
+        <path d="M36,12 L42,10 L42,14 Z" fill="#4a3418" transform={`scale(${scale})`} />
+        <ellipse cx={20} cy={12} rx={9} ry={4} fill={T.gold} opacity="0.55" />
+        <circle cx={20} cy={12} r={2} fill={T.text} />
+        <path d="M4,12 Q-2,9 -8,12 Q-2,15 4,12" fill="none" stroke={T.borderFaint} strokeWidth="1.5" />
+      </svg>
+    );
+  };
 
   // Expose everything globally
   return {
@@ -231,6 +254,9 @@ window.UI = (() => {
     ScreenHeader,
     LogList,
     Divider,
-    EmptyState
+    EmptyState,
+    FactionPill,
+    RepPill,
+    ShipSprite,
   };
 })();

@@ -276,7 +276,7 @@ const DebugPanel = ({ state, dispatch }) => {
 
       <div style={{ color: T.textDim, marginBottom: 4 }}>Rep (current port)</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[10, 50, 65, 85].map(n => (
+        {[5, 10, 50, 65, 85].map(n => (
           <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_PORT_REP,
             port: state.currentPort, amount: n })}
             style={{ ...btnStyle }}>{n}</button>

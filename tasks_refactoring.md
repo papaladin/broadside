@@ -31,7 +31,7 @@ All recommendations are **low-risk** and can be implemented **incrementally**.
 
 ---
 
-#### **1. Merge `screens_shared.jsx` and `ui.jsx` into a Single File (`UI.jsx`)**
+#### **1. Merge `screens_shared.jsx` and `ui.jsx` into a Single File (`UI.jsx`)** --> DONE
 
 **Why?**
 
@@ -146,7 +146,7 @@ All recommendations are **low-risk** and can be implemented **incrementally**.
 
 ---
 
-#### **4. Extract `createBattleState` Helper in `engine.js**`
+#### **4. Extract `createBattleState` Helper in `engine.js**` --> DONE
 
 **Why?**
 
@@ -182,7 +182,7 @@ All recommendations are **low-risk** and can be implemented **incrementally**.
 
 ---
 
-#### **5. Consolidate Reputation Checks in `engine.js**`
+#### **5. Consolidate Reputation Checks in `engine.js**` --> DONE
 
 **Why?**
 
@@ -807,7 +807,7 @@ All recommendations are **low-risk** and can be implemented **incrementally**.
 
 ---
 
-### **8. Merge `generateTradeMission`/`generateSmuggleMission**`
+### **8. Merge `generateTradeMission`/`generateSmuggleMission`**
 
 - **Why?** These functions share **~80% of their logic**. Merging them reduces duplication.
 - **Testing**: Test mission generation to ensure trade and smuggle missions still work as expected.

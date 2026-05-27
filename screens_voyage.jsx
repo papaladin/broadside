@@ -7,7 +7,7 @@ window.S = window.S || {};
   const L = window.L;
   const A = window.E.A;
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState } = window.UI;
-  const { FactionPill, RepPill, ShipSprite } = window.S;
+  const { FactionPill, RepPill, ShipSprite } = window.UI;
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
