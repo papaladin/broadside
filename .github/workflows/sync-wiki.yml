@@ -1,0 +1,46 @@
+name: Sync Wiki with Repo
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.md'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone wiki repo
+        run: |
+          git clone https://github.com/papaladin/broadside.wiki.git wiki
+          cd wiki
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Copy .md files to wiki
+        run: |
+          # Core docs
+          cp architecture.md wiki/architecture.md
+          cp specs_logic.md wiki/specs_logic.md
+          cp specs_engine.md wiki/specs_engine.md
+          cp specs_generators.md wiki/specs_generators.md
+          cp roadmap.md wiki/roadmap.md
+
+          # New wiki pages (optional – ignore if they don't exist yet)
+          cp docs/Gameplay-Basics.md wiki/Gameplay-Basics.md 2>/dev/null || true
+          cp docs/Tips-and-Strategies.md wiki/Tips-and-Strategies.md 2>/dev/null || true
+          cp docs/Lore.md wiki/Lore.md 2>/dev/null || true
+          cp docs/Contributing.md wiki/Contributing.md 2>/dev/null || true
+          cp docs/Setting-Up.md wiki/Setting-Up.md 2>/dev/null || true
+          cp docs/Testing.md wiki/Testing.md 2>/dev/null || true
+
+      - name: Commit and push to wiki
+        run: |
+          cd wiki
+          git add .
+          git commit -m "Sync docs from repo (${{ github.sha }})" || true
+          git push
