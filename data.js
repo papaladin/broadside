@@ -564,6 +564,8 @@ const SMUGGLE_PROFIT_MARGINS = {
   high:   1.80,
 };
 
+const PATROL_FINE_RATE = 0.50; // Fine = 50% of seized contraband base value
+
 const TRADE_GOODS_BY_TIER = {
   0: ["rum", "sugar", "timber", "cloth"],
   1: ["rum", "sugar", "timber", "cloth", "coffee", "cocoa"],
@@ -793,6 +795,47 @@ const ENEMY_SHIP_NAMES = {
       ],
       condition: (state) => state.crew.morale < 40
     },
+
+// patrol event
+{
+  id:    "navy_patrol",
+  title: "Naval Patrol",
+  type:  "encounter",
+  desc:  "A patrol vessel flying colonial colours cuts across your heading. An officer hails you: 'Heave to for inspection.'",
+  condition: (state) =>
+    state.screen === "sailing" &&
+    ["english","spanish","french","dutch"].includes(
+      window.D.PORTS[state.destination]?.faction
+    ),
+  choices: [
+    {
+      label:   "Allow Inspection",
+      sublabel: "Let them board and check your manifest.",
+      outcome: {
+        action: "PATROL_INSPECT",
+        log:    "You order the crew to heave to. The patrol boat comes alongside.",
+      }
+    },
+    {
+      label:   "Refuse — Run Up the Black",
+      sublabel: "Deny them. This means a fight.",
+      outcome: {
+        log:   "You refuse the inspection. The patrol moves to engage.",
+        battle: {
+          enemy: {
+            name:    "Naval Patrol",
+            faction: "english",
+            hull:    100,
+            cannons: 12,
+            crew:    35,
+            gold:    300,
+          }
+        }
+      }
+    }
+  ]
+},
+
 
     //Map fragments
     {

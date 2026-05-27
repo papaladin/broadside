@@ -107,7 +107,8 @@ window.L = (() => {
     return stats;
   };
 
-  // (getEffectiveMorale defined above in helpers section)
+  const returnScreen = (state) =>
+    state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIP & REPAIR FUNCTIONS
@@ -536,100 +537,128 @@ const guessShipType = (enemy) => {
   return "cutter";                                // speed 20
 };
 
-  function buildEncounterContext(state, type, enemy) {
+function buildEncounterContext(state, type, enemy) {
   const { ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE, SHIPS } = window.D;
 
   const shipStats = getShipStats(state);
-  const mySpeed = shipStats.speed;
+  const mySpeed   = shipStats.speed;
   const enemyShip = guessShipType(enemy);
-  const eSpeed = SHIPS[enemyShip]?.speed ?? 5;
-  const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
-  const gold = state.gold;
+  const eSpeed    = SHIPS[enemyShip]?.speed ?? 5;
+  const rep       = state.reputation[state.destination ?? state.currentPort] ?? 20;
+  const gold      = state.gold;
   const bribeCost = Math.round((enemy.gold ?? 500) * 0.4);
 
-  // --- Flee ---
-  const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat"];
-  let canFlee = !noFleeTypes.includes(type);
-  let fleeReason = !canFlee
-    ? type === "hostile_port_entry"
-      ? "Already in range of the harbour guns"
-      : "The target is cornered — no escape"
+  // ── Flee ────────────────────────────────────────────────────
+  const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
+                       "navy_patrol", "navy_patrol_combat"];
+  const canFlee    = !noFleeTypes.includes(type);
+  const fleeReason = canFlee ? null
+    : type === "hostile_port_entry" ? "Already in range of the harbour guns"
+    : type === "navy_patrol" || type === "navy_patrol_combat"
+      ? "You cannot outrun a patrol in open waters"
+    : "The target is cornered — no escape";
+
+  // ── Parley ──────────────────────────────────────────────────
+  const noParleyTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
+                         "smuggling_caught", "navy_patrol", "navy_patrol_combat"];
+  const canParley    = !noParleyTypes.includes(type) && rep >= 30;
+  const parleyReason = noParleyTypes.includes(type)
+    ? "They are not here to negotiate"
+    : rep < 30 ? `Reputation too low (${rep} — need 30)` : null;
+
+  // ── Bribe ───────────────────────────────────────────────────
+  const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
+                        "navy_patrol", "navy_patrol_combat"];
+  const bribeBlocked       = noBribeTypes.includes(type);
+  const canAffordBribe     = gold >= bribeCost;
+  const bribeInfamyBlocked = !canBribe(state);
+  const canBribeResult     = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
+  const bribeReason        = bribeBlocked           ? "They cannot be bought"
+    : bribeInfamyBlocked                            ? "Your reputation for bribery has preceded you"
+    : !canAffordBribe                               ? `Need ${bribeCost}g (you have ${gold}g)`
     : null;
 
-  // --- Parley ---
-  const noParleyTypes = [
-    "hostile_port_entry", "bounty_target", "mission_combat",
-    "smuggling_caught", "cargo_inspection_refused"
-  ];
-  let canParley = !noParleyTypes.includes(type) && rep >= 30;
-  let parleyReason = noParleyTypes.includes(type)
-    ? "They are not here to negotiate"
-    : rep < 30
-      ? `Reputation too low (${rep} — need 30)`
-      : null;
-
-  // --- Bribe ---
-  const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat"];
-  const bribeBlocked = noBribeTypes.includes(type);
-  const canAffordBribe = gold >= bribeCost;
-  const bribeInfamyBlocked = !L.canBribe(state);
-  let canBribeResult = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
-  let bribeReason = bribeBlocked
-    ? "They cannot be bought"
-    : bribeInfamyBlocked
-      ? "Your reputation for bribery has preceded you."
-      : !canAffordBribe
-        ? `Need ${bribeCost}g (you have ${gold}g)`
-        : null;
-
-  // --- Surrender ---
+  // ── Surrender ───────────────────────────────────────────────
   const noSurrenderTypes = ["bounty_target", "mission_combat"];
-  const canSurrender = !noSurrenderTypes.includes(type);
-  const surrenderReason = !canSurrender ? "Surrender means death here" : null;
+  const canSurrender    = !noSurrenderTypes.includes(type);
+  const surrenderReason = canSurrender ? null : "Surrender means death here";
 
-  // --- Overrides for navy patrol encounter ---
-  if (type === "navy_patrol") {
-    canFlee = false;
-    fleeReason = "You cannot outrun a patrol in open waters.";
-    canParley = false;
-    parleyReason = "They have no interest in negotiating.";
-    canBribeResult = false;
-    bribeReason = "Patrols are too loyal to be bribed.";
-    // Surrender remains as computed (will be true)
+  // ── Is this a navy patrol encounter? ────────────────────────
+  const isNavyPatrol = type === "navy_patrol" || type === "navy_patrol_combat";
+
+  // ── Build options array ─────────────────────────────────────
+  const options = [];
+
+  if (isNavyPatrol) {
+    // Navy patrol: only Allow Inspection and Refuse (Fight)
+    options.push({
+      id:         "inspect",
+      label:      "Allow Inspection",
+      available:  true,
+      reason:     null,
+      action:     { type: "PATROL_INSPECT" },
+      speedCheck: null,
+    });
+    options.push({
+      id:         "fight",
+      label:      "Refuse — Open Fire",
+      available:  true,
+      reason:     null,
+      action:     { type: "INTERCEPT_FIGHT" },
+      speedCheck: null,
+    });
+  } else {
+    // Standard encounter
+    options.push({
+      id:         "fight",
+      label:      "Fight",
+      available:  true,
+      reason:     null,
+      action:     { type: "INTERCEPT_FIGHT" },
+      speedCheck: null,
+    });
+    options.push({
+      id:         "flee",
+      label:      "Attempt to Flee",
+      available:  canFlee,
+      reason:     fleeReason,
+      action:     { type: "INTERCEPT_FLEE" },
+      speedCheck: canFlee ? { player: mySpeed, enemy: eSpeed } : null,
+    });
+    options.push({
+      id:         "parley",
+      label:      "Parley",
+      available:  canParley,
+      reason:     parleyReason,
+      action:     { type: "INTERCEPT_PARLEY" },
+      speedCheck: null,
+    });
+    options.push({
+      id:         "bribe",
+      label:      canBribeResult ? `Bribe (${bribeCost}g)` : "Bribe",
+      available:  canBribeResult,
+      reason:     bribeReason,
+      action:     { type: "INTERCEPT_BRIBE" },
+      speedCheck: null,
+    });
+    options.push({
+      id:         "surrender",
+      label:      "Surrender",
+      available:  canSurrender,
+      reason:     surrenderReason,
+      action:     { type: "INTERCEPT_SURRENDER" },
+      speedCheck: null,
+    });
   }
 
   return {
     type,
+    encounterType: type,
     enemy: { ...enemy, ship: enemyShip },
     flavourText:
       ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ??
       `A ${enemy.name} moves to intercept.`,
-    options: {
-      flee: {
-        available: canFlee,
-        reason: fleeReason,
-        speedCheck: canFlee ? { player: mySpeed, enemy: eSpeed } : null,
-      },
-      parley: {
-        available: canParley,
-        reason: parleyReason,
-        repRequired: 30,
-      },
-      bribe: {
-        available: canBribeResult,
-        reason: bribeReason,
-        cost: bribeCost,
-      },
-      surrender: {
-        available: canSurrender,
-        reason: surrenderReason,
-        consequence: SURRENDER_CONSEQUENCE[type] ?? SURRENDER_CONSEQUENCE.random,
-      },
-      fight: {
-        available: true,
-        reason: null,
-      },
-    },
+    options,
   };
 }
 
@@ -705,6 +734,7 @@ const applyLoseContraband = (holdItems) => {
     hasUpgrade,
     getShipStats,
     getEffectiveMorale,
+    returnScreen,
 
     // Ship/Repair
     shipRepairCost,
