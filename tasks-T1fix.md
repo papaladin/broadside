@@ -478,18 +478,3 @@ in the combat formula.
   }
   ```
 
----
-
-## architecture.md Updates (do once, after all T1 items are complete)
-
-- [ ] **State shape:** add `version: number`, `moraleZeroDays: number` (inside
-  `crew`), `defeatSummary: object | null`, `completedMissions: number`.
-- [ ] **engine.js:** document `migrateState(loaded)` function, `autoSave(state)`
-  helper. Document new actions: `DISMISS_DEFEAT`.
-- [ ] **logic.js exports:** add `canReach`, `getUnreachableReason`.
-- [ ] **Screens:** add `DefeatScreen` to the screen inventory table.
-  Update `MapScreen` entry to note range gating.
-- [ ] **SHIPS data:** document `maxDays` and `remote` fields.
-- [ ] **Note:** `moraleZeroDays` is a new state field introduced in T1.6.
-  Any future migration that adds more crew sub-fields should remember this field
-  already exists at the crew level, not as a top-level field.

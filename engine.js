@@ -499,6 +499,7 @@ if (state.sailingDaysLeft > 0 && !state.activeEvent && !state.encounterContext) 
       }
 
       case A.BUY_UPGRADE: {
+        const upgrade = D.UPGRADES[action.upgradeKey]; 
         const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
         if (repPerk.servicesBlocked) return {
           ...state,

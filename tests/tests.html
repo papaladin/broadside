@@ -38,8 +38,7 @@
     <button data-type="all" class="active">All</button>
     <button data-type="unit">Unit</button>
     <button data-type="reducer">Reducer</button>
-    <button data-type="integration">Integration</button>
-    <button data-type="scenario">Scenario</button>
+    <button data-type="integration">Flows</button>
     <button data-type="ui">UI Smoke</button>
   </div>
   <div id="toolbar">
@@ -162,8 +161,10 @@
       const runTests = (suites) => {
         allTests = [];
         suites.forEach(suite => {
+          const suiteType = suite.type || "unit"; // fallback
           suite.tests.forEach(test => {
             test.suiteName = suite.name;
+            test.suiteType = suiteType;
             allTests.push(test);
           });
         });
@@ -174,7 +175,7 @@
         suitesContainer.innerHTML = '';
         let total = 0, passed = 0, failed = 0;
         failureDetails = [];
-        const filtered = allTests.filter(t => currentFilter === 'all' || t.type === currentFilter);
+        const filtered = allTests.filter(t => currentFilter === 'all' || t.suiteType === currentFilter);
 
         const grouped = {};
         filtered.forEach(t => {
