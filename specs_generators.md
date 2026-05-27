@@ -11,7 +11,7 @@
 - **Exposed as**: `window.G`
 - **Dependencies**:
   - `window.D` (data constants: `PORTS`, `SHIPS`, `FACTIONS`, `RESOURCES`, `GOODS_AVAILABILITY`, `MISSION_*`, `ENEMY_SHIP_NAMES`, `CREW_*`, etc.).
-  - `window.L` (pure logic helpers, e.g., `getFameTier`, `getRepPerk`).
+  - `window.L` (pure logic helpers, e.g., `getFameInfo`, `getRepPerk`).
 - **Purpose**:
   - Generates **runtime content** (e.g., crew members, missions, enemies, markets).
   - Uses **randomness** (`Math.random`) for variety.
@@ -235,7 +235,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   - `cannons` (number): Enemy cannons.
   - `crew` (number): Enemy crew count.
 - **Notes**:
-  - **Tier**: Uses `L.getFameTier(fame)` to get the player's tier (0-4).
+  - **Tier**: Uses `L.getFameInfo(fame).tier` to get the player's tier (0-4).
   - **Risk Factors**:
     ```js
     const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
@@ -284,7 +284,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   - `fame` (number): Player's fame.
 - **Output**: `number` (gold reward, rounded to nearest 25).
 - **Notes**:
-  - **Tier**: Uses `L.getFameTier(fame)`.
+  - **Tier**: Uses `L.getFameInfo(fame).tier`.
   - **Effective Risk**: For `"assault"` missions, uses `"assault"` risk regardless of input.
   - **Gold Ranges**: Uses `MISSION_GOLD_RANGES`:
     ```js
@@ -425,7 +425,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   ```
 - **Notes**:
   - **Eligible Goods**:
-    - Uses `TRADE_GOODS_BY_TIER` based on `L.getFameTier(state.fame)`:
+    - Uses `TRADE_GOODS_BY_TIER` based on `L.getFameInfo(state.fame).tier`:
       ```js
       const TRADE_GOODS_BY_TIER = {
         0: ["rum", "sugar", "timber", "cloth"],
@@ -496,7 +496,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   ```
 - **Notes**:
   - **Eligible Goods**:
-    - Uses `SMUGGLE_GOODS_BY_TIER` based on `L.getFameTier(state.fame)`:
+    - Uses `SMUGGLE_GOODS_BY_TIER` based on `L.getFameInfo(state.fame).tier`:
       ```js
       const SMUGGLE_GOODS_BY_TIER = {
         0: ["rum", "tobacco"],
@@ -583,7 +583,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
     - Uses `riskWeightsFor(fame)`:
       ```js
       const riskWeightsFor = (fame) => {
-        const tier = L.getFameTier(fame);
+        const tier = L.getFameInfo(fame).tier;
         const table = [
           { low:5, medium:4, high:1, assault:0 }, // Tier 0
           { low:4, medium:4, high:2, assault:0 }, // Tier 1
@@ -658,7 +658,7 @@ window.G = {
   - Resources, goods availability, mission configs.
   - Crew names, enemy ship names, mission text parts.
 - `**window.L**`: Pure logic helpers for:
-  - `getFameTier`, `getRepPerk`, `meetsRequirement`.
+  - `getFameInfo`, `getRepPerk`, `meetsRequirement`.
 - `**Math.random()**`: For all randomness (names, stats, prices, etc.).
 
 ---

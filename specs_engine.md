@@ -1,23 +1,20 @@
 # **Broadside: specs_engine.md**
-
 *Game state management, reducer, and action handlers. Exposed as `window.E`.*
 
 ---
 
 ## **📌 Overview**
-
 - **File**: `engine.js`
 - **Exposed as**: `window.E`
 - **Dependencies**:
-  - `window.D` (data constants: `PORTS`, `SHIPS`, `FACTIONS`, `UPGRADES`, `STARTS`, `RANDOM_EVENTS`).
+  - `window.D` (data constants: `PORTS`, `SHIPS`, `FACTIONS`, `UPGRADES`, `STARTS`, `SURRENDER_CONSEQUENCE`, `RESOURCES`, `PATROL_FINE_RATE`).
   - `window.L` (pure logic helpers from `logic.js`).
   - `window.G` (generators from `generators.js`).
 - **Purpose**:
   - Manages the **game state** via a **reducer pattern**.
-  - Handles **actions** (e.g., navigation, combat, missions, trading).
+  - Handles **actions** (navigation, combat, missions, trading, events, port discovery).
   - Includes **auto-save**, **state migration**, and **initial state** setup.
-
----
+  - Private helpers extracted from large reducer cases for readability and testability.
 
 ---
 
@@ -27,151 +24,138 @@
 
 ### **1. `A` (Action Types)**
 
-A global object defining all action types as strings for consistency.  
-**Example**:
-
 ```js
 const A = {
-  NAVIGATE: "NAVIGATE",
-  SAIL_TO: "SAIL_TO",
-  ADVANCE_DAY: "ADVANCE_DAY",
-  ENTER_PORT: "ENTER_PORT",
-  START_GAME: "START_GAME",
-  SAVE_GAME: "SAVE_GAME",
-  LOAD_GAME: "LOAD_GAME",
-  REPAIR: "REPAIR",
-  BUY_SHIP: "BUY_SHIP",
-  BUY_UPGRADE: "BUY_UPGRADE",
-  HIRE_CREW: "HIRE_CREW",
-  RAISE_MORALE: "RAISE_MORALE",
-  REFRESH_MISSIONS: "REFRESH_MISSIONS",
-  TAKE_MISSION: "TAKE_MISSION",
-  COMPLETE_MISSION: "COMPLETE_MISSION",
-  ABANDON_MISSION: "ABANDON_MISSION",
-  INTERCEPT_FIGHT: "INTERCEPT_FIGHT",
-  INTERCEPT_FLEE: "INTERCEPT_FLEE",
-  INTERCEPT_PARLEY: "INTERCEPT_PARLEY",
-  INTERCEPT_BRIBE: "INTERCEPT_BRIBE",
-  INTERCEPT_SURRENDER: "INTERCEPT_SURRENDER",
-  BATTLE_ACTION: "BATTLE_ACTION",
-  DISMISS_BATTLE: "DISMISS_BATTLE",
-  RESOLVE_EVENT: "RESOLVE_EVENT",
-  SET_WIND: "SET_WIND",
-  CONFIRM_TRADE: "CONFIRM_TRADE",
-  ENTER_MARKET: "ENTER_MARKET",
-  LEAVE_MARKET: "LEAVE_MARKET",
-  DISCOVER_PORT: "DISCOVER_PORT",
-  // Debug actions
-  DEBUG_ADD_GOLD: "DEBUG_ADD_GOLD",
-  DEBUG_SET_FAME: "DEBUG_SET_FAME",
-  DEBUG_SET_INFAMY: "DEBUG_SET_INFAMY",
-  DEBUG_SET_SHIP: "DEBUG_SET_SHIP",
-  DEBUG_SET_PORT_REP: "DEBUG_SET_PORT_REP",
-  DEBUG_FILL_HOLD: "DEBUG_FILL_HOLD",
-  DEBUG_REPAIR: "DEBUG_REPAIR",
+  NAVIGATE, SAIL_TO, ADVANCE_DAY, ENTER_PORT, START_GAME,
+  SAVE_GAME, LOAD_GAME, REPAIR, BUY_SHIP, BUY_UPGRADE,
+  HIRE_CREW, RAISE_MORALE, REFRESH_MISSIONS, TAKE_MISSION,
+  COMPLETE_MISSION, ABANDON_MISSION,
+  INTERCEPT_FIGHT, INTERCEPT_FLEE, INTERCEPT_PARLEY,
+  INTERCEPT_BRIBE, INTERCEPT_SURRENDER,
+  BATTLE_ACTION, DISMISS_BATTLE, RESOLVE_EVENT,
+  SET_WIND, CONFIRM_TRADE, ENTER_MARKET, LEAVE_MARKET,
+  DISCOVER_PORT,
+  PATROL_INSPECT,
+  // Debug (UI-gated via ?debug=1)
+  DEBUG_ADD_GOLD, DEBUG_SET_FAME, DEBUG_SET_INFAMY,
+  DEBUG_SET_SHIP, DEBUG_SET_PORT_REP, DEBUG_FILL_HOLD, DEBUG_REPAIR,
 };
 ```
 
 ---
 
-### **2. `autoSave(state)**`
-
-- **Purpose**: Saves the current state to `localStorage` automatically.
-- **Input**:
-  - `state` (object): The current game state.
-- **Output**: `void`
-- **Notes**:
-  - Uses `localStorage.setItem("piratesSave", JSON.stringify(state))`.
-  - Wrapped in a `try-catch` to handle errors silently.
+### **2. `autoSave(state)`**
+- **Purpose**: Saves current state to `localStorage`.
+- **Notes**: Wrapped in `try/catch`. Uses key `"piratesSave"`.
 
 ---
 
-### **3. `migrateState(loaded)**`
-
-- **Purpose**: Migrates older saved states to the current version.
-- **Input**:
-  - `loaded` (object): The loaded save state.
-- **Output**: `object` (migrated state)
-- **Notes**:
-  - **Version 1 → 2**:
-    - Adds `discoveredPorts` (all non-hidden ports by default).
-    - Adds `mapFragments` (empty array by default).
-  - **Extensible**: New migrations can be added for future versions.
+### **3. `migrateState(loaded)`**
+- **Purpose**: Brings older saved states up to the current schema version.
+- **Input**: `loaded` (object) — parsed save.
+- **Output**: migrated state object.
+- **Migrations**:
+  - **v1 baseline**: Ensures `version` field exists (sets to `1` if absent).
+  - **v1 → v2**: Adds `discoveredPorts` (all non-hidden ports) and `mapFragments: []` if absent.
+- **Pattern**: Additive and non-destructive. New migrations are appended as version-gated blocks.
 
 ---
+
+### **4. Private helpers (not exported)**
+
+These functions are defined inside the `window.E` IIFE and used only by the reducer. They are extracted to improve readability and testability of `ADVANCE_DAY`.
+
+#### `createBattleState(state, enemy, initialLog, encounterType)` → battleState object
+Builds the initial `battleState` object used by `INTERCEPT_FIGHT`, `INTERCEPT_FLEE` (on failure), `INTERCEPT_PARLEY` (on failure), and `RESOLVE_EVENT` (battle outcome).
+```js
+{
+  phase: "player_turn",
+  playerHull: state.ship.hull,
+  playerCrew: state.crew.roster.length,
+  enemy,
+  enemyHull: enemy.hull,
+  enemyCrew: enemy.crew,
+  round: 1,
+  log: [initialLog],
+  returnScreen: L.returnScreen(state),
+  initialCrewCount: state.crew.roster.length,
+  lostCrewNames: [],
+  encounterType,    // string — used by DISMISS_BATTLE to detect patrol fights
+}
+```
+
+#### `checkServicesBlocked(state)` → `object | null`
+Returns a partial state with a "You are at war" log entry if `getRepPerk` returns `servicesBlocked: true` for the current port. Returns `null` if services are available. Used as an early-return guard in `REPAIR`, `BUY_SHIP`, `BUY_UPGRADE`, `HIRE_CREW`, `RAISE_MORALE`.
+
+#### `advanceWind(wind)` → `{ angle, speed }`
+Randomly adjusts wind: angle ±15°, speed ±2.5 (clamped 1–20).
+
+#### `advanceCrew(crew)` → crew object
+Increments `daysAboard` for all roster members. Decrements morale by 1 if `morale < 30`.
+
+#### `advanceProvisions(state)` → `{ items, foodJustRanOut, waterJustRanOut, foodEmpty, waterEmpty }`
+Computes post-consumption hold items. Returns flags for first-run-out detection (used for log warnings).
+
+#### `maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems)` → state | null
+Checks if a smuggle mission intercept should fire. Returns a full state object routed to `screen: "intercept"` if triggered, or `null` if not. Fires only once per mission (`encounterOccurred` flag).
+
+#### `maybeRandomEvent(state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems)` → state | null
+10% daily chance of a random event. Returns a full state object routed to `screen: "event"` or `null`.
+
+#### `maybeRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems)` → state | null
+Checks `L.maybeRandomPatrol(state)`. Returns a full state routed to `screen: "intercept"` with a navy patrol encounter context, or `null`.
+
+#### `advanceHiddenPorts(state)` → `{ discoveredPorts, log }`
+Checks all hidden ports for auto-unlock conditions (fame, infamy, faction reputation). Returns updated `discoveredPorts` array and any discovery log entries. Item-based unlocks are skipped here (handled in `RESOLVE_EVENT`).
+
+#### `validateTrade(state, buys, sells)` → `{ valid: boolean, reason?: string }`
+Performs holistic validation of a trade: checks gold sufficiency and hold capacity across the combined buy/sell batch. Returns `{ valid: false, reason }` if invalid, `{ valid: true }` if OK.
 
 ---
 
 ## **🌍 Initial State**
 
-The default state for a new game. Used as the baseline for `START_GAME` and reducer initialization.
-
-### **Structure**:
-
 ```js
 const initialState = {
-  version: 1,                // State version for migration
-  screen: "start",           // Current screen (e.g., "port", "map", "battle")
-  day: 1,                    // Current day
-  log: [],                   // Captain's log entries
-  gold: 1000,                // Player's gold
-  fame: 0,                   // Player's fame
-  infamy: 0,                 // Player's infamy
-  currentPort: "portRoyal",  // Current port key
-  previousPort: null,        // Previous port key
-  destination: null,         // Destination port key (if sailing)
-  discoveredPorts: [...],    // Keys of discovered ports
-  mapFragments: [],          // Collected map fragments
-  sailingDaysLeft: 0,        // Days remaining in current voyage
-  sailingDaysTotal: 0,       // Total days for current voyage
-  wind: { angle: 45, speed: 10 }, // Wind direction (degrees) and speed
-  ship: {                    // Player's ship
-    type: "sloop",
-    name: "Sea Dog",
-    hull: 100,
-    cannons: 10,
-    upgrades: [],
-  },
-  crew: {                    // Player's crew
-    roster: [],              // Array of crew members
-    max: 50,                 // Maximum crew capacity
-    morale: 80,              // Crew morale (0-100)
-  },
-  hold: {                    // Ship's cargo hold
-    capacity: 200,           // Maximum capacity
-    items: {                 // Current items in hold
-      food: 10, water: 10,   // Starting provisions
+  version: 1,
+  screen: "start",
+  day: 1,
+  log: [],
+  gold: 1000,
+  fame: 0,
+  infamy: 0,
+  currentPort: "portRoyal",
+  previousPort: null,
+  destination: null,
+  discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),
+  mapFragments: [],
+  sailingDaysLeft: 0,
+  sailingDaysTotal: 0,
+  wind: { angle: 45, speed: 10 },
+  ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, upgrades: [] },
+  crew: { roster: [], max: 50, morale: 80 },
+  hold: {
+    capacity: 200,
+    items: {
+      food: 10, water: 10,
       rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,
       coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
     },
   },
-  portMarket: null,          // Current port's market data
-  missions: [],              // Available missions
-  activeMission: null,       // Currently active mission
-  reputation: {},            // Reputation with each port (initialized to 50)
-  battleState: null,         // Current battle state (if in combat)
-  activeEvent: null,         // Current random event (if any)
-  encounterContext: null,    // Current encounter context (if any)
+  portMarket: null,
+  missions: [],
+  activeMission: null,
+  reputation: {},      // all ports initialised to 50 after object creation
+  battleState: null,
+  activeEvent: null,
+  encounterContext: null,
 };
 ```
 
-- **Reputation Initialization**:
-  - All ports start with `50` reputation (neutral).
-
----
-
----
-
-## **🔄 Reducer**
-
-The core of `engine.js`. Handles state transitions based on actions.  
-**Signature**:
-
-```js
-const reducer = (state, action) => { ... };
-```
-
----
+**Notes**:
+- `discoveredPorts`: All non-hidden ports at game start.
+- `mapFragments`: Collected chart fragments used to unlock hidden ports.
+- `battleState`, `activeEvent`, `encounterContext`: Transient — not persisted across saves (reset on `LOAD_GAME`).
 
 ---
 
@@ -179,1046 +163,395 @@ const reducer = (state, action) => { ... };
 
 ---
 
-### **1. `START_GAME**`
+### **1. `START_GAME`**
+**Action**: `{ type: A.START_GAME, scenarioId: string }`
 
-**Purpose**: Initializes a new game based on a selected scenario.  
-**Action**:
+Reads the matching entry from `STARTS` (structured format, not the old `bonuses[]` strings). Builds a fresh game state:
 
-```js
-{ type: A.START_GAME, scenarioId: string }
+1. Base fields from `initialState` + scenario overrides (`gold`, `startPort`, `openingLog`).
+2. Ship and hold from `SHIPS[start.ship]` — sets `type`, `name`, `hull`, `cannons`, `upgrades: []`, `holdCapacity`.
+3. Crew: `G.generateRoster(start.crewCount, start.crewFaction || start.faction)`.
+4. Reputation: all ports to 50, then applies `start.repAdjust` faction deltas.
+5. Port market via `G.generatePortMarket(start.startPort)`.
+6. Missions via `G.generateMissions(start.startPort, newState)`.
+7. If `start.starterMission` exists: auto-accepts it into `activeMission` (with `encounterOccurred: false`); generated missions go to `missions[]`.
+8. If `start.debugStartFame` is defined, sets `fame` to that value.
+
+**⚠ Stale after T1.1b**: `getStartingShip`, `getStartingGold`, `getStartingReputation` (the old `bonuses[]` parsers) are no longer used. They can be removed from `logic.js`.
+
+---
+
+### **2. `NAVIGATE`**
+**Action**: `{ type: A.NAVIGATE, screen: string }`
+
+Sets `state.screen` directly. No other changes.
+
+---
+
+### **3. `SAIL_TO`**
+**Action**: `{ type: A.SAIL_TO, port: string }`
+
+Calculates travel days via `L.travelDays(state.currentPort, action.port, state)`. Updates `previousPort`, `destination`, `sailingDaysLeft`, `sailingDaysTotal`, `screen: "sailing"`. Adds log entry.
+
+---
+
+### **4. `ADVANCE_DAY`**
+**Action**: `{ type: A.ADVANCE_DAY }`
+
+Early exit if `sailingDaysLeft <= 0`.
+
+Computes shared daily values using private helpers:
+```
+newDays    = sailingDaysLeft - 1
+newWind    = advanceWind(state.wind)
+wages      = L.payCrewWages(state)
+newGold    = Math.max(0, gold - wages)
+newRep     = decayReputation every 2 days (state.day % 2 === 0)
+newCrew    = advanceCrew(state.crew)
+prov       = advanceProvisions(state)
+newMorale  = newCrew.morale - 1 if (food empty OR water empty OR wages crisis)
 ```
 
-**Logic**:
+Appends provision-exhaustion log entries if `foodJustRanOut` or `waterJustRanOut`.
 
-1. Finds the scenario in `STARTS` using `scenarioId`.
-2. Creates a new state based on `initialState` with scenario-specific overrides:
-  - **Day**: Always starts at `1`.
-  - **Gold**: Uses `start.gold` (or default `1000`).
-  - **Fame**: Uses `start.debugStartFame` (if present).
-  - **Current Port**: Uses `start.startPort`.
-  - **Ship**: Uses `SHIPS[start.ship]` to set type, name, hull, cannons, and upgrades.
-  - **Hold**: Uses `shipData.holdCapacity` and initializes items (including scenario-specific `start.hold`).
-  - **Crew**:
-    - Sets `max` from ship stats.
-    - Generates roster using `G.generateRoster(start.crewCount, start.crewFaction || start.faction)`.
-    - Sets morale to `80`.
-  - **Reputation**:
-    - Starts at `50` for all ports.
-    - Applies `start.repAdjust` (e.g., `{ english: +10 }`).
-  - **Market**: Generates port market using `G.generatePortMarket(start.startPort)`.
-  - **Missions**:
-    - Generates missions using `G.generateMissions(start.startPort, newState)`.
-    - If `start.starterMission` exists, auto-accepts it and adds it to `activeMission`.
-  - **Log**: Adds scenario-specific `openingLog` entries.
-3. Sets `screen` to `"port"`.
+Then runs four conditional branches in priority order (first match wins, returns immediately):
 
-**Output**:
+1. **`maybeSmugglePatrol`** — checks smuggle mission intercept → `screen: "intercept"`
+2. **`maybeRandomEvent`** — 10% daily random event → `screen: "event"`
+3. **`maybeRandomPatrol`** — `L.maybeRandomPatrol(state)` check → `screen: "intercept"`
+4. **`advanceHiddenPorts`** — checks auto-unlock conditions for hidden ports
 
-- New game state with all scenario-specific overrides applied.
+If none trigger, returns normal sailing state with updated wind, day, gold, rep, crew, hold, discoveredPorts, and log.
+
+**⚠ Known issue**: `daysLost` in RESOLVE_EVENT **adds** to `sailingDaysLeft` instead of subtracting. This is a pre-existing bug — storms make voyages shorter rather than longer. Fix: change `+= lost` to `-= lost` (minimum 0).
 
 ---
 
-### **2. `NAVIGATE**`
+### **5. `DISCOVER_PORT`**
+**Action**: `{ type: A.DISCOVER_PORT, portKey: string }`
 
-**Purpose**: Changes the current screen.  
-**Action**:
-
-```js
-{ type: A.NAVIGATE, screen: string }
-```
-
-**Logic**:
-
-- Updates `state.screen` to `action.screen`.  
-**Output**:
-- State with updated `screen`.
+Adds `portKey` to `discoveredPorts` if not already present. Logs discovery message. Idempotent — no-op if already discovered.
 
 ---
 
-### **3. `SAIL_TO**`
+### **6. `ENTER_PORT`**
+**Action**: `{ type: A.ENTER_PORT }`
 
-**Purpose**: Starts a voyage to a new port.  
-**Action**:
+Reads `state.destination`. Checks in priority order:
 
-```js
-{ type: A.SAIL_TO, port: string }
-```
-
-**Logic**:
-
-1. Calculates travel days using `L.travelDays(state.currentPort, action.port, state)`.
-2. Updates state:
-  - `previousPort`: Set to `state.currentPort`.
-  - `destination`: Set to `action.port`.
-  - `sailingDaysLeft`: Set to calculated days.
-  - `sailingDaysTotal`: Set to calculated days.
-  - `screen`: Set to `"sailing"`.
-  - `log`: Adds entry: `"Setting sail for [port name]. [days] day(s) voyage."`.
-
-**Output**:
-
-- State with updated sailing-related fields.
+1. **Assault mission at destination**: builds `hostile_port_entry` encounter with mission enemy (or default garrison 200hp/20 cannons/50 crew). Routes to `screen: "intercept"`.
+2. **Hostile port** (`reputation[destination] < 10`): builds `hostile_port_entry` encounter with port guards (150hp/15 cannons/40 crew). Routes to `screen: "intercept"`.
+3. **Normal entry**: sets `currentPort`, clears `destination` and `sailingDaysLeft`, regenerates `missions` and `portMarket`, routes to `screen: "port"`. Calls `autoSave`.
 
 ---
 
-### **4. `ADVANCE_DAY**`
+### **7. `REPAIR`**
+**Action**: `{ type: A.REPAIR }`
 
-**Purpose**: Advances the game by one day (used during sailing).  
-**Action**:
-
-```js
-{ type: A.ADVANCE_DAY }
-```
-
-**Logic**:
-
-1. **Early Exit**: If `sailingDaysLeft <= 0`, returns state unchanged.
-2. **Wind Update**:
-  - Randomly adjusts wind angle (`-15°` to `+15°`).
-  - Randomly adjusts wind speed (`-5` to `+5`, clamped to `1-20`).
-3. **Crew Wages**:
-  - Calculates wages using `L.payCrewWages(state)`.
-  - Deducts from `state.gold` (minimum `0`).
-4. **Reputation Decay**:
-  - Applies `L.decayReputation(state)` every **2 days** (never below `50`).
-5. **Morale Decay**:
-  - Decreases morale by `1` if already `< 30`.
-6. **Crew Days Aboard**:
-  - Increments `daysAboard` for all crew members.
-7. **Provision Consumption**:
-  - Calculates consumption using `L.getProvisionConsumptionPerDay(state)`.
-  - Deducts food and water from hold (minimum `0`).
-  - Logs warnings if food or water runs out.
-8. **Morale Penalty for Crises**:
-  - Applies `-1 morale` if:
-    - Food or water runs out.
-    - Wages cannot be paid (`state.gold < wages`).
-9. **Smuggle Mission Patrol Check**:
-  - If `activeMission.type === "smuggle"` and `!encounterOccurred`:
-    - Rolls for intercept chance (`state.activeMission.interceptChance || 0.70`).
-    - If intercepted, triggers a `navy_patrol` event:
-      - Sets `activeEvent` to the patrol event.
-      - Sets `screen` to `"event"`.
-      - Marks `activeMission.encounterOccurred = true`.
-      - Adds log: `"A patrol vessel approaches, flying inspection colours."`.
-10. **Random Event Check**:
-  - If `sailingDaysLeft >= 1` and `Math.random() < 0.1`:
-    - Triggers a random event using `L.triggerRandomEvent(state)`.
-    - Sets `activeEvent` and `screen` to `"event"`.
-    - Adds log: `"Day [X]: [event title]"`.
-11. **Random Patrol Check**:
-  - If `sailingDaysLeft > 0` and no `activeEvent` or `encounterContext`:
-    - Uses `L.maybeRandomPatrol(state)` to check for a patrol.
-    - If patrol appears:
-      - Generates enemy using `G.generateEnemy("low", state.fame, faction)`.
-      - Builds encounter context using `L.buildEncounterContext(state, "navy_patrol", enemy)`.
-      - Overrides `surrender.consequence` for navy patrols (dynamic function to check for illegal goods).
-      - Sets `encounterContext` and `screen` to `"intercept"`.
-      - Adds log: `"A navy patrol hails you and demands to inspect your cargo."`.
-12. **Hidden Port Auto-Discovery**:
-  - Checks all hidden ports (`PORTS[k].hidden`) for unlock conditions.
-    - Conditions:
-      - **Item-based**: Skipped (handled in `RESOLVE_EVENT`).
-      - **Fame/Infamy/Reputation**: Evaluates based on `state.fame`, `state.infamy`, or average reputation for a faction.
-    - If unlocked, adds port to `discoveredPorts` and logs discovery.
-13. **Normal Sailing Day**:
-  - Updates:
-    - `wind`: New wind values.
-    - `day`: Incremented by `1`.
-    - `sailingDaysLeft`: Decremented by `1`.
-    - `gold`: Deducts wages.
-    - `reputation`: Applies decay (if applicable).
-    - `crew`: Updates roster and morale.
-    - `hold`: Updates items (food/water).
-    - `discoveredPorts`: Adds auto-discovered ports.
-
-**Output**:
-
-- State with updated day, wind, resources, and potential events/encounters.
+Guards: `checkServicesBlocked` (At War early return). Calculates cost as `(maxHull - hull) * 2 * repPerk.repairMult`. Checks affordability. Deducts gold, restores hull to max. Log includes discount note if `repairMult < 1`.
 
 ---
 
-### **5. `DISCOVER_PORT**`
+### **8. `BUY_SHIP`**
+**Action**: `{ type: A.BUY_SHIP, shipType: string }`
 
-**Purpose**: Manually discovers a hidden port.  
-**Action**:
-
-```js
-{ type: A.DISCOVER_PORT, portKey: string }
-```
-
-**Logic**:
-
-1. Checks if `portKey` is valid and not already discovered.
-2. Adds `portKey` to `discoveredPorts`.
-3. Adds log: `"⚓ New port discovered: [port name]. Mark it on your charts."`.
-
-**Output**:
-
-- State with updated `discoveredPorts` and log.
+Guards: `checkServicesBlocked`, `L.meetsRequirement` (fame gate), gold check. Truncates crew roster if new ship's `maxCrew` is smaller. Updates `ship`, `crew.max`, `hold.capacity`. Clears upgrades. Logs purchase.
 
 ---
 
-### **6. `ENTER_PORT**`
+### **9. `BUY_UPGRADE`**
+**Action**: `{ type: A.BUY_UPGRADE, upgradeKey: string }`
 
-**Purpose**: Handles arrival at a port, including hostile entry checks.  
-**Action**:
-
-```js
-{ type: A.ENTER_PORT }
-```
-
-**Logic**:
-
-1. **Assault Mission Check**:
-  - If `activeMission.type === "assault"` and `activeMission.targetPort === destination`:
-    - Sets `combatEncounter` with `hostile_port_entry` type and mission enemy (or default garrison).
-2. **Hostile Port Check**:
-  - If `reputation[destination] < 10`:
-    - Sets `combatEncounter` with `hostile_port_entry` type and default guards.
-3. **Combat Encounter Handling**:
-  - If `combatEncounter` exists:
-    - Builds `encounterContext` using `L.buildEncounterContext`.
-    - Sets `screen` to `"intercept"`.
-    - Adds log: `"Arrived at [port name]. [Hostile port! | The garrison is on high alert!]"`.
-4. **Normal Entry**:
-  - Updates:
-    - `currentPort`: Set to `destination`.
-    - `destination`: Set to `null`.
-    - `sailingDaysLeft`: Set to `0`.
-    - `screen`: Set to `"port"`.
-    - `missions`: Generates new missions using `G.generateMissions(destination, state)`.
-    - `portMarket`: Generates new market using `G.generatePortMarket(destination)`.
-    - `log`: Adds `"Arrived at [port name]."`.
-  - Calls `autoSave(nextState)`.
-
-**Output**:
-
-- State with updated port, missions, market, and screen.
+Guards: `checkServicesBlocked`, `L.meetsRequirement` (fame gate), gold check, duplicate check, ship compatibility check (`SHIPS[type].upgradeable.includes(upgradeKey)`). Appends `upgradeKey` to `ship.upgrades`. Logs installation.
 
 ---
 
-### **7. `REPAIR**`
+### **10. `HIRE_CREW`**
+**Action**: `{ type: A.HIRE_CREW, count: number }`
 
-**Purpose**: Repairs the player's ship at the current port.  
-**Action**:
-
-```js
-{ type: A.REPAIR }
-```
-
-**Logic**:
-
-1. **Reputation Check**:
-  - Uses `L.getRepPerk(reputation[currentPort])` to check if services are blocked.
-  - If blocked, adds log: `"You are at war with this port. No services available."`.
-2. **Cost Calculation**:
-  - Uses `L.shipRepairCost(state)` to get base cost.
-  - Applies `repPerk.repairMult` for discounts/penalties.
-3. **Affordability Check**:
-  - If `state.gold < cost`, adds log: `"Not enough gold to repair."`.
-4. **Repair**:
-  - Deducts `cost` from `gold`.
-  - Sets `ship.hull` to `shipStats.maxHull`.
-  - Adds log: `"Repaired ship for [cost]g [discount note]."`.
-
-**Output**:
-
-- State with updated `gold` and `ship.hull`.
+Guards: `checkServicesBlocked`, max crew check, gold check (`count × 50g`). Generates new roster via `G.generateRoster(count, portFaction)`. Appends to existing roster.
 
 ---
 
-### **8. `BUY_SHIP**`
+### **11. `RAISE_MORALE`**
+**Action**: `{ type: A.RAISE_MORALE }`
 
-**Purpose**: Purchases a new ship at the current port.  
-**Action**:
-
-```js
-{ type: A.BUY_SHIP, shipType: string }
-```
-
-**Logic**:
-
-1. **Reputation Check**:
-  - If services are blocked, adds log: `"You are at war with this port. No services available."`.
-2. **Requirement Check**:
-  - Uses `L.meetsRequirement(state, SHIPS[action.shipType])`.
-  - If not allowed, adds log: `"Cannot purchase: [reason]."`.
-3. **Affordability Check**:
-  - If `state.gold < ship.cost`, returns state unchanged.
-4. **Crew Adjustment**:
-  - If new ship's `maxCrew < current roster length`, truncates roster.
-5. **Purchase**:
-  - Deducts `ship.cost` from `gold`.
-  - Updates `ship` to new type, name, hull, cannons, and upgrades (empty).
-  - Updates `crew.max` to new ship's `maxCrew`.
-  - Updates `hold.capacity` to new ship's `holdCapacity`.
-  - Adds log: `"Purchased [ship name] for [cost]g."`.
-
-**Output**:
-
-- State with updated `ship`, `crew`, `hold`, and `gold`.
+Guards: `checkServicesBlocked`, gold check (`roster.length × 5g`), morale already at 100. Increases morale by 5 (capped at 100). Deducts cost.
 
 ---
 
-### **9. `BUY_UPGRADE**`
+### **12. `REFRESH_MISSIONS`**
+**Action**: `{ type: A.REFRESH_MISSIONS }`
 
-**Purpose**: Purchases a ship upgrade at the current port.  
-**Action**:
-
-```js
-{ type: A.BUY_UPGRADE, upgradeKey: string }
-```
-
-**Logic**:
-
-1. **Reputation Check**:
-  - If services are blocked, adds log: `"You are at war with this port. No services available."`.
-2. **Requirement Check**:
-  - Uses `L.meetsRequirement(state, UPGRADES[action.upgradeKey])`.
-  - If not allowed, adds log: `"Cannot install: [reason]."`.
-3. **Validation**:
-  - Checks if:
-    - Upgrade exists.
-    - Player can afford it (`state.gold >= upgrade.cost`).
-    - Upgrade is not already installed (`!state.ship.upgrades.includes(upgradeKey)`).
-    - Ship supports the upgrade (`SHIPS[state.ship.type].upgradeable.includes(upgradeKey)`).
-4. **Purchase**:
-  - Deducts `upgrade.cost` from `gold`.
-  - Adds `upgradeKey` to `ship.upgrades`.
-  - Adds log: `"Installed [upgrade name] for [cost]g."`.
-
-**Output**:
-
-- State with updated `ship.upgrades` and `gold`.
+Regenerates `missions` via `G.generateMissions(currentPort, state)`. No other changes.
 
 ---
 
-### **10. `HIRE_CREW**`
+### **13. `TAKE_MISSION`**
+**Action**: `{ type: A.TAKE_MISSION, mission: object }`
 
-**Purpose**: Hires new crew members at the current port.  
-**Action**:
+Dispatches the full mission object (no ID lookup). Two paths:
+- **Combat missions** (`type === "combat"` with `enemy`): sets `activeMission`, builds encounter context via `L.buildEncounterContext(state, "mission_combat", mission.enemy)`, routes to `screen: "intercept"`.
+- **All other types** (trade, escort, smuggle, assault): sets `activeMission: { ...mission, encounterOccurred: false }`, stays on current screen.
 
-```js
-{ type: A.HIRE_CREW, count: number }
-```
-
-**Logic**:
-
-1. **Reputation Check**:
-  - If services are blocked, adds log: `"You are at war with this port. No services available."`.
-2. **Validation**:
-  - Checks if:
-    - `crew.roster.length >= crew.max` (ship at capacity).
-    - `state.gold < count * 50` (cannot afford).
-3. **Hiring**:
-  - Deducts `count * 50` from `gold`.
-  - Generates new crew using `G.generateRoster(count, portFaction)`.
-  - Adds new members to `crew.roster`.
-  - Adds log: `"Hired [count] crew for [cost]g."`.
-
-**Output**:
-
-- State with updated `crew.roster` and `gold`.
+**Note**: Fame gating is handled at generation time in `G.generateMissions`. No fame check in this reducer case.
 
 ---
 
-### **11. `RAISE_MORALE**`
+### **14. `COMPLETE_MISSION`**
+**Action**: `{ type: A.COMPLETE_MISSION }`
 
-**Purpose**: Raises crew morale by purchasing drinks.  
-**Action**:
-
-```js
-{ type: A.RAISE_MORALE }
-```
-
-**Logic**:
-
-1. **Reputation Check**:
-  - If services are blocked, adds log: `"You are at war with this port. No services available."`.
-2. **Validation**:
-  - Checks if:
-    - `state.gold < crew.roster.length * 5` (cannot afford).
-    - `crew.morale >= 100` (already maxed).
-3. **Morale Boost**:
-  - Deducts `crew.roster.length * 5` from `gold`.
-  - Increases `crew.morale` by `5` (capped at `100`).
-  - Adds log: `"Bought drinks for the crew: -[cost]g. Morale +5."`.
-
-**Output**:
-
-- State with updated `crew.morale` and `gold`.
+1. Validates `activeMission` exists and `currentPort === targetPort`.
+2. **Cargo check** (trade/smuggle): `hold.items[requiredGood] >= requiredQty` required. Fails with log if insufficient.
+3. **Cargo removal**: deducts `requiredQty` from hold on trade/smuggle completion.
+4. **Gold calculation**:
+   - `trade` and `smuggle`: `mission.gold` directly (no rep multiplier).
+   - All other types: `mission.gold × repPerk.missionMult` with bonus/penalty note in log.
+5. **Infamy/fame/rep**: applies `mission.infamyGain`, `mission.fame`, `mission.repImpact`. Logs infamy threshold crossings.
+6. **Plot item removal**: clears `hold.items.plot_item` if `mission.plotItem` is set.
+7. Regenerates `missions`. Calls `autoSave`.
 
 ---
 
-### **12. `REFRESH_MISSIONS**`
+### **15. `ABANDON_MISSION`**
+**Action**: `{ type: A.ABANDON_MISSION }`
 
-**Purpose**: Refreshes the available missions at the current port.  
-**Action**:
-
-```js
-{ type: A.REFRESH_MISSIONS }
-```
-
-**Logic**:
-
-- Generates new missions using `G.generateMissions(state.currentPort, state)`.  
-**Output**:
-- State with updated `missions`.
+Clears `activeMission`. Applies −10 reputation with `mission.faction` (defaults to `"pirate"`). Logs abandonment.
 
 ---
 
-### **13. `TAKE_MISSION**`
+### **16. `CONFIRM_TRADE`**
+**Action**: `{ type: A.CONFIRM_TRADE, buys: object, sells: object }`
 
-**Purpose**: Accepts a mission from the mission board.  
-**Action**:
+1. Calls `validateTrade(state, buys, sells)` for holistic pre-validation. Returns early with error log if invalid.
+2. Executes sells: deducts from hold, adds to goldDelta, logs each transaction.
+3. Executes buys: checks per-good availability (stock), adds to hold, deducts from goldDelta, applies `infamyOnBuy` for illegal goods, logs each transaction.
+4. Returns updated `gold`, `hold.items`, `infamy`, `log`.
 
-```js
-{ type: A.TAKE_MISSION, mission: object }
-```
-
-**Logic**:
-
-1. **Combat Mission Handling**:
-  - If `mission.type === "combat"` and `mission.enemy` exists:
-    - Sets `activeMission` to `mission`.
-    - Builds `encounterContext` using `L.buildEncounterContext(state, "mission_combat", mission.enemy)`.
-    - Sets `screen` to `"intercept"`.
-    - Adds log: `"Accepted mission: [mission name]."`.
-2. **Other Missions**:
-  - Sets `activeMission` to `{ ...mission, encounterOccurred: false }`.
-  - Adds log: `"Accepted mission: [mission name]."`.
-
-**Output**:
-
-- State with updated `activeMission`, `encounterContext`, and `screen`.
+**Two-pass design**: sells are processed first (freeing hold space), then buys are committed. The `validateTrade` helper runs the full batch holistically before any mutation occurs.
 
 ---
 
-### **14. `COMPLETE_MISSION**`
+### **17. `ENTER_MARKET`**
+**Action**: `{ type: A.ENTER_MARKET }`
 
-**Purpose**: Completes the active mission.  
-**Action**:
-
-```js
-{ type: A.COMPLETE_MISSION }
-```
-
-**Logic**:
-
-1. **Validation**:
-  - Checks if `activeMission` exists.
-  - If `mission.targetPort` exists, ensures `currentPort === targetPort`.
-2. **Cargo Check (Trade/Smuggle)**:
-  - If `mission.requiredGood` and `mission.requiredQty`:
-    - Checks if `hold.items[requiredGood] >= requiredQty`.
-    - If not, adds log: `"Cannot complete: [qty] [good] required, [inHold] in hold."`.
-3. **Cargo Removal**:
-  - Deducts `requiredQty` from `hold.items[requiredGood]`.
-4. **Gold Reward**:
-  - For `trade` or `smuggle` missions: Uses `mission.gold` directly.
-  - For other missions:
-    - Applies `repPerk.missionMult` (based on `reputation[currentPort]`).
-    - Calculates `bonusNote` for log (e.g., `"+Xg allied bonus"`).
-5. **Reputation/Infamy/Fame**:
-  - Applies `mission.repImpact` using `L.applyReputationImpact`.
-  - Adds `mission.fame` to `state.fame`.
-  - Adds `mission.infamyGain` to `state.infamy` (capped at `999`).
-  - Logs infamy threshold crossings (e.g., `"Your name grows darker. You are now Notorious."`).
-6. **Plot Item Removal**:
-  - If `mission.plotItem`, sets `hold.items.plot_item = 0`.
-7. **Mission Cleanup**:
-  - Sets `activeMission` to `null`.
-  - Generates new missions using `G.generateMissions(currentPort, state)`.
-8. **Auto-Save**:
-  - Calls `autoSave(nextState)`.
-
-**Output**:
-
-- State with updated `gold`, `fame`, `infamy`, `reputation`, `hold`, `missions`, and `log`.
+Sets `screen: "market"`.
 
 ---
 
-### **15. `ABANDON_MISSION**`
+### **18. `LEAVE_MARKET`**
+**Action**: `{ type: A.LEAVE_MARKET }`
 
-**Purpose**: Abandons the active mission.  
-**Action**:
-
-```js
-{ type: A.ABANDON_MISSION }
-```
-
-**Logic**:
-
-1. Sets `activeMission` to `null`.
-2. Applies reputation penalty: `-10` with the mission's faction (or `"pirate"`).
-3. Adds log: `"Abandoned mission: [mission name]."`.
-
-**Output**:
-
-- State with updated `activeMission`, `reputation`, and `log`.
+Sets `screen: "port"`.
 
 ---
 
-### **16. `CONFIRM_TRADE**`
+### **19. `INTERCEPT_FIGHT`**
+**Action**: `{ type: A.INTERCEPT_FIGHT }`
 
-**Purpose**: Confirms a trade transaction (buying/selling goods).  
-**Action**:
+Uses `createBattleState(state, ctx.enemy, log, ctx.encounterType)`. Sets `encounterContext: null`, `battleState`, `screen: "battle"`.
 
-```js
-{ type: A.CONFIRM_TRADE, buys: object, sells: object }
-```
-
-**Where**:
-
-- `buys`: `{ [good]: qty, ... }` (goods to buy).
-- `sells`: `{ [good]: qty, ... }` (goods to sell).
-
-**Logic**:
-
-1. **Initialization**:
-  - Copies `hold.items` to `items`.
-  - Initializes `goldDelta = 0`, `infamyDelta = 0`, `logLines = []`.
-2. **Process Sells**:
-  - For each good in `sells`:
-    - Checks if good exists in `portMarket.goods`.
-    - Calculates `actualQty` (minimum of requested and available).
-    - Deducts `actualQty` from `items[good]`.
-    - Adds `actualQty * portGood.sellToPort` to `goldDelta`.
-    - Adds log: `"Sold [qty] [unit] of [good] for [revenue]g."`.
-3. **Validate Buys**:
-  - Calculates `usedAfterSells` using `L.getHoldUsed(items)`.
-  - For each good in `buys`:
-    - Checks if good exists in `portMarket.goods`.
-    - Checks if `qty <= portGood.available`.
-    - Calculates `pendingBuysGold` and `pendingBuysSpace`.
-4. **Affordability/Capacity Check**:
-  - If `state.gold + goldDelta - pendingBuysGold < 0`: Cancels trade (log: `"Trade cancelled — insufficient gold."`).
-  - If `usedAfterSells + pendingBuysSpace > hold.capacity`: Cancels trade (log: `"Trade cancelled — not enough hold space."`).
-5. **Commit Buys**:
-  - For each good in `buys`:
-    - Deducts `qty * portGood.buyFromPort` from `goldDelta`.
-    - Adds `qty` to `items[good]`.
-    - If good is illegal (`RESOURCES[good].infamyOnBuy`), adds `infamyDelta += 1`.
-    - Adds log: `"Bought [qty] [unit] of [good] for [cost]g."`.
-6. **Finalize**:
-  - Updates `gold`: `state.gold + goldDelta`.
-  - Updates `hold.items`: `items`.
-  - Updates `infamy`: `Math.min(999, state.infamy + infamyDelta)`.
-  - Adds all `logLines` to `state.log`.
-
-**Output**:
-
-- State with updated `gold`, `hold.items`, `infamy`, and `log`.
+`encounterType` from `ctx.encounterType` is stored in `battleState.encounterType` for use by `DISMISS_BATTLE`.
 
 ---
 
-### **17. `ENTER_MARKET**`
+### **20. `INTERCEPT_FLEE`**
+**Action**: `{ type: A.INTERCEPT_FLEE }`
 
-**Purpose**: Opens the market screen.  
-**Action**:
-
-```js
-{ type: A.ENTER_MARKET }
-```
-
-**Logic**:
-
-- Sets `screen` to `"market"`.
-
-**Output**:
-
-- State with updated `screen`.
+Reads speed check from `ctx.options.find(o => o.id === "flee").speedCheck`. Rolls `L.roll(6)` for each. `playerSpeed + roll >= enemySpeed + roll` → success (clears context, returns to `L.returnScreen`). Failure → `createBattleState`, `screen: "battle"`.
 
 ---
 
-### **18. `LEAVE_MARKET**`
+### **21. `INTERCEPT_PARLEY`**
+**Action**: `{ type: A.INTERCEPT_PARLEY }`
 
-**Purpose**: Closes the market screen.  
-**Action**:
-
-```js
-{ type: A.LEAVE_MARKET }
-```
-
-**Logic**:
-
-- Sets `screen` to `"port"`.
-
-**Output**:
-
-- State with updated `screen`.
+`L.roll(100) <= Math.min(80, rep + 20)` → success (clears context, +3 rep at port, returns via `L.returnScreen`). Failure → `createBattleState`, `screen: "battle"`.
 
 ---
 
-### **19. `INTERCEPT_FIGHT**`
+### **22. `INTERCEPT_BRIBE`**
+**Action**: `{ type: A.INTERCEPT_BRIBE }`
 
-**Purpose**: Initiates combat with the encountered enemy.  
-**Action**:
-
-```js
-{ type: A.INTERCEPT_FIGHT }
-```
-
-**Logic**:
-
-1. **Context Check**:
-  - If no `encounterContext`, returns state unchanged.
-2. **Battle State Setup**:
-  - Creates `battleState` with:
-    - `phase`: `"player_turn"`.
-    - `playerHull`: `state.ship.hull`.
-    - `playerCrew`: `state.crew.roster.length`.
-    - `enemy`: From `encounterContext.enemy`.
-    - `enemyHull`: `enemy.hull`.
-    - `enemyCrew`: `enemy.crew`.
-    - `round`: `1`.
-    - `log`: `["You engage the [enemy name]!"]`.
-    - `returnScreen`: `"sailing"` if en route, else `"port"`.
-    - `initialCrewCount`: `state.crew.roster.length`.
-    - `lostCrewNames`: `[]`.
-    - `isNavyPatrol`: `encounterContext.isNavyPatrol || false`.
-3. **State Update**:
-  - Sets `encounterContext` to `null`.
-  - Sets `battleState` to the new object.
-  - Sets `screen` to `"battle"`.
-
-**Output**:
-
-- State with `battleState` and updated `screen`.
+Reads `cost` from `ctx.options.find(o => o.id === "bribe").cost`. Deducts gold, −2 rep at port, clears context, returns via `L.returnScreen`.
 
 ---
 
-### **20. `INTERCEPT_FLEE**`
+### **23. `INTERCEPT_SURRENDER`**
+**Action**: `{ type: A.INTERCEPT_SURRENDER }`
 
-**Purpose**: Attempts to flee from an encounter.  
-**Action**:
+Looks up consequence from `SURRENDER_CONSEQUENCE[ctx.type] ?? SURRENDER_CONSEQUENCE.random`. Applies:
+- `goldFine`: flat gold deduction.
+- `loseGoldPercent`: percentage gold loss.
+- `moralePenalty`: morale reduction.
+- `loseDays`: day increment.
+- `rep_loss`: reputation loss at current/destination port.
+- `loseCargoPercent`: `L.applyLoseCargoPercent`.
+- `loseContraband`: `L.applyLoseContraband`.
 
-```js
-{ type: A.INTERCEPT_FLEE }
-```
+Clears context, returns via `L.returnScreen`.
 
-**Logic**:
-
-1. **Context Check**:
-  - If no `encounterContext`, returns state unchanged.
-2. **Speed Check**:
-  - Uses `encounterContext.options.flee.speedCheck` (player and enemy speeds).
-  - Rolls `1d6` for both player and enemy (`L.roll(6)`).
-  - `playerRoll = playerSpeed + roll`.
-  - `enemyRoll = enemySpeed + roll`.
-3. **Success**:
-  - If `playerRoll >= enemyRoll`:
-    - Sets `encounterContext` to `null`.
-    - Sets `screen` to `"sailing"` (if en route) or `"port"`.
-    - Adds log: `"You pulled clear — the enemy couldn't keep up."`.
-4. **Failure**:
-  - Creates `battleState` (similar to `INTERCEPT_FIGHT`).
-  - Sets `screen` to `"battle"`.
-  - Adds log: `"Failed to escape — battle unavoidable."`.
-
-**Output**:
-
-- State with updated `encounterContext`, `battleState`, `screen`, and `log`.
+**Note**: The old `consequence: function` path has been removed. All consequences are now declarative objects.
 
 ---
 
-### **21. `INTERCEPT_PARLEY**`
+### **24. `PATROL_INSPECT`**
+**Action**: `{ type: A.PATROL_INSPECT }`
 
-**Purpose**: Attempts to parley with the encountered enemy.  
-**Action**:
+Dispatched when the player allows a navy patrol to inspect their cargo. Also reachable via `RESOLVE_EVENT` when `choice.outcome.action === "PATROL_INSPECT"`.
 
-```js
-{ type: A.INTERCEPT_PARLEY }
-```
+**Clean hold path**: clears `encounterContext`, returns via `L.returnScreen`, logs "found nothing."
 
-**Logic**:
+**Contraband found path** (tobacco > 0, slaves > 0, or rum ≥ requiredQty on active smuggle mission):
+- Computes `seizedValue` from base prices of seized goods.
+- `fine = Math.round(seizedValue × D.PATROL_FINE_RATE / 25) × 25` (rounded to nearest 25g).
+- Applies `L.applyLoseContraband` to hold.
+- Deducts fine from gold (floor 0).
+- +2 infamy.
+- −5 reputation with all ports of the inspecting faction.
+- −10 morale.
+- Logs all consequences.
 
-1. **Context Check**:
-  - If no `encounterContext`, returns state unchanged.
-2. **Success Check**:
-  - Uses `L.roll(100) <= Math.min(80, rep + 20)` (where `rep` is reputation with the current/destination port).
-3. **Success**:
-  - Sets `encounterContext` to `null`.
-  - Sets `screen` to `"sailing"` (if en route) or `"port"`.
-  - Increases reputation with the port by `3` (capped at `100`).
-  - Adds log: `"Parley successful. They let you pass."`.
-4. **Failure**:
-  - Creates `battleState` (similar to `INTERCEPT_FIGHT`).
-  - Sets `screen` to `"battle"`.
-  - Adds log: `"Parley failed. Battle unavoidable."`.
-
-**Output**:
-
-- State with updated `encounterContext`, `battleState`, `reputation`, `screen`, and `log`.
+**Rum special case**: rum is only treated as contraband if `activeMission.requiredGood === "rum"` AND `hold.items.rum >= activeMission.requiredQty`. Rum is a legal good for non-smuggle purposes.
 
 ---
 
-### **22. `INTERCEPT_BRIBE**`
+### **25. `BATTLE_ACTION`**
+**Action**: `{ type: A.BATTLE_ACTION, action: string }`
 
-**Purpose**: Attempts to bribe the encountered enemy.  
-**Action**:
+`action` is one of `"broadside"`, `"precision"`, `"grapple"`, `"evade"`.
 
-```js
-{ type: A.INTERCEPT_BRIBE }
-```
+Calls `L.resolveCombatAction(state, action)` to get the outcome. Updates `battleState`:
+- **Instant victory** (grapple success): sets `phase: "victory"`, adds gold reward, applies −5 rep to enemy faction, logs crew loss summary.
+- **Enemy defeated** (`enemyHull <= 0`): sets `phase: "victory"`, adds gold reward, applies −5 rep.
+- **Player defeated** (`playerHull <= 0`): sets `phase: "defeat"`, logs crew loss summary.
+- **Fled** (`outcome.fled`): sets `phase: "fled"`.
+- **Normal round**: increments round, updates hull/crew values, logs action.
 
-**Logic**:
-
-1. **Context Check**:
-  - If no `encounterContext`, returns state unchanged.
-2. **Bribe Execution**:
-  - Deducts `encounterContext.options.bribe.cost` from `gold`.
-  - Decreases reputation with the current/destination port by `2` (minimum `0`).
-  - Sets `encounterContext` to `null`.
-  - Sets `screen` to `"sailing"` (if en route) or `"port"`.
-  - Adds log: `"Bribed them with [cost]g. They looked the other way."`.
-
-**Output**:
-
-- State with updated `gold`, `reputation`, `encounterContext`, `screen`, and `log`.
+Crew losses are tracked by name via `L.removeRandomCrew`. `battleState.lostCrewNames` accumulates names across rounds.
 
 ---
 
-### **23. `INTERCEPT_SURRENDER**`
+### **26. `DISMISS_BATTLE`**
+**Action**: `{ type: A.DISMISS_BATTLE }`
 
-**Purpose**: Surrenders to the encountered enemy.  
-**Action**:
+**Patrol infamy**: checks `battleState.encounterType === "navy_patrol" || "navy_patrol_combat"`. If true, adds +2 infamy regardless of outcome (fight started = public record). Logs infamy addition.
 
-```js
-{ type: A.INTERCEPT_SURRENDER }
-```
+**Defeat path** (`phase === "defeat"`):
+- Returns to `previousPort` (or `currentPort` as fallback).
+- Clears all cargo (all `hold.items` set to 0).
+- Regenerates market and missions for the return port.
+- Adds patrol infamy if applicable.
 
-**Logic**:
+**Sailing return** (if `battleState.returnScreen === "sailing"` and still en route):
+- Returns to `screen: "sailing"`.
+- Adds patrol infamy.
 
-1. **Context Check**:
-  - If no `encounterContext`, returns state unchanged.
-2. **Consequence Handling**:
-  - If `consequence` is a **function** (e.g., navy patrol):
-    - Calls `consequence(state)` to get a partial state update.
-    - Merges the result into the new state (e.g., `log`, `reputation`, `hold`, `gold`, `infamy`, `crew`).
-  - Sets `encounterContext` to `null`.
-  - Sets `screen` to `"sailing"` (if en route) or `"port"`.
-3. **Static Consequence**:
-  - If `consequence` is an object, applies its fields directly (e.g., `gold`, `reputation`).
+**Victory/other**: returns to `battleState.returnScreen` (defaults to `"port"`). Adds patrol infamy. Calls `autoSave`.
 
-**Output**:
-
-- State with updated fields based on surrender consequences.
+**Note**: Gold reward from combat is added during `BATTLE_ACTION` (at the moment of victory), not here. `DISMISS_BATTLE` only handles cleanup and screen transition.
 
 ---
 
-### **24. `BATTLE_ACTION**`
+### **27. `RESOLVE_EVENT`**
+**Action**: `{ type: A.RESOLVE_EVENT, choiceIndex: number }`
 
-**Purpose**: Resolves a player's combat action.  
-**Action**:
+Gets `choice = activeEvent.choices[choiceIndex]`. Clears `activeEvent`. Applies outcome fields in order:
 
-```js
-{ type: A.BATTLE_ACTION, action: string }
-```
+| Outcome field | Effect |
+|---|---|
+| `log` | Appended to state log |
+| `gold` | Added to state.gold (floor 0) |
+| `fame` | Added to state.fame |
+| `hullDamage` | Subtracted from ship.hull (floor 0) |
+| `crewLoss` | Removes N random crew via `L.removeRandomCrew`, logs names |
+| `loseCargoPercent` | `L.applyLoseCargoPercent`, logs |
+| `daysLost` | **⚠ Bug**: currently adds to `sailingDaysLeft` (should subtract). Also increments `day`, `sailingDaysTotal`, deducts wages × days, decays rep per lost day |
+| `repImpact` | `L.applyReputationImpact` |
+| `moraleBonus` | Adjusts `crew.morale` (clamped 0–100) |
+| `battle` | Builds encounter context with faction-corrected enemy name, routes to `screen: "intercept"` |
+| `mapFragment` | Adds to `mapFragments[]`, checks if it unlocks a hidden port via `unlockCondition.conditions` item match |
+| `action` | Dispatches a secondary reducer call: `reducer({ ...newState, activeEvent: null }, { type: choice.outcome.action })`. Used for navy_patrol "Allow Inspection" → `PATROL_INSPECT` |
 
-**Where `action**`: `"broadside"`, `"precision"`, `"grapple"`, or `"evade"`.
+If no `battle` outcome, routes to `L.returnScreen(state)`.
 
-**Logic**:
-
-1. **State Check**:
-  - If no `battleState`, returns state unchanged.
-2. **Resolve Action**:
-  - Calls `L.resolveCombatAction(state, action)` to get the outcome.
-3. **Update Battle State**:
-  - **Player Damage**:
-    - Deducts `outcome.player.hullDamage` from `battleState.playerHull`.
-    - Deducts `outcome.player.crewLoss` from `battleState.playerCrew`.
-  - **Enemy Damage**:
-    - Deducts `outcome.enemy.hullDamage` from `battleState.enemyHull`.
-    - Deducts `outcome.enemy.crewLoss` from `battleState.enemyCrew`.
-  - **Morale**:
-    - Adds `outcome.moraleDelta` to `state.crew.morale` (clamped to `0-100`).
-  - **Log**:
-    - Adds combat log entries (e.g., `"You fire a broadside! [damage] hull damage."`).
-4. **Check for Battle End**:
-  - **Player Defeat**:
-    - If `battleState.playerHull <= 0`:
-      - Sets `battleState.phase = "defeat"`.
-      - Adds log: `"Your ship is sinking... DEFEAT!"`.
-  - **Enemy Defeat**:
-    - If `battleState.enemyHull <= 0`:
-      - Sets `battleState.phase = "victory"`.
-      - Adds `outcome.goldReward` to `battleState.goldReward`.
-      - Adds log: `"The enemy is destroyed! VICTORY!"`.
-  - **Flee Success**:
-    - If `outcome.fled`:
-      - Sets `battleState.phase = "fled"`.
-      - Adds log: `"You escape the battle! ESCAPED."`.
-  - **Instant Victory (Grapple)**:
-    - If `outcome.instantVictory`:
-      - Sets `battleState.phase = "victory"`.
-      - Adds `outcome.goldReward` to `battleState.goldReward`.
-      - Adds log: `"You board and capture the enemy! INSTANT VICTORY!"`.
-5. **NPC Turn (if battle continues)**:
-  - If no end condition, resolves NPC action using `L.resolveCombatAction` (with `battleState` as input).
-  - Updates `battleState` with NPC damage and logs.
-6. **Round Increment**:
-  - If battle continues, increments `battleState.round` by `1`.
-
-**Output**:
-
-- State with updated `battleState` (hull, crew, logs, phase).
+**`outcome.action` pattern**: when `choice.outcome.action` is set, RESOLVE_EVENT applies any log from the outcome, then recursively calls the reducer with the specified action type. This is used by the `navy_patrol` event's "Allow Inspection" choice to dispatch `PATROL_INSPECT`. No infinite recursion risk — `PATROL_INSPECT` never sets `outcome.action`.
 
 ---
 
-### **25. `DISMISS_BATTLE**`
+### **28. `SAVE_GAME`**
+**Action**: `{ type: A.SAVE_GAME }`
 
-**Purpose**: Exits the battle screen and returns to the previous screen.  
-**Action**:
-
-```js
-{ type: A.DISMISS_BATTLE }
-```
-
-**Logic**:
-
-1. **Battle State Check**:
-  - If no `battleState`, returns state unchanged.
-2. **Victory Rewards**:
-  - If `battleState.phase === "victory"`:
-    - Adds `battleState.goldReward` to `state.gold`.
-    - Adds log: `"+[goldReward] gold"`.
-3. **Cleanup**:
-  - Sets `battleState` to `null`.
-  - Sets `screen` to `battleState.returnScreen` (e.g., `"sailing"` or `"port"`).
-4. **Auto-Save**:
-  - Calls `autoSave(nextState)`.
-
-**Output**:
-
-- State with updated `gold`, `battleState`, `screen`, and `log`.
+Saves full state to `localStorage["piratesSave"]`. Adds "Game saved." log entry.
 
 ---
 
-### **26. `RESOLVE_EVENT**`
+### **29. `LOAD_GAME`**
+**Action**: `{ type: A.LOAD_GAME }`
 
-**Purpose**: Resolves a random event choice.  
-**Action**:
-
-```js
-{ type: A.RESOLVE_EVENT, choiceIndex: number }
-```
-
-**Logic**:
-
-1. **Event Check**:
-  - If no `activeEvent`, returns state unchanged.
-2. **Apply Choice Outcome**:
-  - Gets the selected choice using `activeEvent.choices[choiceIndex]`.
-  - Creates a new state with merged outcomes:
-    - **Gold**: Adds `outcome.gold` (if present).
-    - **Fame**: Adds `outcome.fame` (if present).
-    - **Hull Damage**: Deducts `outcome.hullDamage` from `ship.hull` (minimum `0`).
-    - **Crew Loss**: Removes `outcome.crewLoss` random crew members using `L.removeRandomCrew`.
-    - **Days Lost**: Adds `outcome.daysLost` to `sailingDaysLeft` (if sailing).
-    - **Reputation**: Applies `outcome.repImpact` using `L.applyReputationImpact`.
-    - **Battle**: If `outcome.battle`, sets `encounterContext` and `screen` to `"intercept"`.
-    - **Map Fragment**: If `outcome.mapFragment`, adds it to `mapFragments` and discovers the port (if applicable).
-    - **Log**: Adds `outcome.log` to `state.log`.
-3. **Cleanup**:
-  - Sets `activeEvent` to `null`.
-  - If `outcome.battle`, sets `screen` to `"intercept"`.
-  - Otherwise, returns to `"sailing"` (if en route) or `"port"`.
-
-**Output**:
-
-- State with updated fields based on the event choice.
+Reads and parses `localStorage["piratesSave"]`. Runs `migrateState(parsed)`. Returns loaded state with: `screen: "port"`, `battleState: null`, `activeEvent: null`, `encounterContext: null`, fresh `portMarket` and `missions` for `currentPort`. Falls back to error log if no save or parse failure.
 
 ---
 
-### **27. `SET_WIND**`
+### **30. `SET_WIND`**
+**Action**: `{ type: A.SET_WIND, angle: number, speed: number }`
 
-**Purpose**: Manually sets wind direction and speed (debug/cheat).  
-**Action**:
-
-```js
-{ type: A.SET_WIND, angle: number, speed: number }
-```
-
-**Logic**:
-
-- Updates `state.wind` to `{ angle, speed }`.
-
-**Output**:
-
-- State with updated `wind`.
-
----
-
----
+Directly sets `state.wind`. Used in tests and debug tooling.
 
 ---
 
 ## **🐛 Debug Actions**
+Only available when `?debug=1` in URL (UI-gated in `App.jsx`).
 
-Used for testing and development. Only available if `debug=1` in the URL.
+| Action | Effect |
+|---|---|
+| `DEBUG_ADD_GOLD { amount }` | Adds `amount` to `state.gold` |
+| `DEBUG_SET_FAME { fame }` | Sets `state.fame` to `fame` |
+| `DEBUG_SET_INFAMY { infamy }` | Sets `state.infamy` to `infamy` |
+| `DEBUG_SET_SHIP { shipType }` | Replaces ship with full-hull version of `shipType`; updates `hold.capacity` and `crew.max` |
+| `DEBUG_SET_PORT_REP { port, amount }` | Sets `reputation[port]` to `amount` |
+| `DEBUG_FILL_HOLD` | Fills hold with a fixed mixed cargo set |
+| `DEBUG_REPAIR` | Restores hull to max; refills food and water scaled to current crew |
 
-### **1. `DEBUG_ADD_GOLD**`
+Debug actions are **not gated in the reducer**. The UI is the only gate.
 
-**Action**:
+---
+
+## **📦 Exports**
 
 ```js
-{ type: A.DEBUG_ADD_GOLD, amount: number }
+window.E = {
+  A,            // Action type constants
+  initialState, // Default state
+  reducer,      // State reducer
+  migrateState, // State migration helper (also exported for testing)
+};
 ```
 
-**Logic**:
-
-- Adds `amount` to `state.gold`.
-
----
-
-### **2. `DEBUG_SET_FAME**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_SET_FAME, fame: number }
-```
-
-**Logic**:
-
-- Sets `state.fame` to `fame`.
-
----
-
-### **3. `DEBUG_SET_INFAMY**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_SET_INFAMY, infamy: number }
-```
-
-**Logic**:
-
-- Sets `state.infamy` to `infamy`.
-
----
-
-### **4. `DEBUG_SET_SHIP**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_SET_SHIP, shipType: string }
-```
-
-**Logic**:
-
-- Sets `state.ship` to a new ship of type `shipType` (with full hull and default stats).
-
----
-
-### **5. `DEBUG_SET_PORT_REP**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_SET_PORT_REP, port: string, amount: number }
-```
-
-**Logic**:
-
-- Sets `state.reputation[port]` to `amount`.
-
----
-
-### **6. `DEBUG_FILL_HOLD**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_FILL_HOLD }
-```
-
-**Logic**:
-
-- Fills the hold with a mix of goods (quantities based on capacity).
-
----
-
-### **7. `DEBUG_REPAIR**`
-
-**Action**:
-
-```js
-{ type: A.DEBUG_REPAIR }
-```
-
-**Logic**:
-
-- Repairs the ship to full hull and refills provisions (food/water).
-
----
-
----
-
----
-
-## **📦 Exposed Globally**
-
-All actions and the reducer are exposed via `window.E`:
-
-```js
-window.E = (() => {
-  return {
-    A,                // Action types
-    initialState,     // Default state
-    reducer,          // State reducer
-    autoSave,         // Auto-save helper
-    migrateState,     // State migration helper
-  };
-})();
-```
-
----
+`autoSave` is **not exported** — it is an internal side effect called at specific points within the reducer.
 
 ---
 
 ## **🔗 Dependencies**
-
-- `**window.D**`: Data constants (ports, ships, factions, upgrades, etc.).
-- `**window.L**`: Pure logic helpers (e.g., `travelDays`, `canReach`, `resolveCombatAction`).
-- `**window.G**`: Generators (e.g., `generateMissions`, `generatePortMarket`, `generateRoster`).
-- `**localStorage**`: For save/load functionality.
-- `**Math.random()**`: For randomness in events, patrols, and combat.
+- **`window.D`**: `PORTS`, `SHIPS`, `FACTIONS`, `UPGRADES`, `STARTS`, `SURRENDER_CONSEQUENCE`, `RESOURCES`, `PATROL_FINE_RATE`.
+- **`window.L`**: `travelDays`, `canReach`, `returnScreen`, `buildEncounterContext`, `getRepPerk`, `getShipStats`, `meetsRequirement`, `payCrewWages`, `decayReputation`, `applyReputationImpact`, `applyLoseCargoPercent`, `applyLoseContraband`, `removeRandomCrew`, `triggerRandomEvent`, `maybeRandomPatrol`, `resolveCombatAction`, `getNPCAction`, `getInfamyLabel`, `getProvisionConsumptionPerDay`, `roll`.
+- **`window.G`**: `generateMissions`, `generatePortMarket`, `generateRoster`, `generateEnemy`.
 
 ---
 
----
+## **📝 Notes**
 
-## **📝 Notes for Refactoring**
+1. **`ADVANCE_DAY` helper extraction**: The case is now structured as a pipeline of private helper calls. Each helper (`advanceWind`, `advanceCrew`, etc.) is independently testable. This replaced the former monolithic single-function body.
 
-1. **Reducer Complexity**:
-  - The `ADVANCE_DAY` case is **very large** (handles sailing, events, patrols, discoveries, etc.). Consider splitting it into smaller helper functions (e.g., `handleSailingDay`, `handleRandomEvent`, `handlePatrolCheck`).
-  - The `COMPLETE_MISSION` case is also complex. Consider extracting cargo checks and reward calculations into helpers.
-2. **State Mutability**:
-  - The reducer **should** treat `state` as immutable. Some cases (e.g., `ADVANCE_DAY`) modify arrays/objects directly. Ensure all updates use the spread operator (`...`) or `Object.assign` to avoid side effects.
-3. **Auto-Save**:
-  - Auto-save is called in `ENTER_PORT` and `DISMISS_BATTLE`. Consider adding it to other critical actions (e.g., `COMPLETE_MISSION`, `ABANDON_MISSION`).
-4. **Error Handling**:
-  - No explicit error handling for invalid actions (e.g., `BUY_SHIP` with a non-existent ship type). Add validation or fallbacks.
-5. **Performance**:
-  - No performance issues identified. The reducer is called infrequently (per player action/day).
-6. **Testing**:
-  - Critical cases to test:
-    - `ADVANCE_DAY` (sailing, events, patrols, discoveries).
-    - `COMPLETE_MISSION` (cargo checks, rewards, reputation).
-    - `BATTLE_ACTION` (combat resolution, damage, morale).
-    - `RESOLVE_EVENT` (event outcomes, state updates).
-7. **Debug Actions**:
-  - Debug actions are **not gated** in the reducer (only in the UI). Consider adding a `isDebug` check in the reducer for security.
-8. **State Migration**:
-  - The `migrateState` function is **additive** and **non-destructive**. Ensure new migrations follow this pattern.
-9. **Encounter Context**:
-  - The `buildEncounterContext` function (from `logic.js`) is used heavily. Ensure its logic is consistent with the reducer's expectations.
-10. **Battle State**:
-  - The `battleState` object is **not persisted** in saves. Ensure it is reconstructed correctly if needed (e.g., after a page reload).
+2. **Encounter options are now an array**: `buildEncounterContext` returns `options: Option[]` not `options: { flee, parley, bribe, surrender, fight }`. Intercept actions read options by id: `ctx.options.find(o => o.id === "flee")`. Adding new option types requires no screen changes.
 
----
+3. **`encounterType` replaces `isNavyPatrol`**: `battleState.encounterType: string` is the canonical field for identifying encounter origin in `DISMISS_BATTLE`. Future encounter types (bounty hunters, distressed merchants) add one check each.
+
+4. **`PATROL_INSPECT` is the correct path for navy inspection**: The old `if (event.id === "navy_patrol")` special-case block in `RESOLVE_EVENT` has been removed. The `navy_patrol` event now has a choice with `outcome.action: "PATROL_INSPECT"` which dispatches cleanly through the normal event resolution path.
+
+5. **Trade and smuggle missions bypass rep multiplier**: `COMPLETE_MISSION` applies `repPerk.missionMult` to all mission types **except** `trade` and `smuggle`, which pay their fixed `mission.gold` directly.
+
+6. **`daysLost` sign bug**: `RESOLVE_EVENT` currently adds `daysLost` to `sailingDaysLeft` instead of subtracting. Storms make voyages shorter. Fix: `sailingDaysLeft = Math.max(0, current - lost)`.
+
+7. **State immutability**: The reducer treats state as immutable via spread. One exception: `BATTLE_ACTION` directly mutates `state.battleState.lostCrewNames` (`state.battleState.lostCrewNames = lostCrewNames`). This should be replaced with a proper spread.
+
+8. **Auto-save points**: Called in `ENTER_PORT` (normal entry), `COMPLETE_MISSION`, and `DISMISS_BATTLE` (victory path). Not called in `ABANDON_MISSION` — this is an omission worth fixing.

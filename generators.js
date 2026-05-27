@@ -163,7 +163,7 @@ window.G = (() => {
 
   // Build a full enemy object
   const generateEnemy = (risk, fame, faction) => {
-    const tier = window.L.getFameTier(fame);
+    const tier = window.L.getFameInfo(fame).tier;;
     const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
     const rf = riskFactors[risk] ?? 0.5;
 
@@ -194,7 +194,7 @@ window.G = (() => {
 
   // Gold reward, rounded to nearest 25
   const generateGold = (type, risk, fame) => {
-    const tier = window.L.getFameTier(fame);
+    const tier = window.L.getFameInfo(fame).tier;;
     const effectiveRisk = type === "assault" ? "assault" : risk;
     const [min, max] = window.D.MISSION_GOLD_RANGES[tier][effectiveRisk];
     const raw = randBetween(min, max);
@@ -278,6 +278,8 @@ window.G = (() => {
       const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
       eligible = eligible.filter(k => !rivals.includes(window.D.PORTS[k].faction));
     }
+    // Exclude hidden ports that the player hasn't discovered yet
+    eligible = eligible.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
 
     if (eligible.length === 0) return null;
     return pickRandom(eligible);
@@ -285,7 +287,7 @@ window.G = (() => {
 
   // ── Trade mission generator ──────────────────────────────────
   const generateTradeMission = (portKey, state, faction, risk) => {
-    const tier = window.L.getFameTier(state.fame ?? 0);
+    const tier = window.L.getFameInfo(state.fame ?? 0).tier;;
     const eligibleGoods = window.D.TRADE_GOODS_BY_TIER[tier] || window.D.TRADE_GOODS_BY_TIER[0];
 
     const good = pickRandom(eligibleGoods);
@@ -329,7 +331,7 @@ window.G = (() => {
 
   // ── Smuggle mission generator ────────────────────────────────
   const generateSmuggleMission = (portKey, state, risk) => {
-    const tier = window.L.getFameTier(state.fame ?? 0);
+    const tier = window.L.getFameInfo(state.fame ?? 0).tier;;
     const infamy = state.infamy ?? 0;
 
     // Good pool by tier + infamy gating
@@ -444,7 +446,7 @@ window.G = (() => {
     };
 
     const riskWeightsFor = (fame) => {
-      const tier = window.L.getFameTier(fame);
+      const tier = window.L.getFameInfo(fame).tier;;
       const table = [
         { low:5, medium:4, high:1, assault:0 },
         { low:4, medium:4, high:2, assault:0 },

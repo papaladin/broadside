@@ -205,15 +205,7 @@ All components are **pure functions** (no state or side effects).
   - `style`: Additional styles.
 - **Render**: Centered, faint message (e.g., "No missions posted.").
 
----
-
----
-
-## **🧩 screens_shared.jsx**
-
 *Shared micro-components used across multiple screens.*
-
----
 
 ### **1. `FactionPill**`
 
@@ -247,7 +239,6 @@ All components are **pure functions** (no state or side effects).
   - `size` (number): Width in pixels (default: `40`).
 - **Render**: SVG of a ship (ellipse hull, sails, etc.).
 
----
 
 ---
 

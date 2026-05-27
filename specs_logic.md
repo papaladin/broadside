@@ -1,15 +1,16 @@
 
 ---
 
-# **📌 LOGIC**
+# **📌 LOGIC **
+
+*Pure functions for game logic. No side effects, no state mutation. Only calculations and data transformations.*
 
 - **File**: `logic.js`
 - **Exposed as**: `window.L`
 - **Dependencies**: `window.D` (data constants)
 - **Purpose**: Contains all pure functions for game logic, including save/load, helpers, ship/repair, travel, reputation, crew, events, combat, initialization, and resource/trade functions.
 
-*Pure functions for game logic. No side effects, no state mutation. Only calculations and data transformations.*
-
+---
 
 ---
 
@@ -78,33 +79,24 @@
 
 ---
 
-### **3. `getFameLabel(fame)**`
+### `getFameInfo(fame)` ← MERGED from `getFameLabel` + `getFameTier`
 
-- **Purpose**: Returns a human-readable label for a fame value.
+- **Purpose**: Returns both the label and numeric tier for a fame value.
 - **Input**:
   - `fame` (number): The fame value.
-- **Output**: `string` (e.g., `"Immortal"`, `"Legendary"`, `"Notorious"`, `"Recognised"`, `"Unknown"`)
+- **Output**: `object` with:
+  - `label` (string): e.g. `"Immortal"`, `"Legendary"`, `"Notorious"`, `"Recognised"`, `"Unknown"`.
+  - `tier` (number): 0–4.
 - **Thresholds**:
-  - `>= 350`: `"Immortal"`
-  - `>= 200`: `"Legendary"`
-  - `>= 100`: `"Notorious"`
-  - `>= 50`: `"Recognised"`
-  - `< 50`: `"Unknown"`
-
----
-
-### **4. `getFameTier(fame)**`
-
-- **Purpose**: Returns a numeric tier for a fame value.
-- **Input**:
-  - `fame` (number): The fame value.
-- **Output**: `number` (0-4)
-- **Thresholds**:
-  - `>= 350`: `4`
-  - `>= 200`: `3`
-  - `>= 100`: `2`
-  - `>= 50`: `1`
-  - `< 50`: `0`
+  - `>= 350`: `{ label: "Immortal", tier: 4 }`
+  - `>= 200`: `{ label: "Legendary", tier: 3 }`
+  - `>= 100`: `{ label: "Notorious", tier: 2 }`
+  - `>= 50`:  `{ label: "Recognised", tier: 1 }`
+  - `< 50`:   `{ label: "Unknown", tier: 0 }`
+- **Usage**:
+  - For label: `L.getFameInfo(fame).label`
+  - For tier:  `L.getFameInfo(fame).tier`
+- **Callers updated**: `generators.js` (all `getFameTier` calls), `meetsRequirement` (label), screen components (label).
 
 ---
 
@@ -194,6 +186,14 @@
   - Applies upgrades from `state.ship.upgrades` (e.g., `reinforced_hull`, `extra_cannons`, `copper_hull`).
 
 ---
+
+### `returnScreen(state)` 
+
+- **Purpose**: Returns the screen the player should go to after an encounter or event resolves.
+- **Input**:
+  - `state` (object): The current game state.
+- **Output**: `string` — `"sailing"` if the player has an active destination and days remaining, otherwise `"port"`.
+- **Notes**: Replaces the inline expression `state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port"` that appeared in 6+ reducer cases. Exported as `L.returnScreen`.
 
 ---
 
@@ -651,67 +651,37 @@
 
 ## **🎯 Encounter Functions**
 
-### **1. `buildEncounterContext(state, type, enemy)**`
+### `buildEncounterContext(state, type, enemy)` ← REWRITTEN
 
 - **Purpose**: Builds a context object for an encounter (e.g., navy patrol, hostile port entry).
 - **Input**:
   - `state` (object): The current game state.
-  - `type` (string): Encounter type (e.g., `"navy_patrol"`, `"hostile_port_entry"`).
+  - `type` (string): Encounter type (e.g., `"navy_patrol"`, `"hostile_port_entry"`, `"patrol"`).
   - `enemy` (object): The enemy object.
 - **Output**: `object` with:
   - `type` (string): Encounter type.
-  - `enemy` (object): Enemy details (includes `ship` type).
+  - `encounterType` (string): Same as `type` — used to track the encounter type through to `battleState` for post‑battle logic (e.g., patrol infamy).
+  - `enemy` (object): Enemy details (includes `ship` type guessed by `guessShipType`).
   - `flavourText` (string): Descriptive text for the encounter.
-  - `options` (object): Available actions and their details:
-    - `flee` (object):
-      - `available` (boolean): `true` if fleeing is possible.
-      - `reason` (string | null): Reason if not available.
-      - `speedCheck` (object | null): Player and enemy speed for flee check.
-    - `parley` (object):
-      - `available` (boolean): `true` if parley is possible.
-      - `reason` (string | null): Reason if not available.
-      - `repRequired` (number): Minimum reputation required (30).
-    - `bribe` (object):
-      - `available` (boolean): `true` if bribe is possible.
-      - `reason` (string | null): Reason if not available.
-      - `cost` (number): Bribe cost in gold.
-    - `surrender` (object):
-      - `available` (boolean): `true` if surrender is possible.
-      - `reason` (string | null): Reason if not available.
-      - `consequence` (function | object): Dynamic or static consequence.
-    - `fight` (object):
-      - `available` (boolean): Always `true`.
-      - `reason` (string | null): Always `null`.
+  - `options` (**array** of option objects): The available actions the player can take. Each option has:
+    - `id` (string): Internal id — `"fight"`, `"flee"`, `"parley"`, `"bribe"`, `"surrender"`, `"inspect"`.
+    - `label` (string): Display text (e.g., `"Fight"`, `"Bribe (400g)"`, `"Allow Inspection"`).
+    - `available` (boolean): Whether the option is currently available.
+    - `reason` (string | null): Shown when `available === false`.
+    - `action` (object): The dispatch action — `{ type: "INTERCEPT_FIGHT" }` etc.
+    - `speedCheck` (object | null): Only for `"flee"` — `{ player: number, enemy: number }`.
 - **Notes**:
-  - **Flee**:
-    - Not available for `"hostile_port_entry"`, `"bounty_target"`, or `"mission_combat"`.
-    - Reason: `"Already in range of the harbour guns"` or `"The target is cornered — no escape"`.
-  - **Parley**:
-    - Not available for `"hostile_port_entry"`, `"bounty_target"`, `"mission_combat"`, `"smuggling_caught"`, or `"cargo_inspection_refused"`.
-    - Requires reputation `>= 30`.
-    - Reason: `"They are not here to negotiate"` or `"Reputation too low (X — need 30)"`.
-  - **Bribe**:
-    - Not available for `"hostile_port_entry"`, `"bounty_target"`, or `"mission_combat"`.
-    - Requires `canBribe(state)` (infamy `< 50`).
-    - Cost: `Math.round((enemy.gold || 500) * 0.4)`.
-    - Reason: `"They cannot be bought"`, `"Your reputation for bribery has preceded you."`, or `"Need Xg (you have Yg)"`.
-  - **Surrender**:
-    - Not available for `"bounty_target"` or `"mission_combat"`.
-    - Reason: `"Surrender means death here"`.
-  - **Navy Patrol Overrides**:
-    - Flee: Not available (`"You cannot outrun a patrol in open waters."`).
-    - Parley: Not available (`"They have no interest in negotiating."`).
-    - Bribe: Not available (`"Patrols are too loyal to be bribed."`).
-  - **Speed Check**:
-    - Uses `guessShipType(enemy)` to determine enemy ship type and speed.
-    - Player speed: `getShipStats(state).speed`.
-    - Enemy speed: `SHIPS[enemyShip]?.speed ?? 5`.
-  - **Bribe Cost**:
-    - `Math.round((enemy.gold ?? 500) * 0.4)`.
-  - **Surrender Consequence**:
-    - For navy patrols, dynamically checks for illegal goods in the hold.
-    - If no illegal goods: `"The patrol finds nothing illegal. They let you pass."` (reputation +5).
-    - If illegal goods: Confiscates all illegal goods, fines 200 gold, +1 infamy, -10 morale, reputation -5.
+  - **Navy patrol** (`"navy_patrol"` or `"navy_patrol_combat"`):
+    - Only two options are added:
+      1. `"inspect"` → dispatches `PATROL_INSPECT`
+      2. `"fight"` → dispatches `INTERCEPT_FIGHT` (labelled "Refuse — Open Fire")
+    - Flee, parley, bribe, and surrender are never added — the patrol type is excluded from `noFleeTypes`, `noParleyTypes`, and `noBribeTypes`, and the standard option loop is skipped entirely.
+  - **Standard encounters** (all other types):
+    - Five options are added in order: Fight, Flee, Parley, Bribe, Surrender.
+    - Availability and reasons are computed exactly as before (reputation, infamy, gold checks).
+  - **Surrender consequence**: No longer embedded in the options array. The `INTERCEPT_SURRENDER` reducer looks up the consequence from `SURRENDER_CONSEQUENCE[ctx.type]` at runtime. The old dynamic function-consequence path has been removed.
+  - **Bribe cost**: Computed as `Math.round((enemy.gold ?? 500) * 0.4)`. Displayed in the label when available.
+  - **Speed check**: Player speed from `getShipStats(state).speed`; enemy speed from `SHIPS[enemyShip]?.speed ?? 5`.
 
 ---
 
@@ -757,66 +727,41 @@ All functions are exposed globally via `window.L` for use in other modules (e.g.
 ```js
 window.L = {
   // Save/Load
-  hasSave,
-  saveGame,
-  loadGame,
+  hasSave, saveGame, loadGame,
 
   // Helpers
-  canAfford,
-  reputationLabel,
-  getFameLabel,
-  getFameTier,
-  getInfamyLabel,
-  meetsRequirement,
-  canBribe,
-  hasUpgrade,
-  getShipStats,
-  getEffectiveMorale,
+  canAfford, reputationLabel, getFameInfo, getInfamyLabel,
+  meetsRequirement, canBribe, hasUpgrade, getShipStats,
+  getEffectiveMorale, returnScreen,
 
   // Ship/Repair
   shipRepairCost,
 
   // Travel
-  travelDays,
-  canReach,
-  getUnreachableReason,
+  travelDays, canReach, getUnreachableReason,
 
   // Reputation
-  decayReputation,
-  updateReputation,
-  applyReputationImpact,
-  getRepPerk,
+  decayReputation, updateReputation, applyReputationImpact, getRepPerk,
 
   // Crew
-  payCrewWages,
-  removeRandomCrew,
+  payCrewWages, removeRandomCrew,
 
   // Events
-  triggerRandomEvent,
-  maybeRandomPatrol,
+  triggerRandomEvent, maybeRandomPatrol,
 
   // Encounter
-  buildEncounterContext,
-  roll,
+  buildEncounterContext, roll,
 
   // Combat
-  getNPCAction,
-  resolveCombatAction,
+  getNPCAction, resolveCombatAction,
 
   // Initialization
-  initializeReputation,
-  getStartingShip,
-  getStartingGold,
-  getStartingReputation,
+  initializeReputation, getStartingShip, getStartingGold, getStartingReputation,
 
   // Resource & Trade
-  getHoldUsed,
-  getHoldLoadPct,
-  getHoldSpeedMultiplier,
-  getProvisionConsumptionPerDay,
-  getDaysOfProvisions,
-  applyLoseCargoPercent,
-  applyLoseContraband,
+  getHoldUsed, getHoldLoadPct, getHoldSpeedMultiplier,
+  getProvisionConsumptionPerDay, getDaysOfProvisions,
+  applyLoseCargoPercent, applyLoseContraband,
 };
 ```
 

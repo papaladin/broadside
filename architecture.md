@@ -1,7 +1,5 @@
 # Broadside — Architecture Documentation
 
-# Broadside — Architecture Documentation
-
 > This document covers **code structure, design constraints, and current
 > implementation**. It does not cover the feature roadmap or future plans — those
 > live in `roadmap.md`. It does not cover how to run the game or tests — that lives
@@ -155,8 +153,7 @@ broadside/
 ├── logic.js                All pure game functions. Exposes window.L
 ├── generators.js           All runtime content generators. Exposes window.G
 ├── engine.js               State shape, reducer, action constants. Exposes window.E
-├── ui.jsx                  React primitives and theme tokens. Exposes window.UI
-├── screens_shared.jsx      Shared micro‑components (FactionPill, RepPill, ShipSprite)
+├── ui.jsx                  React primitives and theme tokens. Shared micro‑components. Exposes window.UI
 ├── screens_port.jsx        Port‑zone screens (Start, Port, Shipyard, Crew, Status, Market)
 ├── screens_voyage.jsx      Voyage‑zone screens (Map, Sailing, Event, Intercept, Battle)
 ├── App.jsx                 Root component, HUD, screen router. Renders to #root
@@ -211,18 +208,6 @@ data → logic → engine → screens → App
 A file may only read from files that appear to its left in this chain.
 `logic.js` cannot read from `engine.js`. `data.js` cannot read from anything.
 
-### After planned splits
-
-```
-data.js         (window.D)   ← no deps
-data_content.js (window.C)   ← no deps
-logic.js        (window.L)   ← reads D
-generators.js   (window.G)   ← reads D, C
-engine.js       (window.E)   ← reads D, L, G
-ui.jsx          (window.UI)  ← no game deps
-screens_*.jsx   (window.S)   ← reads D, C, L, G, E, UI
-App.jsx                      ← reads all
-```
 
 ---
 
@@ -756,8 +741,6 @@ Enforced in the `BUY_EQUIPMENT` reducer case before any state change:
 No category-level restrictions. Balance comes from upgrade values, not slot
 categories. When buying a new ship, equipment transfers; if the new ship has
 fewer slots, the player chooses which items to keep before purchase confirms.
-
-### Travel and range
 
 ### Travel and range
 

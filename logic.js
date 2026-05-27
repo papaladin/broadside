@@ -41,20 +41,12 @@ window.L = (() => {
     return "At War";
   };
 
-  const getFameLabel = (fame) => {
-  if (fame >= 350) return "Immortal";
-  if (fame >= 200) return "Legendary";
-  if (fame >= 100) return "Notorious";
-  if (fame >= 50)  return "Recognised";
-  return "Unknown";
-  };
-
-  const getFameTier = (fame) => {
-  if (fame >= 350) return 4;
-  if (fame >= 200) return 3;
-  if (fame >= 100) return 2;
-  if (fame >= 50)  return 1;
-  return 0;
+ const getFameInfo = (fame) => {
+  if (fame >= 350) return { label: "Immortal", tier: 4 };
+  if (fame >= 200) return { label: "Legendary", tier: 3 };
+  if (fame >= 100) return { label: "Notorious", tier: 2 };
+  if (fame >= 50)  return { label: "Recognised", tier: 1 };
+  return { label: "Unknown", tier: 0 };
 };
 
   const getInfamyLabel = (infamy) => {
@@ -71,8 +63,8 @@ window.L = (() => {
 
   const meetsRequirement = (state, item) => {
   if (item.requiredFame && state.fame < item.requiredFame)
-    return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${getFameLabel(item.requiredFame)})` };
-  return { allowed: true, reason: null };
+    return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${getFameInfo(item.requiredFame).label})` };
+    return { allowed: true, reason: null };
   };
 
   const canBribe = (state) => (state.infamy ?? 0) < 50;
@@ -673,13 +665,13 @@ function buildEncounterContext(state, type, enemy) {
 //----- cargo, economy, trade, and resources functions 
 //---------------------------------------------------
 
-
 const getHoldUsed = (holdItems) =>
   Object.values(holdItems || {}).reduce((sum, qty) => sum + qty, 0);
 
 const getHoldLoadPct = (holdItems, capacity) => {
   if (!capacity || capacity <= 0) return 0;
-  return Math.min(1, getHoldUsed(holdItems) / capacity);
+  const used = Object.values(holdItems || {}).reduce((sum, qty) => sum + qty, 0);
+  return Math.min(1, used / capacity);
 };
 
 const getHoldSpeedMultiplier = (loadPct) => {
@@ -726,8 +718,7 @@ const applyLoseContraband = (holdItems) => {
     // Helpers
     canAfford,
     reputationLabel,
-    getFameLabel,
-    getFameTier,
+    getFameInfo,
     getInfamyLabel,
     meetsRequirement,
     canBribe,

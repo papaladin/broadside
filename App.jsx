@@ -156,8 +156,8 @@ const App = () => {
                   ✓ saved
                 </span>
               )}
-              <span title={TOOLTIPS.hold} style={{ color: T.textDim }}>📦 {L.getHoldUsed(state.hold?.items || {})}/{state.hold?.capacity || 0}</span>
-              <span title={TOOLTIPS.food} style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
+                <span title={TOOLTIPS.hold} style={{ color: T.textDim }}>📦 {Object.values(state.hold?.items || {}).reduce((sum, qty) => sum + qty, 0)}/{state.hold?.capacity || 0}</span> 
+                <span title={TOOLTIPS.food} style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
               <span title={TOOLTIPS.water} style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
             </>
           )}

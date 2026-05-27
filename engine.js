@@ -47,6 +47,10 @@ window.E = (() => {
     PATROL_INSPECT: "PATROL_INSPECT",
   };
 
+//--------------------------------------------
+//  HELPERS
+//----------------------------------------------
+
 
   // ── Auto-save helper ─────────────────────────────────────────────
 const autoSave = (state) => {
@@ -125,6 +129,8 @@ const migrateState = (loaded) => {
   });
 
 
+
+
  const createBattleState = (state, enemy, initialLog = "You engage the enemy!", encounterType = "unknown") => ({
   phase:            "player_turn",
   playerHull:       state.ship.hull,
@@ -148,7 +154,167 @@ const checkServicesBlocked = (state) => {
   return null;
 };
 
+// ── ADVANCE_DAY helpers ──────────────────────────────────────
 
+const advanceWind = (wind) => {
+  const rawAngle = (wind.angle + (Math.random() - 0.5) * 30 + 360) % 360;
+  return {
+    angle: Math.round(rawAngle) % 360,
+    speed: Math.round(Math.max(1, Math.min(20, wind.speed + (Math.random() - 0.5) * 5)))
+  };
+};
+
+const advanceCrew = (crew) => ({
+  ...crew,
+  roster: crew.roster.map(m => ({ ...m, daysAboard: m.daysAboard + 1 })),
+  morale: crew.morale < 30 ? Math.max(0, crew.morale - 1) : crew.morale,
+});
+
+const advanceProvisions = (state) => {
+  const consumption = L.getProvisionConsumptionPerDay(state);
+  const items = state.hold?.items || {};
+  const newFood = Math.max(0, (items.food || 0) - consumption.food);
+  const newWater = Math.max(0, (items.water || 0) - consumption.water);
+  return {
+    items: { ...items, food: newFood, water: newWater },
+    foodJustRanOut: newFood === 0 && (items.food || 0) > 0,
+    waterJustRanOut: newWater === 0 && (items.water || 0) > 0,
+    foodEmpty: newFood === 0,
+    waterEmpty: newWater === 0,
+  };
+};
+
+const maybeSmugglePatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+  if (!state.activeMission || state.activeMission.type !== "smuggle" || state.activeMission.encounterOccurred) return null;
+  const interceptChance = state.activeMission.interceptChance || 0.70;
+  if (Math.random() >= interceptChance) return null;
+  const destPort = D.PORTS[state.destination];
+  const faction = destPort?.faction || "english";
+  const enemy = G.generateEnemy("medium", state.fame, faction);
+  enemy.name = `${FACTIONS[faction]?.label || "Colonial"} Revenue Cutter`;
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+  return {
+    ...state,
+    wind: newWind,
+    day: state.day + 1,
+    sailingDaysLeft: newDays,
+    gold: newGold,
+    reputation: newRep,
+    crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
+    hold: { ...state.hold, items: newHoldItems },
+    activeMission: { ...state.activeMission, encounterOccurred: true },
+    encounterContext: context,
+    screen: "intercept",
+    log: [...state.log, "A patrol vessel approaches, flying inspection colours."]
+  };
+};
+
+const maybeRandomEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+  if (newDays < 1 || Math.random() >= 0.1) return null;
+  const event = L.triggerRandomEvent(state);
+  if (!event) return null;
+  return {
+    ...state,
+    wind: newWind,
+    screen: "event",
+    day: state.day + 1,
+    sailingDaysLeft: newDays,
+    gold: newGold,
+    reputation: newRep,
+    crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
+    hold: { ...state.hold, items: newHoldItems },
+    activeEvent: event,
+    log: [...state.log, `Day ${state.day + 1}: ${event.title}`]
+  };
+};
+
+const maybeRandomPatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+  if (newDays < 1 || state.activeEvent || state.encounterContext) return null;
+  if (!L.maybeRandomPatrol(state)) return null;
+  const port = D.PORTS[state.currentPort];
+  const enemy = G.generateEnemy("low", state.fame, port.faction);
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+  return {
+    ...state,
+    wind: newWind,
+    day: state.day + 1,
+    sailingDaysLeft: newDays,
+    gold: newGold,
+    reputation: newRep,
+    crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
+    hold: { ...state.hold, items: newHoldItems },
+    encounterContext: context,
+    screen: "intercept",
+    log: ["A navy patrol hails you and demands to inspect your cargo.", ...state.log]
+  };
+};
+
+const advanceHiddenPorts = (state) => {
+  let autoDiscovered = [...(state.discoveredPorts || [])];
+  let autoDiscoveryLog = [];
+  Object.entries(PORTS).forEach(([key, port]) => {
+    if (!port.hidden) return;
+    if (autoDiscovered.includes(key)) return;
+    if (port.unlockCondition?.type === "item") return;
+    const conditions = port.unlockCondition?.conditions || [];
+    const operator = port.unlockCondition?.type || "any";
+    const results = conditions.map(c => {
+      if (c.type === "fame") return state.fame >= c.value;
+      if (c.type === "infamy") return (state.infamy ?? 0) >= c.value;
+      if (c.type === "reputation") {
+        const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === c.faction);
+        if (factionPorts.length === 0) return false;
+        const avgRep = factionPorts.reduce((sum, k) => sum + (state.reputation[k] ?? 50), 0) / factionPorts.length;
+        return avgRep >= c.value;
+      }
+      return false;
+    });
+    const unlocked = operator === "all" ? results.every(Boolean) : results.some(Boolean);
+    if (unlocked) {
+      autoDiscovered.push(key);
+      autoDiscoveryLog.push(`⚓ New port discovered: ${port.name}. Mark it on your charts.`);
+    }
+  });
+  return { discoveredPorts: autoDiscovered, log: autoDiscoveryLog };
+};
+
+
+// ------- TRADE HELPER --------
+
+const validateTrade = (state, buys, sells) => {
+  if (!state.portMarket) return { valid: false, reason: "No market available." };
+
+  const items = { ...(state.hold?.items || {}) };
+  let goldDelta = 0;
+  let used = Object.values(items).reduce((sum, qty) => sum + qty, 0);
+
+  // Process sells
+  for (const [good, qty] of Object.entries(sells || {})) {
+    if (qty <= 0) continue;
+    const portGood = state.portMarket.goods[good];
+    if (!portGood) continue;
+    const actualQty = Math.min(qty, items[good] || 0);
+    if (actualQty <= 0) continue;
+    used -= actualQty;
+    goldDelta += actualQty * portGood.sellToPort;
+  }
+
+  // Process buys
+  for (const [good, qty] of Object.entries(buys || {})) {
+    if (qty <= 0) continue;
+    const portGood = state.portMarket.goods[good];
+    if (!portGood) continue;
+    if (qty > portGood.available) continue;
+    used += qty;
+    goldDelta -= qty * portGood.buyFromPort;
+  }
+
+  if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled — insufficient gold." };
+  if (used > state.hold.capacity) return { valid: false, reason: "Trade cancelled — not enough hold space." };
+  return { valid: true };
+};
+
+//---------------------------------------------------------------------------------
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REDUCER
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -239,160 +405,44 @@ const checkServicesBlocked = (state) => {
 
       
       // --- ADVANCE DAY ---
-      case A.ADVANCE_DAY: {
+ case A.ADVANCE_DAY: {
   if (state.sailingDaysLeft <= 0) return state;
 
   const newDays = state.sailingDaysLeft - 1;
-  const newLog = [...state.log];
-
-  // Wind shifts gradually each day at sea
-  const rawAngle = (state.wind.angle + (Math.random() - 0.5) * 30 + 360) % 360;
-  const newWind = {
-    angle: Math.round(rawAngle) % 360,
-    speed: Math.round(Math.max(1, Math.min(20, state.wind.speed + (Math.random() - 0.5) * 5)))
-  };
-
-  // Deduct crew wages
+  const newWind = advanceWind(state.wind);
   const wages = L.payCrewWages(state);
   const newGold = Math.max(0, state.gold - wages);
+  const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
+  const newCrew = advanceCrew(state.crew);
+  const prov = advanceProvisions(state);
 
-  // Reputation decay (every 2 days, never below 50)
-  const newRep = (state.day % 2 === 0)
-    ? L.decayReputation(state)
-    : state.reputation;
-
-  // Morale decay (only if already below 30)
-  let newMorale = state.crew.morale < 30
-    ? Math.max(0, state.crew.morale - 1)
-    : state.crew.morale;
-
-  // Increment days aboard for all crew
-  const updatedRoster = state.crew.roster.map(m => ({ ...m, daysAboard: m.daysAboard + 1 }));
-
-  // ── Provision consumption ──
-  const consumption = L.getProvisionConsumptionPerDay(state);
-  const holdItems = state.hold?.items || {};
-  const newFood  = Math.max(0, (holdItems.food || 0) - consumption.food);
-  const newWater = Math.max(0, (holdItems.water || 0) - consumption.water);
-  const newHoldItems = { ...holdItems, food: newFood, water: newWater };
-
-  // Morale penalty from provision/wages crisis (max -1, stacks with other systems)
-  const foodJustRanOut  = newFood  === 0 && (holdItems.food  || 0) > 0;
-  const waterJustRanOut = newWater === 0 && (holdItems.water || 0) > 0;
-  const foodOut  = newFood  === 0;
-  const waterOut = newWater === 0;
+  let newMorale = newCrew.morale;
   const wagesCrisis = state.gold < wages;
-  const anyProvisionCrisis = foodOut || waterOut || wagesCrisis;
-
-  if (anyProvisionCrisis) {
+  if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
     newMorale = Math.max(0, newMorale - 1);
   }
-  if (foodJustRanOut)  newLog.push("⚠ The food stores are empty. The crew grows hungry.");
-  if (waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
-// ── Smuggle mission patrol risk ───────────────────────────────
-// Single high-probability check per voyage, routes through navy_patrol event
-if (state.activeMission?.type === "smuggle" && !state.activeMission.encounterOccurred) {
-  const interceptChance = state.activeMission.interceptChance || 0.70;
-  if (Math.random() < interceptChance) {
-    const navyPatrol = window.D.RANDOM_EVENTS?.find(e => e.id === "navy_patrol");
-    if (navyPatrol) {
-      return {
-        ...state,
-        wind: newWind,
-        day: state.day + 1,
-        sailingDaysLeft: newDays,
-        gold: newGold,
-        reputation: newRep,
-        crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-        hold: { ...state.hold, items: newHoldItems },
-        activeMission: { ...state.activeMission, encounterOccurred: true },
-        activeEvent: { ...navyPatrol },
-        screen: "event",
-        log: [...newLog, "A patrol vessel approaches, flying inspection colours."]
-      };
-    }
-  }
-}
+  const newLog = [...state.log];
+  if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
+  if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
-  // ── Random event (skip on final day) ──
-  if (newDays >= 1 && Math.random() < 0.1) {
-    const event = L.triggerRandomEvent(state);
-    if (event) {
-      return {
-        ...state,
-        wind: newWind,
-        screen: "event",
-        day: state.day + 1,
-        sailingDaysLeft: newDays,
-        gold: newGold,
-        reputation: newRep,
-        crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-        hold: { ...state.hold, items: newHoldItems },
-        activeEvent: event,
-        log: [...newLog, `Day ${state.day + 1}: ${event.title}`]
-      };
-    }
-  }
+  // Smuggle patrol
+  const smuggleResult = maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+  if (smuggleResult) return smuggleResult;
 
-// --- Random patrol check (new) ---
-// Only if not arrived, no active event/encounter, and not the final day (arrived).
-// --- Random patrol check (via InterceptScreen) ---
-if (state.sailingDaysLeft > 0 && !state.activeEvent && !state.encounterContext) {
-  if (L.maybeRandomPatrol(state)) {
-    const port = D.PORTS[state.currentPort];
-    const faction = port.faction;
-    const enemy = G.generateEnemy("low", state.fame, faction);
-    const context = L.buildEncounterContext(state, "navy_patrol", enemy);
-    return {
-      ...state,
-      encounterContext: context,
-      screen: "intercept",
-      log: ["A navy patrol hails you and demands to inspect your cargo.", ...state.log]
-    };
-  }
-}  
+  // Random event
+  const eventResult = maybeRandomEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+  if (eventResult) return eventResult;
 
+  // Random patrol
+  const patrolResult = maybeRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+  if (patrolResult) return patrolResult;
 
-   // ── Hidden port auto‑discovery check ─────────────────────────
-  let autoDiscovered = [...(state.discoveredPorts || [])];
-  let autoDiscoveryLog = [];
+  // Hidden port discovery
+  const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
+  if (discoveryLog.length) newLog.push(...discoveryLog);
 
-  Object.entries(PORTS).forEach(([key, port]) => {
-    if (!port.hidden) return;
-    if (autoDiscovered.includes(key)) return;
-
-    const conditions = port.unlockCondition?.conditions || [];
-    if (port.unlockCondition?.type === "item") return;   // item conditions handled in RESOLVE_EVENT
-
-    const operator = port.unlockCondition?.type || "any";
-    const results = conditions.map(c => {
-      if (c.type === "fame")       return state.fame >= c.value;
-      if (c.type === "infamy")     return (state.infamy ?? 0) >= c.value;
-      if (c.type === "reputation") {
-        const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === c.faction);
-        if (factionPorts.length === 0) return false;
-        const avgRep = factionPorts.reduce((sum, k) => sum + (state.reputation[k] ?? 50), 0) / factionPorts.length;
-        return avgRep >= c.value;
-      }
-      return false;
-    });
-
-    const unlocked = operator === "all"
-      ? results.every(Boolean)
-      : results.some(Boolean);
-
-    if (unlocked) {
-      autoDiscovered.push(key);
-      autoDiscoveryLog.push(`⚓ New port discovered: ${port.name}. Mark it on your charts.`);
-    }
-  });
-
-  if (autoDiscoveryLog.length > 0) {
-    newLog.push(...autoDiscoveryLog);
-  }
-
-  // ── Normal sailing day ──
+  // Normal sailing day
   return {
     ...state,
     wind: newWind,
@@ -400,15 +450,12 @@ if (state.sailingDaysLeft > 0 && !state.activeEvent && !state.encounterContext) 
     sailingDaysLeft: newDays,
     gold: newGold,
     reputation: newRep,
-    crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-    hold: { ...state.hold, items: newHoldItems },
-    discoveredPorts: autoDiscovered,
+    crew: newCrew,
+    hold: { ...state.hold, items: prov.items },
+    discoveredPorts,
+    log: newLog,
   };
 }
-
-
-
-
 
       //---- PORT DISCOVERY EVENT -------------------
 
@@ -645,12 +692,19 @@ case A.CONFIRM_TRADE: {
   const { buys, sells } = action;
   if (!state.portMarket) return state;
 
+  // Holistic validation (exact same rules as before)
+  const validation = validateTrade(state, buys, sells);
+  if (!validation.valid) {
+    return { ...state, log: [...state.log, validation.reason] };
+  }
+
+  // Execute trade
   const items = { ...(state.hold?.items || {}) };
   let goldDelta = 0;
   let infamyDelta = 0;
   const logLines = [];
 
-  // 1. Process sells (frees hold space)
+  // Sells
   Object.entries(sells || {}).forEach(([good, qty]) => {
     if (qty <= 0) return;
     const portGood = state.portMarket.goods[good];
@@ -663,33 +717,12 @@ case A.CONFIRM_TRADE: {
     logLines.push(`Sold ${actualQty} ${window.D.RESOURCES[good]?.unit || good} of ${window.D.RESOURCES[good]?.name || good} for ${revenue}g.`);
   });
 
-  // 2. Validate buys holistically
-  const usedAfterSells = L.getHoldUsed(items);
-  let pendingBuysGold = 0;
-  let pendingBuysSpace = 0;
+  // Buys
   const buyEntries = Object.entries(buys || {}).filter(([_, qty]) => qty > 0);
-
   for (const [good, qty] of buyEntries) {
     const portGood = state.portMarket.goods[good];
     if (!portGood) { logLines.push(`${good} is not available at this port.`); continue; }
     if (qty > portGood.available) { logLines.push(`Not enough ${good} available.`); continue; }
-    pendingBuysGold += qty * portGood.buyFromPort;
-    pendingBuysSpace += qty;
-  }
-
-  // Check gold
-  if (state.gold + goldDelta - pendingBuysGold < 0) {
-    return { ...state, log: [...state.log, "Trade cancelled — insufficient gold."] };
-  }
-  // Check space
-  if (usedAfterSells + pendingBuysSpace > state.hold.capacity) {
-    return { ...state, log: [...state.log, "Trade cancelled — not enough hold space."] };
-  }
-
-  // 3. Commit buys
-  for (const [good, qty] of buyEntries) {
-    const portGood = state.portMarket.goods[good];
-    if (!portGood) continue;
     const cost = qty * portGood.buyFromPort;
     items[good] = (items[good] || 0) + qty;
     goldDelta -= cost;

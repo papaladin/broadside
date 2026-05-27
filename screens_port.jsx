@@ -499,7 +499,7 @@ function renderShipStats(shipType, compareType) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</div>
-              <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameLabel(state.fame)}</div>
+              <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameInfo(state.fame).label}</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>☠ {state.infamy ?? 0}</div>
