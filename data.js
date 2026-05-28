@@ -542,6 +542,49 @@ const MISSION_ENEMY_RANGES = {
   crew:    { 0:[8,18],   1:[15,35],  2:[25,55],  3:[40,80],   4:[60,110]  },
 };
 
+// Plunder balance tuning
+const PLUNDER_TARGET = {
+  0: { low: 27,    medium: 34,    high: 41    },
+  1: { low: 285,   medium: 975,   high: 1800  },
+  2: { low: 1350,  medium: 2550,  high: 4200  },
+  3: { low: 3150,  medium: 6750,  high: 12000 },
+  4: { low: 6030,  medium: 11250, high: 19500 },
+};
+
+const PLUNDER_GOLD_RATIO = 0.20; // 20% gold, 80% cargo value
+
+const FACTION_PLUNDER_GOODS = {
+  spanish: [
+    { good: "silver", weight: 60 },
+    { good: "cocoa",  weight: 30 },
+    { good: "spices", weight: 10 },
+  ],
+  pirate: [
+    { good: "rum",     weight: 50 },
+    { good: "weapons", weight: 30 },
+    { good: "tobacco", weight: 20 },
+    { good: "slaves",  weight: 10 },
+  ],
+  english: [
+    { good: "cloth",   weight: 50 },
+    { good: "weapons", weight: 30 },
+    { good: "sugar",   weight: 20 },
+  ],
+  dutch: [
+    { good: "spices", weight: 40 },
+    { good: "silk",   weight: 30 },
+    { good: "coffee", weight: 20 },
+    { good: "cocoa",  weight: 10 },
+  ],
+  french: [
+    { good: "sugar",  weight: 40 },
+    { good: "cocoa",  weight: 30 },
+    { good: "rum",    weight: 20 },
+    { good: "coffee", weight: 10 },
+  ],
+};
+
+
 const MISSION_REP_IMPACTS = {
   escort:  { low: 2, medium: 3, high: 4 },
   patrol:  { low: 2, medium: 3, high: 4 },
@@ -1120,6 +1163,9 @@ const ENEMY_SHIP_NAMES = {
     GOODS_AVAILABILITY,
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
+    PLUNDER_TARGET,
+PLUNDER_GOLD_RATIO,
+FACTION_PLUNDER_GOODS,
     MISSION_REP_IMPACTS,
 TRADE_MISSION_PROFIT_MARGINS,
 SMUGGLE_PROFIT_MARGINS,

@@ -142,6 +142,60 @@ window.G = (() => {
     return { portKey, goods };
   };
 
+  // -------- PLUNDER /CARGO GENERATOR ----------------------
+
+
+  const generateEnemyCargo = (state, enemy, risk = "medium") => {
+  const tier = window.L.getFameInfo(state.fame ?? 0).tier;
+  const target = window.D.PLUNDER_TARGET[tier]?.[risk];
+  if (!target) return { gold: 0, cargo: {} }; // assault or invalid
+
+  const goldRatio = window.D.PLUNDER_GOLD_RATIO || 0.20;
+  const gold = Math.round(target * goldRatio);
+  const cargoValueTarget = target - gold;
+
+  // ── Faction goods pool ──────────────────────────────────────
+  const factionPool = window.D.FACTION_PLUNDER_GOODS[enemy.faction]
+    || window.D.FACTION_PLUNDER_GOODS.english;
+  const goodsList = factionPool.map(p => p.good);
+  const weights   = factionPool.map(p => p.weight);
+
+  // Pick 2–4 distinct goods
+  const numGoods = Math.min(2 + Math.floor(Math.random() * 3), goodsList.length);
+  const chosenGoods = [];
+  const tempList = [...goodsList];
+  const tempWeights = [...weights];
+  for (let i = 0; i < numGoods; i++) {
+    const idx = pickWeighted(tempList, tempWeights);
+    chosenGoods.push(idx);
+    const removeIdx = tempList.indexOf(idx);
+    tempList.splice(removeIdx, 1);
+    tempWeights.splice(removeIdx, 1);
+  }
+
+  // Distribute cargo value proportionally among chosen goods
+  const cargo = {};
+  const fractions = chosenGoods.map(() => Math.random() + 0.5);
+  const totalFrac = fractions.reduce((a, b) => a + b, 0);
+  let allocatedValue = 0;
+  chosenGoods.forEach((good, i) => {
+    const isLast = i === chosenGoods.length - 1;
+    const goodBasePrice = window.D.RESOURCES[good]?.basePrice || 100;
+    const valueShare = isLast
+      ? cargoValueTarget - allocatedValue
+      : Math.round(cargoValueTarget * (fractions[i] / totalFrac));
+    const qty = Math.max(1, Math.round(valueShare / goodBasePrice));
+    cargo[good] = (cargo[good] || 0) + qty;
+    allocatedValue += qty * goodBasePrice;
+  });
+
+  // Small flavour food/water
+  const crew = enemy.crew || 20;
+  cargo.food = (cargo.food || 0) + Math.ceil(crew * 0.1);
+  cargo.water = (cargo.water || 0) + Math.ceil(crew * 0.1);
+
+  return { gold, cargo };
+};
 
 
 
@@ -529,6 +583,7 @@ window.G = (() => {
     // crew (migrated)
     generateCrewMember,
     generateRoster,
+    generateEnemyCargo
     // missions
     generateMissions,
     generateEnemy,
