@@ -704,6 +704,10 @@ case A.CONFIRM_TRADE: {
   let infamyDelta = 0;
   const logLines = [];
 
+ // Mutable copy of port market goods — we'll update stock levels
+  const marketGoods = { ...state.portMarket.goods };
+
+
   // Sells
   Object.entries(sells || {}).forEach(([good, qty]) => {
     if (qty <= 0) return;
@@ -714,6 +718,7 @@ case A.CONFIRM_TRADE: {
     const revenue = actualQty * portGood.sellToPort;
     items[good] = (items[good] || 0) - actualQty;
     goldDelta += revenue;
+    if (marketGoods[good]) marketGoods[good] = { ...marketGoods[good], available: (marketGoods[good].available || 0) + actualQty };
     logLines.push(`Sold ${actualQty} ${window.D.RESOURCES[good]?.unit || good} of ${window.D.RESOURCES[good]?.name || good} for ${revenue}g.`);
   });
 
@@ -726,6 +731,7 @@ case A.CONFIRM_TRADE: {
     const cost = qty * portGood.buyFromPort;
     items[good] = (items[good] || 0) + qty;
     goldDelta -= cost;
+    marketGoods[good] = { ...portGood, available: portGood.available - qty };
     const res = window.D.RESOURCES[good];
     if (res?.infamyOnBuy) {
       infamyDelta += res.infamyOnBuy;
@@ -738,6 +744,7 @@ case A.CONFIRM_TRADE: {
     ...state,
     gold: state.gold + goldDelta,
     hold: { ...state.hold, items },
+    portMarket: { ...state.portMarket, goods: marketGoods },
     infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
     log: [...state.log, ...logLines],
   };

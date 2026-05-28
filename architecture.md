@@ -170,15 +170,6 @@ broadside/
 
 ---
 
-
-### generators.js — `window.G`
-
-Created at the P1.6 boundary. Contains all `Math.random`‑using content generators:
-crew creation, mission generation, enemy building, and supporting helpers.
-Reads `window.D` and `window.L`. Exposes `window.G`.
-
----
-
 ## 4. Dependency Graph
 
 ### Current
@@ -190,7 +181,6 @@ index.html
   ├── generators.js        (window.G)  ← reads D, L
   ├── engine.js            (window.E)  ← reads D, L, G
   ├── ui.jsx               (window.UI) ← no game dependencies
-  ├── screens_shared.jsx   (window.S)  ← reads D, UI
   ├── screens_port.jsx     (window.S)  ← reads D, L, G, E, UI, S (extends)
   ├── screens_voyage.jsx   (window.S)  ← reads D, L, G, E, UI, S (extends)
   └── App.jsx                          ← reads D, L, G, E, UI, S
@@ -351,7 +341,6 @@ No ES module imports exist. Files communicate through `window` globals.
 | Global | File | Contents |
 |---|---|---|
 | `window.D` | `data.js` | Game constants |
-| `window.C` | `data_content.js` | Content pools (after split) |
 | `window.L` | `logic.js` | Pure functions |
 | `window.G` | `generators.js` | Generation functions |
 | `window.E` | `engine.js` | `{ A, initialState, reducer }` |
@@ -376,7 +365,7 @@ This makes dependencies explicit and text-searchable.
 
 ## 7. State Shape Reference
 
-State Shape, Battle State Shape and Encounter Context State Shape are all fully described in specs_engine.jsx.
+State Shape, Battle State Shape and Encounter Context State Shape are all fully described in specs_engine.md.
 
 ---
 
@@ -777,7 +766,7 @@ Read this section before making any changes to the codebase.
 - Mutating state directly in the reducer instead of spreading
 - Using a localStorage key other than `"piratesSave"`
 - Reading `SHIPS[state.ship.type].someField` directly instead of calling
-  `getShipStats(state)` — equipment effects are ignored
+  `getShipStats(state)` — upgrade effects are ignored
 - Using `crew.current` instead of `crew.roster.length` after the named-crew migration
 - Forgetting to export a new logic function from the IIFE's `return` statement
 - Using `rep < 10` instead of `L.getRepPerk(rep).servicesBlocked` for At War checks
@@ -790,12 +779,10 @@ Read this section before making any changes to the codebase.
 ### Always do
 
 - Use `A.ACTION_NAME`, never string literals in dispatch
-- Call `addLog(state, entry)` for any action appearing in the captain's log
 - Spread every nested object modified: `crew: { ...state.crew, morale: x }`
-- Call `getShipStats(state)` for any stat equipment could affect
-- Check `state.ship.equipment.includes(key)` before installing equipment
-- Update Section 7 (state shape) when adding new state fields
-- Update Section 8 (action reference) when adding new actions
+- Call `getShipStats(state)` for any stat upgrades could affect
+- Check `state.ship.upgrades.includes(key)` before installing upgrades
+- Update the state shape section (Section 7) when adding new state fields
 - Write tests for new logic functions and reducer cases in the same session
 
 ### File size limit

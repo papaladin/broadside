@@ -16,7 +16,7 @@ jobs:
 
       - name: Clone wiki repo
         run: |
-          git clone https://github.com/papaladin/broadside.wiki.git wiki
+          git clone https://x-access-token:${{ secrets.WIKI_PAT }}@github.com/papaladin/broadside.wiki.git wiki
           cd wiki
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
@@ -43,4 +43,4 @@ jobs:
           cd wiki
           git add .
           git commit -m "Sync docs from repo (${{ github.sha }})" || true
-          git push
+          git push origin main
