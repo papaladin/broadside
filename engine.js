@@ -31,6 +31,7 @@ window.E = (() => {
     INTERCEPT_SURRENDER: "INTERCEPT_SURRENDER",
     BATTLE_ACTION: "BATTLE_ACTION",
     DISMISS_BATTLE: "DISMISS_BATTLE",
+    TAKE_PLUNDER: "TAKE_PLUNDER",
     RESOLVE_EVENT: "RESOLVE_EVENT",
     SET_WIND: "SET_WIND",
     CONFIRM_TRADE: "CONFIRM_TRADE",
@@ -473,6 +474,13 @@ const validateTrade = (state, buys, sells) => {
 
       // --- ENTER PORT (with assault / hostile priority) ---
       case A.ENTER_PORT: {
+        if (!state.destination) {
+          return {
+            ...state,
+            screen: "port",
+            log: [...state.log, "You return to port."]
+          };
+        }
         const port = PORTS[state.destination];
         const portFaction = port.faction;
         const playerRep = state.reputation[state.destination] ?? 50;
@@ -916,15 +924,34 @@ case A.PATROL_INSPECT: {
         const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
         if (outcome.instantVictory) {
-          const newGold = state.gold + (outcome.goldReward || 0);
-          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
-          const initialCrew = state.battleState.initialCrewCount ?? state.crew.roster.length;
-          const lostCrewNames = state.battleState.lostCrewNames ?? [];
-          const totalLost = initialCrew - state.crew.roster.length;
-          let capMsg = "Victory! Boarding successful.";
-          if (totalLost > 0) { const some = lostCrewNames.slice(0,3).join(", "); capMsg += ` Lost ${totalLost} crew, including ${some}.`; }
-          return { ...state, gold: newGold, reputation: newRep, ship: { ...state.ship, hull: state.battleState.playerHull }, crew: { ...state.crew, morale: newMorale }, battleState: { ...state.battleState, phase: "victory", goldReward: outcome.goldReward, log: [...newLog, `Player: ${action.action}. Instant victory! +${outcome.goldReward}g`] }, log: [...state.log, capMsg] };
-        }
+  const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+  const initialCrew = state.battleState.initialCrewCount ?? state.crew.roster.length;
+  const lostCrewNames = state.battleState.lostCrewNames ?? [];
+  const totalLost = initialCrew - state.crew.roster.length;
+  let capMsg = "Victory! Boarding successful.";
+  if (totalLost > 0) {
+    const some = lostCrewNames.slice(0, 3).join(", ");
+    capMsg += ` Lost ${totalLost} crew, including ${some}.`;
+  }
+
+  const newBS = {
+    ...state.battleState,
+    phase: "victory",
+    goldReward: outcome.goldReward || 0,
+    enemyCargo: outcome.enemyCargo || {},
+    canPlunder: true,
+    log: [...newLog, `Player: ${action.action}. Boarding successful!`]
+  };
+
+  return {
+    ...state,
+    reputation: newRep,
+    ship: { ...state.ship, hull: state.battleState.playerHull },
+    crew: { ...state.crew, morale: newMorale },
+    battleState: newBS,
+    log: [...state.log, capMsg]
+  };
+}
 
         const newPlayerCrewCount = Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss);
         const lostCount = state.crew.roster.length - newPlayerCrewCount;
@@ -1051,6 +1078,26 @@ const patrolInfamy = isNavyFight ? 2 : 0;
     };
   }
 
+  // Plunder redirect
+  if (battleState.canPlunder && battleState.phase === "victory") {
+    return {
+      ...state,
+      battleState: { ...state.battleState, phase: "victory" }, // keep plunder data
+      screen: "plunder",
+    };
+  }
+
+  // Fleeing from a combat mission = mission failed
+if (battleState.phase === "fled" && battleState.encounterType === "mission_combat") {
+  return {
+    ...state,
+    battleState: null,
+    activeMission: null,
+    screen: "port",
+    log: [...state.log, "You fled the battle. The mission is a failure."],
+  };
+}
+
   if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
     return {
       ...state,
@@ -1068,6 +1115,27 @@ const patrolInfamy = isNavyFight ? 2 : 0;
     screen: battleState.returnScreen || "port",
     infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
     log: [...state.log, ...patrolLog],
+  };
+}
+
+case A.TAKE_PLUNDER: {
+  const bs = state.battleState;
+  if (!bs || !bs.canPlunder) return state;
+
+  const goldReward = bs.goldReward || 0;
+  const finalHoldItems = action.holdItems;   // the new hold.items after plunder
+
+  const newGold = state.gold + goldReward;
+  const logLines = [`Plundered the ${bs.enemy.name}. +${goldReward}g.`];
+
+  return {
+    ...state,
+    gold: newGold,
+    hold: { ...state.hold, items: finalHoldItems },
+    battleState: null,
+    screen: bs.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
+      ? "sailing" : "port",
+    log: [...state.log, ...logLines],
   };
 }
 

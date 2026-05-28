@@ -376,9 +376,13 @@ const resolveCombatAction = (state, action) => {
     }
   }
 
-  // Gold reward: only for grapple victory
+    // Plunder reward (grapple victory)
   if (outcome.instantVictory) {
-    outcome.goldReward = Math.floor((enemy.hull + enemy.cannons * 10 + enemy.crew * 5) * 0.3);
+    const risk = state.activeMission?.risk || "medium"; // or state.encounterType
+    const plunder = G.generateEnemyCargo(state, enemy, risk);
+    outcome.goldReward = plunder.gold;          // full gold (sink value)
+    outcome.enemyCargo = plunder.cargo;
+    outcome.canPlunder = true;
   }
 
   // --- NPC Action (damage only, no morale) ---

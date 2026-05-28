@@ -295,27 +295,148 @@ const InterceptScreen = ({ state, dispatch }) => {
           {[...bs.log].reverse().map((e, i) => <div key={i} style={{ color: i === 0 ? T.text : T.textDim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>{e}</div>)}
         </div>
         {!done ? (
-          <div>
-            <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
-            <div style={{ display: "grid",  gridTemplateColumns: window.innerWidth < 480? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-              {[{ a: "broadside", label: "🔥 Broadside", desc: "Full cannon volley. Reliable damage." },{ a: "precision", label: "🎯 Precision", desc: "Aimed shot. Miss or massive damage." },{ a: "grapple", label: "⚔ Grapple", desc: "Board them. Requires crew advantage." },{ a: "evade", label: "💨 Evade", desc: "Flee if faster. Reduced incoming fire." }].map(({ a, label, desc }) => (
-                <div key={a} onClick={() => dispatch({ type: A.BATTLE_ACTION, action: a })} style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }} onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
-                  <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 2 }}>{label}</div>
-                  <div style={{ color: T.textDim, fontSize: 10 }}>{desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ color: bs.phase === "victory" ? T.greenBr : bs.phase === "fled" ? T.gold : T.redBr, fontSize: 20, fontWeight: "bold", marginBottom: 8, letterSpacing: "0.08em" }}>{bs.phase === "victory" ? "⚓ VICTORY!" : bs.phase === "fled" ? "🌊 ESCAPED" : "💀 DEFEATED"}</div>
-            {bs.phase === "victory" && <div style={{ color: T.gold, fontSize: 13, marginBottom: 14 }}>{bs.goldReward > 0 && <span style={{ color: T.gold, fontSize: 13, marginBottom: 14 }}>+{bs.goldReward} gold</span>}</div>}
-            <Btn v="gold" onClick={() => dispatch({ type: A.DISMISS_BATTLE })}>{bs.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0 ? "Continue Voyage" : bs.returnScreen === "arrive" && state.destination ? "Enter Port" : "Return to Port"}</Btn>
-          </div>
+  <div>
+    <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
+    <div style={{ display: "grid",  gridTemplateColumns: window.innerWidth < 480? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+      {[{ a: "broadside", label: "🔥 Broadside", desc: "Full cannon volley. Reliable damage." },{ a: "precision", label: "🎯 Precision", desc: "Aimed shot. Miss or massive damage." },{ a: "grapple", label: "⚔ Grapple", desc: "Board them. Requires crew advantage." },{ a: "evade", label: "💨 Evade", desc: "Flee if faster. Reduced incoming fire." }].map(({ a, label, desc }) => (
+        <div key={a} onClick={() => dispatch({ type: A.BATTLE_ACTION, action: a })} style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }} onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+          <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 2 }}>{label}</div>
+          <div style={{ color: T.textDim, fontSize: 10 }}>{desc}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  <div style={{ textAlign: "center" }}>
+    <div style={{ color: bs.phase === "victory" ? T.greenBr : bs.phase === "fled" ? T.gold : T.redBr, fontSize: 20, fontWeight: "bold", marginBottom: 8, letterSpacing: "0.08em" }}>
+      {bs.phase === "victory" ? "⚓ VICTORY!" : bs.phase === "fled" ? "🌊 ESCAPED" : "💀 DEFEATED"}
+    </div>
+    {bs.phase === "victory" && bs.canPlunder ? (
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
+        <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "plunder" })}>
+          ⚓ Plunder the Ship
+        </Btn>
+        <Btn onClick={() => dispatch({ type: A.DISMISS_BATTLE })}>
+          ⛵ Sail Away
+        </Btn>
+      </div>
+    ) : (
+      <>
+        {bs.phase === "victory" && bs.goldReward > 0 && (
+          <div style={{ color: T.gold, fontSize: 13, marginBottom: 14 }}>+{bs.goldReward} gold</div>
         )}
+        <Btn v="gold" onClick={() => dispatch({ type: A.DISMISS_BATTLE })}>
+          {bs.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
+            ? "Continue Voyage"
+            : bs.returnScreen === "arrive" && state.destination
+              ? "Enter Port"
+              : "Return to Port"}
+        </Btn>
+      </>
+    )}
+  </div>
+)}
       </div>
     );
   }
 
-  Object.assign(window.S, { MapScreen, SailingScreen, EventScreen, InterceptScreen, BattleScreen });
+  // ── PLUNDER SCREEN ──────────────────────────────────────────────
+function PlunderScreen({ state, dispatch }) {
+  const bs = state.battleState;
+  if (!bs || !bs.canPlunder) return null;
+
+  const enemyCargo = bs.enemyCargo || {};
+  const goldReward = bs.goldReward || 0;
+  const holdCapacity = state.hold?.capacity || 200;
+
+  // Local state: player's hold items (starting from current hold)
+  const [playerItems, setPlayerItems] = React.useState({ ...(state.hold?.items || {}) });
+  // Local state: enemy cargo (what's still available to take)
+  const [enemyItems, setEnemyItems] = React.useState({ ...enemyCargo });
+
+  const used = Object.values(playerItems).reduce((s, q) => s + q, 0);
+  const free = Math.max(0, holdCapacity - used);
+
+  const moveToPlayer = (good) => {
+    const available = enemyItems[good] || 0;
+    if (available <= 0 || free < 1) return;
+    setEnemyItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
+    setPlayerItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
+  };
+
+  const moveToEnemy = (good) => {
+    const available = playerItems[good] || 0;
+    if (available <= 0) return;
+    setPlayerItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
+    setEnemyItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
+  };
+
+  const handleConfirm = () => {
+    dispatch({
+      type: window.E.A.TAKE_PLUNDER,
+      holdItems: playerItems,
+    });
+  };
+
+  return (
+    <div style={{ padding: 20, maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ color: T.gold, fontSize: 18, fontWeight: "bold", textAlign: "center" }}>
+        ⚓ Plunder the <span style={{ color: T.redBr }}>{bs.enemy.name}</span>
+      </div>
+
+      {/* Enemy cargo */}
+      <div style={panelStyle()}>
+        <SectionTitle>ENEMY CARGO</SectionTitle>
+        {Object.keys(enemyItems).length === 0 ? (
+          <div style={{ color: T.textDim, fontSize: 11 }}>No cargo remaining.</div>
+        ) : (
+          Object.entries(enemyItems).map(([good, qty]) => (
+            <div key={good} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: T.text, fontSize: 12 }}>
+                {window.D.RESOURCES[good]?.name || good}
+                {window.D.RESOURCES[good]?.illegal && <span style={{ color: T.redBr }}> ⚠</span>}
+                <span style={{ color: T.textDim, marginLeft: 6 }}>×{qty}</span>
+              </span>
+              <Btn sm onClick={() => moveToPlayer(good)} disabled={free < 1}>+ Take</Btn>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Player hold */}
+      <div style={panelStyle()}>
+        <SectionTitle>YOUR HOLD ({used}/{holdCapacity})</SectionTitle>
+        <Bar value={used} max={holdCapacity} color={used > holdCapacity * 0.8 ? T.redBr : T.greenBr} h={10} />
+        <div style={{ marginTop: 8 }}>
+          {Object.keys(playerItems).length === 0 ? (
+            <div style={{ color: T.textDim, fontSize: 11 }}>Your hold is empty.</div>
+          ) : (
+            Object.entries(playerItems).map(([good, qty]) => (
+              <div key={good} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ color: T.text, fontSize: 12 }}>
+                  {window.D.RESOURCES[good]?.name || good}
+                  <span style={{ color: T.textDim }}> ×{qty}</span>
+                </span>
+                <Btn sm v="ghost" onClick={() => moveToEnemy(good)}>Jettison</Btn>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Gold and confirm */}
+      <div style={panelStyle({ textAlign: "center" })}>
+        <div style={{ color: T.gold, fontSize: 14, marginBottom: 10 }}>Plunder gold: +{goldReward}g</div>
+        <Btn v="gold" onClick={handleConfirm} style={{ fontSize: 14, padding: "8px 20px" }}>
+          Confirm Plunder
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+Object.assign(window.S, { MapScreen, SailingScreen, EventScreen, InterceptScreen, BattleScreen, PlunderScreen });
 })();

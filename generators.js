@@ -583,7 +583,7 @@ window.G = (() => {
     // crew (migrated)
     generateCrewMember,
     generateRoster,
-    generateEnemyCargo
+    generateEnemyCargo,
     // missions
     generateMissions,
     generateEnemy,
