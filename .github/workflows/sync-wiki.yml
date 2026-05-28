@@ -43,4 +43,4 @@ jobs:
           cd wiki
           git add .
           git commit -m "Sync docs from repo (${{ github.sha }})" || true
-          git push origin main
+          git push origin HEAD

@@ -310,7 +310,7 @@ window.G = (() => {
     const targetPortName = window.D.PORTS[targetPort]?.name || "unknown port";
     const factionAdj = pickRandom(window.D.MISSION_NAME_PARTS.factionAdj[faction] || ["Foreign"]);
     const fame = risk === "high" ? 2 : 1;
-    const repImpact = { [faction]: window.D.MISSION_REP_IMPACTS.escort?.[risk] ?? 2 };
+    const repImpact = { [faction]: window.D.MISSION_REP_IMPACTS.trade?.[risk] ?? 2 };
 
     return {
       type: "trade",

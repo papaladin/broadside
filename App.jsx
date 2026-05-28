@@ -242,7 +242,7 @@ const DebugPanel = ({ state, dispatch }) => {
 
       <div style={{ color: T.textDim, marginBottom: 4 }}>Gold</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[100, 500, 1000, 5000].map(n => (
+        {[100, 1000, 10000, 10000, 1000000].map(n => (
           <button key={n} onClick={() => dispatch({ type: A.DEBUG_ADD_GOLD, amount: n })}
             style={{ ...btnStyle }}>+{n}</button>
         ))}

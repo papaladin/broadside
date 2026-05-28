@@ -262,59 +262,59 @@ const SHIPS = {
     desc: "A tiny boat. Barely seaworthy, but cheap."
   },
 
-  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 600, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1500, requiredFame: 0, maxDays: 8, holdCapacity: 80,
     upgradeable: ["reinforced_hull"],
     desc: "Small, fast, and agile. Excellent for scouting and smuggling."
   },
 
   // Tier 1
-  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 1000, requiredFame: 10, maxDays: 10, holdCapacity: 200,
+  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 30000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
     upgradeable: ["reinforced_hull", "extra_cannons"],
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
 
 
   // Tier 2
-  schooner: { name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 1800, requiredFame: 50, maxDays: 12, holdCapacity: 240,
+  schooner: { name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 70000, requiredFame: 50, maxDays: 12, holdCapacity: 240,
     upgradeable: ["reinforced_hull", "figurehead"],
     desc: "Favored by smugglers and pirates for its speed and shallow draft."
   },
 
-  merchantman: { name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 1500, requiredFame: 50, maxDays: 14, holdCapacity: 600,
+  merchantman: { name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 60000, requiredFame: 50, maxDays: 14, holdCapacity: 600,
     upgradeable: ["reinforced_hull"],
     desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
   },
 
-  brigantine: { name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 2500, requiredFame: 50, maxDays: 14, holdCapacity: 448,
+  brigantine: { name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 150000, requiredFame: 50, maxDays: 14, holdCapacity: 448,
     upgradeable: ["reinforced_hull", "extra_cannons", "figurehead"],
     desc: "Balanced ship with good speed and firepower."
   },
 
 
   // Tier 3
-  corvette: { name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 3500, requiredFame: 100, maxDays: 16, holdCapacity: 500,
+  corvette: { name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 250000, requiredFame: 100, maxDays: 16, holdCapacity: 500,
     upgradeable: ["reinforced_hull", "extra_cannons", "copper_hull"],
     desc: "A swift naval warship designed to hunt pirates and escort convoys."
   },
 
-  frigate: { name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 4500, requiredFame: 100, maxDays: 18, holdCapacity: 720,
+  frigate: { name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 500000, requiredFame: 100, maxDays: 18, holdCapacity: 720,
     upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
     desc: "A powerful warship with heavy guns and solid endurance."
   },
 
-  fluyt: { name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 4200, requiredFame: 100, maxDays: 24, holdCapacity: 1100,
+  fluyt: { name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 200000, requiredFame: 100, maxDays: 24, holdCapacity: 1100,
     upgradeable: ["reinforced_hull", "expanded_hold"],
     desc: "A Dutch cargo vessel optimized for long-distance trade and massive profits."
   },
 
 
   // Tier 4
-  galleon: { name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 8000, requiredFame: 150, maxDays: 22, holdCapacity: 1320,
+  galleon: { name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 1000000, requiredFame: 150, maxDays: 22, holdCapacity: 1320,
     upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
     desc: "The king of the seas. Slow but nearly unstoppable in combat."
   },
 
-  ship_of_the_line: { name: "Ship of the Line", maxHull: 420, maxCrew: 280, cannons: 50, speed: 5, cost: 15000, requiredFame: 150, maxDays: 28, holdCapacity: 1600,
+  ship_of_the_line: { name: "Ship of the Line", maxHull: 420, maxCrew: 280, cannons: 50, speed: 5, cost: 2000000, requiredFame: 150, maxDays: 28, holdCapacity: 1600,
     upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
     desc: "A colossal naval fortress capable of dominating entire fleets."
   }
@@ -528,12 +528,12 @@ const GOODS_AVAILABILITY = {
 // ── Parametric Mission Generator Config ────────────────────────
 
 const MISSION_GOLD_RANGES = {
-  //          [low,      medium,    high,      assault  ]
-  0: { low: [150,300], medium: [300,550],  high: [550,900],  assault: [900,1400]  },
-  1: { low: [250,500], medium: [500,850],  high: [850,1400], assault: [1400,2200] },
-  2: { low: [400,750], medium: [750,1200], high: [1200,2000],assault: [2000,3200] },
-  3: { low: [650,1100],medium: [1100,1800],high: [1800,3000],assault: [3000,5000] },
-  4: { low: [1000,1600],medium:[1600,2600],high: [2600,4200],assault: [4200,7000] },
+  //          [low,        medium,      high,        assault  ]
+  0: { low: [650,950],   medium: [1800,2650],   high: [4200,6200],   assault: [6300,9500]   },
+  1: { low: [1950,2950], medium: [5500,8250],   high: [12800,19300], assault: [19500,29200]  },
+  2: { low: [5050,7600], medium: [14200,21300], high: [33100,49700], assault: [50200,75300]  },
+  3: { low: [12500,18800],medium:[35300,53000], high: [82300,123500],assault: [124700,187100]},
+  4: { low: [15200,22800],medium:[42800,64200], high: [99800,149700],assault: [151200,226800]},
 };
 
 const MISSION_ENEMY_RANGES = {
@@ -546,6 +546,7 @@ const MISSION_REP_IMPACTS = {
   escort:  { low: 2, medium: 3, high: 4 },
   patrol:  { low: 2, medium: 3, high: 4 },
   combat:  { low: 3, medium: 4, high: 5 },
+  trade:   { low: 2, medium: 3, high: 4 },
   smuggle: { any: 2 },
   assault: { any: 5 },
 };
