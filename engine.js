@@ -46,6 +46,8 @@ window.E = (() => {
     DEBUG_REPAIR:       "DEBUG_REPAIR",
     DISCOVER_PORT: "DISCOVER_PORT",
     PATROL_INSPECT: "PATROL_INSPECT",
+    ATTACK_PIRATE: "ATTACK_PIRATE",
+    ATTACK_MERCHANT: "ATTACK_MERCHANT",
   };
 
 //--------------------------------------------
@@ -211,7 +213,7 @@ const maybeSmugglePatrol = (state, newDays, newWind, newGold, newRep, newMorale,
 };
 
 const maybeRandomEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-  if (newDays < 1 || Math.random() >= 0.1) return null;
+  if (newDays < 1 || Math.random() >= 0.05) return null;
   const event = L.triggerRandomEvent(state);
   if (!event) return null;
   return {
@@ -229,7 +231,7 @@ const maybeRandomEvent = (state, newDays, newWind, newGold, newRep, newMorale, u
   };
 };
 
-const maybeRandomPatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+const checkRandomPatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
   if (newDays < 1 || state.activeEvent || state.encounterContext) return null;
   if (!L.maybeRandomPatrol(state)) return null;
   const port = D.PORTS[state.currentPort];
@@ -313,6 +315,13 @@ const validateTrade = (state, buys, sells) => {
   if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled — insufficient gold." };
   if (used > state.hold.capacity) return { valid: false, reason: "Trade cancelled — not enough hold space." };
   return { valid: true };
+};
+
+//--- other helpers ----------------------------
+
+const pickMerchantFaction = () => {
+  const factions = Object.keys(FACTIONS).filter(f => f !== "pirate");
+  return factions[Math.floor(Math.random() * factions.length)];
 };
 
 //---------------------------------------------------------------------------------
@@ -436,7 +445,7 @@ const validateTrade = (state, buys, sells) => {
   if (eventResult) return eventResult;
 
   // Random patrol
-  const patrolResult = maybeRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+  const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
   if (patrolResult) return patrolResult;
 
   // Hidden port discovery
@@ -1247,6 +1256,35 @@ case A.TAKE_PLUNDER: {
           return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
         }
       }
+
+      //-------merchant encounter ---------
+
+ case A.ATTACK_PIRATE: {
+  const pirateEnemy = G.generateEnemy("medium", state.fame, "pirate");
+  const encounterContext = L.buildEncounterContext(state, "distressed_merchant_help", pirateEnemy);
+  return {
+    ...state,
+    encounterContext,
+    screen: "intercept",
+    log: [...state.log, "You rush to the merchant's aid."]
+  };
+}
+
+case A.ATTACK_MERCHANT: {
+  const faction = pickMerchantFaction();
+  const currentTier = L.getFameInfo(state.fame).tier;
+  const lowerTier = Math.max(0, currentTier - 1);
+  const lowerFame = lowerTier === 0 ? 0 : lowerTier * 50;
+  const merchantEnemy = G.generateEnemy("low", lowerFame, faction);
+  merchantEnemy.name = "Merchant Vessel";
+  const encounterContext = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
+  return {
+    ...state,
+    encounterContext,
+    screen: "intercept",
+    log: [...state.log, "You turn on the merchant."]
+  };
+}
 
       // ── Debug actions (dev tooling only) ─────────────────────────────
       case A.DEBUG_ADD_GOLD:

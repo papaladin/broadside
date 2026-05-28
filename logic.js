@@ -267,9 +267,9 @@ const getUnreachableReason = (state, portKey) => {
   const maybeRandomPatrol = (state) => {
     const port = D.PORTS[state.currentPort];
     if (!port || port.faction === "pirate") return false; // no patrols leaving pirate ports
-    const baseChance = 0.10;
-    const infamyBonus = (state.infamy ?? 0) / 100;       // +1% per infamy point
-    const chance = Math.min(baseChance + infamyBonus, 0.30);
+    const baseChance = 0.01;
+    const infamyBonus = (state.infamy ?? 0) / 400;       // +1% per 4 infamy point
+    const chance = Math.min(baseChance + infamyBonus, 0.25);
     return Math.random() < chance;
   };
 
@@ -546,7 +546,7 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Flee ────────────────────────────────────────────────────
   const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                       "navy_patrol", "navy_patrol_combat"];
+                       "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
   const canFlee    = !noFleeTypes.includes(type);
   const fleeReason = canFlee ? null
     : type === "hostile_port_entry" ? "Already in range of the harbour guns"
@@ -556,7 +556,7 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Parley ──────────────────────────────────────────────────
   const noParleyTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                         "smuggling_caught", "navy_patrol", "navy_patrol_combat"];
+                         "smuggling_caught", "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
   const canParley    = !noParleyTypes.includes(type) && rep >= 30;
   const parleyReason = noParleyTypes.includes(type)
     ? "They are not here to negotiate"
@@ -564,7 +564,7 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Bribe ───────────────────────────────────────────────────
   const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                        "navy_patrol", "navy_patrol_combat"];
+                        "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
   const bribeBlocked       = noBribeTypes.includes(type);
   const canAffordBribe     = gold >= bribeCost;
   const bribeInfamyBlocked = !canBribe(state);
@@ -575,9 +575,31 @@ function buildEncounterContext(state, type, enemy) {
     : null;
 
   // ── Surrender ───────────────────────────────────────────────
-  const noSurrenderTypes = ["bounty_target", "mission_combat"];
+  const noSurrenderTypes = ["bounty_target", "mission_combat","distressed_merchant_help", "distressed_merchant_plunder"];
   const canSurrender    = !noSurrenderTypes.includes(type);
   const surrenderReason = canSurrender ? null : "Surrender means death here";
+
+  // ── Distressed Merchant encounters: Fight only ─────────────────
+  if (type === "distressed_merchant_help" || type === "distressed_merchant_plunder") {
+    return {
+      type,
+      encounterType: type,
+      enemy: { ...enemy, ship: enemyShip },
+      flavourText:
+        ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ??
+        `A ${enemy.name} moves to intercept.`,
+      options: [
+        {
+          id:         "fight",
+          label:      "Fight",
+          available:  true,
+          reason:     null,
+          action:     { type: "INTERCEPT_FIGHT" },
+          speedCheck: null,
+        },
+      ],
+    };
+  }
 
   // ── Is this a navy patrol encounter? ────────────────────────
   const isNavyPatrol = type === "navy_patrol" || type === "navy_patrol_combat";

@@ -584,6 +584,14 @@ const FACTION_PLUNDER_GOODS = {
   ],
 };
 
+const MERCHANT_RESCUE_GOLD = {
+  0: 100,
+  1: 300,
+  2: 800,
+  3: 2000,
+  4: 4000,
+};
+
 
 const MISSION_REP_IMPACTS = {
   escort:  { low: 2, medium: 3, high: 4 },
@@ -687,38 +695,36 @@ const ENEMY_SHIP_NAMES = {
 
     // Choice events
     {
-      id: "merchant_distress",
-      type: "choice",
-      title: "Merchant in Distress",
-      desc: "A merchant ship is under attack by pirates!",
-      choices: [
-        {
-          label: "Help the merchant",
-          outcome: {
-            log: "You fend off the pirates! The merchant rewards you.",
-            gold: 200,
-            repImpact: { spanish: +10 },
-            hullDamage: 5
-          }
-        },
-        {
-          label: "Ignore them",
-          outcome: {
-            log: "You sail past. The merchant curses your name.",
-            repImpact: { spanish: -10 }
-          }
-        },
-        {
-          label: "Join the pirates",
-          outcome: {
-            log: "You side with the pirates and plunder the merchant!",
-            gold: 400,
-            repImpact: { spanish: -20, pirate: +15 },
-            hullDamage: 10
-          }
-        }
-      ]
+  id: "distressed_merchant",
+  type: "choice",
+  title: "Merchant in Distress",
+  desc: "A merchant ship is under attack by pirates! They signal for help.",
+  condition: (state) => state.screen === "sailing",
+  choices: [
+    {
+      label: "Defend the Merchant (Attack Pirates)",
+      outcome: {
+        action: "ATTACK_PIRATE",
+        log: "You steer towards the pirates, ready to defend the merchant."
+      }
     },
+    {
+      label: "Plunder the Merchant",
+      outcome: {
+        action: "ATTACK_MERCHANT",
+        log: "You see an opportunity. The merchant is easy prey."
+      }
+    },
+    {
+      label: "Pass By",
+      outcome: {
+        log: "You leave them to their fate.",
+        moralePenalty: 2
+      }
+    }
+  ]
+},
+
     {
       id: "shipwreck",
       type: "choice",
@@ -840,46 +846,6 @@ const ENEMY_SHIP_NAMES = {
       condition: (state) => state.crew.morale < 40
     },
 
-// patrol event
-{
-  id:    "navy_patrol",
-  title: "Naval Patrol",
-  type:  "encounter",
-  desc:  "A patrol vessel flying colonial colours cuts across your heading. An officer hails you: 'Heave to for inspection.'",
-  condition: (state) =>
-    state.screen === "sailing" &&
-    ["english","spanish","french","dutch"].includes(
-      window.D.PORTS[state.destination]?.faction
-    ),
-  choices: [
-    {
-      label:   "Allow Inspection",
-      sublabel: "Let them board and check your manifest.",
-      outcome: {
-        action: "PATROL_INSPECT",
-        log:    "You order the crew to heave to. The patrol boat comes alongside.",
-      }
-    },
-    {
-      label:   "Refuse — Run Up the Black",
-      sublabel: "Deny them. This means a fight.",
-      outcome: {
-        log:   "You refuse the inspection. The patrol moves to engage.",
-        battle: {
-          enemy: {
-            name:    "Naval Patrol",
-            faction: "english",
-            hull:    100,
-            cannons: 12,
-            crew:    35,
-            gold:    300,
-          }
-        }
-      }
-    }
-  ]
-},
-
 
     //Map fragments
     {
@@ -916,9 +882,9 @@ const ENEMY_SHIP_NAMES = {
     !(state.mapFragments || []).includes("map_fragment_lasAves"),
   choices: [
     {
-      label: "Buy the chart (‑50g)",
+      label: "Buy the chart (‑5000g)",
       outcome: {
-        gold: -50,
+        gold: -5000,
         mapFragment: "map_fragment_lasAves",
         log: "The chart marks a treacherous shoal called Las Aves. The wrecker wasn't lying about the birds."
       }
@@ -1127,6 +1093,12 @@ const ENEMY_SHIP_NAMES = {
 
     cargo_inspection_refused: () =>
       `The patrol vessel moves to enforce compliance. You have seconds to decide.`,
+
+    distressed_merchant_help: (enemy, rep) =>
+    `Pirates are attacking a merchant! You move to defend them.`,
+
+    distressed_merchant_plunder: (enemy, rep) =>
+      `The merchant's crew looks at you with desperate hope. You raise the black flag instead.`,
 
     bounty_target: (enemy) =>
       `You've cornered ${enemy.name}. There is nowhere left to run.`,
