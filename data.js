@@ -268,7 +268,7 @@ const SHIPS = {
   },
 
   // Tier 1
-  sloop: { name: "Sloop", maxHull: 100, maxCrew: 50, cannons: 10, speed: 18, cost: 30000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
+  sloop: { name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 30000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
     upgradeable: ["reinforced_hull", "extra_cannons"],
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
@@ -529,11 +529,11 @@ const GOODS_AVAILABILITY = {
 
 const MISSION_GOLD_RANGES = {
   //          [low,        medium,      high,        assault  ]
-  0: { low: [650,950],   medium: [1800,2650],   high: [4200,6200],   assault: [6300,9500]   },
-  1: { low: [1950,2950], medium: [5500,8250],   high: [12800,19300], assault: [19500,29200]  },
-  2: { low: [5050,7600], medium: [14200,21300], high: [33100,49700], assault: [50200,75300]  },
-  3: { low: [12500,18800],medium:[35300,53000], high: [82300,123500],assault: [124700,187100]},
-  4: { low: [15200,22800],medium:[42800,64200], high: [99800,149700],assault: [151200,226800]},
+  0: { low: [80,100],   medium: [100,125],   high: [125,150],   assault: [150,200]   },
+  1: { low: [400,1500], medium: [1500,5000],   high: [5000,7000], assault: [7000,10000]  },
+  2: { low: [2000,7000], medium: [7000,10000], high: [10000,18000], assault: [18000,22000]  },
+  3: { low: [6000,15000],medium:[15000,30000], high: [30000,50000],assault: [50000,75000]},
+  4: { low: [15200,25000],medium:[25000,50000], high: [50000,80000],assault: [80000,100000]},
 };
 
 const MISSION_ENEMY_RANGES = {
