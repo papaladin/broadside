@@ -237,13 +237,13 @@ const DebugPanel = ({ state, dispatch }) => {
       position: "fixed", top: 40, right: 10, zIndex: 999,
       background: T.panel, border: `1px solid ${T.gold}`,
       padding: 12, borderRadius: 4, fontSize: 11,
-      width: 220, fontFamily: T.font,
+      width: 250, fontFamily: T.font,
     }}>
       <div style={{ color: T.gold, marginBottom: 8 }}>⚙ DEBUG PANEL</div>
 
       <div style={{ color: T.textDim, marginBottom: 4 }}>Gold</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[100, 1000, 10000, 10000, 1000000].map(n => (
+        {[1000, 10000, 10000, 1000000].map(n => (
           <button key={n} onClick={() => dispatch({ type: A.DEBUG_ADD_GOLD, amount: n })}
             style={{ ...btnStyle }}>+{n}</button>
         ))}
@@ -293,6 +293,33 @@ const DebugPanel = ({ state, dispatch }) => {
         style={{ ...btnStyle, width: "100%" }}>
         Full repair + provisions
       </button>
+
+      {/* Morale */}
+<div style={{ color: T.textDim, marginBottom: 4 }}>Morale</div>
+<div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+  {[10, 50, 80, 100].map(n => (
+    <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_MORALE, morale: n })}
+      style={{ ...btnStyle }}>😊{n}</button>
+  ))}
+</div>
+
+{/* Hidden ports */}
+<button onClick={() => dispatch({ type: A.DEBUG_UNLOCK_HIDDEN_PORTS })}
+  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
+  🗺 Unlock all hidden ports
+</button>
+
+{/* Max crew */}
+<button onClick={() => dispatch({ type: A.DEBUG_MAX_CREW })}
+  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
+  👥 Fill crew to max
+</button>
+
+{/* Complete mission */}
+<button onClick={() => dispatch({ type: A.DEBUG_COMPLETE_MISSION })}
+  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
+  ✅ Complete active mission
+</button>
     </div>
   );
 };

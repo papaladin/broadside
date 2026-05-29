@@ -37,6 +37,10 @@ window.E = (() => {
     CONFIRM_TRADE: "CONFIRM_TRADE",
     ENTER_MARKET:  "ENTER_MARKET",
     LEAVE_MARKET:  "LEAVE_MARKET",
+        DISCOVER_PORT: "DISCOVER_PORT",
+    PATROL_INSPECT: "PATROL_INSPECT",
+    ATTACK_PIRATE: "ATTACK_PIRATE",
+    ATTACK_MERCHANT: "ATTACK_MERCHANT",
     DEBUG_ADD_GOLD:     "DEBUG_ADD_GOLD",
     DEBUG_SET_FAME:     "DEBUG_SET_FAME",
     DEBUG_SET_INFAMY:   "DEBUG_SET_INFAMY",
@@ -44,10 +48,11 @@ window.E = (() => {
     DEBUG_SET_PORT_REP: "DEBUG_SET_PORT_REP",
     DEBUG_FILL_HOLD:    "DEBUG_FILL_HOLD",
     DEBUG_REPAIR:       "DEBUG_REPAIR",
-    DISCOVER_PORT: "DISCOVER_PORT",
-    PATROL_INSPECT: "PATROL_INSPECT",
-    ATTACK_PIRATE: "ATTACK_PIRATE",
-    ATTACK_MERCHANT: "ATTACK_MERCHANT",
+    DEBUG_SET_MORALE: "DEBUG_SET_MORALE",
+DEBUG_UNLOCK_HIDDEN_PORTS: "DEBUG_UNLOCK_HIDDEN_PORTS",
+DEBUG_MAX_CREW: "DEBUG_MAX_CREW",
+DEBUG_COMPLETE_MISSION: "DEBUG_COMPLETE_MISSION",
+
   };
 
 //--------------------------------------------
@@ -1331,6 +1336,50 @@ case A.ATTACK_MERCHANT: {
           }},
         };
       }
+
+      case A.DEBUG_SET_MORALE:
+  return { ...state, crew: { ...state.crew, morale: Math.min(100, Math.max(0, action.morale)) } };
+
+case A.DEBUG_UNLOCK_HIDDEN_PORTS:
+  return {
+    ...state,
+    discoveredPorts: Object.keys(PORTS),
+    log: [...state.log, "⚙ All hidden ports unlocked."],
+  };
+
+case A.DEBUG_MAX_CREW: {
+  const max = L.getShipStats(state).maxCrew;
+  const deficit = Math.max(0, max - state.crew.roster.length);
+  if (deficit === 0) return state;
+  const newMembers = G.generateRoster(deficit, PORTS[state.currentPort]?.faction || "pirate");
+  return {
+    ...state,
+    crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
+    log: [...state.log, `⚙ Hired ${deficit} crew to fill ship capacity.`],
+  };
+}
+
+case A.DEBUG_COMPLETE_MISSION: {
+  const mission = state.activeMission;
+  if (!mission) return state;
+  // Simulate completing the mission – awards gold, fame, clears it
+  const rep = state.reputation[state.currentPort] ?? 50;
+  const perk = L.getRepPerk(rep);
+  const baseGold = mission.gold || 0;
+  const finalGold = (mission.type === "trade" || mission.type === "smuggle")
+    ? baseGold
+    : Math.floor(baseGold * perk.missionMult);
+  const newRep = L.applyReputationImpact(state, mission.repImpact);
+  return {
+    ...state,
+    gold: state.gold + finalGold,
+    fame: state.fame + (mission.fame || 0),
+    infamy: Math.min(999, (state.infamy ?? 0) + (mission.infamyGain || 0)),
+    reputation: newRep,
+    activeMission: null,
+    log: [...state.log, `⚙ Debug-completed mission: ${mission.name}. +${finalGold}g.`],
+  };
+}
 
 
 

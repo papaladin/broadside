@@ -261,7 +261,7 @@ Reset `moraleZeroDays` to 0 when morale rises above 0.
 
 ---
 
-### T2.4 — Plunder Screen (post-grapple boarding)
+### T2.4 — Plunder Screen (post-grapple boarding) --> DONE
 **What:** When the player wins via grapple, show a PlunderScreen before the victory resolution:
 - `G.generateEnemyCargo(enemy, risk)` produces a parametric cargo list based on enemy faction and ship class (Spanish galleon carries silver and cocoa; pirate sloop carries weapons and rum)
 - Player's hold shown live: current used / capacity
@@ -407,7 +407,7 @@ Each event has `effects` modifying encounter rates, prices, service availability
 
 ---
 
-### T5.5 — Passive Contraband Inspection at Port Entry
+### T5.5 — Passive Contraband Inspection at Port Entry --> REPLACED BY RANDOM PATROLS WITH INFAMY 
 **What:** When the player enters any lawful faction port (English, Spanish, French, Dutch) with contraband in hold (`tobacco > 0` or `slaves > 0`), a 15% chance of customs inspection fires — separate from the navy_patrol sailing event. If inspection triggers: player is shown a one-choice alert ("The harbour master requests to inspect your manifest.") with options to comply (seizure + fine as per navy_patrol) or bribe (costs 200g + faction rep −3, no seizure). No inspection if player is Allied (rep ≥ 80) with that port — authorities look the other way.
 
 **Complexity:** Low (new check in ENTER_PORT, reuses existing `L.applyLoseContraband` and fine logic)
@@ -468,7 +468,7 @@ All content in data.js. No new systems.
 
 ---
 
-### T6.3 — Unlockable Map Areas
+### T6.3 — Unlockable Map Areas --> DONE
 **What:** Certain ports are hidden until unlock conditions are met: fame threshold, specific item found in an event or dropped by a rival, minimum ship size, or faction relationship. Locked ports appear as fog with a faint hint ("Strange lights reported to the southeast"). Unlock is permanent for that save. Condition checking routes through `L.meetsRequirement(state, item)` — already exists and forward-compatible with port `unlockCondition` objects.
 
 Proposed gates:
