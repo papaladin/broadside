@@ -29,9 +29,9 @@
 
     data.js   → window.D  (pure constants, no deps)
     logic.js  → window.L  (pure functions, uses window.D)
-    engine.js → window.E  (reducer + actions, uses window.D + window.L)
+    engine_*.js → window.E  (reducer + actions, uses window.D + window.L)
     ui.jsx    → window.UI (React primitives, no game knowledge)
-    screens.jsx → window.S (all screens, uses window.D/L/E/UI)
+    screens_*.jsx → window.S (all screens, uses window.D/L/E/UI)
     App.jsx   → root render (uses all of the above)
 
     NOTE: requires a local server (VSCode Live Server, Python http.server,
@@ -41,7 +41,10 @@
   <script type="text/babel" data-presets="react" src="data.js"></script>
   <script type="text/babel" data-presets="react" src="logic.js"></script>
   <script type="text/babel" data-presets="react" src="generators.js"></script>
-  <script type="text/babel" data-presets="react" src="engine.js"></script>
+<script type="text/babel" data-presets="react" src="engine_core.js"></script>
+<script type="text/babel" data-presets="react" src="engine_port.js"></script>
+<script type="text/babel" data-presets="react" src="engine_voyage.js"></script>
+<script type="text/babel" data-presets="react" src="engine_combat.js"></script>
   <script type="text/babel" data-presets="react" src="ui.jsx"></script>
   <script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
   <script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
