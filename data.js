@@ -1109,6 +1109,9 @@ const ENEMY_SHIP_NAMES = {
     mission_combat: (enemy) =>
       `Your target is in sight: ${enemy.name}. The mission requires engagement.`,
 
+    escort_defend: (enemy, rep) =>
+      `Pirates are raiding the convoy! Protect the merchant ship at all costs.`,
+
     random: (enemy) =>
       `${enemy.name} moves to intercept. They haven't fired yet.`,
   };

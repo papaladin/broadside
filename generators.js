@@ -316,7 +316,7 @@ window.G = (() => {
 
   // Pick a destination port, respecting faction politics
   const pickTargetPort = (currentPortKey, type, state, faction) => {
-    if (type === "combat" || type === "patrol") return null; // no destination
+    if (type === "combat") return null; // no destination
 
     const allPorts = Object.keys(window.D.PORTS);
     let eligible = allPorts.filter(k => k !== currentPortKey);
@@ -327,6 +327,14 @@ window.G = (() => {
     } else if (type === "smuggle") {
       // Exclude pirate ports — you smuggle TO colonial powers, not pirate havens
       eligible = eligible.filter(k => window.D.PORTS[k].faction !== "pirate");
+    }  else if (type === "patrol") {
+      // Patrol: target a port of a rival faction
+      const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
+      eligible = eligible.filter(k => rivals.includes(window.D.PORTS[k].faction));
+      if (eligible.length === 0) {
+        // fallback: any port of a different faction
+        eligible = allPorts.filter(k => k !== currentPortKey && window.D.PORTS[k].faction !== faction);
+      }
     } else {
       // trade, escort: exclude enemy (rival) factions
       const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
@@ -533,7 +541,7 @@ window.G = (() => {
       } else {
         // escort, patrol, combat, assault — existing construction
         const targetPort = pickTargetPort(portKey, type, state, missionFaction);
-        const enemy = (type === "combat" || type === "assault")
+        const enemy = (type === "combat" || type === "assault" || type === "escort" || type === "patrol")
           ? (type === "assault"
               ? generateEnemyForAssault(targetPort, state.fame ?? 0)
               : generateEnemy(risk, state.fame ?? 0, missionFaction))
@@ -549,6 +557,7 @@ window.G = (() => {
           type, name, description: desc, faction: missionFaction,
           targetPort: targetPort || null,
           risk, gold, fame, infamyGain, repImpact, enemy,
+          ...(type === "patrol" ? { enemyDefeated: false } : {}),
         };
       }
 

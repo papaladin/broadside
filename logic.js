@@ -546,7 +546,8 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Flee ────────────────────────────────────────────────────
   const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                       "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
+                       "navy_patrol", "navy_patrol_combat","distressed_merchant_help",
+                        "distressed_merchant_plunder","escort_defend"];
   const canFlee    = !noFleeTypes.includes(type);
   const fleeReason = canFlee ? null
     : type === "hostile_port_entry" ? "Already in range of the harbour guns"
@@ -556,7 +557,8 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Parley ──────────────────────────────────────────────────
   const noParleyTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                         "smuggling_caught", "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
+                         "smuggling_caught", "navy_patrol", "navy_patrol_combat",
+                         "distressed_merchant_help", "distressed_merchant_plunder","escort_defend"];
   const canParley    = !noParleyTypes.includes(type) && rep >= 30;
   const parleyReason = noParleyTypes.includes(type)
     ? "They are not here to negotiate"
@@ -564,7 +566,8 @@ function buildEncounterContext(state, type, enemy) {
 
   // ── Bribe ───────────────────────────────────────────────────
   const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
-                        "navy_patrol", "navy_patrol_combat","distressed_merchant_help", "distressed_merchant_plunder"];
+                        "navy_patrol", "navy_patrol_combat","distressed_merchant_help",
+                         "distressed_merchant_plunder","escort_defend"];
   const bribeBlocked       = noBribeTypes.includes(type);
   const canAffordBribe     = gold >= bribeCost;
   const bribeInfamyBlocked = !canBribe(state);
@@ -575,12 +578,13 @@ function buildEncounterContext(state, type, enemy) {
     : null;
 
   // ── Surrender ───────────────────────────────────────────────
-  const noSurrenderTypes = ["bounty_target", "mission_combat","distressed_merchant_help", "distressed_merchant_plunder"];
+  const noSurrenderTypes = ["bounty_target", "mission_combat","distressed_merchant_help",
+                           "distressed_merchant_plunder","escort_defend"];
   const canSurrender    = !noSurrenderTypes.includes(type);
   const surrenderReason = canSurrender ? null : "Surrender means death here";
 
   // ── Distressed Merchant encounters: Fight only ─────────────────
-  if (type === "distressed_merchant_help" || type === "distressed_merchant_plunder") {
+  if (type === "distressed_merchant_help" || type === "distressed_merchant_plunder" || type === "escort_defend") {
     return {
       type,
       encounterType: type,

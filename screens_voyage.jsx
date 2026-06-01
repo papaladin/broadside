@@ -279,6 +279,12 @@ const InterceptScreen = ({ state, dispatch }) => {
             <div style={{ color: T.blueBr, fontSize: 10, marginBottom: 4 }}>{state.ship.name}</div>
             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
             <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct < 0.3 ? T.redBr : T.greenBr} h={10} />
+            {bs.convoyHull !== undefined && (
+              <>
+                <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {bs.convoyHull} / 50</div>
+                <Bar value={bs.convoyHull} max={50} color={bs.convoyHull < 15 ? T.redBr : T.gold} h={8} />
+              </>
+            )}
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
             {state.ship.upgrades.length > 0 && <div style={{ marginTop: 5, display: "flex", gap: 4, flexWrap: "wrap" }}>{state.ship.upgrades.map(u => <Pill key={u} label={UPGRADES[u]?.name ?? u} color={T.blueBr} />)}</div>}
           </div>

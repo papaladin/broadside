@@ -152,6 +152,7 @@ const migrateState = (loaded) => {
   initialCrewCount: state.crew.roster.length,
   lostCrewNames:    [],
   encounterType,    // ← keeps the refactored field
+  ...(encounterType === "escort_defend" ? { convoyHull: 50 } : {}),
 });
 
 const checkServicesBlocked = (state) => {
@@ -215,6 +216,51 @@ const maybeSmugglePatrol = (state, newDays, newWind, newGold, newRep, newMorale,
     screen: "intercept",
     log: [...state.log, "A patrol vessel approaches, flying inspection colours."]
   };
+};
+
+const maybeMissionEncounter = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+  if (!state.activeMission || state.activeMission.encounterOccurred) return null;
+  if (state.destination !== state.activeMission.targetPort) return null;
+  if (newDays < 1) return null;
+
+  const mission = state.activeMission;
+  const progress = 1 - (newDays / state.sailingDaysTotal);
+
+  if (mission.type === "escort") {
+    // Guaranteed fight, random day, forced on last day
+    const chance = 0.20 + 0.60 * progress;
+    if (newDays <= 1 || Math.random() < chance) {
+      const enemy = mission.enemy || G.generateEnemy("medium", state.fame, mission.faction);
+      const ctx = L.buildEncounterContext(state, "escort_defend", enemy);
+      const newActiveMission = { ...mission, encounterOccurred: true };
+      return {
+        ...state,
+        activeMission: newActiveMission,
+        encounterContext: ctx,
+        screen: "intercept",
+        log: [...state.log, "The convoy is under attack!"]
+      };
+    }
+  } else if (mission.type === "patrol") {
+    // Optional fight, proximity‑based, never forced
+    if (progress > 0.60) {
+      const chance = 0.20 + 0.60 * (progress - 0.60) / 0.40;
+      if (Math.random() < chance) {
+        const enemy = mission.enemy || G.generateEnemy("medium", state.fame, mission.faction);
+        const ctx = L.buildEncounterContext(state, "mission_combat", enemy);
+        const newActiveMission = { ...mission, encounterOccurred: true };
+        return {
+          ...state,
+          activeMission: newActiveMission,
+          encounterContext: ctx,
+          screen: "intercept",
+          log: [...state.log, "You spot a hostile vessel in the patrol zone!"]
+        };
+      }
+    }
+  }
+
+  return null;
 };
 
 const maybeRandomEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
@@ -453,6 +499,10 @@ const pickMerchantFaction = () => {
   const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
   if (patrolResult) return patrolResult;
 
+  // Escort / Patrol mission encounter
+  const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+  if (missionEncResult) return missionEncResult;
+
   // Hidden port discovery
   const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
   if (discoveryLog.length) newLog.push(...discoveryLog);
@@ -631,6 +681,14 @@ case A.COMPLETE_MISSION: {
   if (!mission) return state;
   if (mission.targetPort && state.currentPort !== mission.targetPort) {
     return { ...state };
+  }
+
+    // Patrol: must have defeated the enemy
+  if (mission.type === "patrol" && !mission.enemyDefeated) {
+    return {
+      ...state,
+      log: [...state.log, "You have not yet found and defeated the enemy in the patrol zone. Keep searching."]
+    };
   }
 
   // ── Cargo satisfaction check (trade and smuggle) ──────────────
@@ -938,34 +996,34 @@ case A.PATROL_INSPECT: {
         const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
         if (outcome.instantVictory) {
-  const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
-  const initialCrew = state.battleState.initialCrewCount ?? state.crew.roster.length;
-  const lostCrewNames = state.battleState.lostCrewNames ?? [];
-  const totalLost = initialCrew - state.crew.roster.length;
-  let capMsg = "Victory! Boarding successful.";
-  if (totalLost > 0) {
-    const some = lostCrewNames.slice(0, 3).join(", ");
-    capMsg += ` Lost ${totalLost} crew, including ${some}.`;
-  }
+          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+          const initialCrew = state.battleState.initialCrewCount ?? state.crew.roster.length;
+          const lostCrewNames = state.battleState.lostCrewNames ?? [];
+          const totalLost = initialCrew - state.crew.roster.length;
+          let capMsg = "Victory! Boarding successful.";
+          if (totalLost > 0) {
+            const some = lostCrewNames.slice(0, 3).join(", ");
+            capMsg += ` Lost ${totalLost} crew, including ${some}.`;
+          }
 
-  const newBS = {
-    ...state.battleState,
-    phase: "victory",
-    goldReward: outcome.goldReward || 0,
-    enemyCargo: outcome.enemyCargo || {},
-    canPlunder: true,
-    log: [...newLog, `Player: ${action.action}. Boarding successful!`]
-  };
+          const newBS = {
+            ...state.battleState,
+            phase: "victory",
+            goldReward: outcome.goldReward || 0,
+            enemyCargo: outcome.enemyCargo || {},
+            canPlunder: true,
+            log: [...newLog, `Player: ${action.action}. Boarding successful!`]
+          };
 
-  return {
-    ...state,
-    reputation: newRep,
-    ship: { ...state.ship, hull: state.battleState.playerHull },
-    crew: { ...state.crew, morale: newMorale },
-    battleState: newBS,
-    log: [...state.log, capMsg]
-  };
-}
+          return {
+            ...state,
+            reputation: newRep,
+            ship: { ...state.ship, hull: state.battleState.playerHull },
+            crew: { ...state.crew, morale: newMorale },
+            battleState: newBS,
+            log: [...state.log, capMsg]
+          };
+        }
 
         const newPlayerCrewCount = Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss);
         const lostCount = state.crew.roster.length - newPlayerCrewCount;
@@ -991,6 +1049,25 @@ case A.PATROL_INSPECT: {
           log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.${crewLog}`],
           lostCrewNames: state.battleState.lostCrewNames ?? [],
         };
+
+        // Escort defend: automatic convoy damage
+        if (newBattleState.encounterType === "escort_defend" && newBattleState.convoyHull > 0) {
+          const convoyDmg = Math.ceil((state.battleState.enemy.cannons || 10) * 0.5);
+          newBattleState.convoyHull = Math.max(0, newBattleState.convoyHull - convoyDmg);
+          newBattleState.log.push(`The convoy takes ${convoyDmg} hull damage.`);
+
+          if (newBattleState.convoyHull <= 0) {
+            newBattleState.phase = "defeat";
+            newBattleState.log.push("The convoy ship has been destroyed!");
+            return {
+              ...state,
+              ship: { ...state.ship, hull: newBattleState.playerHull },
+              crew: { ...state.crew, roster: newRoster, morale: newMorale },
+              battleState: newBattleState,
+              log: [...state.log, "The convoy was lost. Mission failed."]
+            };
+          }
+        }
 
         if (newBattleState.enemyHull <= 0) {
           newBattleState.phase = "victory";
@@ -1054,23 +1131,29 @@ case A.PATROL_INSPECT: {
         };
       }
 
-      case A.DISMISS_BATTLE: {
+case A.DISMISS_BATTLE: {
   const { battleState } = state;
 
   // Patrol infamy: +2 for fighting (any outcome), 0 for fleeing from intercept
-const isNavyFight = battleState.encounterType === "navy_patrol"
-                 || battleState.encounterType === "navy_patrol_combat";
-const patrolInfamy = isNavyFight ? 2 : 0;
+  const isNavyFight = battleState.encounterType === "navy_patrol"
+                   || battleState.encounterType === "navy_patrol_combat";
+  const patrolInfamy = isNavyFight ? 2 : 0;
   const patrolLog = patrolInfamy > 0
     ? [`+${patrolInfamy} infamy — attacking crown forces was witnessed.`]
     : [];
 
+  // ── Defeat ──────────────────────────────────────────────────
   if (battleState.phase === "defeat") {
     const returnPort = state.previousPort || state.currentPort;
     const portName = PORTS[returnPort]?.name || "a nearby port";
+    const isMissionFight = battleState.encounterType === "mission_combat"
+                        || battleState.encounterType === "escort_defend";
+    const missionFailed = isMissionFight && state.activeMission;
+
     return {
       ...state,
       battleState: null,
+      activeMission: missionFailed ? null : state.activeMission,
       screen: "port",
       currentPort: returnPort,
       destination: null,
@@ -1087,31 +1170,52 @@ const patrolInfamy = isNavyFight ? 2 : 0;
         ...state.log,
         `Defeated in battle and washed ashore at ${portName}.`,
         "All cargo lost.",
+        ...(missionFailed ? ["The mission has failed."] : []),
         ...patrolLog,
       ],
     };
   }
 
-  // Plunder redirect
+  // ── Plunder redirect ────────────────────────────────────────
   if (battleState.canPlunder && battleState.phase === "victory") {
     return {
       ...state,
-      battleState: { ...state.battleState, phase: "victory" }, // keep plunder data
+      battleState: { ...state.battleState, phase: "victory" },
       screen: "plunder",
     };
   }
 
-  // Fleeing from a combat mission = mission failed
-if (battleState.phase === "fled" && battleState.encounterType === "mission_combat") {
-  return {
-    ...state,
-    battleState: null,
-    activeMission: null,
-    screen: "port",
-    log: [...state.log, "You fled the battle. The mission is a failure."],
-  };
-}
+  // ── Patrol victory: mark enemy as defeated ─────────────────
+  if (battleState.encounterType === "mission_combat" && battleState.phase === "victory") {
+    const missionType = state.activeMission?.type;
+    if (missionType === "patrol" && state.activeMission) {
+      return {
+        ...state,
+        battleState: null,
+        activeMission: { ...state.activeMission, enemyDefeated: true },
+        screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+        log: [...state.log, "The patrol zone is clear."],
+      };
+    }
+  }
 
+  // ── Fled from a mission encounter → mission failed ─────────
+  if (battleState.phase === "fled") {
+    const isMissionFight = battleState.encounterType === "mission_combat"
+                        || battleState.encounterType === "escort_defend";
+    if (isMissionFight) {
+      const returnToSailing = state.destination && state.sailingDaysLeft > 0;
+      return {
+        ...state,
+        battleState: null,
+        activeMission: null,
+        screen: returnToSailing ? "sailing" : "port",
+        log: [...state.log, "You fled the battle. The mission is a failure."],
+      };
+    }
+  }
+
+  // ── Return to sailing (generic) ─────────────────────────────
   if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
     return {
       ...state,
@@ -1122,7 +1226,7 @@ if (battleState.phase === "fled" && battleState.encounterType === "mission_comba
     };
   }
 
-  // Victory or other returns to port
+  // ── Default: return to port ─────────────────────────────────
   return {
     ...state,
     battleState: null,
