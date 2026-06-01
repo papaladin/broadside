@@ -584,15 +584,6 @@ const FACTION_PLUNDER_GOODS = {
   ],
 };
 
-const MERCHANT_RESCUE_GOLD = {
-  0: 100,
-  1: 300,
-  2: 800,
-  3: 2000,
-  4: 4000,
-};
-
-
 const MISSION_REP_IMPACTS = {
   escort:  { low: 2, medium: 3, high: 4 },
   patrol:  { low: 2, medium: 3, high: 4 },
@@ -648,8 +639,27 @@ const MISSION_NAME_PARTS = {
 };
 
 const ENEMY_SHIP_NAMES = {
-  adjectives: ["Black","Scarlet","Iron","Crimson","Silent","Cursed","Broken","Savage","Dread","Wicked"],
-  nouns:      ["Serpent","Tide","Fortune","Drake","Widow","Storm","Revenge","Horizon","Ghost","Fury"],
+  // Procedural Adjectives (With historical elements integrated)
+  adjectives: [
+    "Black", "Scarlet", "Iron", "Crimson", "Silent", 
+    "Cursed", "Broken", "Savage", "Dread", "Wicked",
+    "Royal", "Gilded", "Vengeful", "Phantom", "Raging", 
+    "Shrouded", "Bleak", "Valiant", "Dauntless", "Defiant", 
+    "Bloodied", "Rogue", "Haunted", "Grim", "Fearless",
+    // --- Historical Elements (Yields "Adventure Galley", "Happy Delivery", etc.) ---
+    "Adventure", "Bachelor's", "Portsmouth", "Whydah", "Queen Anne's", "Happy"
+  ],
+
+  // Procedural Nouns (With historical elements integrated)
+  nouns: [
+    "Serpent", "Tide", "Fortune", "Drake", "Widow", 
+    "Storm", "Revenge", "Horizon", "Ghost", "Fury",
+    "Corsair", "Galleon", "Spectre", "Vanguard", "Marauder", 
+    "Leviathan", "Rover", "Hellhound", "Voyager", "Monarch", 
+    "Nightmare", "Kraken", "Banshee", "Gauntlet", "Wraith",
+    // --- Historical Elements (Yields "Bachelor's Delight", "Royal Sovereign", etc.) ---
+    "Galley", "Delight", "Sovereign", "Delivery", "Adventure"
+  ]
 };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

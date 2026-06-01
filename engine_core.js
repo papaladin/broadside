@@ -121,7 +121,6 @@ window.E = window.E || {};
     ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, upgrades: [] },
     crew: { roster: [], max: 50, morale: 80 },
     hold: {
-      capacity: 200,
       items: {
         food: 10, water: 10,
         rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,

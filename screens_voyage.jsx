@@ -91,7 +91,7 @@ window.S = window.S || {};
     const W = 760, H = 460;
     const consumption = L.getProvisionConsumptionPerDay(state);
     const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, consumption);
-    const loadPct = L.getHoldLoadPct(state.hold?.items, state.hold?.capacity);
+    const loadPct = L.getHoldLoadPct(state.hold?.items, L.getHoldCapacity(state));
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
     return (
       <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden", flexWrap: "wrap",flexDirection: window.innerWidth < 480 ? "column" : "row" }}>
@@ -353,8 +353,7 @@ function PlunderScreen({ state, dispatch }) {
 
   const enemyCargo = bs.enemyCargo || {};
   const goldReward = bs.goldReward || 0;
-  const holdCapacity = state.hold?.capacity || 200;
-
+  const holdCapacity = L.getHoldCapacity(state) || 200;
   // Local state: player's hold items (starting from current hold)
   const [playerItems, setPlayerItems] = React.useState({ ...(state.hold?.items || {}) });
   // Local state: enemy cargo (what's still available to take)

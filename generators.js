@@ -472,120 +472,141 @@ window.G = (() => {
     };
   };
 
+
+   // ═══════════════════════════════════════════════════════════════
+  //  MISSION GENERATION HELPERS  (private)
+  // ═══════════════════════════════════════════════════════════════
+
+  const getEligibleFactions = (portKey, state) => {
+    const port = window.D.PORTS[portKey];
+    if (!port) return [];
+    const perk = window.L.getRepPerk(state.reputation?.[portKey] ?? 50);
+    if (perk.servicesBlocked) return []; // At War
+
+    const portRivals = window.D.FACTIONS[port.faction]?.rivalFactions || [];
+    const eligible = [port.faction];
+    Object.keys(window.D.FACTIONS).forEach(factionKey => {
+      if (factionKey !== port.faction && !portRivals.includes(factionKey)) {
+        eligible.push(factionKey);
+      }
+    });
+    return eligible;
+  };
+
+  const typeWeightsFor = (faction) => {
+    const isPirate = faction === "pirate";
+    return {
+      escort:  3,
+      patrol:  isPirate ? 0 : 2,
+      combat:  2,
+      smuggle: 1,
+      trade:   isPirate ? 0 : 3,
+      assault: 1,
+    };
+  };
+
+  const riskWeightsFor = (fame) => {
+    const tier = window.L.getFameInfo(fame).tier;
+    const table = [
+      { low:5, medium:4, high:1, assault:0 },
+      { low:4, medium:4, high:2, assault:0 },
+      { low:3, medium:4, high:3, assault:0 },
+      { low:2, medium:3, high:4, assault:1 },
+      { low:1, medium:3, high:4, assault:2 },
+    ];
+    return table[tier];
+  };
+
+  const pickMissionType = (faction) => {
+    const weights = typeWeightsFor(faction);
+    const types = Object.keys(weights).filter(t => weights[t] > 0);
+    const w = types.map(t => weights[t]);
+    return pickWeighted(types, w);
+  };
+
+  const pickMissionRisk = (type, fame) => {
+    const weights = riskWeightsFor(fame);
+    const pool = type === "assault" ? ["assault"] : ["low", "medium", "high"];
+    const w = pool.map(r => weights[r] || 0);
+    return pickWeighted(pool, w);
+  };
+
+  const generateOneMission = (portKey, state, eligibleFactions) => {
+    const faction = pickRandom(eligibleFactions);
+    const type = pickMissionType(faction);
+    const missionFaction = type === "smuggle" ? "pirate" : faction;
+    const risk = pickMissionRisk(type, state.fame ?? 0);
+
+    if (type === "trade") {
+      return generateTradeMission(portKey, state, missionFaction, risk);
+    }
+    if (type === "smuggle") {
+      return generateSmuggleMission(portKey, state, risk);
+    }
+
+    // escort, patrol, combat, assault
+    const targetPort = pickTargetPort(portKey, type, state, missionFaction);
+    const enemy = (type === "combat" || type === "assault" || type === "escort" || type === "patrol")
+      ? (type === "assault"
+          ? generateEnemyForAssault(targetPort, state.fame ?? 0)
+          : generateEnemy(risk, state.fame ?? 0, missionFaction))
+      : null;
+    const gold = generateGold(type, risk, state.fame ?? 0);
+    const fame = type === "assault" ? 3 : risk === "high" ? 2 : 1;
+    const infamyGain = type === "assault" ? (risk === "high" ? 3 : 2) : 0;
+    const defendingFaction = (type === "assault" && targetPort)
+      ? window.D.PORTS[targetPort]?.faction : null;
+    const repImpact = generateRepImpact(type, missionFaction, risk, defendingFaction);
+    const { name, desc } = generateMissionText(type, missionFaction, targetPort, risk, enemy);
+
+    return {
+      type, name, description: desc, faction: missionFaction,
+      targetPort: targetPort || null,
+      risk, gold, fame, infamyGain, repImpact, enemy,
+      ...(type === "patrol" ? { enemyDefeated: false } : {}),
+    };
+  };
+
+  const generateFallbackMission = (portKey, state) => {
+    const fallbackGold = generateGold("escort", "low", state.fame ?? 0);
+    const faction = window.D.PORTS[portKey]?.faction || "english";
+    return {
+      type: "escort",
+      name: "Escort the merchant fleet",
+      faction,
+      description: "Safe passage required.",
+      targetPort: null,
+      risk: "low",
+      gold: fallbackGold,
+      fame: 1,
+      infamyGain: 0,
+      repImpact: { [faction]: 2 },
+      enemy: null,
+    };
+  };
+
   // ═══════════════════════════════════════════════════════════════
   //  MAIN ENTRY POINT — generateMissions
   // ═══════════════════════════════════════════════════════════════
   const generateMissions = (portKey, state) => {
-    const { PORTS, FACTIONS } = window.D;
-    const port = PORTS[portKey];
-    if (!port) return [];
-
-    const perk = window.L.getRepPerk(state.reputation?.[portKey] ?? 50);
-    if (perk.servicesBlocked) return []; // At War
-
-    // Port faction + any faction not a rival of the port faction
-    const portRivals = FACTIONS[port.faction]?.rivalFactions || [];
-    const eligibleFactions = [port.faction];
-    Object.keys(FACTIONS).forEach(factionKey => {
-      if (factionKey !== port.faction && !portRivals.includes(factionKey)) {
-        eligibleFactions.push(factionKey);
-      }
-    });
+    const eligibleFactions = getEligibleFactions(portKey, state);
+    if (eligibleFactions.length === 0) return [];
 
     const count = Math.random() < 0.5 ? 2 : 3;
     const missions = [];
-
-    const typeWeightsFor = (faction) => {
-      const isPirate = faction === "pirate";
-      return {
-        escort:  3,
-        patrol:  isPirate ? 0 : 2,
-        combat:  2,
-        smuggle: 1,
-        trade:   isPirate ? 0 : 3,
-        assault: 1,
-      };
-    };
-
-    const riskWeightsFor = (fame) => {
-      const tier = window.L.getFameInfo(fame).tier;;
-      const table = [
-        { low:5, medium:4, high:1, assault:0 },
-        { low:4, medium:4, high:2, assault:0 },
-        { low:3, medium:4, high:3, assault:0 },
-        { low:2, medium:3, high:4, assault:1 },
-        { low:1, medium:3, high:4, assault:2 },
-      ];
-      return table[tier];
-    };
-
     for (let i = 0; i < count; i++) {
-      const faction = pickRandom(eligibleFactions);
-      const typeWeights = typeWeightsFor(faction);
-      const types = Object.keys(typeWeights).filter(t => typeWeights[t] > 0);
-      const weights = types.map(t => typeWeights[t]);
-      const type = pickWeighted(types, weights);
-      const missionFaction = type === "smuggle" ? "pirate" : faction;
-
-      const riskWeights = riskWeightsFor(state.fame ?? 0);
-      const riskPool = type === "assault" ? ["assault"] : ["low", "medium", "high"];
-      const riskWArr = riskPool.map(r => riskWeights[r] || 0);
-      const risk = pickWeighted(riskPool, riskWArr);
-
-      let missionObj = null;
-
-      if (type === "trade") {
-        missionObj = generateTradeMission(portKey, state, missionFaction, risk);
-      } else if (type === "smuggle") {
-        missionObj = generateSmuggleMission(portKey, state, risk);
-      } else {
-        // escort, patrol, combat, assault — existing construction
-        const targetPort = pickTargetPort(portKey, type, state, missionFaction);
-        const enemy = (type === "combat" || type === "assault" || type === "escort" || type === "patrol")
-          ? (type === "assault"
-              ? generateEnemyForAssault(targetPort, state.fame ?? 0)
-              : generateEnemy(risk, state.fame ?? 0, missionFaction))
-          : null;
-        const gold = generateGold(type, risk, state.fame ?? 0);
-        const fame = type === "assault" ? 3 : risk === "high" ? 2 : 1;
-        const infamyGain = type === "assault" ? (risk === "high" ? 3 : 2) : 0;
-        const defendingFaction = (type === "assault" && targetPort)
-          ? PORTS[targetPort]?.faction : null;
-        const repImpact = generateRepImpact(type, missionFaction, risk, defendingFaction);
-        const { name, desc } = generateMissionText(type, missionFaction, targetPort, risk, enemy);
-        missionObj = {
-          type, name, description: desc, faction: missionFaction,
-          targetPort: targetPort || null,
-          risk, gold, fame, infamyGain, repImpact, enemy,
-          ...(type === "patrol" ? { enemyDefeated: false } : {}),
-        };
-      }
-
-      if (!missionObj) continue;
-      missions.push(missionObj);
+      const mission = generateOneMission(portKey, state, eligibleFactions);
+      if (mission) missions.push(mission);
     }
 
-    // Fallback: ensure at least 1 mission always returned
     if (missions.length === 0) {
-      const fallbackGold = generateGold("escort", "low", state.fame ?? 0);
-      const fallback = {
-        type: "escort",
-        name: "Escort the merchant fleet",
-        faction: port.faction,
-        description: "Safe passage required.",
-        targetPort: null,
-        risk: "low",
-        gold: fallbackGold,
-        fame: 1,
-        infamyGain: 0,
-        repImpact: { [port.faction]: 2 },
-        enemy: null,
-      };
-      missions.push(fallback);
+      missions.push(generateFallbackMission(portKey, state));
     }
 
     return missions;
   };
+
+
 
   // ── exports ───────────────────────────────────────────────────
   return {

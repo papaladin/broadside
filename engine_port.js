@@ -46,7 +46,7 @@
     }
 
     if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled — insufficient gold." };
-    if (used > state.hold.capacity) return { valid: false, reason: "Trade cancelled — not enough hold space." };
+    if (used > L.getHoldCapacity(state)) return { valid: false, reason: "Trade cancelled — not enough hold space." };
     return { valid: true };
   };
 
@@ -222,7 +222,7 @@
           gold: state.gold - ship.cost,
           ship: { type: action.shipType, name: ship.name, hull: ship.maxHull, cannons: ship.cannons, upgrades: [] },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
-          hold: { ...state.hold, capacity: ship.holdCapacity },
+          hold: { ...state.hold },
           log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`]
         };
       }
