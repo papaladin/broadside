@@ -262,13 +262,13 @@ const SHIPS = {
     desc: "A tiny boat. Barely seaworthy, but cheap."
   },
 
-  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1500, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1000, requiredFame: 0, maxDays: 8, holdCapacity: 80,
     upgradeable: ["reinforced_hull"],
     desc: "Small, fast, and agile. Excellent for scouting and smuggling."
   },
 
   // Tier 1
-  sloop: { name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 30000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
+  sloop: { name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 15000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
     upgradeable: ["reinforced_hull", "extra_cannons"],
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
@@ -529,7 +529,7 @@ const GOODS_AVAILABILITY = {
 
 const MISSION_GOLD_RANGES = {
   //          [low,        medium,      high,        assault  ]
-  0: { low: [80,100],   medium: [100,125],   high: [125,150],   assault: [150,200]   },
+  0: { low: [140,180],   medium: [180,230],   high: [230,300],   assault: [300,400]   },
   1: { low: [400,1500], medium: [1500,5000],   high: [5000,7000], assault: [7000,10000]  },
   2: { low: [2000,7000], medium: [7000,10000], high: [10000,18000], assault: [18000,22000]  },
   3: { low: [6000,15000],medium:[15000,30000], high: [30000,50000],assault: [50000,75000]},
@@ -736,26 +736,66 @@ const ENEMY_SHIP_NAMES = {
 },
 
     {
-      id: "shipwreck",
+      id: "drifting_wreck",
       type: "choice",
-      title: "Shipwreck Spotted",
-      desc: "You spot a wrecked ship floating in the water.",
+      title: "Drifting Wreck",
+      desc: "A damaged ship drifts in the current, hull split and sails in tatters. Seabirds circle overhead. It could hold cargo worth salvaging — or something less welcome.",
+      condition: (state) => state.screen === "sailing",
       choices: [
         {
-          label: "Loot the wreck",
+          label: "Search the wreck (risky)",
           outcome: {
-            log: "You find some gold and supplies in the wreckage.",
-            gold: 300
+            action: "RESOLVE_DRIFTING_WRECK_SEARCH",
+            log: "You bring your ship alongside and send a party aboard..."
           }
         },
         {
-          label: "Ignore it",
+          label: "Leave it be",
           outcome: {
-            log: "You leave the wreck behind."
+            log: "You leave the wreck to the mercy of the sea. The crew watches it drift past in silence."
           }
         }
       ]
     },
+
+
+{
+  id: "drifting_sailors",
+  type: "choice",
+  title: "Marooned Sailors",
+  desc: "A small boat hails you. Three sailors — sunburnt, desperate — beg for passage. 'Our captain was a tyrant,' one says. 'We'd rather take our chances on the open sea.'\n\nThey seem capable enough. But if they were marooned, there may have been good reason for it.",
+  condition: (state) => state.fame >= 10,
+  choices: [
+    {
+      label: "Take them aboard",
+      outcome: {
+        addCrew: {
+          count: 3,
+          faction: null,      // random faction
+          tags: [],
+          negativeTagChance: 0.40,
+        },
+        log: "You take the sailors aboard. They seem grateful... for now."
+      }
+    },
+    {
+      label: "Give them supplies and gold (50g)",
+      outcome: {
+        gold: -50,
+        moraleBonus: 3,
+        log: "You give them gold and provisions for passage to the nearest port. The crew approves of your mercy."
+      }
+    },
+    {
+      label: "Sail on",
+      outcome: {
+        moraleBonus: -1,
+        log: "You leave them to their fate. A few crew members look away."
+      }
+    }
+  ]
+},
+
 
     // Reward events
     {
@@ -792,7 +832,6 @@ const ENEMY_SHIP_NAMES = {
           outcome: {
             log: "You harvest whale oil to sell in port.",
             gold: 500,
-            crewLoss: 5
           }
         },
         {
@@ -923,7 +962,7 @@ const ENEMY_SHIP_NAMES = {
     story: "William Calder forged a letter of commission after his employer died. The ink is passable. The signature is not. He needs to become the kind of captain who doesn't need the letter before someone in Port Royal looks closely enough to notice.",
     startPort: "portRoyal",
     ship: "dinghy",
-    gold: 190,
+    gold: 490,
     crewCount: 1,
     crewFaction: "english",
     hold: { food: 8, water: 8 },
@@ -952,7 +991,7 @@ const ENEMY_SHIP_NAMES = {
     story: "Elena Vargas was handed a dinghy, a sealed crate, and a debt she didn't owe. She has no crew. She prefers it that way. Fewer people know she exists. Fewer people know where she's going.",
     startPort: "havana",
     ship: "dinghy",
-    gold: 205,
+    gold: 505,
     crewCount: 0,
     crewFaction: "spanish",
     hold: { food: 8, water: 8 },
@@ -982,7 +1021,7 @@ const ENEMY_SHIP_NAMES = {
     story: "Luc Fontaine inherited his mentor's dinghy, his instruments, and a six‑month charting contract the late cartographer had been paid for in advance. The navy wants the charts delivered by the agreed date. Luc prefers the dinghy. Marie‑Ange Desroches, the former cook, agreed to stay on. She is more competent than Luc at most sailing tasks and less diplomatic about saying so.",
     startPort: "petitGoave",
     ship: "dinghy",
-    gold: 190,
+    gold: 490,
     crewCount: 1,
     crewFaction: "french",
     hold: { food: 8, water: 8 },
@@ -1012,7 +1051,7 @@ const ENEMY_SHIP_NAMES = {
     story: "Pieter van Houten found a discrepancy in a senior partner's account. He was 'promoted' to independent trade contractor within the week. His own vessel. His own routes. A quarterly gold quota. No cargo provided. Plenty of implied understanding about consequences.",
     startPort: "santoDomingo",
     ship: "dinghy",
-    gold: 205,
+    gold: 505,
     crewCount: 0,
     crewFaction: "dutch",
     hold: { food: 8, water: 8 },
@@ -1042,7 +1081,7 @@ const ENEMY_SHIP_NAMES = {
     story: "Rosa Esperanza spent two years on Captain Bouchard's ship, learning which ports ran real patrols and which ran theater. When a storm took the Marguerite, Rosa and Cacao Santos — a Cuban gunner — survived on a dinghy. They made Santiago on the fifth day. Everyone else is gone. Rosa has a boat, a friend, two years of knowledge, and no particular loyalty to anyone who isn't standing next to her.",
     startPort: "santiagoDeCuba",
     ship: "dinghy",
-    gold: 190,
+    gold: 490,
     crewCount: 1,
     crewFaction: "pirate",
     hold: { food: 12, water: 12 },

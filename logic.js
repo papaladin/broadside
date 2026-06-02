@@ -342,8 +342,15 @@ const getUnreachableReason = (state, portKey) => {
         }
         break;
       }
-      case "evade": {
-        if (Math.random() < 0.9) {
+      case "evade": {  
+        const shipStats = getShipStats(state);
+        const enemyShipType = guessShipType(state.battleState.enemy);
+        const enemySpeed = SHIPS[enemyShipType]?.speed ?? 10;
+        // Speed advantage gives bonus: +10% per speed point difference, clamped
+        const speedBonus = Math.min(0.3, Math.max(-0.3, (shipStats.speed - enemySpeed) * 0.02));
+        const fleeChance = Math.min(0.95, Math.max(0.20, 0.6 + speedBonus)); 
+        if (Math.random() < fleeChance) {
+
           out.fled = true;
         } else {
           const enemyDmg = state.battleState.enemy.cannons * (0.8 + Math.random() * 0.4);

@@ -486,6 +486,62 @@
           }
         }
 
+        // ── outcome.generateCargo ──────────────────────────────────
+        if (choice.outcome.generateCargo) {
+          const { risk, faction } = choice.outcome.generateCargo;
+          const fakeEnemy = { faction: faction || "english", hull: 50, cannons: 4, crew: 10 };
+          const { gold: plunderGold, cargo } = G.generateEnemyCargo(state, fakeEnemy, risk || "low");
+
+          newState.gold = (newState.gold || state.gold) + plunderGold;
+
+          const items = { ...(newState.hold?.items || state.hold?.items || {}) };
+          const capacity = L.getHoldCapacity(state);
+          let used = L.getHoldUsed(items);
+          let anySkipped = false;
+
+          Object.entries(cargo).forEach(([good, qty]) => {
+            const canFit = Math.max(0, capacity - used);
+            const added = Math.min(qty, canFit);
+            if (added > 0) { items[good] = (items[good] || 0) + added; used += added; }
+            if (added < qty) anySkipped = true;
+          });
+
+          newState.hold = { ...(newState.hold || state.hold), items };
+          if (anySkipped) {
+            newState.log = [...(newState.log || state.log), "Your hold is too full to take everything."];
+          }
+        }
+
+        // ── outcome.addCrew ───────────────────────────────────────
+        if (choice.outcome.addCrew) {
+          const { count, faction, tags, negativeTagChance } = choice.outcome.addCrew;
+          const negativeTags = ["trait_troublemaker", "trait_drunkard", "trait_coward", "trait_greedy"];
+          const factions = faction ? [faction] : ["english", "spanish", "french", "dutch", "pirate"];
+
+          const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
+          const newMembers = [];
+          for (let i = 0; i < (count || 1); i++) {
+            const randFaction = factions[Math.floor(Math.random() * factions.length)];
+            const member = G.generateCrewMember(randFaction, existingNames);
+            member.tags = [...(member.tags || [])];
+            if (i === 0 && tags?.length) member.tags.push(...tags);
+            newMembers.push(member);
+            existingNames.push(`${member.firstName} ${member.lastName}`);
+          }
+
+          // 40% chance a hidden negative tag is added to one member (from event config)
+          if (negativeTagChance && Math.random() < negativeTagChance && newMembers.length > 0) {
+            const unlucky = newMembers[Math.floor(Math.random() * newMembers.length)];
+            unlucky.tags.push(negativeTags[Math.floor(Math.random() * negativeTags.length)]);
+          }
+
+          const names = newMembers.map(m => `${m.firstName} ${m.lastName}`).join(", ");
+          newState.crew = { ...state.crew, roster: [...state.crew.roster, ...newMembers] };
+          newState.log = [...(newState.log || state.log),
+            `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew.`];
+        }
+
+
         if (choice.outcome.action) {
           if (choice.outcome.log && !newState.log.includes(choice.outcome.log)) {
             newState.log = [...newState.log, choice.outcome.log];
@@ -526,6 +582,66 @@
           log: [...state.log, "You turn on the merchant."]
         };
       }
+
+
+      case A.RESOLVE_DRIFTING_WRECK_SEARCH: {
+        const roll = Math.random();
+        let newState = { ...state, activeEvent: null, screen: "sailing" };
+
+        if (roll < 0.50) {
+          // Find cargo
+          const factions = ["english","spanish","french","dutch"];
+          const fakeEnemy = { faction: factions[Math.floor(Math.random() * factions.length)], hull: 50, cannons: 4, crew: 10 };
+          const { gold, cargo } = G.generateEnemyCargo(state, fakeEnemy, "low");
+
+          newState.gold = state.gold + gold;
+
+          const items = { ...(state.hold?.items || {}) };
+          const capacity = L.getHoldCapacity(state);
+          let used = L.getHoldUsed(items);
+          let skipped = false;
+          Object.entries(cargo).forEach(([good, qty]) => {
+            const fit = Math.min(qty, Math.max(0, capacity - used));
+            if (fit > 0) { items[good] = (items[good] || 0) + fit; used += fit; }
+            if (fit < qty) skipped = true;
+          });
+
+          newState.hold = { ...state.hold, items };
+          newState.log = [...state.log,
+            `You find salvageable cargo in the wreck! +${gold}g.`,
+            ...(skipped ? ["Your hold is too full to take everything."] : [])
+          ];
+
+        } else if (roll < 0.70) {
+          newState.log = [...state.log, "The wreck is empty. Looters got here before you."];
+
+        } else if (roll < 0.90) {
+          // Survivor
+          const factions = ["english","spanish","french","dutch","pirate"];
+          const member = G.generateCrewMember(
+            factions[Math.floor(Math.random() * factions.length)],
+            state.crew.roster.map(c => `${c.firstName} ${c.lastName}`)
+          );
+          member.tags = [...(member.tags || []), "scar_shipwreck"];
+          newState.crew = { ...state.crew, roster: [...state.crew.roster, member] };
+          newState.log = [...state.log,
+            `You find a survivor clinging to the wreckage — ${member.firstName} ${member.lastName}, battered but alive.`
+          ];
+
+        } else {
+          // Trap
+          const enemy = G.generateEnemy("low", state.fame, "pirate");
+          enemy.name = "Wreck Looters";
+          const ctx = L.buildEncounterContext(state, "random", enemy);
+          newState.encounterContext = ctx;
+          newState.screen = "intercept";
+          newState.log = [...state.log, "As you board the wreck, pirates emerge from the hold — it was a trap!"];
+        }
+
+        return newState;
+      }
+
+
 
       default:
         return state;

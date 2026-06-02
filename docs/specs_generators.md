@@ -287,15 +287,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   - **Tier**: Uses `L.getFameInfo(fame).tier`.
   - **Effective Risk**: For `"assault"` missions, uses `"assault"` risk regardless of input.
   - **Gold Ranges**: Uses `MISSION_GOLD_RANGES`:
-    ```js
-    const MISSION_GOLD_RANGES = {
-      0: { low: [150, 300], medium: [300, 550],  high: [550, 900],  assault: [900, 1400] },
-      1: { low: [250, 500], medium: [500, 850],  high: [850, 1400], assault: [1400, 2200] },
-      2: { low: [400, 750], medium: [750, 1200], high: [1200, 2000], assault: [2000, 3200] },
-      3: { low: [650, 1100], medium: [1100, 1800], high: [1800, 3000], assault: [3000, 5000] },
-      4: { low: [1000, 1600], medium: [1600, 2600], high: [2600, 4200], assault: [4200, 7000] },
-    };
-    ```
+    → **See [specs_data.md §8](specs_data) for current gold range tables.**
   - **Calculation**:
     - Gets the range for the tier and effective risk.
     - Rolls a random value in the range.
@@ -381,7 +373,7 @@ Functions for generating missions (trade, smuggle, combat, etc.).
   - `faction` (string): Commissioning faction.
 - **Output**: `string | null` (target port key or `null` if no valid port exists).
 - **Notes**:
-  - **Combat/Patrol Missions**: Returns `null` (no destination).
+  - **Combat missions: returns `null` (enemy is at sea, no destination). Patrol missions: returns a rival-faction port as target.
   - **Assault Missions**:
     - Only ports with a **different faction** than the commissioning faction.
   - **Smuggle Missions**:

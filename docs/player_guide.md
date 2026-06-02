@@ -342,20 +342,7 @@ Hidden ports require specific conditions to appear on the map:
 - **Smuggling**: Contraband (tobacco, slaves) can be sold **anywhere**, but carrying it risks inspection during travel.
 
 ---
----
-## 🐛 **Known Issues & Workarounds**
- | Issue | Workaround |
- |-------|------------|
- | Hold Full | Sell cargo or upgrade to a larger ship. |
- | Low Morale | Visit a tavern to **Raise Morale** (5g per crew). |
- | Hostile Port | Improve reputation or avoid the port. |
- | No Missions | Wait 1 day or improve reputation with the port’s faction. |
- | Patrol Interception | Avoid carrying **tobacco/slaves** near lawful ports, or be prepared to fight/flee. |
- | Out of Provisions | Return to port immediately (crew takes damage). |
- | Ship Too Slow | Upgrade to **Copper-Plated Hull** or **Navigational Tools** (-1 day travel time). |
 
----
----
 ## 📚 **Further Reading**
 - [Developer Guide](developer_guide.md) — For modders and contributors.
 - [Roadmap](roadmap.md) — Upcoming features and priorities.

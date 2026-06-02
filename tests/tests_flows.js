@@ -137,7 +137,7 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[3].id });
-        s = { ...s, gold: 10000, fame: 100  }; // ensure enough
+        s = { ...s, gold: 600000, fame: 100  }; // ensure enough
         const frigateCost = D.SHIPS.frigate.cost;
         const upgradeCost = D.UPGRADES.extra_cannons.cost;
         s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "frigate" });
@@ -274,7 +274,7 @@ window.TESTS.push({
   name: "S.02 Purchase ship and verify updated ship stats",
   run: (u) => {
     u.installLocalStorageMock(); u.clearLocalStorageMock();
-    let s = makeState({ screen: "port", gold: 10000, fame: 150, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    let s = makeState({ screen: "port", gold: 1100000, fame: 150, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
     s = E.reducer(s, { type: E.A.NAVIGATE, screen: "shipyard" });
     s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "galleon" });
     u.assertEqual(s.ship.type, "galleon");

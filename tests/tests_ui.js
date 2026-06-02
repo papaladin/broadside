@@ -344,7 +344,7 @@ window.TESTS.push({
       name: "F.05 BUY_SHIP to a smaller ship caps crew and clears upgrades",
       type: "reducer",
       run: (u) => {
-        const state = { ...E.initialState, gold: 5000, ship: { type: "galleon", hull: 300, cannons: 30, upgrades: ["reinforced_hull"] }, crew: { roster: fillRoster(150), max: 150, morale: 80 } };
+        const state = { ...E.initialState, gold: 50000, ship: { type: "galleon", hull: 300, cannons: 30, upgrades: ["reinforced_hull"] }, crew: { roster: fillRoster(150), max: 150, morale: 80 } };
         const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "sloop" });
         u.assertEqual(s.ship.type, "sloop");
         u.assert(s.crew.max === D.SHIPS.sloop.maxCrew, "Crew max reduced");

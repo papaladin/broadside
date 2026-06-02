@@ -57,6 +57,7 @@ window.G = (() => {
       role: pickWeightedRole(),
       faction,
       daysAboard: 0,
+      tags: [], 
     };
   };
 
@@ -427,7 +428,7 @@ window.G = (() => {
     const gold = Math.round(expectedCost * (1 + margin) / 25) * 25;
 
     // Intercept chance: one high-probability check per voyage
-    const interceptChance = { low: 0.70, medium: 0.80, high: 0.90 }[risk] || 0.70;
+    const interceptChance = { low: 0.30, medium: 0.35, high: 0.40 }[risk] || 0.35;
 
     // Infamy on completion: always +1
     const infamyGain = 1;

@@ -726,7 +726,7 @@ window.TESTS.push({
           sailingDaysLeft: 2,
           gold: 500,
           crew: { roster: fillRoster(10), morale: 80, max: 50 },
-          encounterContext: { options: { surrender: { consequence: { goldFine: 200, moralePenalty: 10 } } } }
+          encounterContext: { encounterType: "random", type: "random", enemy: { name: "Pirate", faction: "pirate", ship: "sloop", hull: 50, maxHull: 50, cannons: 8, crew: 15 }, flavourText: "Pirates!", options: [ { id: "fight", label: "Fight", available: true, action: { type: "INTERCEPT_FIGHT" } }, { id: "surrender", label: "Surrender", available: true, action: { type: "INTERCEPT_SURRENDER" } } ] }
         };
         const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
         u.assertEqual(s.gold, 300);
@@ -1079,5 +1079,130 @@ window.TESTS.push({
         u.assertEqual(state.market.goods.food.buyFromPort, 3);
       }
     },
+
+    // ── Drifting Wreck ──────────────────────────────────────────────
+{
+  name: "E.DW.1 Drifting Wreck – Leave it be",
+  run: (u) => {
+    let s = makeState({
+      screen: "sailing",
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
+    u.assertEqual(s.activeEvent, null, "Event cleared");
+    u.assertEqual(s.screen, "sailing");
+    u.assert(s.log.some(l => l.includes("leave the wreck")));
+  }
+},
+{
+  name: "E.DW.2 Drifting Wreck – Search (cargo branch, no capacity check)",
+  run: (u) => {
+    // We'll force the cargo branch by stubbing Math.random to 0.1 (<0.50)
+    u.resetRandomStub();
+    u.setRandomSequence([0.1]); // only one roll used in RESOLVE_DRIFTING_WRECK_SEARCH
+    let s = makeState({
+      screen: "sailing",
+      hold: { items: { food: 5, water: 5 } },
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 }); // triggers RESOLVE_DRIFTING_WRECK_SEARCH
+    u.assertEqual(s.activeEvent, null);
+    u.assertEqual(s.screen, "sailing");
+    u.assert(s.gold > makeState().gold, "Gold increased");
+    u.assert(Object.values(s.hold.items).some(v => v > 0), "Cargo added");
+    u.assert(s.log.some(l => l.includes("cargo")));
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.DW.3 Drifting Wreck – Search (nothing branch)",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence([0.6]); // 0.50–0.70 → nothing
+    let s = makeState({
+      screen: "sailing",
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    u.assertEqual(s.activeEvent, null);
+    u.assert(s.log.some(l => l.includes("empty")));
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.DW.4 Drifting Wreck – Search (survivor branch)",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence([0.8]); // 0.70–0.90 → survivor
+    let s = makeState({
+      screen: "sailing",
+      crew: { roster: fillRoster(10), max: 50, morale: 80 },
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    u.assertEqual(s.crew.roster.length, 11);
+    const last = s.crew.roster[s.crew.roster.length - 1];
+    u.assert(last.tags.includes("scar_shipwreck"), "Survivor has scar tag");
+    u.assert(s.log.some(l => l.includes("survivor")));
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.DW.5 Drifting Wreck – Search (trap branch)",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence([0.95]); // ≥0.90 → trap
+    let s = makeState({
+      screen: "sailing",
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    u.assertEqual(s.screen, "intercept");
+    u.assert(s.encounterContext, "Encounter context exists");
+    u.assert(s.encounterContext.enemy.name.includes("Wreck Looters"));
+    u.resetRandomStub();
+  }
+},
+
+// ── Marooned Sailors ────────────────────────────────────────────
+{
+  name: "E.MS.1 Marooned Sailors – Take aboard",
+  run: (u) => {
+    let s = makeState({
+      screen: "sailing",
+      crew: { roster: fillRoster(10), max: 50, morale: 80 },
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    u.assertEqual(s.crew.roster.length, 13, "3 crew added");
+    u.assert(s.log.some(l => l.includes("join")));
+  }
+},
+{
+  name: "E.MS.2 Marooned Sailors – Pay off",
+  run: (u) => {
+    let s = makeState({
+      screen: "sailing",
+      gold: 200,
+      crew: { roster: fillRoster(10), max: 50, morale: 50 },
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
+    u.assertEqual(s.gold, 150, "50g deducted");
+    u.assertEqual(s.crew.morale, 53, "Morale +3");
+  }
+},
+{
+  name: "E.MS.3 Marooned Sailors – Sail on",
+  run: (u) => {
+    let s = makeState({
+      screen: "sailing",
+      crew: { roster: fillRoster(10), max: 50, morale: 50 },
+      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
+    });
+    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 2 });
+    u.assertEqual(s.crew.morale, 49, "Morale -1");
+  }
+},
   ]
 });

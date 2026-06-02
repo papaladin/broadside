@@ -405,8 +405,8 @@
 - **Notes**:
   - Returns `false` if the current port is pirate-controlled.
   - Base chance: `10%`.
-  - Infamy bonus: `+1% per infamy point` (capped at `30%`).
-  - Formula: `Math.min(0.10 + (state.infamy / 100), 0.30)`.
+  - Infamy bonus: `+0.25% per infamy point` (capped at `30%`).
+  - Formula: `Math.min(0.01 + (state.infamy / 400), 0.30)`.
 
 ---
 

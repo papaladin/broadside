@@ -315,7 +315,7 @@ window.E._reducers.push((state, action) => {
 | `INTERCEPT_SURRENDER` | Surrenders to an enemy (gold/crew/cargo penalties).                            |
 | `BATTLE_ACTION`       | Resolves a player action in combat (broadside, precision, grapple, evade).     |
 | `DISMISS_BATTLE`      | Ends combat: handles victory/defeat, plunder, or return to sailing/port.       |
-| `TAKE_PLUNDER`        | Takes cargo from a defeated enemy (50% gold if taking cargo, 100% if sinking). |
+| `TAKE_PLUNDER`        | Collect plunder after victory. Player manually picks cargo via PlunderScreen. Gold awarded at `PLUNDER_GOLD_RATIO` (20%) |
 | `RESOLVE_EVENT`       | Resolves a random event choice (applies outcomes like gold, damage, morale).   |
 | `PATROL_INSPECT`      | Handles navy inspection of cargo (fines/seizures for contraband).              |
 | `ATTACK_PIRATE`       | Initiates combat with a pirate (from event).                                   |

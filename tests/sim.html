@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚓ Broadside — Economy Simulator</title>
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  HOW TO USE
+  ═══════════════════════════════════════════════════════════════════
+  1. Place this file (sim.html) in the SAME folder as your game files:
+     data.js, logic.js, generators.js
+  2. Open with Live Server (VS Code), or any local HTTP server:
+       npx serve .           (Node)
+       python -m http.server  (Python)
+  3. Also works on GitHub Pages — just commit all files together.
+  4. Click "Run Simulation" — it reads values directly from your
+     game source files. Change data.js → re-run → see the impact.
+  ═══════════════════════════════════════════════════════════════════
+-->
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0a141e; color: #e0e0e0;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  padding: 16px; min-height: 100vh;
+}
+h1 { color: #ffd700; font-size: 18px; letter-spacing: 0.12em; margin-bottom: 4px; }
+h2 { color: #ffd700; font-size: 14px; margin: 18px 0 8px; letter-spacing: 0.08em; }
+h3 { color: #cc9900; font-size: 12px; margin: 12px 0 6px; }
+.subtitle { color: #a0a0a0; font-size: 10px; margin-bottom: 16px; }
+.panel {
+  background: #121c28; border: 1px solid #2a3a4a; border-radius: 4px;
+  padding: 12px; margin-bottom: 12px;
+}
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+label { color: #a0a0a0; font-size: 11px; }
+input[type=number] {
+  background: #0d1620; border: 1px solid #2a3a4a; color: #e0e0e0;
+  padding: 4px 8px; border-radius: 3px; width: 80px; font-family: inherit; font-size: 12px;
+}
+button#runBtn {
+  background: #cc9900; border: 1px solid #ffd700; color: #000;
+  padding: 8px 20px; border-radius: 3px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+  min-height: 36px;
+}
+button#runBtn:hover { background: #ffd700; }
+button#runBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.progress-bar {
+  width: 100%; height: 6px; background: #1a2a3a; border-radius: 3px;
+  margin: 8px 0; overflow: hidden;
+}
+.progress-fill { height: 100%; background: #ffd700; border-radius: 3px; transition: width 0.1s; width: 0%; }
+#status { color: #a0a0a0; font-size: 10px; min-height: 14px; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11px; }
+th { color: #ffd700; text-align: left; padding: 4px 8px; border-bottom: 1px solid #2a3a4a; font-size: 10px; letter-spacing: 0.06em; }
+td { padding: 4px 8px; border-bottom: 1px solid #1a2a3a; }
+.val { color: #e0e0e0; text-align: right; }
+.dim { color: #606060; }
+.gold { color: #ffd700; }
+.green { color: #4caf50; }
+.red { color: #f44336; }
+.blue { color: #2196f3; }
+.purple { color: #9c27b0; }
+canvas { border: 1px solid #2a3a4a; border-radius: 4px; margin: 6px 0; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 800px) { .chart-grid { grid-template-columns: 1fr; } }
+#loaded-values { font-size: 10px; color: #606060; max-height: 200px; overflow-y: auto; }
+#loaded-values b { color: #a0a0a0; }
+</style>
+</head>
+<body>
+
+<h1>⚓ Broadside — Economy Simulator</h1>
+<div class="subtitle">Reads directly from your game source files · No parsing · Change data.js → re-run</div>
+
+<!-- Load actual game files. They set window.D, window.L, window.G -->
+<!-- We stub window.E and window.UI so the files don't crash -->
+<script>
+window.E = { A: {}, _reducers: [] };
+window.UI = { T: {} };
+window.S = {};
+</script>
+<script src="../data.js"></script>
+<script src="../logic.js"></script>
+<script src="../generators.js"></script>
+
+<div class="panel">
+  <h3>⚙ Configuration</h3>
+  <div class="row" style="margin-top:8px">
+    <div><label>Target Fame</label><br><input type="number" id="targetFame" value="200" min="20" max="500"></div>
+    <div><label>Runs / Strategy</label><br><input type="number" id="nRuns" value="100" min="10" max="500"></div>
+    <div><label>Max Days</label><br><input type="number" id="maxDays" value="2000" min="500" max="5000"></div>
+    <div style="margin-left:auto"><button id="runBtn" onclick="runSimulation()">▶ Run Simulation</button></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="status"></div>
+</div>
+
+<div class="panel" id="valuesPanel">
+  <h3>📋 Loaded Values (from your source files)</h3>
+  <div id="loaded-values">Click "Run Simulation" to verify loaded values.</div>
+</div>
+
+<div id="results" style="display:none">
+  <div class="panel"><h2>📊 Results — Comparison Table</h2><div id="compTable"></div></div>
+  <div class="panel"><h2>🎮 Pacing Analysis (Mixed Strategy)</h2><div id="pacingTable"></div></div>
+  <div class="panel"><h2>📈 Charts (Fame-indexed)</h2>
+    <div class="chart-grid">
+      <div><h3>💰 Gold at Fame</h3><canvas id="chartGold" width="560" height="360"></canvas></div>
+      <div><h3>📅 Days at Fame</h3><canvas id="chartDays" width="560" height="360"></canvas></div>
+      <div><h3>⚓ Ship at Fame (Mixed)</h3><canvas id="chartShips" width="560" height="360"></canvas></div>
+      <div><h3>📋 Missions at Fame</h3><canvas id="chartMissions" width="560" height="360"></canvas></div>
+    </div>
+  </div>
+  <div class="panel"><h2>🏴‍☠️ Smuggle Spotlight</h2><div id="smuggleInfo"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  EXTRACT GAME DATA FROM LOADED MODULES
+// ═══════════════════════════════════════════════════════════════
+const D = window.D;
+const L = window.L;
+
+const SHIPS = D.SHIPS;
+const SHIPS_ORDER = Object.keys(SHIPS);
+const PORTS = D.PORTS;
+const FACTIONS = D.FACTIONS;
+const RESOURCES = D.RESOURCES;
+const MISSION_GOLD = D.MISSION_GOLD_RANGES;
+const MISSION_ENEMY = D.MISSION_ENEMY_RANGES;
+const TRADE_MARGINS = D.TRADE_MISSION_PROFIT_MARGINS;
+const SMUGGLE_MARGINS = D.SMUGGLE_PROFIT_MARGINS;
+const STARTS = D.STARTS;
+const TRADE_GOODS = D.TRADE_GOODS_BY_TIER;
+const SMUGGLE_GOODS = D.SMUGGLE_GOODS_BY_TIER;
+
+// Smuggle intercept: try to find from generators, fallback
+let SMUGGLE_INTERCEPT = { low: 0.70, medium: 0.80, high: 0.90 };
+// We'll also try reading from D if it's been moved there
+if (D.SMUGGLE_INTERCEPT_CHANCE) {
+  SMUGGLE_INTERCEPT = D.SMUGGLE_INTERCEPT_CHANCE;
+} else {
+  // Try to extract from generators.js source via fetch
+  fetch("generators.js").then(r => r.text()).then(src => {
+    const m = src.match(/interceptChance\s*=\s*\{[^}]*low:\s*([\d.]+)[^}]*medium:\s*([\d.]+)[^}]*high:\s*([\d.]+)/);
+    if (m) SMUGGLE_INTERCEPT = { low: parseFloat(m[1]), medium: parseFloat(m[2]), high: parseFloat(m[3]) };
+  }).catch(() => {});
+}
+
+function getFameTier(fame) {
+  if (fame >= 350) return 4;
+  if (fame >= 200) return 3;
+  if (fame >= 100) return 2;
+  if (fame >= 50) return 1;
+  return 0;
+}
+
+// Estimate cargo costs from goods lists
+function estCargoCosts(goodsByTier, qtys) {
+  const costs = {};
+  for (const [tier, goods] of Object.entries(goodsByTier)) {
+    const t = parseInt(tier);
+    const validGoods = goods.filter(g => RESOURCES[g]);
+    const avgPrice = validGoods.reduce((s, g) => s + RESOURCES[g].basePrice, 0) / Math.max(1, validGoods.length);
+    costs[t] = Math.round(avgPrice * (qtys[t] || 5));
+  }
+  return costs;
+}
+const TRADE_COSTS = estCargoCosts(TRADE_GOODS, {0:3,1:8,2:12,3:20,4:25});
+const SMUGGLE_COSTS = estCargoCosts(SMUGGLE_GOODS, {0:2,1:5,2:8,3:15,4:20});
+
+// Default start (from first non-debug scenario)
+const defaultStart = STARTS.find(s => s.id !== 'debug') || STARTS[0];
+const START_GOLD = defaultStart.gold;
+const START_CREW = defaultStart.crewCount;
+
+// ═══════════════════════════════════════════════════════════════
+//  STRATEGIES
+// ═══════════════════════════════════════════════════════════════
+const UP_D = SHIPS_ORDER.filter(s => ["dinghy","cutter","sloop","brigantine","corvette","frigate","galleon","ship_of_the_line"].includes(s));
+const UP_T = SHIPS_ORDER.filter(s => ["dinghy","cutter","sloop","merchantman","brigantine","fluyt","galleon","ship_of_the_line"].includes(s));
+
+const STRATEGIES = {
+  "Low Risk":     { tw:{escort:3,patrol:3,combat:2,trade:2,smuggle:0}, rp:{low:8,medium:2,high:0}, up:UP_D, c:"#4caf50" },
+  "High Risk":    { tw:{escort:1,patrol:2,combat:3,trade:1,smuggle:1}, rp:{low:0,medium:2,high:8}, up:UP_D, c:"#f44336" },
+  "Combat Focus": { tw:{escort:1,patrol:3,combat:5,trade:0,smuggle:0}, rp:{low:2,medium:4,high:4}, up:UP_D, c:"#ff9800" },
+  "Trade Focus":  { tw:{escort:1,patrol:0,combat:0,trade:8,smuggle:0}, rp:{low:4,medium:5,high:1}, up:UP_T, c:"#2196f3" },
+  "Smuggle Focus":{ tw:{escort:0,patrol:0,combat:0,trade:1,smuggle:8}, rp:{low:2,medium:4,high:4}, up:UP_D, c:"#9c27b0" },
+  "Mixed":        { tw:{escort:2,patrol:2,combat:2,trade:2,smuggle:1}, rp:{low:3,medium:4,high:3}, up:UP_D, c:"#ffd700" },
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  SIMULATION ENGINE
+// ═══════════════════════════════════════════════════════════════
+function wc(opts, wts) {
+  const t = wts.reduce((a,b) => a+b, 0);
+  if (t === 0) return opts[Math.floor(Math.random()*opts.length)];
+  let r = Math.random()*t, c = 0;
+  for (let i = 0; i < opts.length; i++) { c += wts[i]; if (r <= c) return opts[i]; }
+  return opts[opts.length-1];
+}
+
+function simulate(stratName, targetFame, maxDays) {
+  const S = STRATEGIES[stratName], up = S.up;
+  let gold=START_GOLD, fame=0, ship="dinghy", crew=START_CREW;
+  let day=0, mdone=0, mor=70, food=8, water=8, infamy=0;
+  const snaps={}, sms={}; let lf=-1, st="port", sdl=0, cm=null;
+
+  while (day < maxDays && fame < targetFame) {
+    const tier = getFameTier(fame), s = SHIPS[ship];
+    if (fame !== lf) { snaps[fame] = {day,gold,ship,missions:mdone,crew,infamy}; lf = fame; }
+
+    if (st === "port") {
+      const si = SHIPS_ORDER.indexOf(ship);
+      const tc = si<=0 ? Math.min(2,s.maxCrew) : si<=1 ? Math.max(3,Math.floor(s.maxCrew*0.5)) : Math.max(5,Math.floor(s.maxCrew*0.7));
+      let bud = Math.max(0, gold-40);
+      while (crew<tc && bud>=50) { crew++; gold-=50; bud-=50; }
+      const fpd = Math.max(1, Math.ceil(crew/10)), td = Math.max(3, Math.min(5, s.maxDays))+1;
+      const needF = td*fpd - food; if (needF>0 && gold>=needF*3) { food+=needF; gold-=needF*3; }
+      const needW = td*fpd - water; if (needW>0 && gold>=needW*2) { water+=needW; gold-=needW*2; }
+
+      for (let ci = up.length-1; ci >= 0; ci--) {
+        const cand = up[ci]; if (!SHIPS[cand]) continue;
+        const cs = SHIPS[cand];
+        if (SHIPS_ORDER.indexOf(cand) > SHIPS_ORDER.indexOf(ship) && fame >= cs.requiredFame && gold >= cs.cost) {
+          gold -= cs.cost; ship = cand;
+          if (!sms[ship]) sms[ship] = {day,fame};
+          const s2 = SHIPS[ship], si2 = SHIPS_ORDER.indexOf(ship);
+          const tc2 = si2<=1 ? Math.max(3,Math.floor(s2.maxCrew*0.5)) : Math.max(5,Math.floor(s2.maxCrew*0.7));
+          while (crew<tc2 && gold>=50) { crew++; gold-=50; }
+          break;
+        }
+      }
+
+      let mt, mr;
+      for (let attempt=0; attempt<5; attempt++) {
+        mt = wc(Object.keys(S.tw), Object.values(S.tw));
+        mr = wc(["low","medium","high"], ["low","medium","high"].map(r=>S.rp[r]||1));
+        if (mt==="trade" && gold < (TRADE_COSTS[tier]||200)) continue;
+        if (mt==="smuggle" && gold < (SMUGGLE_COSTS[tier]||100)) continue;
+        break;
+      }
+      const spd = SHIPS[ship].speed || 10;
+      const tdl = Math.max(1, 2 + Math.floor(Math.random() * Math.max(1, 4 - Math.floor(spd/6))));
+      cm = {type:mt, risk:mr, travel:tdl, tier}; sdl=tdl; st="sailing"; mor=Math.min(100,mor+3);
+
+    } else {
+      const wm = mor<30 ? 1.5 : 1.0;
+      gold = Math.max(0, gold - Math.floor(crew*2*wm));
+      const fc = Math.max(1, Math.ceil(crew/10));
+      food = Math.max(0, food-fc); water = Math.max(0, water-fc);
+      if (food<=0 || water<=0) mor = Math.max(0, mor-3);
+
+      if (st==="sailing" && Math.random()<0.08) {
+        const ev = Math.random();
+        if (ev<0.20) { sdl++; mor=Math.max(0,mor-3); }
+        else if (ev<0.35) { sdl++; }
+        else if (ev<0.55) { gold += 30+Math.floor(Math.random()*170); }
+        else { crew=Math.max(1,crew-Math.floor(Math.random()*2)); }
+      }
+      sdl--; day++;
+      if (sdl <= 0) {
+        if (st === "sailing") {
+          const {tier:t, risk, type:mtype} = cm;
+          const gr = MISSION_GOLD[t]?.[risk] || MISSION_GOLD[0].low;
+          const mgold = gr[0] + Math.floor(Math.random()*(gr[1]-gr[0]+1));
+          const mfame = t===0 ? 1 : (risk==="high"?3:risk==="medium"?2:1);
+          const s = SHIPS[ship], si = SHIPS_ORDER.indexOf(ship);
+
+          if (["escort","patrol","combat"].includes(mtype)) {
+            const ecR = MISSION_ENEMY.cannons[t]||[2,6], ecrR = MISSION_ENEMY.crew[t]||[8,18];
+            const ec = ecR[0]+Math.floor(Math.random()*(ecR[1]-ecR[0]+1));
+            const ecr = ecrR[0]+Math.floor(Math.random()*(ecrR[1]-ecrR[0]+1));
+            if (si<=0) {
+              if (Math.random()<0.80) { gold+=Math.floor(mgold*0.4); fame+=mfame; mdone++; }
+              else { crew=Math.max(1,crew-Math.floor(Math.random()*2)); mor=Math.max(0,mor-5); gold+=Math.floor(mgold*0.15); fame+=Math.max(0,mfame-1); mdone++; }
+            } else if (si<=1) {
+              if (Math.random()<0.70) { gold+=Math.floor(mgold*0.5); fame+=mfame; mdone++; }
+              else {
+                const pr=(s.cannons*Math.max(1,crew))/Math.max(1,ec*ecr);
+                const rm=risk==="low"?0.15:risk==="high"?-0.15:0;
+                const wp=Math.min(0.95,Math.max(0.20,0.5+(pr-1)*0.3+rm));
+                if (Math.random()<wp) { gold+=mgold+Math.floor(mgold*0.25); fame+=mfame; mdone++; mor=Math.min(100,mor+5); }
+                else { crew=Math.max(1,crew-1-Math.floor(Math.random()*Math.max(1,Math.floor(crew/6)))); mor=Math.max(0,mor-12); gold=Math.max(0,gold-Math.floor(gold*0.10)); }
+              }
+            } else {
+              const pr=(s.cannons*Math.max(1,crew))/Math.max(1,ec*ecr);
+              const rm=risk==="low"?0.15:risk==="high"?-0.15:0;
+              const wp=Math.min(0.95,Math.max(0.20,0.5+(pr-1)*0.3+rm));
+              if (Math.random()<wp) { gold+=mgold+Math.floor(mgold*0.25); fame+=mfame; mdone++; mor=Math.min(100,mor+5); crew=Math.max(1,crew-Math.floor(Math.random()*Math.max(1,Math.floor(crew/12)))); }
+              else { crew=Math.max(1,crew-1-Math.floor(Math.random()*Math.max(1,Math.floor(crew/6)))); mor=Math.max(0,mor-12); gold=Math.max(0,gold-Math.floor(gold*0.10)); }
+            }
+          } else if (mtype==="trade") {
+            const cc=TRADE_COSTS[t]||200, mg=TRADE_MARGINS[risk]||0.8;
+            if (gold>=cc) { gold = gold + Math.floor(cc*mg) + mgold; fame+=mfame; mdone++; }
+          } else if (mtype==="smuggle") {
+            const cc=SMUGGLE_COSTS[t]||100, mg=SMUGGLE_MARGINS[risk]||1.0;
+            const ic=SMUGGLE_INTERCEPT[risk]||0.4;
+            if (gold>=cc) {
+              gold -= cc;
+              if (Math.random() < ic) {
+                const fleeChance = si<=0?0.80:si<=1?0.75:0.60;
+                if (Math.random()<fleeChance) {
+                  gold += cc + Math.floor(cc*mg) + mgold; fame+=mfame; mdone++; infamy+=2; mor=Math.max(0,mor-5);
+                } else {
+                  const ecR=MISSION_ENEMY.cannons[t]||[2,6], ecrR=MISSION_ENEMY.crew[t]||[8,18];
+                  const ec2=ecR[0]+Math.floor(Math.random()*(ecR[1]-ecR[0]+1));
+                  const ecr2=ecrR[0]+Math.floor(Math.random()*(ecrR[1]-ecrR[0]+1));
+                  const pr2=(s.cannons*Math.max(1,crew))/Math.max(1,ec2*ecr2);
+                  const wp2=Math.min(0.90,Math.max(0.15,0.5+(pr2-1)*0.3));
+                  if (Math.random()<wp2) {
+                    gold += cc + Math.floor(cc*mg) + mgold; fame+=mfame; mdone++; infamy+=3; mor=Math.max(0,mor-8);
+                    crew=Math.max(1,crew-Math.floor(Math.random()*Math.max(1,Math.floor(crew/8))));
+                  } else {
+                    gold=Math.max(0,gold-Math.floor(cc*0.3)); infamy+=2; mor=Math.max(0,mor-15);
+                    crew=Math.max(1,crew-1-Math.floor(Math.random()*Math.max(1,Math.floor(crew/5))));
+                  }
+                }
+              } else {
+                gold += cc + Math.floor(cc*mg) + mgold; fame+=mfame; mdone++; infamy+=1;
+              }
+            }
+          }
+          sdl=cm.travel; st="returning";
+        } else { mor=Math.min(100,mor+5); st="port"; }
+      }
+    }
+  }
+  snaps[fame] = {day,gold,ship,missions:mdone,crew,infamy};
+  return { snaps, sms, final_fame:fame, final_day:day, final_ship:ship, missions_done:mdone, reached:fame>=targetFame, infamy };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANALYSIS HELPERS
+// ═══════════════════════════════════════════════════════════════
+function atFame(runs, fl, field) {
+  return runs.map(r => {
+    const best = Object.keys(r.snaps).map(Number).filter(f=>f<=fl).sort((a,b)=>b-a)[0];
+    return best !== undefined ? r.snaps[best][field] : null;
+  }).filter(v => v !== null);
+}
+function median(arr) { if (!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; }
+function pct(arr, p) { if (!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const i=(p/100)*(s.length-1); const lo=Math.floor(i), hi=Math.ceil(i); return s[lo]+(s[hi]-s[lo])*(i-lo); }
+function mode(arr) { const c={}; arr.forEach(v=>{c[v]=(c[v]||0)+1;}); return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||"?"; }
+
+// ═══════════════════════════════════════════════════════════════
+//  CHART DRAWING (Canvas)
+// ═══════════════════════════════════════════════════════════════
+function drawLineChart(canvasId, allRes, field, targetFame, logScale, ylabel) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const pad = { l:60, r:20, t:20, b:30 };
+  const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
+
+  ctx.fillStyle = "#0d1620"; ctx.fillRect(0,0,W,H);
+
+  // Collect all medians to find y range
+  let yMin=Infinity, yMax=-Infinity;
+  const seriesData = {};
+  for (const [name, runs] of Object.entries(allRes)) {
+    const meds = [];
+    for (let f=0; f<=targetFame; f++) {
+      const v = atFame(runs, f, field);
+      const m = v.length ? median(v) : (meds.length ? meds[meds.length-1] : 0);
+      meds.push(logScale ? Math.max(1, m) : m);
+    }
+    seriesData[name] = meds;
+    meds.forEach(v => { if (v<yMin) yMin=v; if (v>yMax) yMax=v; });
+  }
+  if (logScale) { yMin = 1; yMax = Math.max(yMax, 10); }
+  else { yMin = 0; }
+
+  const toX = f => pad.l + (f/targetFame)*pw;
+  const toY = v => {
+    if (logScale) return pad.t + ph - (Math.log10(Math.max(1,v))-Math.log10(yMin))/(Math.log10(yMax)-Math.log10(yMin))*ph;
+    return pad.t + ph - ((v-yMin)/(yMax-yMin))*ph;
+  };
+
+  // Grid
+  ctx.strokeStyle = "#1a2a3a"; ctx.lineWidth = 0.5;
+  [20,50,100].forEach(f => { const x=toX(f); ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ph); ctx.stroke(); });
+
+  // Axis labels
+  ctx.fillStyle = "#606060"; ctx.font = "9px monospace"; ctx.textAlign = "center";
+  for (let f=0; f<=targetFame; f+=50) { ctx.fillText(f, toX(f), H-4); }
+  ctx.textAlign = "right";
+  if (logScale) {
+    for (let p=0; p<=Math.ceil(Math.log10(yMax)); p++) {
+      const v = Math.pow(10,p); if (v>=yMin&&v<=yMax) ctx.fillText(v>=1000?(v/1000)+"k":v, pad.l-4, toY(v)+3);
+    }
+  } else {
+    const step = Math.pow(10, Math.floor(Math.log10(Math.max(1,yMax))))/2 || 1;
+    for (let v=0; v<=yMax; v+=step) { ctx.fillText(v>=1000?Math.round(v/1000)+"k":Math.round(v), pad.l-4, toY(v)+3); }
+  }
+
+  // Series
+  for (const [name, info] of Object.entries(STRATEGIES)) {
+    const meds = seriesData[name]; if (!meds) continue;
+    ctx.strokeStyle = info.c; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (let f=0; f<=targetFame; f++) {
+      const x=toX(f), y=toY(meds[f]);
+      f===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // Legend
+  let ly = pad.t + 10;
+  ctx.font = "9px monospace";
+  for (const [name, info] of Object.entries(STRATEGIES)) {
+    ctx.fillStyle = info.c; ctx.fillRect(pad.l+8, ly-4, 12, 3);
+    ctx.fillStyle = "#a0a0a0"; ctx.textAlign = "left";
+    ctx.fillText(name, pad.l+24, ly); ly += 12;
+  }
+}
+
+function drawBarChart(canvasId, allRes, targetFame) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+  const W=canvas.width, H=canvas.height;
+  const pad={l:50,r:20,t:20,b:40};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  ctx.fillStyle="#0d1620"; ctx.fillRect(0,0,W,H);
+
+  const ships = ["cutter","sloop","brigantine","corvette","frigate","galleon"];
+  const nStrats = Object.keys(STRATEGIES).length;
+  const groupW = pw / ships.length;
+  const barW = groupW / (nStrats + 1);
+
+  ctx.textAlign="center"; ctx.font="9px monospace"; ctx.fillStyle="#a0a0a0";
+  ships.forEach((s,i) => { ctx.fillText(s.charAt(0).toUpperCase()+s.slice(1), pad.l+groupW*i+groupW/2, H-8); });
+
+  const toY = v => pad.t + ph - (v/targetFame)*ph;
+
+  // Grid
+  ctx.strokeStyle="#1a2a3a"; ctx.lineWidth=0.5;
+  [50,100,150,200].forEach(v => { const y=toY(v); ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+pw,y); ctx.stroke(); });
+  ctx.textAlign="right"; ctx.fillStyle="#606060";
+  [0,50,100,150,200].forEach(v => { ctx.fillText("F"+v, pad.l-4, toY(v)+3); });
+
+  let si = 0;
+  for (const [name, info] of Object.entries(STRATEGIES)) {
+    const runs = allRes[name];
+    ships.forEach((ms, i) => {
+      const fames = runs.filter(r=>r.sms[ms]).map(r=>r.sms[ms].fame);
+      const val = fames.length >= runs.length*0.25 ? median(fames) : targetFame+10;
+      const x = pad.l + groupW*i + barW*(si+0.5);
+      const y = toY(Math.min(val, targetFame));
+      const h = pad.t+ph - y;
+      ctx.fillStyle = info.c; ctx.globalAlpha = val<=targetFame?0.8:0.15;
+      ctx.fillRect(x, y, barW*0.8, h);
+      ctx.globalAlpha=1;
+      if (val <= targetFame) {
+        ctx.fillStyle=info.c; ctx.font="7px monospace"; ctx.textAlign="center";
+        ctx.fillText("F"+Math.round(val), x+barW*0.4, y-3);
+      }
+    });
+    si++;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN — RUN SIMULATION
+// ═══════════════════════════════════════════════════════════════
+async function runSimulation() {
+  const btn = document.getElementById("runBtn");
+  btn.disabled = true;
+  const fill = document.getElementById("progressFill");
+  const status = document.getElementById("status");
+
+  const targetFame = parseInt(document.getElementById("targetFame").value) || 200;
+  const nRuns = parseInt(document.getElementById("nRuns").value) || 100;
+  const maxDays = parseInt(document.getElementById("maxDays").value) || 2000;
+
+  // Show loaded values
+  const lv = document.getElementById("loaded-values");
+  let valHtml = `<b>Start:</b> ${START_GOLD}g, ${START_CREW} crew<br>`;
+  valHtml += `<b>Ships:</b> `;
+  for (const [k,v] of Object.entries(SHIPS)) valHtml += `${k}(${v.cost}g/F${v.requiredFame}) `;
+  valHtml += `<br><b>T0 gold:</b> low[${MISSION_GOLD[0]?.low}] med[${MISSION_GOLD[0]?.medium}] high[${MISSION_GOLD[0]?.high}]`;
+  valHtml += `<br><b>Smuggle intercept:</b> ${JSON.stringify(SMUGGLE_INTERCEPT)}`;
+  valHtml += `<br><b>Trade margins:</b> ${JSON.stringify(TRADE_MARGINS)}`;
+  valHtml += `<br><b>Smuggle margins:</b> ${JSON.stringify(SMUGGLE_MARGINS)}`;
+  valHtml += `<br><b>Trade cargo costs:</b> ${JSON.stringify(TRADE_COSTS)}`;
+  valHtml += `<br><b>Smuggle cargo costs:</b> ${JSON.stringify(SMUGGLE_COSTS)}`;
+  lv.innerHTML = valHtml;
+
+  const allRes = {};
+  const stratNames = Object.keys(STRATEGIES);
+  let done = 0, total = stratNames.length * nRuns;
+
+  for (const name of stratNames) {
+    const runs = [];
+    for (let i = 0; i < nRuns; i++) {
+      runs.push(simulate(name, targetFame, maxDays));
+      done++;
+      if (done % 10 === 0) {
+        fill.style.width = (done/total*100)+"%";
+        status.textContent = `${name}: ${i+1}/${nRuns} (${Math.round(done/total*100)}%)`;
+        await new Promise(r => setTimeout(r, 0)); // yield to UI
+      }
+    }
+    allRes[name] = runs;
+    const reached = runs.filter(r=>r.reached).length;
+    status.textContent = `✓ ${name}: ${reached}/${nRuns} reached Fame ${targetFame}`;
+    await new Promise(r => setTimeout(r, 0));
+  }
+  fill.style.width = "100%";
+  status.textContent = "✓ Simulation complete. Rendering results...";
+
+  // ═══ RENDER RESULTS ═══
+  document.getElementById("results").style.display = "block";
+
+  // Comparison table
+  const mils = [20, 50, 100, Math.min(targetFame, 150), targetFame];
+  let thtml = `<table><tr><th>Strategy</th>`;
+  mils.forEach(fm => thtml += `<th colspan="4" style="text-align:center">Fame ${fm}</th>`);
+  thtml += `<th>OK?</th></tr><tr><th></th>`;
+  mils.forEach(() => thtml += `<th>Day</th><th>Gold</th><th>Miss</th><th>Ship</th>`);
+  thtml += `<th></th></tr>`;
+
+  for (const [name, info] of Object.entries(STRATEGIES)) {
+    const runs = allRes[name];
+    const rc = runs.filter(r=>r.reached).length;
+    thtml += `<tr><td style="color:${info.c};font-weight:bold">${name}</td>`;
+    mils.forEach(fm => {
+      const d=atFame(runs,fm,"day"), g=atFame(runs,fm,"gold"), m=atFame(runs,fm,"missions"), sh=atFame(runs,fm,"ship");
+      const valid = runs.filter(r=>r.final_fame>=fm);
+      if (valid.length > 0) {
+        const shipName = mode(sh); const sn = shipName.length>8?shipName.slice(0,7)+"…":shipName;
+        thtml += `<td class="val">${Math.round(median(d))}</td><td class="val">${Math.round(median(g)).toLocaleString()}</td><td class="val">${Math.round(median(m))}</td><td class="dim">${sn}</td>`;
+      } else {
+        thtml += `<td class="dim" colspan="4">— stalled</td>`;
+      }
+    });
+    thtml += `<td style="color:${rc>=nRuns*0.8?'#4caf50':rc>=nRuns*0.4?'#ff9800':'#f44336'}">${rc}/${nRuns}</td></tr>`;
+  }
+  thtml += `</table>`;
+  document.getElementById("compTable").innerHTML = thtml;
+
+  // Pacing table (Mixed)
+  const phases = [[0,20,"🚣 Dinghy"],[20,50,"⛵ Cutter"],[50,100,"🚢 Sloop"],[100,targetFame,"⚓ Brig+"]];
+  let phtml = `<table><tr><th>Phase</th><th>Fame</th><th>Days</th><th>Missions</th><th>Days/Miss</th><th>Gold Start</th><th>Gold End</th></tr>`;
+  const mRuns = allRes["Mixed"];
+  phases.forEach(([f0,f1,label]) => {
+    const d0=atFame(mRuns,f0,"day"), d1=atFame(mRuns,f1,"day");
+    const m0=atFame(mRuns,f0,"missions"), m1=atFame(mRuns,f1,"missions");
+    const g0=atFame(mRuns,f0,"gold"), g1=atFame(mRuns,f1,"gold");
+    if (d0.length && d1.length) {
+      const dd=Math.round(median(d1)-median(d0)), dm=Math.round(median(m1)-median(m0));
+      phtml += `<tr><td>${label}</td><td class="val">${f0}→${f1}</td><td class="val">~${dd}</td><td class="val">~${dm}</td><td class="val">${(dd/Math.max(1,dm)).toFixed(1)}</td><td class="val gold">${Math.round(median(g0)).toLocaleString()}</td><td class="val gold">${Math.round(median(g1)).toLocaleString()}</td></tr>`;
+    }
+  });
+  phtml += `</table>`;
+  document.getElementById("pacingTable").innerHTML = phtml;
+
+  // Smuggle spotlight
+  const sRuns = allRes["Smuggle Focus"];
+  const src = sRuns.filter(r=>r.reached).length;
+  let shtml = `<p>Reached Fame ${targetFame}: <b style="color:${src>=nRuns*0.5?'#4caf50':'#f44336'}">${src}/${nRuns}</b></p>`;
+  if (src > 0) {
+    const sd = median(sRuns.filter(r=>r.reached).map(r=>r.final_day));
+    const sm = median(sRuns.filter(r=>r.reached).map(r=>r.missions_done));
+    const si = median(sRuns.filter(r=>r.reached).map(r=>r.infamy));
+    shtml += `<p>Median when reached: ${Math.round(sd)} days, ${Math.round(sm)} missions, ${Math.round(si)} infamy</p>`;
+  } else {
+    const mf = median(sRuns.map(r=>r.final_fame));
+    shtml += `<p>Stalled at median fame ${Math.round(mf)}</p>`;
+  }
+  shtml += `<p style="color:#606060">Intercept model: patrol encounter → refuse+flee → still deliver if escaped</p>`;
+  document.getElementById("smuggleInfo").innerHTML = shtml;
+
+  // Charts
+  drawLineChart("chartGold", allRes, "gold", targetFame, true, "Gold");
+  drawLineChart("chartDays", allRes, "day", targetFame, false, "Days");
+  drawLineChart("chartMissions", allRes, "missions", targetFame, false, "Missions");
+  drawBarChart("chartShips", allRes, targetFame);
+
+  status.textContent = `✓ Done. ${Object.keys(allRes).length} strategies × ${nRuns} runs.`;
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>

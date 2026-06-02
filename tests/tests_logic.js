@@ -181,7 +181,7 @@ window.TESTS.push({
     u.resetRandomStub();
     const stateVeryLow = makeState({ reputation: Object.keys(D.PORTS).reduce((acc, k) => ({ ...acc, [k]: 10 }), {}) });
     const missions = G.generateMissions("portRoyal", stateVeryLow);
-    u.assert(!missions.some(m => m.risk === "high"), "No high-risk missions at very low rep");
+    u.assert(!missions.some(m => m.risk === "high"), "Missions may include any risk at hostile rep (no risk gating by rep)");
     // medium risk may appear (generator only blocks high‑risk below 40)
   }
 },
