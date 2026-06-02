@@ -855,8 +855,6 @@ const ENEMY_SHIP_NAMES = {
           label: "Negotiate",
           outcome: {
             log: "You promise better conditions. The crew stands down... for now.",
-            gold: -200,
-            moraleBonus: 20
           }
         },
         {

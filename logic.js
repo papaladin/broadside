@@ -400,7 +400,7 @@ const getUnreachableReason = (state, portKey) => {
     } else {
       const newEnemyHull = Math.max(0, state.battleState.enemyHull - playerOutcome.player.hullDamage);
       if (newEnemyHull <= 0) {
-        delta = 10;
+        delta = 5;
       } else if (action === "grapple") {
         delta = -10;
       }

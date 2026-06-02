@@ -1319,5 +1319,40 @@ window.TESTS.push({
     u.assertEqual(s.factionAlerts.spanish, 10, "Heat capped at 10");
   }
 },
+// ── Mutiny Negotiate Conditional Cost ─────────────────────────
+{
+  name: "E.MUTINY.1 Mutiny negotiate with enough gold",
+  run: (u) => {
+    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
+    u.assert(mutinyEvent, "mutiny event must exist");
+    const state = makeState({
+      activeEvent: mutinyEvent,
+      gold: 1000,
+      crew: { roster: fillRoster(30), morale: 15, max: 50 },
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    // Cost = 30 * 10 = 300g
+    u.assertEqual(s.gold, 700, "Gold should be deducted by 300");
+    u.assertEqual(s.crew.morale, 35, "Morale +20 from negotiate (15+20)");
+    u.assert(s.log.some(l => l.includes("stands down")), "Log should indicate crew stands down");
+  }
+},
+{
+  name: "E.MUTINY.2 Mutiny negotiate with insufficient gold",
+  run: (u) => {
+    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
+    u.assert(mutinyEvent, "mutiny event must exist");
+    const state = makeState({
+      activeEvent: mutinyEvent,
+      gold: 50,
+      crew: { roster: fillRoster(10), morale: 15, max: 50 },
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    // Cost = 10 * 10 = 100g, but only 50g available -> negotiation fails
+    u.assertEqual(s.gold, 50, "Gold unchanged");
+    u.assertEqual(s.crew.morale, 10, "Morale -5 (15-5)");
+    u.assert(s.log.some(l => l.includes("empty words")), "Log should indicate empty promise");
+  }
+},
   ]
 });

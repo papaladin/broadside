@@ -462,6 +462,19 @@
 
         if (choice.outcome.log) newState.log = [...state.log, choice.outcome.log];
         if (choice.outcome.gold) newState.gold = Math.max(0, state.gold + choice.outcome.gold);
+        // ── Mutiny negotiate: scale cost, check affordability ──────────
+        if (event.id === "mutiny" && action.choiceIndex === 0) {
+          const mutinyCost = (state.crew.roster.length || 0) * 10;
+          if (state.gold >= mutinyCost) {
+            newState.gold = Math.max(0, (newState.gold || state.gold) - mutinyCost);
+            newState.crew = { ...newState.crew, morale: Math.min(100, (newState.crew.morale || state.crew.morale) + 20) };
+            newState.log = [...(newState.log || state.log), `You promise better conditions, costing ${mutinyCost}g. The crew stands down... for now.`];
+          } else {
+            // Can't afford – negotiation fails
+            newState.crew = { ...newState.crew, morale: Math.max(0, (newState.crew.morale || state.crew.morale) - 5) };
+            newState.log = [...(newState.log || state.log), `You promise better conditions, but the crew sees through your empty words. They grow angrier.`];
+          }
+        }
         if (choice.outcome.fame) newState.fame += choice.outcome.fame;
         if (choice.outcome.hullDamage) newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
         if (choice.outcome.crewLoss) {

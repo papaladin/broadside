@@ -294,7 +294,7 @@
         };
       }
 
-      case A.COMPLETE_MISSION: {
+       case A.COMPLETE_MISSION: {
         const mission = state.activeMission;
         if (!mission) return state;
         if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
@@ -344,6 +344,9 @@
         const newInfamy = Math.min(999, oldInfamy + infamyGain);
         const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
 
+        // ── Base morale gain for mission completion ────────────────
+        const newMorale = Math.min(100, state.crew.morale + 3);
+
         const newLog = [
           ...state.log,
           `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`
@@ -351,14 +354,6 @@
         if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
         if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
         if (mission.plotItem) holdItems = { ...holdItems, plot_item: 0 };
-        if (mission.type === "smuggle" && mission.targetPort) {
-          const targetFaction = PORTS[mission.targetPort]?.faction;
-          if (targetFaction && targetFaction !== "pirate") {
-            const alerts = { ...(nextState.factionAlerts || {}) };
-            alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
-            nextState.factionAlerts = alerts;
-          }
-        }
 
         const nextState = {
           ...state,
@@ -368,9 +363,21 @@
           reputation: newRep,
           activeMission: null,
           hold: { ...state.hold, items: holdItems },
+          crew: { ...state.crew, morale: newMorale },
           missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
           log: newLog,
         };
+
+        // ── Smuggle mission: add heat to target faction ────────────
+        if (mission.type === "smuggle" && mission.targetPort) {
+          const targetFaction = PORTS[mission.targetPort]?.faction;
+          if (targetFaction && targetFaction !== "pirate") {
+            const alerts = { ...(nextState.factionAlerts || {}) };
+            alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
+            nextState.factionAlerts = alerts;
+          }
+        }
+
         autoSave(nextState);
         return nextState;
       }
