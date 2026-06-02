@@ -1354,5 +1354,44 @@ window.TESTS.push({
     u.assert(s.log.some(l => l.includes("empty words")), "Log should indicate empty promise");
   }
 },
+
+// ── Heat Gossip on Port Entry ─────────────────────────────────
+{
+  name: "E.GOSSIP.1 ENTER_PORT with low heat has no gossip",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen: "sailing",
+      destination: "havana",
+      sailingDaysLeft: 0,
+      reputation: { havana: 50 },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+      crew: { roster: fillRoster(10), max: 50, morale: 80 },
+      hold: { items: { food: 5, water: 5 } },
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assertEqual(s.portGossip.length, 0, "No gossip when heat is low");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.GOSSIP.2 ENTER_PORT with high heat produces warning",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen: "sailing",
+      destination: "havana",
+      sailingDaysLeft: 0,
+      reputation: { havana: 50 },
+      factionAlerts: { english: 0, spanish: 5, french: 0, dutch: 0, pirate: 0 },
+      crew: { roster: fillRoster(10), max: 50, morale: 80 },
+      hold: { items: { food: 5, water: 5 } },
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.portGossip.length > 0, "Gossip should be present");
+    u.assert(s.portGossip[0].includes("Soldiers") || s.portGossip[0].includes("garrison"), "Gossip mentions patrols or garrison");
+    u.resetRandomStub();
+  }
+},
   ]
 });

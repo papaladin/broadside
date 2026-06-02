@@ -135,6 +135,7 @@
           sailingDaysLeft: days,
           sailingDaysTotal: days,
           screen: "sailing",
+          portGossip: [],
           log: [...state.log, `Setting sail for ${PORTS[action.port].name}. ${days} day${days !== 1 ? "s" : ""} voyage.`]
         };
       }
@@ -185,6 +186,18 @@
           portMarket: G.generatePortMarket(state.destination),
           log: [...state.log, `Arrived at ${port.name}.`]
         };
+
+        // ── Port gossip: heat warning ────────────────────────────────
+        const portFactionForGossip = PORTS[nextState.currentPort]?.faction;
+        const heat = nextState.factionAlerts?.[portFactionForGossip] || 0;
+        if (heat >= 3) {
+          const heatLine = heat >= 7
+            ? "Warships sit in the harbour, crews at the ready. Someone is being hunted."
+            : heat >= 5
+              ? "Soldiers patrol the docks. The garrison has been reinforced."
+              : "The harbourmaster checks papers more carefully than usual.";
+          nextState.portGossip = [heatLine];
+        }
         autoSave(nextState);
         return nextState;
       }

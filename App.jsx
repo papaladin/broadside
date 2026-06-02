@@ -251,6 +251,7 @@ const App = () => {
 const DebugPanel = ({ state, dispatch }) => {
   const { T } = window.UI;
   const A = window.E.A;
+  const { FACTIONS } = window.D;
   const btnStyle = {
     background: T.panel, border: `1px solid ${T.border}`, color: T.textDim,
     padding: "3px 6px", borderRadius: 3, cursor: "pointer", fontSize: 10,
@@ -308,6 +309,24 @@ const DebugPanel = ({ state, dispatch }) => {
             style={{ ...btnStyle }}>{n}</button>
         ))}
       </div>
+
+      {/* Heat (faction alerts) */}
+<div style={{ color: T.textDim, marginBottom: 4 }}>Heat (per faction)</div>
+{["english","spanish","french","dutch"].map(faction => {
+  const fac = FACTIONS[faction];
+  return (
+    <div key={faction} style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
+      <span style={{ color: fac?.color || T.textDim, fontSize: 10, width: 50 }}>{fac?.label || faction}</span>
+      {[5, 10].map(n => (
+        <button key={n}
+          onClick={() => dispatch({ type: A.DEBUG_SET_HEAT, faction, amount: n })}
+          style={{ ...btnStyle }}>
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+})}
 
       <button onClick={() => dispatch({ type: A.DEBUG_FILL_HOLD })}
         style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>

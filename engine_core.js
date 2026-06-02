@@ -59,6 +59,7 @@ window.E = window.E || {};
     DEBUG_UNLOCK_HIDDEN_PORTS: "DEBUG_UNLOCK_HIDDEN_PORTS",
     DEBUG_MAX_CREW: "DEBUG_MAX_CREW",
     DEBUG_COMPLETE_MISSION: "DEBUG_COMPLETE_MISSION",
+    DEBUG_SET_HEAT: "DEBUG_SET_HEAT",
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -84,6 +85,7 @@ window.E = window.E || {};
     if (!s.factionAlerts) {
       s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
     }
+    if (!s.portGossip) s.portGossip = [];
     return s;
   };
 
@@ -139,6 +141,7 @@ window.E = window.E || {};
       },
     },
     portMarket: null,
+    portGossip: [],
     missions: [],
     activeMission: null,
     reputation: {},
@@ -259,6 +262,12 @@ window.E._reducers.push((state, action) => {
         log: [...state.log, `⚙ Debug-completed mission: ${mission.name}. +${finalGold}g.`],
       };
     }
+
+    case window.E.A.DEBUG_SET_HEAT: {
+  const alerts = { ...(state.factionAlerts || {}) };
+  alerts[action.faction] = Math.min(10, Math.max(0, action.amount));
+  return { ...state, factionAlerts: alerts };
+}
 
     default:
       return state;

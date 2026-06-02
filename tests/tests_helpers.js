@@ -43,6 +43,13 @@ const makeState = (overrides = {}) => {
     gold: 1000,
     fame: 0,
     infamy: 0,
+    factionAlerts: {
+      english: 0,
+      spanish: 0,
+      french: 0,
+      dutch: 0,
+      pirate: 0,
+    },
     currentPort: "portRoyal",
     previousPort: null,
     destination: null,
@@ -73,6 +80,7 @@ const makeState = (overrides = {}) => {
     encounterContext: null,
     activeEvent: null,
     portMarket: null,
+    portGossip: [],
     discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
     mapFragments: [],
   };

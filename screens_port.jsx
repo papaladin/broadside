@@ -84,6 +84,19 @@ window.S = window.S || {};
             <RepPill rep={rep} />
           </div>
           <p style={{ color: T.textDim, fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 }}>{port.desc}</p>
+          {state.portGossip?.length > 0 && (
+            <div style={panelStyle({ background: T.bgDeep, borderColor: T.borderFaint, marginBottom: 10 })}>
+              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 6, letterSpacing: "0.08em" }}>
+                WORD ON THE DOCKS
+              </div>
+              {state.portGossip.map((line, i) => (
+                <p key={i} style={{
+                  color: T.textDim, fontSize: 10, marginBottom: 6,
+                  lineHeight: 1.5, fontStyle: "italic"
+                }}>{line}</p>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>{port.services.map(s => <Pill key={s} label={s} />)}</div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
