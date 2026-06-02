@@ -60,6 +60,17 @@ window.S = window.S || {};
                       </text>
                     )
                   )}
+                    {isHov && !isCur && (() => {
+                      const alertLevel = state.factionAlerts?.[p.faction] || 0;
+                      if (alertLevel > 0) {
+                        return (
+                          <text x={p.x} y={p.y + 48} textAnchor="middle" fontSize="7" fill={T.redBr} fontFamily={T.font}>
+                            ⚠ Heat {alertLevel}
+                          </text>
+                        );
+                      }
+                      return null;
+                    })()}
                 </g>
               );
             })}

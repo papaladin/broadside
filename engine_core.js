@@ -81,6 +81,9 @@ window.E = window.E || {};
       s.mapFragments = s.mapFragments || [];
       s.version = 2;
     }
+    if (!s.factionAlerts) {
+      s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
+    }
     return s;
   };
 
@@ -111,6 +114,13 @@ window.E = window.E || {};
     gold: 1000,
     fame: 0,
     infamy: 0,
+    factionAlerts: {
+      english: 0,
+      spanish: 0,
+      french: 0,
+      dutch: 0,
+      pirate: 0,
+    },
     currentPort: "portRoyal",
     previousPort: null,
     destination: null,

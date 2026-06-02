@@ -13,6 +13,14 @@
     return factions[Math.floor(Math.random() * factions.length)];
   };
 
+  // ── Heat helper ──────────────────────────────────────────────
+  const addHeat = (state, faction, amount = 3) => {
+    if (faction === "pirate") return state;  // pirates don't track heat
+    const alerts = { ...(state.factionAlerts || {}) };
+    alerts[faction] = Math.min(10, (alerts[faction] || 0) + amount);
+    return { ...state, factionAlerts: alerts };
+  };
+
   // ── Reducer ──────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
     switch (action.type) {
@@ -23,7 +31,13 @@
         const ctx = state.encounterContext;
         if (!ctx) return state;
         const bs = window.E.createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
-        return { ...state, encounterContext: null, battleState: bs, screen: "battle" };
+
+        // Heat for fighting a navy patrol (triggered now, before battle outcome)
+        let s = { ...state, encounterContext: null, battleState: bs, screen: "battle" };
+        if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
+          s = addHeat(s, ctx.enemy.faction, 3);
+        }
+        return s;
       }
 
       case A.INTERCEPT_FLEE: {
@@ -34,7 +48,12 @@
         const playerRoll = player + L.roll(6);
         const enemyRoll  = enemy  + L.roll(6);
         if (playerRoll >= enemyRoll) {
-          return { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear — the enemy couldn't keep up."] };
+          let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear — the enemy couldn't keep up."] };
+          // Heat for fleeing a navy patrol
+          if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
+            s = addHeat(s, ctx.enemy.faction, 2);
+          }
+          return s;
         }
         const enemyObj = ctx.enemy;
         const bs = window.E.createBattleState(state, enemyObj, "Escape failed! The enemy closes in.", ctx.encounterType);
@@ -341,23 +360,31 @@
         }
 
         if (battleState.canPlunder && battleState.phase === "victory") {
-          return {
-            ...state,
-            battleState: { ...state.battleState, phase: "victory" },
-            screen: "plunder",
-          };
+          return addHeat(
+            {
+              ...state,
+              battleState: { ...state.battleState, phase: "victory" },
+              screen: "plunder",
+            },
+            battleState.enemy.faction,
+            3
+          );
         }
 
         if (battleState.encounterType === "mission_combat" && battleState.phase === "victory") {
           const missionType = state.activeMission?.type;
           if (missionType === "patrol" && state.activeMission) {
-            return {
-              ...state,
-              battleState: null,
-              activeMission: { ...state.activeMission, enemyDefeated: true },
-              screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
-              log: [...state.log, "The patrol zone is clear."],
-            };
+            return addHeat(
+              {
+                ...state,
+                battleState: null,
+                activeMission: { ...state.activeMission, enemyDefeated: true },
+                screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+                log: [...state.log, "The patrol zone is clear."],
+              },
+              battleState.enemy.faction,
+              3
+            );
           }
         }
 
@@ -377,22 +404,30 @@
         }
 
         if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
-          return {
-            ...state,
-            battleState: null,
-            screen: "sailing",
-            infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
-            log: [...state.log, ...patrolLog],
-          };
+          return addHeat(
+            {
+              ...state,
+              battleState: null,
+              screen: "sailing",
+              infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
+              log: [...state.log, ...patrolLog],
+            },
+            battleState.enemy.faction,
+            3
+          );
         }
 
-        return {
-          ...state,
-          battleState: null,
-          screen: battleState.returnScreen || "port",
-          infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
-          log: [...state.log, ...patrolLog],
-        };
+        return addHeat(
+          {
+            ...state,
+            battleState: null,
+            screen: battleState.returnScreen || "port",
+            infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
+            log: [...state.log, ...patrolLog],
+          },
+          battleState.enemy.faction,
+          3
+        );
       }
 
       case A.TAKE_PLUNDER: {
@@ -529,7 +564,6 @@
             existingNames.push(`${member.firstName} ${member.lastName}`);
           }
 
-          // 40% chance a hidden negative tag is added to one member (from event config)
           if (negativeTagChance && Math.random() < negativeTagChance && newMembers.length > 0) {
             const unlucky = newMembers[Math.floor(Math.random() * newMembers.length)];
             unlucky.tags.push(negativeTags[Math.floor(Math.random() * negativeTags.length)]);
@@ -540,7 +574,6 @@
           newState.log = [...(newState.log || state.log),
             `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew.`];
         }
-
 
         if (choice.outcome.action) {
           if (choice.outcome.log && !newState.log.includes(choice.outcome.log)) {
@@ -575,21 +608,25 @@
         const merchantEnemy = G.generateEnemy("low", lowerFame, faction);
         merchantEnemy.name = "Merchant Vessel";
         const encounterContext = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
-        return {
-          ...state,
-          encounterContext,
-          screen: "intercept",
-          log: [...state.log, "You turn on the merchant."]
-        };
-      }
 
+        // Heat for attacking a merchant
+        return addHeat(
+          {
+            ...state,
+            encounterContext,
+            screen: "intercept",
+            log: [...state.log, "You turn on the merchant."]
+          },
+          faction,
+          2
+        );
+      }
 
       case A.RESOLVE_DRIFTING_WRECK_SEARCH: {
         const roll = Math.random();
         let newState = { ...state, activeEvent: null, screen: "sailing" };
 
         if (roll < 0.50) {
-          // Find cargo
           const factions = ["english","spanish","french","dutch"];
           const fakeEnemy = { faction: factions[Math.floor(Math.random() * factions.length)], hull: 50, cannons: 4, crew: 10 };
           const { gold, cargo } = G.generateEnemyCargo(state, fakeEnemy, "low");
@@ -616,7 +653,6 @@
           newState.log = [...state.log, "The wreck is empty. Looters got here before you."];
 
         } else if (roll < 0.90) {
-          // Survivor
           const factions = ["english","spanish","french","dutch","pirate"];
           const member = G.generateCrewMember(
             factions[Math.floor(Math.random() * factions.length)],
@@ -629,7 +665,6 @@
           ];
 
         } else {
-          // Trap
           const enemy = G.generateEnemy("low", state.fame, "pirate");
           enemy.name = "Wreck Looters";
           const ctx = L.buildEncounterContext(state, "random", enemy);
@@ -640,8 +675,6 @@
 
         return newState;
       }
-
-
 
       default:
         return state;

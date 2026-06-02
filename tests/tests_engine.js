@@ -1204,5 +1204,120 @@ window.TESTS.push({
     u.assertEqual(s.crew.morale, 49, "Morale -1");
   }
 },
+
+// ── Faction Heat ──────────────────────────────────────────────
+{
+  name: "E.HEAT.1 DISMISS_BATTLE victory adds heat to enemy faction",
+  run: (u) => {
+    const state = makeState({
+      screen: "battle",
+      battleState: {
+        phase: "victory", returnScreen: "port",
+        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
+        encounterType: "random",
+        playerHull: 80, enemyHull: 0,
+        playerCrew: 25, enemyCrew: 0,
+        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
+      },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assertEqual(s.factionAlerts.spanish, 3, "Spanish heat +3");
+  }
+},
+{
+  name: "E.HEAT.2 DISMISS_BATTLE does not add heat for pirate faction",
+  run: (u) => {
+    const state = makeState({
+      screen: "battle",
+      battleState: {
+        phase: "victory", returnScreen: "port",
+        enemy: { name: "Pirate", hull: 100, cannons: 10, crew: 40, faction: "pirate" },
+        encounterType: "random",
+        playerHull: 80, enemyHull: 0,
+        playerCrew: 25, enemyCrew: 0,
+        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
+      },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assertEqual(s.factionAlerts.pirate, 0, "Pirate heat unchanged");
+  }
+},
+{
+  name: "E.HEAT.3 INTERCEPT_FLEE success adds heat for navy patrol",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence([0.0]); // low roll ensures flee success
+    const state = makeState({
+      screen: "intercept",
+      destination: "havana",
+      sailingDaysLeft: 3,
+      encounterContext: {
+        type: "navy_patrol",
+        encounterType: "navy_patrol",
+        enemy: { name: "Patrol", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
+        options: [ { id: "flee", speedCheck: { player: 10, enemy: 5 } } ]
+      },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.INTERCEPT_FLEE });
+    u.assertEqual(s.factionAlerts.spanish, 2, "Spanish heat +2 after fleeing");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.HEAT.4 ATTACK_MERCHANT adds heat to merchant faction",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.ATTACK_MERCHANT });
+    // ATTACK_MERCHANT picks a random non-pirate faction; any non-pirate should have heat +2
+    const totalHeat = Object.entries(s.factionAlerts)
+      .filter(([f]) => f !== "pirate")
+      .reduce((sum, [_, v]) => sum + v, 0);
+    u.assertEqual(totalHeat, 2, "Exactly 2 heat added to the merchant's faction");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.HEAT.5 ADVANCE_DAY decays faction alerts every 2 days",
+  run: (u) => {
+    u.resetRandomStub();
+    let s = makeState({
+      screen: "sailing", destination: "tortuga", sailingDaysLeft: 5, sailingDaysTotal: 5,
+      day: 2,
+      factionAlerts: { english: 5, spanish: 3, french: 0, dutch: 0, pirate: 0 },
+      hold: { items: { food: 10, water: 10 } },
+    });
+    s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+    // day 2 → 3, so decay triggers because day 3 % 2 != 0? Wait, decay on day%2===0 (before increment). We need day to be even initially. Let's set day=2, so day%2===0 → decay. After ADVANCE_DAY, day becomes 3. Actually we need to check state.day % 2 === 0 before decay. In our ADVANCE_DAY we compute newRep then decay heat. Let's set state.day = 2, so before increment day is 2, which is even. So decay should happen. We'll verify heat decreased by 1.
+    u.assertEqual(s.factionAlerts.english, 4, "English heat decayed from 5 to 4");
+    u.assertEqual(s.factionAlerts.spanish, 2, "Spanish heat decayed from 3 to 2");
+    u.assertEqual(s.factionAlerts.french, 0, "Zero stays zero");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.HEAT.6 Heat caps at 10",
+  run: (u) => {
+    const state = makeState({
+      screen: "battle",
+      battleState: {
+        phase: "victory", returnScreen: "port",
+        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
+        encounterType: "random",
+        playerHull: 80, enemyHull: 0,
+        playerCrew: 25, enemyCrew: 0,
+        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
+      },
+      factionAlerts: { english: 0, spanish: 10, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assertEqual(s.factionAlerts.spanish, 10, "Heat capped at 10");
+  }
+},
   ]
 });

@@ -350,8 +350,15 @@
         ];
         if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
         if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
-
         if (mission.plotItem) holdItems = { ...holdItems, plot_item: 0 };
+        if (mission.type === "smuggle" && mission.targetPort) {
+          const targetFaction = PORTS[mission.targetPort]?.faction;
+          if (targetFaction && targetFaction !== "pirate") {
+            const alerts = { ...(nextState.factionAlerts || {}) };
+            alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
+            nextState.factionAlerts = alerts;
+          }
+        }
 
         const nextState = {
           ...state,

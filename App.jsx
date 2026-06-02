@@ -102,7 +102,8 @@ const App = () => {
   morale: "Crew morale. Below 50 slows travel. Below 30 increases wages. At 0 crew desert.",
   fame: "Fame — your permanent reputation. Gates ships, upgrades, and missions.",
   infamy: "Infamy — your criminal notoriety. Reaches 50 → bribe option blocked.",
-  };
+  heat: "Faction Alert Level. High heat means more patrols. Each point decays every 2 days.",  
+};
 
   // --- HUD Component ---
   const HUD = () => {
@@ -150,6 +151,30 @@ const App = () => {
               <span title={TOOLTIPS.morale} style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
               <span title={TOOLTIPS.fame} style={{ color: T.gold }}>★ {state.fame}</span>
               <span title={TOOLTIPS.infamy} style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
+              {(() => {
+                const alerts = state.factionAlerts || {};
+                const highest = Object.entries(alerts).reduce((best, [faction, level]) => {
+                  if (level > best.level) return { faction, level };
+                  return best;
+                }, { faction: null, level: 0 });
+
+                if (highest.level > 0) {
+                  const fac = FACTIONS[highest.faction];
+                  return (
+                    <span
+                      title={TOOLTIPS.heat}
+                      style={{
+                        color: fac?.color || T.textDim,
+                        fontSize: 11,
+                        marginLeft: 6,
+                      }}
+                    >
+                      ⚠ {fac?.label?.charAt(0) || "?"}{highest.level}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
               {savedFlash && (
                 <span style={{ color: T.greenBr, marginLeft: 10, fontSize: 10,
                   transition: "opacity 0.3s", opacity: savedFlash ? 1 : 0 }}>

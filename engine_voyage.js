@@ -128,7 +128,10 @@
     if (newDays < 1 || state.activeEvent || state.encounterContext) return null;
     if (!L.maybeRandomPatrol(state)) return null;
     const port = D.PORTS[state.currentPort];
-    const enemy = G.generateEnemy("low", state.fame, port.faction);
+    const faction = port.faction;
+    const heatLevel = state.factionAlerts?.[faction] || 0;
+    const patrolRisk = heatLevel >= 7 ? "high" : heatLevel >= 3 ? "medium" : "low";
+    const enemy = G.generateEnemy(patrolRisk, state.fame, faction);
     const context = L.buildEncounterContext(state, "navy_patrol", enemy);
     return {
       ...state,
@@ -190,11 +193,21 @@
         const newCrew = advanceCrew(state.crew);
         const prov = advanceProvisions(state);
 
+        // Morale decay
         let newMorale = newCrew.morale;
         const wagesCrisis = state.gold < wages;
         if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
           newMorale = Math.max(0, newMorale - 1);
         }
+
+        // Faction alert decay (every 2 days, same timing as reputation)
+        let newAlerts = { ...(state.factionAlerts || {}) };
+        if (state.day % 2 === 0) {
+          Object.keys(newAlerts).forEach(faction => {
+            newAlerts[faction] = Math.max(0, (newAlerts[faction] || 0) - 1);
+          });
+        }
+
 
         const newLog = [...state.log];
         if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
@@ -231,6 +244,7 @@
           crew: newCrew,
           hold: { ...state.hold, items: prov.items },
           discoveredPorts,
+          factionAlerts: newAlerts,
           log: newLog,
         };
       }

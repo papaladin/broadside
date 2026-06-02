@@ -526,6 +526,30 @@ function renderShipStats(shipType, compareType) {
             ))}
           </div>
         </div>
+        <div style={panelStyle()}>
+          <SectionTitle>⚠ FACTION ALERT STATUS</SectionTitle>
+          {Object.entries(FACTIONS).map(([factionKey, fac]) => {
+            const level = state.factionAlerts?.[factionKey] || 0;
+            if (level === 0) return null;
+            const label = L.getHeatLabel(level);
+            return (
+              <div key={factionKey} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: fac.color, fontSize: 12 }}>
+                  {fac.label}
+                </span>
+                <span style={{ color: T.redBr, fontSize: 12, fontWeight: "bold" }}>
+                  {label} ({level}/10)
+                </span>
+                <div style={{ flex: 1, marginLeft: 10 }}>
+                  <Bar value={level} max={10} color={fac.color} h={8} />
+                </div>
+              </div>
+            );
+          })}
+          {Object.values(state.factionAlerts || {}).every(v => v === 0) && (
+            <div style={{ color: T.textDim, fontSize: 11 }}>No factions are actively hunting you.</div>
+          )}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           {Object.entries(portsByFaction).map(([faction, ports]) => {
             const fac = FACTIONS[faction];

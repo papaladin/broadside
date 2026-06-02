@@ -57,6 +57,14 @@ window.L = (() => {
   return "Clean";
   };
 
+const getHeatLabel = (level) => {
+  if (level >= 9) return "Manhunt";
+  if (level >= 6) return "Hunted";
+  if (level >= 3) return "Active Search";
+  if (level >= 1) return "Alert";
+  return "";
+};
+
   const hasUpgrade = (state, upgradeKey) => {
     return state.ship.upgrades.includes(upgradeKey);
   };
@@ -264,14 +272,34 @@ const getUnreachableReason = (state, portKey) => {
     return { ...event };
   };
 
-  const maybeRandomPatrol = (state) => {
-    const port = D.PORTS[state.currentPort];
-    if (!port || port.faction === "pirate") return false; // no patrols leaving pirate ports
-    const baseChance = 0.01;
-    const infamyBonus = (state.infamy ?? 0) / 400;       // +1% per 4 infamy point
-    const chance = Math.min(baseChance + infamyBonus, 0.25);
-    return Math.random() < chance;
-  };
+ const maybeRandomPatrol = (state) => {
+  const port = D.PORTS[state.currentPort];
+  if (!port || port.faction === "pirate") return false;
+  
+  const baseChance = 0.01;
+  const infamyBonus = (state.infamy ?? 0) / 400;
+  
+  // Heat bonus — based on origin and destination faction
+  const alerts = state.factionAlerts || {};
+  const originFaction = port.faction;
+  const destFaction = state.destination ? D.PORTS[state.destination]?.faction : null;
+  const relevantHeat = Math.max(
+    alerts[originFaction] || 0,
+    destFaction ? (alerts[destFaction] || 0) : 0
+  );
+  
+  // Reputation dampening (average of origin and destination rep)
+  const originRep = state.reputation[state.currentPort] || 50;
+  const destRep = state.destination ? (state.reputation[state.destination] || 50) : originRep;
+  const avgRep = (originRep + destRep) / 2;
+  const heatDampening = avgRep >= 70 ? 0.5 : avgRep >= 50 ? 0.75 : 1.0;
+  const effectiveHeat = Math.floor(relevantHeat * heatDampening);
+  
+  const heatBonus = effectiveHeat * 0.03;
+  
+  const chance = Math.min(baseChance + infamyBonus + heatBonus, 0.40);
+  return Math.random() < chance;
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  COMBAT FUNCTIONS
@@ -790,6 +818,7 @@ const applyLoseContraband = (holdItems) => {
     reputationLabel,
     getFameInfo,
     getInfamyLabel,
+    getHeatLabel,
     meetsRequirement,
     canBribe,
     hasUpgrade,
