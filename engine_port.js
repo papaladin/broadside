@@ -187,17 +187,63 @@
           log: [...state.log, `Arrived at ${port.name}.`]
         };
 
-        // ── Port gossip: heat warning ────────────────────────────────
-        const portFactionForGossip = PORTS[nextState.currentPort]?.faction;
-        const heat = nextState.factionAlerts?.[portFactionForGossip] || 0;
-        if (heat >= 3) {
-          const heatLine = heat >= 7
-            ? "Warships sit in the harbour, crews at the ready. Someone is being hunted."
-            : heat >= 5
-              ? "Soldiers patrol the docks. The garrison has been reinforced."
-              : "The harbourmaster checks papers more carefully than usual.";
-          nextState.portGossip = [heatLine];
+        // ── Crew desertion check ──────────────────────────────────
+        if (nextState.crew?.roster) {
+          const portFaction = PORTS[nextState.currentPort]?.faction;
+          const deserters = [];
+          const settlers = [];
+
+          const newRoster = [];
+          for (const member of nextState.crew.roster) {
+            if (L.hasTag(member, "upset")) {
+              let desertChance = 0.30;
+              if (nextState.crew.morale > 60) desertChance = 0.10;
+              if (L.hasTag(member, "mutineer")) desertChance *= 2;
+              if (portFaction && member.faction === portFaction) desertChance += 0.20;
+
+              if (Math.random() < desertChance) {
+                // Deserts
+                deserters.push(`${member.firstName} ${member.lastName}`);
+                // don't add to new roster
+              } else {
+                // Stays, calms down
+                settlers.push(`${member.firstName} ${member.lastName}`);
+                newRoster.push(L.removeTag(member, "upset"));
+              }
+            } else {
+              newRoster.push(member);
+            }
+          }
+
+          // Build log lines
+          if (deserters.length > 0) {
+            let deserterMsg = "";
+            if (deserters.length === 1) {
+              deserterMsg = `${deserters[0]} has left the crew.`;
+            } else if (deserters.length === 2) {
+              deserterMsg = `${deserters[0]} and ${deserters[1]} have left the crew.`;
+            } else {
+              deserterMsg = `${deserters.length} crew members have left the crew.`;
+            }
+            // Add reason for first deserter (representative)
+            const repFaction = FACTIONS[nextState.crew.roster.find(m =>
+              `${m.firstName} ${m.lastName}` === deserters[0]
+            )?.faction]?.label || "their former faction";
+            deserterMsg += ` They could not forgive the attack on ${repFaction} ships.`;
+            nextState.log = [...(nextState.log || state.log), deserterMsg];
+          }
+
+          if (settlers.length > 0) {
+            nextState.log = [...(nextState.log || state.log), `The rest of the upset crew seem to have settled down.`];
+          }
+
+          if (deserters.length > 0 || settlers.length > 0) {
+            nextState.crew = { ...nextState.crew, roster: newRoster };
+          }
         }
+
+        // ── Port gossip
+        nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
         autoSave(nextState);
         return nextState;
       }
@@ -357,8 +403,10 @@
         const newInfamy = Math.min(999, oldInfamy + infamyGain);
         const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
 
-        // ── Base morale gain for mission completion ────────────────
-        const newMorale = Math.min(100, state.crew.morale + 3);
+        // ── MSorale gain for mission completion ────────────────
+        const alignment = L.getAlignmentModifier(state, mission.faction);
+        const moraleGain = Math.round(3 * alignment);
+        const newMorale = Math.min(100, state.crew.morale + moraleGain);
 
         const newLog = [
           ...state.log,

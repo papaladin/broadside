@@ -179,7 +179,7 @@
       case A.BATTLE_ACTION: {
         const outcome = L.resolveCombatAction(state, action.action);
         const newLog = [...state.battleState.log];
-        const newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
+        let newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
         if (outcome.instantVictory) {
           const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
@@ -190,6 +190,12 @@
           if (totalLost > 0) {
             const some = lostCrewNames.slice(0, 3).join(", ");
             capMsg += ` Lost ${totalLost} crew, including ${some}.`;
+          }
+          const enemyFaction = state.battleState.enemy.faction;
+          const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
+          newMorale = Math.max(0, newMorale - alignmentPenalty);
+          if (alignmentPenalty > 3) {
+            capMsg += ` Your ${enemyFaction}-majority crew is furious about this.`;
           }
 
           const newBS = {
@@ -255,6 +261,7 @@
           }
         }
 
+        // sink victory
         if (newBattleState.enemyHull <= 0) {
           newBattleState.phase = "victory";
           newBattleState.goldReward = outcome.goldReward || 0;
@@ -265,6 +272,12 @@
           if (totalLost > 0) {
             const some = lostCrewNames.slice(0, 3).join(", ");
             capMsg += ` Lost ${totalLost} crew, including ${some}.`;
+          }
+          const enemyFaction = state.battleState.enemy.faction;
+          const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
+          newMorale = Math.max(0, newMorale - alignmentPenalty);
+          if (alignmentPenalty > 3) {
+            capMsg += ` Your ${enemyFaction}-majority crew is furious about this.`;
           }
           const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
           return {
@@ -318,9 +331,10 @@
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
+        let currentState = state;
 
         const isNavyFight = battleState.encounterType === "navy_patrol"
-                         || battleState.encounterType === "navy_patrol_combat";
+                        || battleState.encounterType === "navy_patrol_combat";
         const patrolInfamy = isNavyFight ? 2 : 0;
         const patrolLog = patrolInfamy > 0
           ? [`+${patrolInfamy} infamy — attacking crown forces was witnessed.`]
@@ -334,23 +348,23 @@
           const missionFailed = isMissionFight && state.activeMission;
 
           return {
-            ...state,
+            ...currentState,
             battleState: null,
-            activeMission: missionFailed ? null : state.activeMission,
+            activeMission: missionFailed ? null : currentState.activeMission,
             screen: "port",
             currentPort: returnPort,
             destination: null,
             sailingDaysLeft: 0,
             sailingDaysTotal: 0,
             hold: {
-              ...state.hold,
-              items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
+              ...currentState.hold,
+              items: Object.fromEntries(Object.keys(currentState.hold?.items || {}).map(k => [k, 0])),
             },
             portMarket: G.generatePortMarket(returnPort),
-            missions: G.generateMissions(returnPort, state),
-            infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
+            missions: G.generateMissions(returnPort, currentState),
+            infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
             log: [
-              ...state.log,
+              ...currentState.log,
               `Defeated in battle and washed ashore at ${portName}.`,
               "All cargo lost.",
               ...(missionFailed ? ["The mission has failed."] : []),
@@ -362,8 +376,8 @@
         if (battleState.canPlunder && battleState.phase === "victory") {
           return addHeat(
             {
-              ...state,
-              battleState: { ...state.battleState, phase: "victory" },
+              ...currentState,
+              battleState: { ...currentState.battleState, phase: "victory" },
               screen: "plunder",
             },
             battleState.enemy.faction,
@@ -371,16 +385,47 @@
           );
         }
 
+        // ── Crew upset: 15% chance per matching-faction crew member ──
+        if (battleState.phase === "victory" && currentState.crew?.roster) {
+          const enemyFaction = battleState.enemy?.faction;
+          if (enemyFaction) {
+            const upsetMembers = [];
+            const updatedRoster = currentState.crew.roster.map(member => {
+              if (member.faction === enemyFaction && !L.hasTag(member, "upset") && Math.random() < 0.15) {
+                upsetMembers.push(`${member.firstName} ${member.lastName}`);
+                return L.addTag(member, "upset");
+              }
+              return member;
+            });
+
+            if (upsetMembers.length > 0) {
+              const newLog = [...currentState.log];
+              if (upsetMembers.length === 1) {
+                newLog.push(`${upsetMembers[0]} is disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
+              } else if (upsetMembers.length === 2) {
+                newLog.push(`${upsetMembers[0]} and ${upsetMembers[1]} are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
+              } else {
+                newLog.push(`Some of the crew are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
+              }
+              currentState = {
+                ...currentState,
+                crew: { ...currentState.crew, roster: updatedRoster },
+                log: newLog,
+              };
+            }
+          }
+        }
+
         if (battleState.encounterType === "mission_combat" && battleState.phase === "victory") {
-          const missionType = state.activeMission?.type;
-          if (missionType === "patrol" && state.activeMission) {
+          const missionType = currentState.activeMission?.type;
+          if (missionType === "patrol" && currentState.activeMission) {
             return addHeat(
               {
-                ...state,
+                ...currentState,
                 battleState: null,
-                activeMission: { ...state.activeMission, enemyDefeated: true },
+                activeMission: { ...currentState.activeMission, enemyDefeated: true },
                 screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
-                log: [...state.log, "The patrol zone is clear."],
+                log: [...currentState.log, "The patrol zone is clear."],
               },
               battleState.enemy.faction,
               3
@@ -392,25 +437,25 @@
           const isMissionFight = battleState.encounterType === "mission_combat"
                               || battleState.encounterType === "escort_defend";
           if (isMissionFight) {
-            const returnToSailing = state.destination && state.sailingDaysLeft > 0;
+            const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
             return {
-              ...state,
+              ...currentState,
               battleState: null,
               activeMission: null,
               screen: returnToSailing ? "sailing" : "port",
-              log: [...state.log, "You fled the battle. The mission is a failure."],
+              log: [...currentState.log, "You fled the battle. The mission is a failure."],
             };
           }
         }
 
-        if (battleState.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0) {
+        if (battleState.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0) {
           return addHeat(
             {
-              ...state,
+              ...currentState,
               battleState: null,
               screen: "sailing",
-              infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
-              log: [...state.log, ...patrolLog],
+              infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
+              log: [...currentState.log, ...patrolLog],
             },
             battleState.enemy.faction,
             3
@@ -419,11 +464,11 @@
 
         return addHeat(
           {
-            ...state,
+            ...currentState,
             battleState: null,
             screen: battleState.returnScreen || "port",
-            infamy: Math.min(999, (state.infamy ?? 0) + patrolInfamy),
-            log: [...state.log, ...patrolLog],
+            infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
+            log: [...currentState.log, ...patrolLog],
           },
           battleState.enemy.faction,
           3
@@ -462,19 +507,75 @@
 
         if (choice.outcome.log) newState.log = [...state.log, choice.outcome.log];
         if (choice.outcome.gold) newState.gold = Math.max(0, state.gold + choice.outcome.gold);
-        // ── Mutiny negotiate: scale cost, check affordability ──────────
-        if (event.id === "mutiny" && action.choiceIndex === 0) {
-          const mutinyCost = (state.crew.roster.length || 0) * 10;
-          if (state.gold >= mutinyCost) {
-            newState.gold = Math.max(0, (newState.gold || state.gold) - mutinyCost);
-            newState.crew = { ...newState.crew, morale: Math.min(100, (newState.crew.morale || state.crew.morale) + 20) };
-            newState.log = [...(newState.log || state.log), `You promise better conditions, costing ${mutinyCost}g. The crew stands down... for now.`];
-          } else {
-            // Can't afford – negotiation fails
-            newState.crew = { ...newState.crew, morale: Math.max(0, (newState.crew.morale || state.crew.morale) - 5) };
-            newState.log = [...(newState.log || state.log), `You promise better conditions, but the crew sees through your empty words. They grow angrier.`];
+        
+        // ── Mutiny outcomes (negotiate + crush) ──────────────────────────
+        if (event.id === "mutiny") {
+          const roster = state.crew?.roster || [];
+          if (action.choiceIndex === 0) {
+            // Negotiate
+            const mutinyCost = roster.length * 10;
+            if (state.gold >= mutinyCost) {
+              newState.gold = Math.max(0, (newState.gold || state.gold) - mutinyCost);
+              newState.crew = {
+                ...(newState.crew || state.crew),
+                morale: Math.min(100, (newState.crew?.morale || state.crew.morale) + 20)
+              };
+              newState.log = [...(newState.log || state.log),
+                `You promise better conditions, costing ${mutinyCost}g. The crew stands down… for now.`
+              ];
+            } else {
+              // Can't afford — negotiation fails, some crew become upset
+              const upsetCount = Math.ceil(roster.length * 0.30);
+              const shuffled = [...roster].sort(() => Math.random() - 0.5);
+              const upsetNames = [];
+              const updatedRoster = roster.map(member => {
+                if (shuffled.indexOf(member) < upsetCount) {
+                  upsetNames.push(member.firstName);
+                  return L.addTag(member, "upset");
+                }
+                return member;
+              });
+              newState.crew = {
+                ...(newState.crew || state.crew),
+                roster: updatedRoster,
+                morale: Math.max(0, (newState.crew?.morale || state.crew.morale) - 5)
+              };
+              const nameList = upsetNames.length === 1
+                ? upsetNames[0]
+                : upsetNames.length === 2
+                  ? `${upsetNames[0]} and ${upsetNames[1]}`
+                  : "Several crew members";
+              newState.log = [...(newState.log || state.log),
+                `You promise better conditions, but the crew sees through your empty words. ${nameList} ${upsetNames.length === 1 ? 'is' : 'are'} now upset.`
+              ];
+            }
+          } else if (action.choiceIndex === 1) {
+            // Crush — after generic crew loss & morale penalty have been applied
+            const survivors = newState.crew?.roster || roster;
+            const mutineerCount = Math.ceil(survivors.length * 0.30);
+            if (mutineerCount > 0) {
+              const shuffled = [...survivors].sort(() => Math.random() - 0.5);
+              const tagged = [];
+              const updatedRoster = survivors.map(member => {
+                if (shuffled.indexOf(member) < mutineerCount) {
+                  tagged.push(member.firstName);
+                  return L.addTag(member, "mutineer");
+                }
+                return member;
+              });
+              newState.crew = { ...(newState.crew || state.crew), roster: updatedRoster };
+              const names = tagged.length === 1
+                ? tagged[0]
+                : tagged.length === 2
+                  ? `${tagged[0]} and ${tagged[1]}`
+                  : "Several survivors";
+              newState.log = [...(newState.log || state.log),
+                `${names} emerged as ringleaders. They are marked as mutineers.`
+              ];
+            }
           }
         }
+
         if (choice.outcome.fame) newState.fame += choice.outcome.fame;
         if (choice.outcome.hullDamage) newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
         if (choice.outcome.crewLoss) {

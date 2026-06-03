@@ -107,6 +107,7 @@ const getHeatLabel = (level) => {
     return stats;
   };
 
+
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
 
@@ -253,6 +254,31 @@ const getUnreachableReason = (state, portKey) => {
     const removedIds = new Set(removed.map(m => m.id));
     const newRoster = roster.filter(m => !removedIds.has(m.id));
     return { newRoster, removed };
+  };
+
+  
+    // ── Crew tags (for T2.2+ traits system) ────────────────────────
+  const hasTag = (member, tag) => (member.tags || []).includes(tag);
+  const addTag = (member, tag) => ({
+    ...member,
+    tags: [...(member.tags || []), tag]
+  });
+  const removeTag = (member, tag) => ({
+    ...member,
+    tags: (member.tags || []).filter(t => t !== tag)
+  });
+  const crewWithTag = (roster, tag) => roster.filter(m => hasTag(m, tag));
+
+  // ── Crew faction alignment ─────────────────────────────────────
+  const getCrewAlignment = (state, faction) => {
+    const roster = state.crew?.roster || [];
+    if (roster.length === 0) return 0;
+    const matching = roster.filter(m => m.faction === faction).length;
+    return matching / roster.length; // 0.0 to 1.0
+  };
+
+  const getAlignmentModifier = (state, faction) => {
+    return 0.5 + getCrewAlignment(state, faction);
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -843,6 +869,12 @@ const applyLoseContraband = (holdItems) => {
     // Crew
     payCrewWages,
     removeRandomCrew,
+    hasTag,
+    addTag,
+    removeTag,
+    crewWithTag,
+    getCrewAlignment,
+    getAlignmentModifier,
 
     // Events
     triggerRandomEvent,
@@ -871,6 +903,7 @@ const applyLoseContraband = (holdItems) => {
     getDaysOfProvisions,
     applyLoseCargoPercent,
     applyLoseContraband,
+
 
 
   };

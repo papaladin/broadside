@@ -86,6 +86,14 @@ window.E = window.E || {};
       s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
     }
     if (!s.portGossip) s.portGossip = [];
+    
+    // Ensure all crew members have tags array (for T2.2+)
+    if (s.crew?.roster) {
+      s.crew.roster = s.crew.roster.map(member => ({
+        ...member,
+        tags: member.tags || [],
+      }));
+    }
     return s;
   };
 
@@ -234,11 +242,27 @@ window.E._reducers.push((state, action) => {
       const max = L.getShipStats(state).maxCrew;
       const deficit = Math.max(0, max - state.crew.roster.length);
       if (deficit === 0) return state;
-      const newMembers = G.generateRoster(deficit, window.D.PORTS[state.currentPort]?.faction || "pirate");
+
+      const factions = Object.keys(window.D.FACTIONS);
+      const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
+      const newMembers = [];
+      for (let i = 0; i < deficit; i++) {
+        const faction = factions[Math.floor(Math.random() * factions.length)];
+        const member = G.generateCrewMember(faction, existingNames);
+        // Randomly assign some tags for testing purposes
+        const roll = Math.random();
+        if (roll < 0.20) member.tags.push("upset");
+        else if (roll < 0.30) member.tags.push("mutineer");
+        else if (roll < 0.35) member.tags.push("loyal");
+        else if (roll < 0.40) member.tags.push("trait_drunkard");
+        newMembers.push(member);
+        existingNames.push(`${member.firstName} ${member.lastName}`);
+      }
+
       return {
         ...state,
         crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-        log: [...state.log, `⚙ Hired ${deficit} crew to fill ship capacity.`],
+        log: [...state.log, `⚙ Hired ${deficit} crew to fill ship capacity (random factions & tags).`],
       };
     }
 

@@ -23,6 +23,28 @@ window.G = (() => {
     return items[items.length - 1];
   };
 
+const shuffleArray = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+const isExtremePrice = (good, buyPrice) => {
+  const res = window.D.RESOURCES[good];
+  if (!res || res.variance === 0) return null; // fixed-price goods like food/water
+  const min = res.basePrice * (1 - res.variance);
+  const max = res.basePrice * (1 + res.variance);
+  const range = max - min;
+  if (range <= 0) return null;
+  const pct = (buyPrice - min) / range; // 0 = min, 1 = max
+  if (pct <= 0.20) return { type: "surplus", deviation: 0.20 - pct };
+  if (pct >= 0.80) return { type: "shortage", deviation: pct - 0.80 };
+  return null;
+};
+
   // ── crew generators (migrated from logic.js) ──────────────────
 
   const pickWeightedRole = () => {
@@ -608,6 +630,137 @@ window.G = (() => {
   };
 
 
+///-------------------------------------------------------------
+  /// GOSSIP GENERATORS
+///-------------------------------------------------------------
+
+const generateLocalMarketGossip = (state) => {
+  const market = state.portMarket;
+  if (!market?.goods) return null;
+
+  let best = null; // { good, type, deviation }
+  const templates = window.D.PORT_GOSSIP_TEMPLATES?.market;
+
+  Object.entries(market.goods).forEach(([good, data]) => {
+    if (good === "food" || good === "water"  || good === "slaves") return;
+    const extreme = isExtremePrice(good, data.buyFromPort);
+    if (!extreme) return;
+    if (!best || extreme.deviation > best.deviation) {
+      best = { good, type: extreme.type, deviation: extreme.deviation };
+    }
+  });
+
+  if (!best || !templates) return null;
+
+  const res = window.D.RESOURCES[best.good];
+  const goodName = res?.name || best.good;
+  const pool = templates[best.type] || [];
+  if (pool.length === 0) return null;
+
+  const template = pickRandom(pool);
+  return template
+    .replace(/\{good\}/g, goodName.toLowerCase())
+    .replace(/\{Good\}/g, goodName);
+};
+
+const generateHiddenPortHint = (state) => {
+  // 5% chance to return a hint, regardless of unlock progress
+  if (Math.random() >= 0.05) return null;
+  const hints = window.D.PORT_GOSSIP_TEMPLATES?.hiddenPorts;
+  if (!hints) return null;
+  // Pick a random hidden port that is still hidden
+  const hidden = Object.keys(window.D.PORTS).filter(
+    k => window.D.PORTS[k].hidden && !(state.discoveredPorts || []).includes(k)
+  );
+  if (hidden.length === 0) return null;
+  const portKey = hidden[Math.floor(Math.random() * hidden.length)];
+  return hints[portKey] || null;
+};
+
+const generatePortGossip = (state, portKey) => {
+  const T = window.D.PORT_GOSSIP_TEMPLATES;
+  if (!T) return [];
+
+  const port = window.D.PORTS[portKey];
+  const faction = port?.faction || "english";
+  const heat = state.factionAlerts?.[faction] ?? 0;
+  const rep = state.reputation?.[portKey] ?? 50;
+  const fame = state.fame ?? 0;
+  const infamy = state.infamy ?? 0;
+  const holdItems = state.hold?.items || {};
+  const hasContraband = (holdItems.tobacco || 0) > 0 || (holdItems.slaves || 0) > 0;
+
+  const pool = []; // { text, priority }
+
+  // ── Priority 3: Heat or Contraband (only one) ──────────────
+  if (heat >= 3) {
+    const bucket = heat >= 7 ? T.heat.high : T.heat.medium;
+    if (bucket?.length) pool.push({ text: pickRandom(bucket), priority: 3 });
+  } else if (hasContraband && T.contraband?.length) {
+    pool.push({ text: pickRandom(T.contraband), priority: 3 });
+  }
+
+  // ── Priority 2: Reputation / Fame / Infamy ─────────────────
+  const repTier = rep >= 70 ? "allied" : rep >= 50 ? "friendly"
+    : rep >= 30 ? "neutral" : rep >= 10 ? "hostile" : "at_war";
+  const fameTier = fame >= 200 ? "legendary" : fame >= 100 ? "notorious"
+    : fame >= 50 ? "recognised" : fame >= 20 ? "emerging" : "unknown";
+  const infTier = infamy >= 100 ? "extreme" : infamy >= 50 ? "high"
+    : infamy >= 25 ? "medium" : "low";
+
+  const eligibleCategories = [];
+  if (T.reputation?.[repTier]?.length) eligibleCategories.push({ type: "rep", data: T.reputation[repTier] });
+  if (T.fame?.[fameTier]?.length) eligibleCategories.push({ type: "fame", data: T.fame[fameTier] });
+  if (infamy >= 10 && T.infamy?.[infTier]?.length) eligibleCategories.push({ type: "infamy", data: T.infamy[infTier] });
+
+  if (eligibleCategories.length > 0) {
+    let numLines = 1; // default for infamy < 10
+    if (infamy >= 10) {
+      numLines = Math.random() < 0.5 ? 1 : 2;
+    }
+    // Pick distinct categories randomly
+    const shuffled = shuffleArray(eligibleCategories);
+    for (let i = 0; i < Math.min(numLines, shuffled.length); i++) {
+      pool.push({ text: pickRandom(shuffled[i].data), priority: 2 });
+    }
+  }
+
+  // ── Priority 1: Market gossip + Hidden port hint ──────────
+  const marketGossip = generateLocalMarketGossip(state);
+  if (marketGossip) pool.push({ text: marketGossip, priority: 1 });
+
+  const hiddenHint = generateHiddenPortHint(state);
+  if (hiddenHint) pool.push({ text: hiddenHint, priority: 1 });
+
+  // ── Priority 0: Ambiance + Weather (filler) ───────────────
+  // Shuffle within priority so the same categories don't always appear in the same order.
+  pool.sort(() => Math.random() - 0.5);
+  pool.sort((a, b) => b.priority - a.priority);
+
+  // Determine gossip size (2:25%, 3:50%, 4:25%)
+  const roll = Math.random();
+  const size = roll < 0.25 ? 2 : roll < 0.75 ? 3 : 4;
+
+  const result = pool.slice(0, size).map(g => g.text);
+
+  // If we didn't reach the desired size, fill with ambiance + weather
+  if (result.length < size) {
+    const filler = [];
+    const amb = T.ambiance?.[faction] || [];
+    const wea = T.weather || [];
+    filler.push(...amb, ...wea);
+    const shuffledFiller = shuffleArray(filler);
+    for (let i = 0; result.length < size && i < shuffledFiller.length; i++) {
+      // Avoid duplicate lines in the same visit
+      if (!result.includes(shuffledFiller[i])) {
+        result.push(shuffledFiller[i]);
+      }
+    }
+  }
+
+  return result;
+};
+
 
   // ── exports ───────────────────────────────────────────────────
   return {
@@ -626,8 +779,9 @@ window.G = (() => {
     opposingFaction,
     generateTradeMission,
     generateSmuggleMission,
-    // port market
+    // port market & gossip
     generatePortMarket,
+    generatePortGossip,
   };
 
 })();

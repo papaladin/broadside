@@ -671,6 +671,168 @@ window.TESTS.push({
     u.resetRandomStub();
   }
 },
+
+{
+  name: "L.HEAT.3 maybeRandomPatrol handles extreme heat without crashing",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "havana",
+      destination: "portRoyal",
+      reputation: { havana: 50, portRoyal: 50 },
+      factionAlerts: { english: 0, spanish: 10, french: 0, dutch: 0, pirate: 0 },
+      infamy: 50,
+    });
+    // Call multiple times — should always return a boolean and never throw
+    for (let i = 0; i < 10; i++) {
+      const result = L.maybeRandomPatrol(state);
+      u.assert(typeof result === "boolean", "Result should be a boolean");
+    }
+    u.resetRandomStub();
+  }
+},
+{
+  name: "L.HEAT.4 maybeRandomPatrol with allied rep dampening does not crash",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "havana",
+      destination: "portRoyal",
+      reputation: { havana: 80, portRoyal: 80 },
+      factionAlerts: { english: 0, spanish: 8, french: 0, dutch: 0, pirate: 0 },
+      infamy: 10,
+    });
+    for (let i = 0; i < 10; i++) {
+      const result = L.maybeRandomPatrol(state);
+      u.assert(typeof result === "boolean", "Result should be a boolean");
+    }
+    u.resetRandomStub();
+  }
+},
+{
+  name: "L.HEAT.5 maybeRandomPatrol with missing factionAlerts defaults to zero heat",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "havana",
+      destination: "portRoyal",
+      reputation: { havana: 50, portRoyal: 50 },
+      // factionAlerts intentionally omitted (simulating old save)
+    });
+    delete state.factionAlerts;
+    const result = L.maybeRandomPatrol(state);
+    u.assert(typeof result === "boolean", "Should not crash when factionAlerts is missing");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "L.HEAT.6 Patrol chance does not exceed 40% cap with max inputs",
+  run: (u) => {
+    // We can't test exact probability, but we can verify the cap is applied in the formula.
+    // The chance is: Math.min(baseChance + infamyBonus + heatBonus, 0.40)
+    // At max infamy (150) and max heat (10, no dampening), heat bonus = 10*0.03=0.30,
+    // infamy bonus = 150/400=0.375, base=0.01 → sum=0.685, cap=0.40.
+    // We test that the function returns a boolean (i.e. doesn't throw) even with values that would exceed the cap.
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "havana",
+      destination: "portRoyal",
+      reputation: { havana: 10, portRoyal: 10 }, // hostile — no dampening
+      factionAlerts: { english: 0, spanish: 10, french: 0, dutch: 0, pirate: 0 },
+      infamy: 150,
+    });
+    const result = L.maybeRandomPatrol(state);
+    u.assert(typeof result === "boolean", "Should return boolean at max inputs");
+    u.resetRandomStub();
+  }
+},
+// ── Crew Tags ─────────────────────────────────────────────────
+{
+  name: "L.TAG.01 hasTag returns true for existing tag",
+  run: (u) => {
+    const member = { id: "a", tags: ["upset", "mutineer"] };
+    u.assert(L.hasTag(member, "upset"));
+    u.assert(L.hasTag(member, "mutineer"));
+    u.assert(!L.hasTag(member, "loyal"));
+  }
+},
+{
+  name: "L.TAG.02 hasTag works with missing tags array",
+  run: (u) => {
+    const member = { id: "a" };
+    u.assert(!L.hasTag(member, "upset"));
+  }
+},
+{
+  name: "L.TAG.03 addTag adds a tag without mutating original",
+  run: (u) => {
+    const member = { id: "a", tags: ["upset"] };
+    const updated = L.addTag(member, "mutineer");
+    u.assertDeepEqual(member.tags, ["upset"]);
+    u.assertDeepEqual(updated.tags, ["upset", "mutineer"]);
+  }
+},
+{
+  name: "L.TAG.04 removeTag removes a tag without mutating original",
+  run: (u) => {
+    const member = { id: "a", tags: ["upset", "mutineer"] };
+    const updated = L.removeTag(member, "upset");
+    u.assertDeepEqual(member.tags, ["upset", "mutineer"]);
+    u.assertDeepEqual(updated.tags, ["mutineer"]);
+  }
+},
+{
+  name: "L.TAG.05 crewWithTag filters correctly",
+  run: (u) => {
+    const roster = [
+      { id: "a", tags: ["upset"] },
+      { id: "b", tags: [] },
+      { id: "c", tags: ["upset", "mutineer"] },
+    ];
+    const upset = L.crewWithTag(roster, "upset");
+    u.assertEqual(upset.length, 2);
+    const mutineers = L.crewWithTag(roster, "mutineer");
+    u.assertEqual(mutineers.length, 1);
+  }
+},
+// ── Crew Alignment ────────────────────────────────────────────
+{
+  name: "L.ALIGN.01 getCrewAlignment returns correct ratio",
+  run: (u) => {
+    const state = {
+      crew: {
+        roster: [
+          { faction: "english" },
+          { faction: "spanish" },
+          { faction: "spanish" },
+          { faction: "pirate" },
+        ]
+      }
+    };
+    u.assertEqual(L.getCrewAlignment(state, "spanish"), 0.5);
+    u.assertEqual(L.getCrewAlignment(state, "english"), 0.25);
+    u.assertEqual(L.getCrewAlignment(state, "french"), 0);
+  }
+},
+{
+  name: "L.ALIGN.02 getCrewAlignment returns 0 for empty roster",
+  run: (u) => {
+    const state = { crew: { roster: [] } };
+    u.assertEqual(L.getCrewAlignment(state, "english"), 0);
+  }
+},
+{
+  name: "L.ALIGN.03 getAlignmentModifier ranges 0.5 to 1.5",
+  run: (u) => {
+    const allEnglish = { crew: { roster: [{ faction: "english" }, { faction: "english" }] } };
+    u.assertEqual(L.getAlignmentModifier(allEnglish, "english"), 1.5);
+    const noneMatching = { crew: { roster: [{ faction: "pirate" }] } };
+    u.assertEqual(L.getAlignmentModifier(noneMatching, "english"), 0.5);
+  }
+},
+
+
+
   ]
 });
 

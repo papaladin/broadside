@@ -496,6 +496,151 @@ The game currently has no time pressure — a player can grind indefinitely with
 
 **Reference:** Sid Meier's Pirates! uses aging (stats degrade over years, forcing eventual retirement). Occidental Heroes uses a main quest deadline. Caravaneer uses economic collapse.
 
+
+
+# T7.6 — Advanced Text Generation (Slot-Based NLG)
+
+> Roadmap item for long-term polish. Not blocking any gameplay features.
+
+## Purpose
+
+Reduce gossip and event text repetition by evolving from static templates to **slot-based sentence assembly**. The player should rarely see the exact same line twice across dozens of port visits — without requiring hundreds of handcrafted strings.
+
+**Player mental model:** "Every port visit has something new to read. The world feels alive and talkative."
+
+---
+
+## Current State (Level 1: Template Interpolation)
+
+The gossip generator uses handcrafted sentences with `{good}` / `{Good}` variable slots:
+
+```js
+"Warehouses overflow with {good}. A buyer's market."
+→ "Warehouses overflow with sugar. A buyer's market."
+```
+
+This works well but each template always produces the same sentence structure. With ~50 templates, players start recognising lines after ~15 port visits.
+
+---
+
+## Target State (Level 2: Slot-Based Sentence Assembly)
+
+Templates are decomposed into **independent slot pools** that combine combinatorially:
+
+```js
+// One template definition:
+{
+  pattern: "{source} says {good} {verb} at {port}.",
+  source: [
+    "A merchant",
+    "A drunk sailor",
+    "A trader just arrived from {otherPort}",
+    "The harbourmaster's clerk",
+    "An old captain nursing his rum",
+  ],
+  verb: [
+    "fetches a fortune",
+    "sells for double the usual price",
+    "is in high demand",
+    "commands a premium",
+    "is worth the voyage alone",
+  ],
+}
+
+// Assembly:
+function assembleSlotTemplate(template, context) {
+  let text = template.pattern;
+  // Replace each {slot} with a random pick from its pool
+  if (template.source) text = text.replace("{source}", pickRandom(template.source));
+  if (template.verb) text = text.replace("{verb}", pickRandom(template.verb));
+  // Replace context variables
+  text = text.replace(/\{good\}/g, context.goodName.toLowerCase());
+  text = text.replace(/\{Good\}/g, context.goodName);
+  text = text.replace(/\{port\}/g, context.portName);
+  text = text.replace(/\{otherPort\}/g, context.otherPortName || "parts unknown");
+  return text;
+}
+```
+
+**Output variety:** 1 template × 5 sources × 5 verbs = **25 unique sentences**.
+10 templates per category = **250 unique sentences** from ~50 lines of data.
+
+---
+
+## What Gets Upgraded
+
+| Category | Current Templates | With Slots | Unique Outputs |
+|---|---|---|---|
+| Market surplus | 4 static | 4 patterns × 5 sources × 5 verbs | ~100 |
+| Market shortage | 4 static | 4 patterns × 5 sources × 5 verbs | ~100 |
+| Heat warnings | 4+4 static | 4 patterns × 3 observers × 3 details | ~36 per tier |
+| Fame reactions | 2-3 per tier | 3 patterns × 4 crowd reactions | ~12 per tier |
+| Infamy reactions | 2-4 per tier | 3 patterns × 4 watcher types | ~12 per tier |
+| Ambiance | 4 per faction | 4 patterns × 3 details × 2 weather | ~24 per faction |
+| **Total** | ~60 static lines | ~60 pattern lines + ~30 slot pools | **~500+ unique outputs** |
+
+Reputation and contraband gossip remain static — they're already varied enough and benefit from precise authorial control.
+
+---
+
+## Slot Pool Design Principles
+
+1. **Slots must be independently combinable** — any source × any verb must make grammatical sense
+2. **Context slots** (`{good}`, `{port}`) come from game state — always factually accurate
+3. **Flavour slots** (`{source}`, `{verb}`) come from pools — always grammatically safe
+4. **No recursive expansion** — this is NOT a grammar/Tracery system. One level of slots only. Keep it simple.
+5. **Existing templates remain valid** — a template without slot pools is just a static string. The system is backward-compatible.
+
+---
+
+## Implementation
+
+| | |
+|---|---|
+| **Complexity** | Low-Medium (~80 lines in generators.js + ~100 lines of slot data) |
+| **Dependencies** | T2.3 Gossip Generator (must be complete and stable) |
+| **Files Changed** | `data.js` (slot pool data), `generators.js` (assembly function) |
+| **New Functions** | `assembleSlotTemplate(template, context)` in generators.js |
+| **Risk** | Low — backward-compatible, no new systems, pure content expansion |
+
+### Task List
+
+- [ ] **generators.js**: Add `assembleSlotTemplate(template, context)` — replaces `{slot}` from pools + `{variable}` from context
+- [ ] **data.js**: Convert market surplus/shortage templates from strings to slot objects
+- [ ] **data.js**: Add slot pools: `source` (5+), `verb` (5+ per category), `detail` (3+ per category)
+- [ ] **data.js**: Convert heat, fame, infamy templates to slot format
+- [ ] **data.js**: Add ambiance slot pools per faction (crowd, sound, smell, activity)
+- [ ] **generators.js**: Update `generatePortGossip` to detect slot templates vs static strings and handle both
+- [ ] Test: verify no grammatical nonsense in 100 random generations
+- [ ] Test: verify context variables ({good}, {port}) are always factually correct
+
+---
+
+## Definition of Done
+
+- [ ] `assembleSlotTemplate` produces grammatically correct output for all template × slot combinations
+- [ ] At least 5 source slots and 5 verb/adjective slots per gossip category
+- [ ] 500+ unique gossip outputs possible across all categories (verified by combinatorial count)
+- [ ] Static templates still work (backward-compatible)
+- [ ] No player-visible regression — gossip feels richer, not different
+- [ ] Player sees a repeated exact line less than 5% of the time across 20 consecutive port visits
+
+---
+
+## Future Consideration: Grammar-Based Generation (Level 3)
+
+If slot assembly still feels repetitive after hundreds of hours, the next step is a **recursive grammar system** (e.g., Tracery). This allows:
+
+```
+"#source# heard that #rumour#, and #reaction#."
+→ "A sailor heard that spices are scarce at Curaçao, and is heading there with a full hold."
+```
+
+Tracery is a ~5KB JS library designed for exactly this use case. It would be loaded as a vendored dependency (no CDN, no npm). This is a **long-term consideration**, not a current plan — slot assembly should provide sufficient variety for the foreseeable future.
+
+
+
+
 ---
 
 ## Long-Term Vision

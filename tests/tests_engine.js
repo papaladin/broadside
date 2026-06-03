@@ -1393,5 +1393,203 @@ window.TESTS.push({
     u.resetRandomStub();
   }
 },
+
+
+// ── Crew Loyalty: Alignment on Mission Complete ─────────────
+{
+  name: "E.CREW.01 COMPLETE_MISSION applies alignment modifier to morale",
+  run: (u) => {
+    const mission = testMission({ type: "escort", targetPort: "portRoyal", faction: "english", gold: 100, fame: 1 });
+    const state = makeState({
+      currentPort: "portRoyal",
+      activeMission: mission,
+      crew: {
+        roster: [
+          ...fillRoster(4).map(m => ({ ...m, faction: "english" })),
+          ...fillRoster(1).map(m => ({ ...m, faction: "pirate" })),
+        ],
+        max: 50,
+        morale: 50,
+      },
+      reputation: { portRoyal: 50 },
+    });
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    // Alignment = 4/5 = 0.8, modifier = 0.5 + 0.8 = 1.3, moraleGain = round(3 * 1.3) = 4
+    // So morale goes from 50 to 54
+    u.assertEqual(s.crew.morale, 54);
+  }
+},
+{
+  name: "E.CREW.02 DISMISS_BATTLE applies alignment penalty on grapple victory",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen: "battle",
+      crew: {
+        roster: fillRoster(10).map(m => ({ ...m, faction: "english" })),
+        max: 50, morale: 50,
+      },
+      ship: { type: "sloop", hull: 100, upgrades: [] },
+      battleState: {
+        phase: "player_turn", playerHull: 80, playerCrew: 10,
+        enemy: { name: "Test", hull: 10, cannons: 5, crew: 10, faction: "english" },
+        enemyHull: 1, enemyCrew: 10, round: 1, log: [], returnScreen: "port",
+        initialCrewCount: 10, lostCrewNames: [],
+        encounterType: "mission_combat",
+      },
+    });
+    // Need to force an instant victory → grapple success
+    u.setRandomSequence([0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+    let s = E.reducer(state, { type: E.A.BATTLE_ACTION, action: "grapple" });
+    u.assertEqual(s.battleState.phase, "victory");
+    // Grapple victory: moraleDelta is +5 (from combat), then alignment penalty: 3 * 1.5 = 4.5 → round 5
+    // So morale = 50 + 5 - 5 = 50
+    // Actually the order: first newMorale = 50 + 5 = 55, then alignmentPenalty = 5 → 55 - 5 = 50
+    u.assertEqual(s.crew.morale, 50);
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.CREW.03 DISMISS_BATTLE upset triggers on matching faction",
+  run: (u) => {
+    // Set up a crew with 5 english members, defeat an english enemy, force 100% upset chance
+    // We can't force 100% without changing the code, so we test structural: the log should contain "disturbed" if any upset occurred.
+    u.resetRandomStub();
+    // Use a sequence that produces 0.0 for each upset roll → every member becomes upset
+    u.setRandomSequence(new Array(50).fill(0.0));
+    const state = makeState({
+      screen: "battle",
+      crew: {
+        roster: fillRoster(5).map(m => ({ ...m, faction: "english" })),
+        max: 50, morale: 50,
+      },
+      battleState: {
+        phase: "victory", returnScreen: "port",
+        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "english" },
+        encounterType: "random",
+        playerHull: 80, enemyHull: 0,
+        playerCrew: 5, enemyCrew: 0,
+        round: 2, log: [], initialCrewCount: 5, lostCrewNames: []
+      },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    // Should see "disturbed" in log since 5 members all rolled 0.0 → upset
+    u.assert(s.log.some(l => l.includes("disturbed")), "Log should mention upset crew");
+    // Since 5 > 2, the batched message should say "Some of the crew are disturbed"
+    u.assert(s.log.some(l => l.includes("Some of the crew")), "Batched upset message for 3+ members");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.CREW.04 ENTER_PORT desertion removes upset members (with forced chance)",
+  run: (u) => {
+    // Set up 2 upset crew, force desertion with sequence 0.0
+    u.resetRandomStub();
+    u.setRandomSequence(new Array(10).fill(0.0)); // all rolls < 0.30 → desert
+    const state = makeState({
+      screen: "sailing",
+      destination: "portRoyal",
+      sailingDaysLeft: 0,
+      reputation: { portRoyal: 50 },
+      crew: {
+        roster: [
+          { id: "a", firstName: "John", lastName: "Doe", faction: "english", role: "deckhand", tags: ["upset"] },
+          { id: "b", firstName: "Jane", lastName: "Smith", faction: "spanish", role: "gunner", tags: ["upset"] },
+          { id: "c", firstName: "Bob", lastName: "Lee", faction: "pirate", role: "cook", tags: [] },
+        ],
+        max: 50, morale: 50,
+      },
+      hold: { items: { food: 10, water: 10 } },
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    // Both upset crew should desert (sequence 0.0 forces it)
+    u.assertEqual(s.crew.roster.length, 1, "Two upset crew deserted, one clean remains");
+    u.assertEqual(s.crew.roster[0].id, "c", "Clean crew member remains");
+    u.assert(s.log.some(l => l.includes("have left")), "Log mentions deserters");
+    u.assert(!s.log.some(l => l.includes("settled down")), "No settlers when all upset members desert");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.CREW.05 ENTER_PORT upset members calm down when not deserting",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence(new Array(10).fill(0.99)); // all rolls > 0.30 → calm down
+    const state = makeState({
+      screen: "sailing",
+      destination: "portRoyal",
+      sailingDaysLeft: 0,
+      reputation: { portRoyal: 50 },
+      crew: {
+        roster: [
+          { id: "a", firstName: "John", lastName: "Doe", faction: "english", role: "deckhand", tags: ["upset"] },
+          { id: "b", firstName: "Jane", lastName: "Smith", faction: "spanish", role: "gunner", tags: ["upset"] },
+        ],
+        max: 50, morale: 50,
+      },
+      hold: { items: { food: 10, water: 10 } },
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assertEqual(s.crew.roster.length, 2, "No desertion — both stay");
+    u.assert(!L.hasTag(s.crew.roster[0], "upset"), "Upset tag removed");
+    u.assert(!L.hasTag(s.crew.roster[1], "upset"), "Upset tag removed");
+    u.assert(s.log.some(l => l.includes("settled down")), "Log mentions settlers");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.CREW.06 Mutiny negotiate-fail upsets 30% of crew",
+  run: (u) => {
+    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
+    u.assert(mutinyEvent, "mutiny event must exist");
+    const state = makeState({
+      activeEvent: mutinyEvent,
+      gold: 0, // can't afford
+      crew: {
+        roster: fillRoster(10),
+        morale: 15,
+        max: 50,
+      },
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
+    // 30% of 10 = 3 crew should get upset tag
+    const upsetCount = s.crew.roster.filter(m => L.hasTag(m, "upset")).length;
+    u.assert(upsetCount >= 2 && upsetCount <= 4, `Expected ~3 upset, got ${upsetCount}`);
+    u.assertEqual(s.crew.morale, 10, "Morale -5");
+  }
+},
+{
+  name: "E.CREW.07 Mutiny crush tags 30% of survivors as mutineer",
+  run: (u) => {
+    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
+    u.assert(mutinyEvent, "mutiny event must exist");
+    // Crush outcome includes crewLoss: 10 in the event data
+    const state = makeState({
+      activeEvent: mutinyEvent,
+      crew: {
+        roster: fillRoster(30),
+        morale: 15,
+        max: 50,
+      },
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
+    // crewLoss 10 → 20 survivors → 30% = 6 mutineers
+    const mutineerCount = s.crew.roster.filter(m => L.hasTag(m, "mutineer")).length;
+    u.assert(mutineerCount >= 5 && mutineerCount <= 8, `Expected ~6 mutineers, got ${mutineerCount}`);
+  }
+},
+{
+  name: "E.CREW.08 migrateState adds tags array to crew",
+  run: (u) => {
+    const oldState = {
+      version: 1,
+      crew: { roster: [{ id: "a", firstName: "Old", lastName: "Sailor" }] }
+    };
+    const migrated = window.E.migrateState(oldState);
+    u.assert(Array.isArray(migrated.crew.roster[0].tags), "tags array added");
+    u.assertDeepEqual(migrated.crew.roster[0].tags, []);
+  }
+},
   ]
 });

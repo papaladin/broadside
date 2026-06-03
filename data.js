@@ -76,7 +76,7 @@ window.D = (() => {
   kingston: {
     name: "Kingston", faction: "english",
     x: 422, y: 296,
-    services: ["tavern", "crew"],
+    services: ["tavern", "crew", "missions"],
     desc: "A young town growing in Port Royal's shadow. Modest but honest trade and a welcome harbour.",
   },
  
@@ -522,7 +522,190 @@ const GOODS_AVAILABILITY = {
 };
 
 
+const PORT_GOSSIP_TEMPLATES = {
 
+  // ── HEAT (Priority 3) ─────────────────────────────────────────────
+  heat: {
+    medium: [
+      "The harbourmaster checks papers more carefully than usual. Extra soldiers loiter near the quay.",
+      "A pair of guards watch you from the shade of a warehouse. They don't approach, but they don't look away.",
+      "Someone has posted a description on the notice board. It could be anyone, really.",
+      "The dockworkers are quieter than usual. An officer is making rounds.",
+    ],
+    high: [
+      "Warships sit in the harbour, crews at the ready. They're looking for someone. Possibly you.",
+      "Every soldier you pass studies your face. The garrison is on full alert.",
+      "The harbour battery is manned and the chains across the harbour mouth are raised.",
+      "A patrol stops you before you've walked twenty paces. They let you go — this time.",
+    ],
+  },
+
+  // ── CONTRABAND (Priority 3) ───────────────────────────────────────
+  contraband: [
+    "A customs officer lingers near your berth, nose in the air. He knows something.",
+    "Dockworkers glance at your hold with knowing eyes. Word travels fast on the docks.",
+    "The smell from your hold is drawing attention. Not the good kind.",
+    "A harbour official is checking manifests more thoroughly than usual. You're glad he hasn't reached your slip yet.",
+  ],
+
+  // ── REPUTATION (Priority 2) ───────────────────────────────────────
+  reputation: {
+    at_war: [
+      "Armed men watch your every move. You are not welcome here.",
+      "The harbourmaster spits as you pass. 'Sail out while you still can.'",
+    ],
+    hostile: [
+      "The harbourmaster's greeting is ice cold. Your papers are checked twice.",
+      "Merchants pull their children inside as you walk past. Word has spread.",
+      "'Keep your business quick,' a dockhand mutters. 'Nobody wants you here.'",
+    ],
+    neutral: [
+      "Nobody pays you special attention. Just another ship in port.",
+      "A few dockworkers nod as you pass. Nothing more, nothing less.",
+      "The harbourmaster stamps your papers without looking up. Routine business.",
+    ],
+    friendly: [
+      "The dockmaster nods in recognition. Your usual berth is ready.",
+      "A merchant you've dealt with before waves from across the quay.",
+      "Someone buys you a drink before you've even asked. Good to be back.",
+    ],
+    allied: [
+      "Merchants approach before you've tied off. Your name opens doors in this port.",
+      "The harbourmaster personally welcomes you. 'Anything you need, Captain.'",
+      "Children wave your colours. Sailors raise a glass. A hero's welcome.",
+    ],
+  },
+
+  // ── FAME (Priority 2) ─────────────────────────────────────────────
+  fame: {
+    unknown: [
+      "Nobody recognises you. Just another captain scraping by.",
+      "A tavern keeper asks your name twice. It doesn't stick.",
+    ],
+    emerging: [
+      "A few sailors nod in recognition. You've been making a name.",
+      "Someone in the tavern whispers your name. They know your ship.",
+    ],
+    recognised: [
+      "Tavern conversations pause as you pass. People know your ship.",
+      "'That's the one,' a dockworker says to his mate. They step aside.",
+      "A young sailor asks if the stories about you are true. You let him wonder.",
+    ],
+    notorious: [
+      "Children point at your flag. Sailors trade stories about you — some of them true.",
+      "A crowd gathers when you come ashore. They want to see if the legends match.",
+      "The tavern keeper refuses your coin. 'Your money's no good here, Captain. Tell us a tale instead.'",
+    ],
+    legendary: [
+      "Your arrival is the talk of the port. Captains raise a glass in your honour.",
+      "A painter sketches your ship from the quay. He says it'll sell in every port in the Caribbean.",
+      "The governor sends a messenger with compliments — and a request for a private audience.",
+    ],
+  },
+
+  // ── INFAMY (Priority 2) ───────────────────────────────────────────
+  infamy: {
+    low: [
+      "A wanted notice on the tavern wall bears a description that could be yours.",
+      "Someone studies your face a moment too long. Then looks away.",
+    ],
+    medium: [
+      "People avoid eye contact. Your reputation precedes you — and not the good kind.",
+      "A barmaid serves you quickly and retreats. She's heard the stories.",
+      "No one sits at the table next to yours. They prefer the distance.",
+    ],
+    high: [
+      "The constable watches from the dock. You feel the noose tightening.",
+      "Wanted posters with your name — your real name — are nailed to the customs house door.",
+      "A bounty hunter in the corner pretends not to see you. He's waiting for the right moment.",
+    ],
+    extreme: [
+      "Every colonial power wants you dead. The question is who gets there first.",
+      "The crowd parts when you walk. Not out of respect — out of fear.",
+      "A child asks if you're really the devil. His mother pulls him away before you can answer.",
+      "The tavern falls silent when you enter. The bravest man in the room is the one who serves your drink.",
+    ],
+  },
+
+  // ── AMBIANCE (Priority 0) — Faction-specific ──────────────────────
+  ambiance: {
+    english: [
+      "The smell of tar and tobacco drifts from the shipyard.",
+      "English sailors argue over cards in the shade of a warehouse.",
+      "A preacher on the dock warns of God's judgment. Nobody is listening.",
+      "Redcoats drill in the square, muskets gleaming in the afternoon sun.",
+    ],
+    spanish: [
+      "Church bells echo across the harbour. Mass has just ended.",
+      "The scent of coffee and gunpowder hangs in the humid air.",
+      "A line of soldiers marches past, breastplates shining.",
+      "A priest blesses a fishing boat. The fishermen cross themselves.",
+    ],
+    french: [
+      "The sound of French drifts from the tavern, mixed with laughter and breaking glass.",
+      "Buccaneers lounge on the dock, sharpening knives and lying about their catches.",
+      "A woman sells fresh fruit from a cart. The mangoes look almost worth the price.",
+      "Someone is playing a violin. Someone else is singing along badly.",
+    ],
+    dutch: [
+      "Merchants crowd the counting houses, ledgers open, voices sharp.",
+      "The harbour is immaculate. Even the bollards look polished.",
+      "Crates stamped VOC are stacked three-high on the quay.",
+      "A clerk argues with a captain about a quarter-percent tariff. Neither will yield.",
+    ],
+    pirate: [
+      "The tavern is already loud, and the sun hasn't set yet.",
+      "A man with more scars than teeth offers to sell you a map. It's clearly fake.",
+      "Someone is playing a fiddle badly. Someone else is enjoying it even worse.",
+      "Two pirates arm-wrestle over a disputed bet. A small crowd takes sides.",
+    ],
+  },
+
+  // ── WEATHER (Priority 0) — Faction-agnostic filler ────────────────
+  weather: [
+    "A warm breeze carries the smell of salt and tar.",
+    "Storm clouds gather on the horizon. The old sailors are watching.",
+    "The heat is oppressive. Even the dogs have found shade.",
+    "A light rain falls, turning the dock planks slippery.",
+    "The sunset paints the harbour gold. For a moment, even the pirates stop to look.",
+  ],
+
+  // ── HIDDEN PORT HINTS (Priority 1) ────────────────────────────────
+  // Shown when player is close to (but hasn't met) unlock conditions.
+  // Never reveal exact requirements — be vague and atmospheric.
+  //
+  // Roatan:      fame >= 50 OR pirate rep >= 65
+  // Dry Tortugas: infamy >= 25 AND pirate rep >= 65
+  // Las Aves:    map_fragment_lasAves (from Wrecker's Map event, fame >= 50)
+  // Libertalia:  fame >= 200 AND map_fragment_libertalia (from Dying Sailor event, fame >= 100)
+  hiddenPorts: {
+    roatan: "Old sailors speak of a hidden cove in the Bay Islands. 'You need a name worth knowing — or friends among the Brotherhood — to find it,' they say.",
+    dryTortugas: "A drunk pirate mumbles about islands at the tip of Florida. 'You need to be one of us to find the channel,' he slurs.",
+    lasAves: "A wrecker nurses his drink alone. He looks like a man with charts to sell — for the right price.",
+    libertalia: "A dying sailor's tale keeps surfacing in tavern talk — a free republic, somewhere far south, where pirates live like kings.",
+  },
+
+  // ── MARKET (Priority 1) ───────────────────────────────────────────
+  // Template variables: {good} = lowercase, {Good} = capitalised
+  // NOTE: Generator must skip "slaves" — no market gossip for slaves.
+  // NOTE: If you want to add harvest-specific lines later, tag them as
+  //       organic:true and filter in the generator. Organic goods:
+  //       sugar, coffee, cocoa, tobacco, timber, cloth, rum.
+  market: {
+    surplus: [
+      "Warehouses overflow with {good}. A buyer's market if ever there was one.",
+      "{Good} is cheap here — the docks are stacked with it.",
+      "A recent convoy flooded the market with {good}. Prices have dropped sharply.",
+      "Merchants are practically giving {good} away. Supply far outstrips demand.",
+    ],
+    shortage: [
+      "There's a shortage of {good}. Merchants are paying premium for anyone with a hold full.",
+      "{Good} is scarce. 'Haven't seen a shipment in weeks,' a merchant complains.",
+      "Everyone's looking for {good}. If you've got some, you'll name your price.",
+      "The last {good} shipment was lost at sea. Prices are climbing fast.",
+    ],
+  },
+};
 
 
 // ── Parametric Mission Generator Config ────────────────────────
@@ -1129,7 +1312,7 @@ const ENEMY_SHIP_NAMES = {
       ? `A ${enemy.name} opens fire without warning.`
       : `A ${enemy.name} hails you and demands you heave to for inspection.`,
 
-    "navy_patrol": (enemy, rep) =>
+    navy_patrol: (enemy, rep) =>
      `A patrol from the ${enemy.faction} faction demands to inspect your cargo.`,
 
     hostile_port_entry: (enemy) =>
@@ -1183,6 +1366,7 @@ const ENEMY_SHIP_NAMES = {
     CREW_ROLES,
     RESOURCES,
     GOODS_AVAILABILITY,
+    PORT_GOSSIP_TEMPLATES,
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
     PLUNDER_TARGET,
@@ -1199,6 +1383,6 @@ SMUGGLE_PROFIT_MARGINS,
     RANDOM_EVENTS,
     STARTS,
     ENCOUNTER_FLAVOUR,
-    SURRENDER_CONSEQUENCE
+    SURRENDER_CONSEQUENCE,
   };
 })();

@@ -447,6 +447,7 @@ function renderShipStats(shipType, compareType) {
   // ── CREW SCREEN ──────────────────────────────────────────────────────
   function CrewScreen({ state, dispatch }) {
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+    const [selectedMember, setSelectedMember] = React.useState(null);
     if (perk.servicesBlocked) {
       return (
         <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
@@ -485,16 +486,136 @@ function renderShipStats(shipType, compareType) {
           </div>
           <div style={{ ...panelStyle(), gridColumn: "1 / -1" }}>
             <SectionTitle>MANIFEST</SectionTitle>
+
+            {/* ── Crew composition summary ─────────────────── */}
+            {(() => {
+              const counts = {};
+              state.crew.roster.forEach(m => {
+                counts[m.faction] = (counts[m.faction] || 0) + 1;
+              });
+              return (
+                <div style={{ fontSize: 10, color: T.textDim, marginBottom: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {Object.entries(counts).map(([faction, count]) => {
+                    const fac = FACTIONS[faction];
+                    return (
+                      <span key={faction} style={{ color: fac?.color || T.textDim }}>
+                        {fac?.label || faction}: {count}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* ── Tag legend ────────────────────────────────── */}
+            <details style={{ fontSize: 10, color: T.textDim, marginBottom: 8 }}>
+              <summary style={{ cursor: "pointer", color: T.gold, fontSize: 10, letterSpacing: "0.05em" }}>
+                TAG LEGEND
+              </summary>
+              <div style={{ marginTop: 4, lineHeight: 1.6, paddingLeft: 4 }}>
+                <div><span style={{ color: T.redBr }}>⚠ Upset</span> — may desert at port (30% base chance, reduced by high morale)</div>
+                <div><span style={{ color: T.purpleBr }}>⚓ Mutineer</span> — permanent; doubles desertion chance if upset</div>
+                <div><span style={{ color: T.blueBr }}>🌊 Shipwreck Survivor</span> — flavour; no gameplay effect</div>
+                <div><span style={{ color: T.textDim }}>👑 Loyal</span> — this crew member will never desert (future trait)</div>
+                <div><span style={{ color: T.textDim }}>🔮 Hidden trait</span> — will be revealed after 30 days at sea (future system)</div>
+              </div>
+            </details>
+
+            {/* ── Crew icons ──────────────────────────────── */}
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
               {state.crew.roster.map(member => {
                 const roleIcon = { deckhand: "⚓", gunner: "🗡", cook: "🍖", carpenter: "🔧", navigator: "🧭" }[member.role] ?? "👤";
+                const factionColor = FACTIONS[member.faction]?.color || T.textDim;
+                const isMutineer = L.hasTag(member, "mutineer");
+                const tags = member.tags || [];
+                const tagLabels = tags.map(t => {
+                  if (t === "upset") return "Upset";
+                  if (t === "mutineer") return "Mutineer";
+                  if (t === "scar_shipwreck") return "Shipwreck Survivor";
+                  if (t === "trait_troublemaker") return "Troublemaker";
+                  if (t === "trait_drunkard") return "Drunkard";
+                  if (t === "trait_coward") return "Coward";
+                  if (t === "trait_greedy") return "Greedy";
+                  if (t === "loyal") return "Loyal";
+
+                  return t;
+                });
+                const tooltipText = `${member.firstName} ${member.lastName} · ${member.role} · ${member.faction} · ${member.daysAboard}d aboard` +
+                  (tagLabels.length > 0 ? ` · ${tagLabels.join(", ")}` : "");
+
                 return (
-                  <div key={member.id} title={`${member.firstName} ${member.lastName} · ${member.role} · ${member.faction}`} style={{ width: 26, height: 26, borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, background: T.panelAlt, border: `1px solid ${T.border}`, cursor: "default" }}>
-                    {roleIcon}
+                  <div
+                    key={member.id}
+                    title={tooltipText}
+                    onClick={() => setSelectedMember(selectedMember?.id === member.id ? null : member)}
+                    style={{
+                      width: 34, height: 34, borderRadius: 3,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 15, cursor: "pointer",
+                      background: selectedMember?.id === member.id ? T.panelAlt : T.panel,
+                      border: `2px solid ${selectedMember?.id === member.id ? T.gold : T.border}`,
+                      position: "relative",
+                    }}
+                  >
+                    <span>{roleIcon}</span>
+                    {/* Faction colour dot */}
+                    <div style={{
+                      position: "absolute", bottom: 2, right: 2,
+                      width: 8, height: 8, borderRadius: "50%",
+                      background: factionColor,
+                      border: `1px solid ${T.bgDeep}`,
+                    }} />
+                    {/* Mutineer indicator */}
+                    {isMutineer && (
+                      <span style={{
+                        position: "absolute", top: -2, right: -2,
+                        fontSize: 10, color: T.redBr,
+                      }}>⚠</span>
+                    )}
                   </div>
                 );
               })}
             </div>
+
+            {/* ── Detail card ─────────────────────────────── */}
+            {selectedMember && (
+              <div style={{
+                marginTop: 10,
+                ...panelStyle({ background: T.bgDeep, borderColor: T.gold }),
+                display: "flex", flexDirection: "column", gap: 4,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: T.gold, fontSize: 13, fontWeight: "bold" }}>
+                    {selectedMember.firstName} {selectedMember.lastName}
+                  </span>
+                  <Btn sm v="ghost" onClick={() => setSelectedMember(null)}>✕</Btn>
+                </div>
+                <div style={{ fontSize: 11, color: T.text }}>
+                  <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
+                  <div>Role: {selectedMember.role}</div>
+                  <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>
+                  {(selectedMember.tags || []).length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <span style={{ color: T.textDim }}>Tags: </span>
+                      {selectedMember.tags.map((t, i) => (
+                        <Pill key={i} label={(() => {
+                          if (t === "upset") return "Upset";
+                          if (t === "mutineer") return "Mutineer";
+                          if (t === "scar_shipwreck") return "Shipwreck Survivor";
+                          if (t === "trait_troublemaker") return "Troublemaker";
+                          if (t === "trait_drunkard") return "Drunkard";
+                          if (t === "trait_coward") return "Coward";
+                          if (t === "trait_greedy") return "Greedy";
+                          if (t === "loyal") return "Loyal";
+
+                          return t;
+                        })()} color={t === "upset" ? T.redBr : t === "mutineer" ? T.purpleBr : T.textDim} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
