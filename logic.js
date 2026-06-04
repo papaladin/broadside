@@ -387,6 +387,7 @@ const revealTag = (member, traitName) => {
     fled: false,
     instantVictory: false,
     goldReward: 0,
+    enemyCargo: {}, 
   });
 
     const getNPCAction = (enemy) => {
@@ -434,7 +435,11 @@ const revealTag = (member, traitName) => {
 
         if (Math.random() < successChance) {
           out.instantVictory = true;
-          out.goldReward = Math.floor((enemy.hull + enemy.cannons * 10 + enemy.crew * 5) * 0.3);
+          const risk = state.activeMission?.risk || "medium";
+          console.log("enemy object passed to generateEnemyCargo:", state.battleState.enemy);
+          const plunder = G.generateEnemyCargo(state, state.battleState.enemy, risk);
+          out.goldReward = plunder.gold;
+          out.enemyCargo = plunder.cargo;
         } else {
           const crewLossPct = 0.3 + Math.random() * 0.2;
           out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
@@ -547,6 +552,7 @@ const revealTag = (member, traitName) => {
     final.fled              = playerOut.fled;
     final.instantVictory    = playerOut.instantVictory;
     final.goldReward        = playerOut.goldReward;
+    final.enemyCargo        = playerOut.enemyCargo || {};
     // Morale
     final.moraleDelta       = morale.moraleDelta;
     // NPC action results (added on top)

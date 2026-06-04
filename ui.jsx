@@ -254,32 +254,56 @@ const NarrativeLine = ({ children, style = {} }) => (
   </p>
 );
 
-const LogList = ({ entries, maxEntries = 20 }) => (
-  <div style={{
-    fontSize: T.narrativeFontSize,
-    color: T.textDim,
-    lineHeight: T.narrativeLineHeight,
-    overflowY: "auto",
-    flex: 1,
-    padding: "4px 0"
-  }}>
-    {entries.slice(-maxEntries).map((entry, i) => {
-      // Skip extra icon if the entry already starts with an emoji
-      const startsWithEmoji = entry && /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/u.test(entry.trim());
-      const category = startsWithEmoji ? { icon: null } : window.L.classifyLogLine(entry);
-      return (
-        <div key={i} style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline" }}>
-          {category.icon && (
-            <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>
-              {category.icon}
-            </span>
-          )}
-          <span>{entry}</span>
-        </div>
-      );
-    })}
-  </div>
-);
+const LogList = ({ entries, maxEntries = 20 }) => {
+  let lastDay = null;
+
+  return (
+    <div style={{
+      fontSize: T.narrativeFontSize,
+      color: T.textDim,
+      lineHeight: T.narrativeLineHeight,
+      overflowY: "auto",
+      flex: 1,
+      padding: "4px 0"
+    }}>
+      {entries.slice(-maxEntries).map((entry, i) => {
+        // Parse day prefix: "[N] message"
+        const dayMatch = entry && entry.match(/^\[(\d+)\]\s*(.*)/);
+        const day = dayMatch ? parseInt(dayMatch[1], 10) : null;
+        const text = dayMatch ? dayMatch[2] : entry;
+        const showDay = day !== null && day !== lastDay;
+        if (day !== null) lastDay = day;
+
+        // Emoji check on the message text (not the prefix)
+        const startsWithEmoji = text && /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/u.test(text.trim());
+        const category = startsWithEmoji ? { icon: null } : window.L.classifyLogLine(text);
+
+        return (
+          <div key={i} style={{ marginBottom: 6, display: "flex", alignItems: "baseline" }}>
+            <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "baseline" }}>
+              {category.icon && (
+                <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>
+                  {category.icon}
+                </span>
+              )}
+              <span>{text}</span>
+            </div>
+            {showDay && (
+              <span style={{
+                flexShrink: 0,
+                marginLeft: 8,
+                fontSize: T.captionFontSize,
+                color: T.textFaint,
+              }}>
+                Day {day}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
   const Divider = ({ style = {} }) => (
     <hr style={{ border: `1px solid ${T.borderFaint}`, margin: "8px 0", ...style }} />

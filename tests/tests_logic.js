@@ -831,7 +831,119 @@ window.TESTS.push({
   }
 },
 
+// ── revealTag ────────────────────────────────────────────────
+{
+  name: "L.TAG.06 revealTag swaps hidden_ to revealed_",
+  run: (u) => {
+    const member = { tags: ["hidden_drunkard"] };
+    const updated = L.revealTag(member, "drunkard");
+    u.assert(!updated.tags.includes("hidden_drunkard"), "hidden tag removed");
+    u.assert(updated.tags.includes("revealed_drunkard"), "revealed tag added");
+  }
+},
+{
+  name: "L.TAG.07 revealTag does nothing if hidden tag missing",
+  run: (u) => {
+    const member = { tags: [] };
+    const updated = L.revealTag(member, "drunkard");
+    u.assertDeepEqual(updated.tags, []);
+  }
+},
+{
+  name: "L.TAG.08 crewWithTag with revealTag works together",
+  run: (u) => {
+    const roster = [
+      { id:"a", tags:["hidden_drunkard","upset"] },
+      { id:"b", tags:["revealed_drunkard"] },
+      { id:"c", tags:[] }
+    ];
+    const updated = roster.map(m => L.revealTag(m, "drunkard"));
+    const drunkards = L.crewWithTag(updated, "revealed_drunkard");
+    u.assertEqual(drunkards.length, 2);
+  }
+},
 
+// ── Bio generator ────────────────────────────────────────────
+{
+  name: "L.BIO.01 new hand with no tags",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:5, tags:[] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("still finding their place"));
+  }
+},
+{
+  name: "L.BIO.02 seasoned hand",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:70, tags:["seasoned"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("seasoned hand"));
+  }
+},
+{
+  name: "L.BIO.03 veteran",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:120, tags:["veteran"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("veteran of 120 days"));
+  }
+},
+{
+  name: "L.BIO.04 old salt",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:250, tags:["loyal"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("old salt"));
+  }
+},
+{
+  name: "L.BIO.05 one scar",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:30, tags:["scar_battle"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("carry the scars of a deadly battle"));
+  }
+},
+{
+  name: "L.BIO.06 two scars",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:30, tags:["scar_battle","scar_storm"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("survived a deadly battle and a violent storm"));
+  }
+},
+{
+  name: "L.BIO.07 revealed trait",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:30, tags:["revealed_drunkard"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("fondness for rum"));
+  }
+},
+{
+  name: "L.BIO.08 mutineer",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:80, tags:["mutineer"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("involvement in the mutiny"));
+  }
+},
+{
+  name: "L.BIO.09 combo: mutineer + battle scar",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:80, tags:["mutineer","scar_battle"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("survived battle and mutiny alike"));
+  }
+},
+{
+  name: "L.BIO.10 combo: drunkard + greedy",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:30, tags:["revealed_drunkard","revealed_greedy"] };
+    const bio = G.generateCrewBio(member, makeState());
+    u.assert(bio.includes("fondness for rum is matched"));
+  }
+},
 
   ]
 });

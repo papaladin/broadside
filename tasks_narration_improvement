@@ -1,0 +1,400 @@
+# Narrative Text Improvements — Task List
+
+> Based on simulated analysis: 20 runs x 1000 days (captain's log) + 500 generated crew bios.
+> Goal: reduce repetition, add flavour variation, remove noise, improve readability.
+
+---
+
+## Summary
+
+| Priority | Tasks | Impact | Effort |
+|---|---|---|---|
+| **Quick wins** | 6 tasks | Very high — fixes the 3 most repeated patterns + bio identity at all levels | ~2-3 hours |
+| **Medium effort** | 4 tasks | High — adds variety to combat, scars, traits | ~1.5 hours |
+| **Polish** | 2 tasks | Medium — log structure improvement | ~1 hour |
+| **Total** | **12 tasks** | | **~5 hours** |
+
+---
+
+# Quick Wins — Highest Impact, Least Code
+
+## 1. Remove "Game saved." from Captain's Log
+
+**File:** `engine_port.js` -> `SAVE_GAME`
+**Lines:** ~1
+
+**Problem:** "Game saved." appears ~5% of all log entries. Pure noise — the HUD already shows "saved" flash.
+
+- [ ] Remove the `log: [...state.log, "Game saved."]` from the SAVE_GAME reducer.
+- [ ] Keep the HUD saved flash (already exists).
+
+---
+
+## 2. Add arrival message variation
+
+**File:** `engine_combat.js` -> `ENTER_PORT` (or wherever arrival log is generated)
+**Lines:** ~10
+
+**Problem:** "Arrived at Havana." is 16.7% of all log entries. Always identical.
+
+- [ ] Add 4+ arrival templates:
+  ```js
+  const arrivalTemplates = [
+    `Arrived at ${portName}.`,
+    `Dropped anchor at ${portName}.`,
+    `Made port at ${portName}.`,
+    `The harbour of ${portName} comes into view.`,
+    `${portName} at last. The crew is glad to see land.`,
+  ];
+  ```
+- [ ] Pick randomly with `pickRandom` or `Math.floor(Math.random() * ...)`.
+
+### Acceptance criteria
+- [ ] All templates include the port name.
+- [ ] Arrivals feel varied across multiple port visits.
+
+---
+
+## 3. Add victory message variation
+
+**File:** `engine_combat.js` -> `DISMISS_BATTLE` (victory case)
+**Lines:** ~10
+
+**Problem:** "Victory! The Black Serpent defeated." is 12.6% of all log entries. Always identical structure.
+
+- [ ] Add 4+ victory templates:
+  ```js
+  const victoryTemplates = [
+    `Victory! ${enemyName} defeated.`,
+    `${enemyName} sinks beneath the waves.`,
+    `${enemyName} strikes her colours. Victory!`,
+    `The ${enemyName} is defeated. The crew cheers.`,
+    `${enemyName} goes down. The sea claims another.`,
+  ];
+  ```
+
+### Acceptance criteria
+- [ ] Victory messages feel varied across multiple battles.
+- [ ] Enemy ship name is always included.
+
+---
+
+## 4. Add defeat message variation
+
+**File:** `engine_combat.js` -> `DISMISS_BATTLE` (defeat case)
+**Lines:** ~8
+
+**Problem:** "Defeated by The Black Serpent. Washed ashore. All cargo lost." is 5.3% of all entries. Always identical.
+
+- [ ] Add 3+ defeat templates:
+  ```js
+  const defeatTemplates = [
+    `Defeated by ${enemyName}. Washed ashore at ${portName}. All cargo lost.`,
+    `${enemyName} overwhelmed us. We limp into ${portName} with nothing.`,
+    `The battle is lost. ${portName} is the nearest refuge. Everything gone.`,
+  ];
+  ```
+
+### Acceptance criteria
+- [ ] Defeat messages include enemy name and return port.
+- [ ] Defeat still feels consequential, not softened.
+
+---
+
+## 5. Include mission name in completion log
+
+**File:** `engine_port.js` -> `COMPLETE_MISSION`
+**Lines:** ~3
+
+**Problem:** "Mission complete: +200g, +1 fame." has no context.
+
+- [ ] Change log to include mission name:
+  ```js
+  `Completed: ${mission.name}. +${goldReward}g, +${fameReward} fame.`
+  ```
+- [ ] Verify the actual code already does this (the sim may have simplified it).
+
+### Acceptance criteria
+- [ ] Player can look at the log and know which mission finished.
+
+---
+
+## 6. Add name/role/faction bio openings for ALL tenure brackets
+
+**File:** `generators.js` -> `generateCrewBio`
+**Lines:** ~40
+
+**Problem:** Bio openings are generic at every tenure level. After 15 days, any notion of faction or role disappears. 16% of all bios are identical for new crew.
+
+**Solution:** Replace the single opening line per bracket with a pool of 5 templates that weave in `{fn}` (name), `{role}`, `{factionLabel}`, and `{days}`. One is picked randomly per bio generation.
+
+### Templates per bracket
+
+**< 15 days (New Hand):**
+```
+"{fn} is new aboard. Time will tell what kind of sailor they are."
+"{fn}, a {factionLabel} {role}, is still finding their place among the crew."
+"The new {role} from {factionLabel} waters keeps their head down. Early days."
+"{fn} signed on recently. A quiet {role} — for now."
+"{fn} came aboard from {factionLabel} territory. The crew hasn't made up its mind yet."
+```
+
+**15–49 days (Settling In):**
+```
+"{fn} has been aboard {days} days. Starting to learn the ropes."
+"After {days} days, {fn} is fitting in. A decent {role} by all accounts."
+"{fn}, the {factionLabel} {role}, has been here {days} days. No complaints so far."
+"The {role} from {factionLabel} ports is settling in. {days} days and counting."
+"{fn} joined {days} days ago. The crew has accepted them."
+```
+
+**50–99 days (Seasoned):**
+```
+"{fn} is a seasoned hand with {days} days at sea on this ship."
+"After {days} days, {fn} knows every plank and rope. A reliable {role}."
+"{fn}, the {factionLabel} {role}, has earned respect after {days} days aboard."
+"The crew trusts {fn}. {days} days at sea makes a {role} dependable."
+"A seasoned {role} from {factionLabel} waters, {fn} has served {days} days."
+```
+
+**100–199 days (Veteran):**
+```
+"{fn} is a veteran of {days} days. The crew looks up to them."
+"After {days} days, {fn} is one of the most experienced hands aboard."
+"{fn}, a {factionLabel} {role} and veteran of {days} days, is someone the crew turns to in a crisis."
+"The {role} they call {fn} has been here {days} days. A quiet authority."
+"{fn} has served {days} days. Few aboard remember the ship without them."
+```
+
+**200+ days (Old Salt):**
+```
+"{fn} has served {days} days. This ship is their life now."
+"After {days} days, {fn} is part of the ship itself. An old salt through and through."
+"{fn}, the {factionLabel} {role}, has been aboard longer than most can remember. {days} days."
+"They say {fn} was born on this deck. {days} days — and still counting."
+"The old {role} they call {fn} has {days} days aboard. This ship is home."
+```
+
+### Implementation
+
+- [ ] Store templates in a `BIO_OPENINGS` object keyed by bracket.
+- [ ] Each template uses `{fn}`, `{days}`, `{role}`, `{factionLabel}` placeholders.
+- [ ] Pick one randomly per bio generation.
+- [ ] Interpolate:
+  ```js
+  const opening = pickRandom(BIO_OPENINGS[bracket]);
+  lines.push(opening
+    .replace(/\{fn\}/g, firstName)
+    .replace(/\{days\}/g, String(days))
+    .replace(/\{role\}/g, member.role)
+    .replace(/\{factionLabel\}/g, FACTIONS[member.faction]?.label || member.faction)
+  );
+  ```
+- [ ] Templates can be in `data.js` or inline in `generators.js`.
+
+### Acceptance criteria
+- [ ] Every tenure bracket has 5 opening variants.
+- [ ] All openings include the crew member's name.
+- [ ] Most openings include role, faction, or both.
+- [ ] 25 total openings (5 brackets x 5) reduces duplicates from 16% to < 2%.
+
+---
+
+# Medium Effort — Adds Meaningful Variety
+
+## 7. Add "settled down" message variants
+
+**File:** `engine_port.js` -> `ENTER_PORT`
+**Lines:** ~5
+
+**Problem:** "The rest of the upset crew seem to have settled down." appears identically 322 times.
+
+- [ ] Add 3 variants:
+  ```js
+  const settledTemplates = [
+    "The rest of the upset crew seem to have settled down.",
+    "The mood aboard has improved. Tensions are easing.",
+    "Your upset crew appear to have calmed down. For now.",
+  ];
+  ```
+
+---
+
+## 8. Add scar sentence variants
+
+**File:** `generators.js` -> `generateCrewBio`
+**Lines:** ~15
+
+**Problem:** All scar sentences start with "They survived X." — repetitive across bios.
+
+- [ ] Add 3-4 structural variants for single-scar sentences:
+  ```js
+  const scarTemplates = [
+    `They survived ${label}.`,
+    `${label} left its mark on them.`,
+    `They carry the scars of ${label}.`,
+    `The ${label} nearly killed them, but they're still here.`,
+  ];
+  ```
+- [ ] For multi-scar: keep current "survived X, Y and Z" (reads well).
+- [ ] Pick randomly per bio.
+
+---
+
+## 9. Add trait sentence variants
+
+**File:** `generators.js` -> `generateCrewBio`
+**Lines:** ~12
+
+**Problem:** Each trait has exactly one description line.
+
+- [ ] Add 2 variants per revealed trait:
+  ```
+  revealed_drunkard:
+    "Known to drink more than their share."
+    "Has a fondness for the bottle that worries the crew."
+
+  revealed_coward:
+    "Tends to lose nerve when things get dangerous."
+    "Not the bravest soul aboard. The crew has noticed."
+
+  revealed_troublemaker:
+    "Has a talent for starting fights ashore."
+    "Trouble seems to follow them into every port."
+
+  revealed_greedy:
+    "Always looking for a bigger cut."
+    "Counts every coin twice and still thinks they're owed more."
+  ```
+
+---
+
+## 10. Dim or compress trade lines in log
+
+**File:** `engine_port.js` -> `CONFIRM_TRADE`
+**Lines:** ~10
+
+**Problem:** "Bought 5 rum for 200g" and "Sold 3 sugar for 150g" are 12.1% of all log entries. Mechanical noise.
+
+### Option A (simplest): Dim them visually
+- [ ] Prefix trade lines with a marker that `classifyLogLine` can detect and render in `T.textFaint`.
+
+### Option B (better, later): Compress per-port-visit
+- [ ] Summary: "Market: bought 5 rum, 3 cloth. Sold 8 sugar. Net: +150g."
+
+### Recommendation
+- [ ] Do Option A now. Plan Option B for later.
+
+---
+
+# Polish — Log Structure
+
+## 11. Add day stamp to log entries
+
+**File:** `ui.jsx` or log renderer + all engine files
+**Lines:** ~15
+
+**Purpose:** Each log entry shows the day number right-aligned.
+
+### Encoding
+- [ ] When pushing to log, prefix with day: `"[42] Arrived at Havana."`
+- [ ] Update all `log.push(...)` calls to include `[${state.day}] ` prefix.
+
+### Display
+- [ ] In `LogList`, parse prefix and show right-aligned:
+  ```jsx
+  const dayMatch = entry.match(/^\[(\d+)\]\s*(.*)/);
+  if (dayMatch) {
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span>{dayMatch[2]}</span>
+        <span style={{ color: T.textFaint, fontSize: 9 }}>Day {dayMatch[1]}</span>
+      </div>
+    );
+  }
+  ```
+- [ ] Only show day stamp when day number changes from previous entry.
+
+### Acceptance criteria
+- [ ] Day stamps are subtle and right-aligned.
+- [ ] Day only shown on first entry of each new day.
+- [ ] Old saves with day-less entries still render.
+
+---
+
+## 12. Add storm/event message variants
+
+**File:** `data.js` -> `RANDOM_EVENTS` or event generation code
+**Lines:** ~10
+
+- [ ] Add 2-3 variants per common event:
+  ```
+  Storm:
+    "A violent storm batters the ship!"
+    "A squall hits without warning!"
+    "Dark clouds roll in. The storm is upon you."
+
+  Becalmed:
+    "Becalmed. The winds have died completely."
+    "The sails hang limp. Not a breath of wind."
+    "Dead calm. The sea is glass."
+
+  Whale:
+    "A pod of whales surfaces nearby. The crew watches in wonder."
+    "Whales breach alongside the ship. A good omen, some say."
+  ```
+
+---
+
+# Files Changed Summary
+
+| File | Changes |
+|---|---|
+| `engine_port.js` | Remove "Game saved" log. Mission name in completion. Settled-down variants. Trade dimming. Day prefix. |
+| `engine_combat.js` | Arrival variants. Victory variants. Defeat variants. Day prefix. |
+| `engine_voyage.js` | Day prefix on log pushes. |
+| `generators.js` | Bio openings for all 5 tenure brackets (25 templates). Scar variants. Trait variants. |
+| `data.js` | Storm/calm/whale event text variants. |
+| `ui.jsx` or log renderer | Day stamp rendering (right-aligned, show on day change). |
+
+---
+
+# Recommended Sprint Order
+
+## Sprint 1: Log noise reduction (~1 hour)
+1. [ ] Remove "Game saved." from log.
+2. [ ] Add day prefix `[N]` to all log.push calls.
+3. [ ] Add day stamp rendering in LogList (right-aligned, show on day change).
+
+## Sprint 2: Log variation (~1-2 hours)
+4. [ ] Arrival message variants (4+).
+5. [ ] Victory message variants (4+).
+6. [ ] Defeat message variants (3+).
+7. [ ] Mission name in completion log (verify/fix).
+8. [ ] Settled-down variants (3).
+9. [ ] Storm/calm/whale variants (2-3 each).
+
+## Sprint 3: Bio variety (~1-2 hours)
+10. [ ] Name/role/faction bio openings for ALL 5 tenure brackets (25 templates total).
+11. [ ] Scar sentence variants (3-4 templates).
+12. [ ] Trait sentence variants (2 per trait).
+
+## Sprint 4: Trade line cleanup (~30 min)
+13. [ ] Dim trade lines visually (via classifyLogLine or prefix marker).
+
+---
+
+# Definition of Done
+
+- [ ] "Game saved." no longer appears in Captain's Log.
+- [ ] No two consecutive arrivals at different ports use the same template.
+- [ ] Victory and defeat messages have variety.
+- [ ] Mission completion log includes the mission name.
+- [ ] Day stamps appear right-aligned, only on first entry of each new day.
+- [ ] Bio openings are varied at ALL tenure levels (25 templates across 5 brackets).
+- [ ] All bio openings include name, and most include role and/or faction.
+- [ ] Scar and trait bio sentences have 2+ variants each.
+- [ ] "Settled down" message has 2+ variants.
+- [ ] Storm/calm events have 2+ text variants.
+- [ ] Trade lines are visually dimmed or compressed.
+- [ ] Old saves render correctly (day-less log entries handled gracefully).

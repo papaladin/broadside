@@ -21,6 +21,150 @@
     return { ...state, factionAlerts: alerts };
   };
 
+
+  // ── Battle message pickers ───────────────────────────────────
+const victoryTemplates = [
+  name => `⚔ Victory! ${name} defeated.`,
+  name => `⚔ ${name} sinks beneath the waves.`,
+  name => `⚔ ${name} strikes her colours. Victory!`,
+  name => `⚔ The ${name} is defeated. The crew cheers.`,
+  name => `⚔ ${name} goes down. The sea claims another.`,
+];
+const victoryMessage = (enemyName) =>
+  victoryTemplates[Math.floor(Math.random() * victoryTemplates.length)](enemyName);
+
+const defeatTemplates = [
+  (enemy, port) => `☠️ Defeated by ${enemy}. Washed ashore at ${port}.`,
+  (enemy, port) => `☠️ ${enemy} overwhelmed us. We limp into ${port} with nothing.`,
+  (enemy, port) => `☠️ The battle is lost. ${port} is the nearest refuge. Everything gone.`,
+];
+const defeatMessage = (enemyName, portName) =>
+  defeatTemplates[Math.floor(Math.random() * defeatTemplates.length)](enemyName, portName);
+
+const fledTemplates = [
+  () => `💨 You fled the battle.`,
+  () => `💨 You escaped by the skin of your teeth.`,
+  () => `💨 The enemy is left behind. The crew breathes easier.`,
+  () => `💨 You disengage and sail away.`,
+];
+const fledMessage = () =>
+  fledTemplates[Math.floor(Math.random() * fledTemplates.length)]();
+
+
+// ── DISMISS_BATTLE helpers ───────────────────────────────────
+const handleDefeat = (state, battleState, patrolLog) => {
+  const returnPort = state.previousPort || state.currentPort;
+  const portName = D.PORTS[returnPort]?.name || "a nearby port";
+  const isMissionFight = battleState.encounterType === "mission_combat"
+                      || battleState.encounterType === "escort_defend";
+  const missionFailed = isMissionFight && state.activeMission;
+
+  return {
+    ...state,
+    battleState: null,
+    activeMission: missionFailed ? null : state.activeMission,
+    screen: "port",
+    currentPort: returnPort,
+    destination: null,
+    sailingDaysLeft: 0,
+    sailingDaysTotal: 0,
+    hold: {
+      ...state.hold,
+      items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
+    },
+    portMarket: G.generatePortMarket(returnPort),
+    missions: G.generateMissions(returnPort, state),
+    infamy: Math.min(999, (state.infamy ?? 0) + (patrolLog.length > 0 ? 2 : 0)),
+    log: [
+      ...state.log,
+      window.E.logEntry(state, defeatMessage(battleState.enemy.name, portName)),
+      window.E.logEntry(state, "All cargo lost."),
+      ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
+      ...patrolLog,
+    ],
+  };
+};
+
+const applyVictoryAftermath = (currentState, battleState) => {
+  let s = currentState;
+
+  // Upset tagging
+  if (s.crew?.roster) {
+    const enemyFaction = battleState.enemy?.faction;
+    if (enemyFaction) {
+      const upsetMembers = [];
+      const updatedRoster = s.crew.roster.map(member => {
+        if (member.faction === enemyFaction && !L.hasTag(member, "upset") && !L.hasTag(member, "loyal") && Math.random() < 0.15) {
+          upsetMembers.push(`${member.firstName} ${member.lastName}`);
+          return L.addTag(member, "upset");
+        }
+        return member;
+      });
+
+      if (upsetMembers.length > 0) {
+        const newLog = [...s.log];
+        if (upsetMembers.length === 1) {
+          newLog.push(window.E.logEntry(s, `${upsetMembers[0]} is disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+        } else if (upsetMembers.length === 2) {
+          newLog.push(window.E.logEntry(s, `${upsetMembers[0]} and ${upsetMembers[1]} are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+        } else {
+          newLog.push(window.E.logEntry(s, `Some of the crew are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+        }
+        s = { ...s, crew: { ...s.crew, roster: updatedRoster }, log: newLog };
+      }
+    }
+  }
+
+  // Battle scar
+  if (battleState.phase === "victory" && s.crew?.roster) {
+    const initialCrew = battleState.initialCrewCount ?? s.crew.roster.length;
+    const lostCount = initialCrew - s.crew.roster.length;
+    if (lostCount >= 10) {
+      const scarredRoster = s.crew.roster.map(member =>
+        L.hasTag(member, "scar_battle") ? member : L.addTag(member, "scar_battle")
+      );
+      s = { ...s, crew: { ...s.crew, roster: scarredRoster } };
+    }
+  }
+
+  return s;
+};
+
+const handlePatrolVictory = (currentState, battleState) => {
+  if (battleState.encounterType !== "mission_combat" || battleState.phase !== "victory") return null;
+  const missionType = currentState.activeMission?.type;
+  if (missionType !== "patrol" || !currentState.activeMission) return null;
+
+  return addHeat(
+    {
+      ...currentState,
+      battleState: null,
+      activeMission: { ...currentState.activeMission, enemyDefeated: true },
+      screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+      log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
+    },
+    battleState.enemy.faction,
+    3
+  );
+};
+
+const handleFledMission = (currentState, battleState) => {
+  const isMissionFight = battleState.encounterType === "mission_combat"
+                      || battleState.encounterType === "escort_defend";
+  if (!isMissionFight) return null;
+  const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
+  return {
+    ...currentState,
+    battleState: null,
+    activeMission: null,
+    screen: returnToSailing ? "sailing" : "port",
+    log: [...currentState.log, window.E.logEntry(currentState, fledMessage()), window.E.logEntry(currentState, "The mission is a failure.")],
+  };
+};
+
+
+
+
   // ── Reducer ──────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
     switch (action.type) {
@@ -287,7 +431,7 @@
             ship: { ...state.ship, hull: newBattleState.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: newMorale },
             battleState: newBattleState,
-            log: [...state.log, capMsg]
+            log: [...state.log, window.E.logEntry(state, capMsg)]
           };
         }
 
@@ -307,7 +451,7 @@
             ship: { ...state.ship, hull: newBattleState.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: newMorale },
             battleState: newBattleState,
-            log: [...state.log, capMsg]
+            log: [...state.log, window.E.logEntry(state, capMsg)]
           };
         }
 
@@ -331,166 +475,48 @@
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
-        let currentState = state;
 
         const isNavyFight = battleState.encounterType === "navy_patrol"
                         || battleState.encounterType === "navy_patrol_combat";
         const patrolInfamy = isNavyFight ? 2 : 0;
         const patrolLog = patrolInfamy > 0
-          ? [`+${patrolInfamy} infamy — attacking crown forces was witnessed.`]
+          ? [window.E.logEntry(state, `+${patrolInfamy} infamy — attacking crown forces was witnessed.`)]
           : [];
 
+        // Defeat
         if (battleState.phase === "defeat") {
-          const returnPort = state.previousPort || state.currentPort;
-          const portName = PORTS[returnPort]?.name || "a nearby port";
-          const isMissionFight = battleState.encounterType === "mission_combat"
-                              || battleState.encounterType === "escort_defend";
-          const missionFailed = isMissionFight && state.activeMission;
-
-          return {
-            ...currentState,
-            battleState: null,
-            activeMission: missionFailed ? null : currentState.activeMission,
-            screen: "port",
-            currentPort: returnPort,
-            destination: null,
-            sailingDaysLeft: 0,
-            sailingDaysTotal: 0,
-            hold: {
-              ...currentState.hold,
-              items: Object.fromEntries(Object.keys(currentState.hold?.items || {}).map(k => [k, 0])),
-            },
-            portMarket: G.generatePortMarket(returnPort),
-            missions: G.generateMissions(returnPort, currentState),
-            infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
-            log: [
-              ...currentState.log,
-              `Defeated in battle and washed ashore at ${portName}.`,
-              "All cargo lost.",
-              ...(missionFailed ? ["The mission has failed."] : []),
-              ...patrolLog,
-            ],
-          };
+          return handleDefeat(state, battleState, patrolLog);
         }
 
-        if (battleState.canPlunder && battleState.phase === "victory") {
-          return addHeat(
-            {
-              ...currentState,
-              battleState: { ...currentState.battleState, phase: "victory" },
-              screen: "plunder",
-            },
-            battleState.enemy.faction,
-            3
-          );
-        }
 
-        // ── Crew upset: 15% chance per matching-faction crew member ──
-        if (battleState.phase === "victory" && currentState.crew?.roster) {
-          const enemyFaction = battleState.enemy?.faction;
-          if (enemyFaction) {
-            const upsetMembers = [];
-            const updatedRoster = currentState.crew.roster.map(member => {
-              if (member.faction === enemyFaction && !L.hasTag(member, "upset") && !L.hasTag(member, "loyal") && Math.random() < 0.15) {
-                upsetMembers.push(`${member.firstName} ${member.lastName}`);
-                return L.addTag(member, "upset");
-              }
-              return member;
-            });
+        // Victory aftermath (upset + scar)
+        let currentState = applyVictoryAftermath(state, battleState);
 
-            if (upsetMembers.length > 0) {
-              const newLog = [...currentState.log];
-              if (upsetMembers.length === 1) {
-                newLog.push(`${upsetMembers[0]} is disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
-              } else if (upsetMembers.length === 2) {
-                newLog.push(`${upsetMembers[0]} and ${upsetMembers[1]} are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
-              } else {
-                newLog.push(`Some of the crew are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`);
-              }
-              currentState = {
-                ...currentState,
-                crew: { ...currentState.crew, roster: updatedRoster },
-                log: newLog,
-              };
-            }
-          }
-        }
+        // Patrol victory
+        const patrolResult = handlePatrolVictory(currentState, battleState);
+        if (patrolResult) return patrolResult;
 
-        // ── Battle scar: heavy casualties ──────────────────────────
-        if (battleState.phase === "victory" && currentState.crew?.roster) {
-          const initialCrew = battleState.initialCrewCount ?? currentState.crew.roster.length;
-          const lostCount = initialCrew - currentState.crew.roster.length;
-          if (lostCount >= 10) {
-            const scarredRoster = currentState.crew.roster.map(member => {
-              if (!L.hasTag(member, "scar_battle")) {
-                return L.addTag(member, "scar_battle");
-              }
-              return member;
-            });
-            currentState = {
-              ...currentState,
-              crew: { ...currentState.crew, roster: scarredRoster },
-            };
-          }
-        }
-
-        if (battleState.encounterType === "mission_combat" && battleState.phase === "victory") {
-          const missionType = currentState.activeMission?.type;
-          if (missionType === "patrol" && currentState.activeMission) {
-            return addHeat(
-              {
-                ...currentState,
-                battleState: null,
-                activeMission: { ...currentState.activeMission, enemyDefeated: true },
-                screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
-                log: [...currentState.log, "The patrol zone is clear."],
-              },
-              battleState.enemy.faction,
-              3
-            );
-          }
-        }
-
+        // Fled mission
         if (battleState.phase === "fled") {
-          const isMissionFight = battleState.encounterType === "mission_combat"
-                              || battleState.encounterType === "escort_defend";
-          if (isMissionFight) {
-            const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
-            return {
-              ...currentState,
-              battleState: null,
-              activeMission: null,
-              screen: returnToSailing ? "sailing" : "port",
-              log: [...currentState.log, "You fled the battle. The mission is a failure."],
-            };
-          }
+          const fledResult = handleFledMission(currentState, battleState);
+          if (fledResult) return fledResult;
         }
 
-        if (battleState.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0) {
-          return addHeat(
-            {
-              ...currentState,
-              battleState: null,
-              screen: "sailing",
-              infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
-              log: [...currentState.log, ...patrolLog],
-            },
-            battleState.enemy.faction,
-            3
-          );
-        }
+        // Return to sailing or port
+        const returnToSailing = battleState.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0;
+        const finalState = {
+          ...currentState,
+          battleState: null,
+          screen: returnToSailing ? "sailing" : (battleState.returnScreen || "port"),
+          infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
+          log: [
+            ...currentState.log,
+            window.E.logEntry(currentState, victoryMessage(battleState.enemy.name)),
+            ...patrolLog,
+          ],
+        };
 
-        return addHeat(
-          {
-            ...currentState,
-            battleState: null,
-            screen: battleState.returnScreen || "port",
-            infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
-            log: [...currentState.log, ...patrolLog],
-          },
-          battleState.enemy.faction,
-          3
-        );
+        return addHeat(finalState, battleState.enemy.faction, 3);
       }
 
       case A.TAKE_PLUNDER: {

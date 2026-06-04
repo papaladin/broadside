@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>⚓ Broadside — Bio & Log Redundancy Analyzer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a141e;color:#e0e0e0;font-family:'Courier New',monospace;font-size:12px;padding:16px;min-height:100vh}
+h1{color:#ffd700;font-size:18px;letter-spacing:.12em;margin-bottom:4px}
+h2{color:#ffd700;font-size:14px;margin:18px 0 8px;border-bottom:1px solid #3a2a10;padding-bottom:4px}
+h3{color:#cc9900;font-size:12px;margin:12px 0 6px}
+.subtitle{color:#a0a0a0;font-size:10px;margin-bottom:16px}
+.panel{background:#1c1610;border:1px solid #6b5530;border-radius:4px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{color:#a0a0a0;font-size:11px}
+input[type=number]{background:#0d1620;border:1px solid #3a2a10;color:#e0e0e0;padding:4px 8px;border-radius:3px;width:80px;font-family:inherit;font-size:12px}
+button{background:#cc9900;border:1px solid #ffd700;color:#000;padding:8px 16px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;min-height:36px}
+button:hover{background:#ffd700}
+button:disabled{opacity:.5;cursor:not-allowed}
+.progress-bar{width:100%;height:6px;background:#2a1a08;border-radius:3px;margin:8px 0;overflow:hidden}
+.progress-fill{height:100%;background:#ffd700;border-radius:3px;transition:width .1s;width:0}
+#statusA,#statusB{color:#a0a0a0;font-size:10px;min-height:14px}
+table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11px}
+th{color:#ffd700;text-align:left;padding:4px 6px;border-bottom:1px solid #3a2a10;font-size:10px}
+td{padding:3px 6px;border-bottom:1px solid #2a1a08}
+.val{text-align:right}.warn{color:#ff9800}.bad{color:#f44336}.good{color:#4caf50}.dim{color:#706050}
+canvas{border:1px solid #3a2a10;border-radius:4px;margin:6px 0}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{padding:8px 16px;background:#120e04;border:1px solid #3a2a10;border-radius:3px 3px 0 0;cursor:pointer;color:#a0a0a0;font-family:inherit;font-size:12px}
+.tab.active{background:#1c1610;border-bottom-color:#1c1610;color:#ffd700;font-weight:bold}
+.tab-content{display:none}.tab-content.active{display:block}
+</style>
+</head>
+<body>
+
+<h1>⚓ Broadside — Text Redundancy Analyzer</h1>
+<div class="subtitle">Analyzes bio and log text for repetition · Reads from game files</div>
+
+<script>
+window.E=window.E||{A:{},_reducers:[]};window.UI=window.UI||{T:{}};window.S=window.S||{};
+</script>
+<script src="../data.js"></script>
+<script src="../logic.js"></script>
+<script src="../generators.js"></script>
+<script src="../engine_core.js"></script>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('bio')">🧑 Crew Bio Analysis</div>
+  <div class="tab" onclick="switchTab('log')">📜 Captain's Log Analysis</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  PANEL A: BIO REDUNDANCY                               -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="tab-bio" class="tab-content active">
+<div class="panel">
+  <h3>⚙ Bio Configuration</h3>
+  <div class="row" style="margin-top:8px">
+    <div><label>Crew to Generate</label><br><input type="number" id="bioCount" value="200" min="50" max="2000"></div>
+    <div style="margin-left:auto"><button onclick="runBioAnalysis()">▶ Analyze Bios</button></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="bioFill"></div></div>
+  <div id="statusA"></div>
+</div>
+<div id="bioResults"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  PANEL B: LOG REDUNDANCY                               -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="tab-log" class="tab-content">
+<div class="panel">
+  <h3>⚙ Log Configuration</h3>
+  <div class="row" style="margin-top:8px">
+    <div><label>Runs</label><br><input type="number" id="logRuns" value="10" min="1" max="50"></div>
+    <div><label>Days / Run</label><br><input type="number" id="logDays" value="500" min="100" max="2000"></div>
+    <div style="margin-left:auto"><button onclick="runLogAnalysis()">▶ Analyze Logs</button></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="logFill"></div></div>
+  <div id="statusB"></div>
+</div>
+<div id="logResults"></div>
+</div>
+
+<script>
+const D=window.D,L=window.L,G=window.G;
+const FACTIONS_LIST=["english","spanish","french","dutch","pirate"];
+const FACTION_LABELS={english:"English",spanish:"Spanish",french:"French",dutch:"Dutch",pirate:"Pirate"};
+const PORTS_LIST=Object.keys(D.PORTS);
+const SHIP_NAMES=D.ENEMY_SHIP_NAMES?[...D.ENEMY_SHIP_NAMES.adjectives.slice(0,8)].map((a,i)=>`The ${a} ${(D.ENEMY_SHIP_NAMES.nouns||["Ship"])[i%D.ENEMY_SHIP_NAMES.nouns.length]}`):["The Black Serpent","The Iron Drake"];
+const GOODS=Object.keys(D.RESOURCES).filter(g=>g!=="food"&&g!=="water");
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function h2(t){return`<h2>${t}</h2>`;}
+function h3(t){return`<h3>${t}</h3>`;}
+function tbl(hd,rows){
+  let h='<table><tr>'+hd.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  rows.forEach(r=>{h+='<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>';});
+  return h+'</table>';
+}
+function pct(n,total){return total>0?`${(n/total*100).toFixed(1)}%`:'0%';}
+
+// Normalize: replace names, numbers, ports, goods for pattern detection
+function normalize(msg){
+  let s=msg.replace(/\d+/g,'N');
+  D.CREW_FIRST_NAMES&&Object.values(D.CREW_FIRST_NAMES).flat().forEach(n=>{s=s.split(n).join('NAME');});
+  D.CREW_LAST_NAMES&&Object.values(D.CREW_LAST_NAMES).flat().forEach(n=>{s=s.split(n).join('NAME');});
+  Object.values(D.PORTS).forEach(p=>{s=s.split(p.name).join('PORT');});
+  Object.values(D.RESOURCES).forEach(r=>{if(r.name)s=s.split(r.name).join('GOOD');s=s.split(r.name?.toLowerCase()||'').join('good');});
+  Object.values(D.FACTIONS).forEach(f=>{if(f.label)s=s.split(f.label).join('FACTION');});
+  return s;
+}
+
+function classifyLog(msg){
+  if(msg.startsWith("Arrived")||msg.startsWith("Dropped")||msg.startsWith("Made port")||msg.includes("comes into view"))return"arrival";
+  if(msg.includes("Mission complete")||msg.includes("Completed:"))return"mission";
+  if(msg.includes("Bought"))return"trade_buy";
+  if(msg.includes("Sold"))return"trade_sell";
+  if(msg.includes("Repaired"))return"repair";
+  if(msg.includes("Game saved"))return"save";
+  if(msg.includes("Victory")||msg.includes("defeated.")||msg.includes("strikes her")||msg.includes("sinks beneath"))return"combat_win";
+  if(msg.includes("Defeated by")||msg.includes("overwhelmed")||msg.includes("battle is lost"))return"combat_loss";
+  if(msg.includes("Lost crew:"))return"crew_death";
+  if(msg.includes("left the crew")||msg.includes("deserted"))return"desertion";
+  if(msg.includes("settled down")||msg.includes("calmed down")||msg.includes("Tensions"))return"crew_calmed";
+  if(msg.includes("disturbed")||msg.includes("upset"))return"crew_upset";
+  if(msg.includes("seasoned")||msg.includes("veteran")||msg.includes("sea legs")||msg.includes("loyal"))return"crew_milestone";
+  if(msg.toLowerCase().includes("storm")||msg.toLowerCase().includes("squall"))return"event_storm";
+  if(msg.includes("Becalmed")||msg.includes("sails hang"))return"event_calm";
+  if(msg.toLowerCase().includes("wreck")||msg.includes("Salvaged"))return"event_wreck";
+  if(msg.toLowerCase().includes("whale"))return"event_whale";
+  if(msg.toLowerCase().includes("mutiny")||msg.includes("mutineer"))return"event_mutiny";
+  if(msg.includes("Plundered"))return"plunder";
+  if(msg.toLowerCase().includes("rum")&&(msg.includes("drinking")||msg.includes("helped")))return"trait_drunkard";
+  if(msg.includes("shaking")||msg.includes("terrified"))return"trait_coward";
+  if(msg.includes("demands")||msg.includes("larger share")||msg.includes("usual cut"))return"trait_greedy";
+  if(msg.includes("brawl")||msg.includes("another fight"))return"trait_troublemaker";
+  if(msg.includes("Rescued"))return"event_rescue";
+  if(msg.includes("harbourmaster")||msg.includes("Warships"))return"heat_gossip";
+  return"other";
+}
+
+// ════════════════════════════════════════════════════════
+//  BIO ANALYSIS
+// ════════════════════════════════════════════════════════
+
+function runBioAnalysis(){
+  const count=parseInt(document.getElementById('bioCount').value)||200;
+  const fill=document.getElementById('bioFill');
+  const status=document.getElementById('statusA');
+  const out=document.getElementById('bioResults');
+  
+  if(!G.generateCrewBio){out.innerHTML='<div class="bad">G.generateCrewBio not found. Is generators.js loaded?</div>';return;}
+  
+  status.textContent='Generating...';fill.style.width='0%';
+  
+  const ALL_TAGS=["scar_battle","scar_storm","scar_mutiny","scar_grapple","scar_shipwreck",
+    "revealed_drunkard","revealed_coward","revealed_greedy","revealed_troublemaker",
+    "mutineer","upset","seasoned","veteran","loyal"];
+  const DAYS_POOL=[0,3,7,12,20,30,45,55,70,85,100,120,150,180,200,230,260,300];
+  
+  const bios=[];const members=[];
+  for(let i=0;i<count;i++){
+    const days=DAYS_POOL[Math.floor(Math.random()*DAYS_POOL.length)];
+    const faction=FACTIONS_LIST[Math.floor(Math.random()*5)];
+    const role=["deckhand","gunner","cook","carpenter","navigator"][Math.floor(Math.random()*5)];
+    const tags=[];
+    const scarChance=Math.min(0.5,days/400);
+    ["scar_battle","scar_storm","scar_mutiny","scar_grapple","scar_shipwreck"].forEach(s=>{if(Math.random()<scarChance)tags.push(s);});
+    ["revealed_drunkard","revealed_coward","revealed_greedy","revealed_troublemaker"].forEach(t=>{if(Math.random()<0.05)tags.push(t);});
+    if(Math.random()<0.08)tags.push("mutineer");
+    if(Math.random()<0.05)tags.push("upset");
+    if(days>=50&&Math.random()<0.3&&!tags.includes("veteran"))tags.push("seasoned");
+    if(days>=100&&Math.random()<0.3)tags.push("veteran");
+    if(days>=200&&Math.random()<0.2)tags.push("loyal");
+    
+    const member={id:i,firstName:G.generateCrewMember?G.generateCrewMember(faction).firstName:"Crew"+i,
+      lastName:G.generateCrewMember?G.generateCrewMember(faction).lastName:"Member",
+      role,faction,daysAboard:days,tags};
+    members.push(member);
+    try{bios.push(G.generateCrewBio(member));}catch(e){bios.push("(error: "+e.message+")");}
+    if(i%50===0){fill.style.width=(i/count*100)+"%";status.textContent=`Generated ${i}/${count}...`;}
+  }
+  fill.style.width='100%';status.textContent='Analyzing...';
+  
+  // Analysis
+  const uniqueBios=new Set(bios).size;
+  const exactCounts={};bios.forEach(b=>{exactCounts[b]=(exactCounts[b]||0)+1;});
+  const sorted=Object.entries(exactCounts).sort((a,b)=>b[1]-a[1]);
+  
+  // Sentence analysis
+  const openings={};const scarSentences={};const traitSentences={};
+  bios.forEach(bio=>{
+    const first=bio.split('. ')[0]+'.';
+    const norm=normalize(first);openings[norm]=(openings[norm]||0)+1;
+    bio.split('. ').forEach(sent=>{
+      const s=sent.trim();
+      if(s.includes('survived')||s.includes('scars of')||s.includes('left its mark')||s.includes('nearly killed'))
+        scarSentences[s]=(scarSentences[s]||0)+1;
+      if(s.includes('drink')||s.includes('nerve')||s.includes('fights ashore')||s.includes('bigger cut')||
+         s.includes('bottle')||s.includes('bravest')||s.includes('Trouble')||s.includes('coin'))
+        traitSentences[s]=(traitSentences[s]||0)+1;
+    });
+  });
+  
+  // Bio length
+  const lengths={};bios.forEach(b=>{const n=b.split('. ').length;lengths[n]=(lengths[n]||0)+1;});
+  
+  // Render
+  let html='';
+  html+=h2(`🧑 Bio Analysis — ${count} crew generated`);
+  html+=`<div class="${uniqueBios/count>0.85?'good':uniqueBios/count>0.7?'warn':'bad'}">Unique bios: <b>${uniqueBios}</b> / ${count} (${pct(uniqueBios,count)})</div>`;
+  
+  html+=h3('Top 10 Most Common Exact Bios');
+  html+=tbl(['Count','%','Bio'],sorted.slice(0,10).map(([bio,c])=>[
+    `<b>${c}</b>`,`<span class="${c>3?'bad':c>1?'warn':''}">${pct(c,count)}</span>`,
+    `<span class="dim" style="font-size:10px">${bio.length>150?bio.slice(0,150)+'...':bio}</span>`
+  ]));
+  
+  html+=h3('Opening Sentence Patterns');
+  const openSorted=Object.entries(openings).sort((a,b)=>b[1]-a[1]);
+  html+=tbl(['Count','%','Pattern'],openSorted.slice(0,15).map(([pat,c])=>[
+    c,`<span class="${c/count>0.1?'bad':c/count>0.05?'warn':''}">${pct(c,count)}</span>`,
+    `<span class="dim">${pat.slice(0,100)}</span>`
+  ]));
+  
+  if(Object.keys(scarSentences).length>0){
+    html+=h3('Scar Sentences');
+    const scarSorted=Object.entries(scarSentences).sort((a,b)=>b[1]-a[1]);
+    html+=tbl(['Count','Sentence'],scarSorted.slice(0,10).map(([s,c])=>[c,`<span class="dim">${s.slice(0,100)}</span>`]));
+  }
+  
+  if(Object.keys(traitSentences).length>0){
+    html+=h3('Trait Sentences');
+    const traitSorted=Object.entries(traitSentences).sort((a,b)=>b[1]-a[1]);
+    html+=tbl(['Count','Sentence'],traitSorted.slice(0,10).map(([s,c])=>[c,`<span class="dim">${s.slice(0,100)}</span>`]));
+  }
+  
+  html+=h3('Bio Length Distribution');
+  html+=tbl(['Sentences','Count','%'],Object.entries(lengths).sort((a,b)=>a[0]-b[0]).map(([n,c])=>[n,c,pct(c,count)]));
+  
+  out.innerHTML=html;
+  status.textContent=`Done. ${uniqueBios} unique bios out of ${count}.`;
+}
+
+// ════════════════════════════════════════════════════════
+//  LOG ANALYSIS
+// ════════════════════════════════════════════════════════
+
+let logCrewId=0;
+function makeLogCrew(faction,day){
+  logCrewId++;
+  const m=G.generateCrewMember?G.generateCrewMember(faction):
+    {id:logCrewId,firstName:"Crew"+logCrewId,lastName:"M",role:"deckhand",faction,tags:[]};
+  m.daysAboard=0;
+  return m;
+}
+
+function simLogRun(maxDays){
+  const log=[];
+  let day=0,fame=0,morale=70,gold=490;
+  let roster=[makeLogCrew(FACTIONS_LIST[Math.floor(Math.random()*5)],0),makeLogCrew(FACTIONS_LIST[Math.floor(Math.random()*5)],0)];
+  let port=PORTS_LIST[Math.floor(Math.random()*PORTS_LIST.length)];
+  
+  while(day<maxDays){
+    // Port visit every ~7 days
+    if(day%7===0&&day>0){
+      port=PORTS_LIST[Math.floor(Math.random()*PORTS_LIST.length)];
+      const pn=D.PORTS[port]?.name||port;
+      log.push(`Arrived at ${pn}.`);
+      
+      // Desertion
+      const upset=roster.filter(m=>(m.tags||[]).includes("upset"));
+      const deserted=[];const calmed=[];
+      upset.forEach(m=>{
+        if(Math.random()<0.30){deserted.push(m);}
+        else{m.tags=(m.tags||[]).filter(t=>t!=="upset");calmed.push(m);}
+      });
+      deserted.forEach(m=>{roster=roster.filter(r=>r.id!==m.id);});
+      if(deserted.length===1)log.push(`${deserted[0].firstName} ${deserted[0].lastName} has left the crew.`);
+      else if(deserted.length>1)log.push(`${deserted.length} crew members have deserted.`);
+      if(calmed.length>0)log.push("The rest of the upset crew seem to have settled down.");
+      
+      // Milestones
+      const newS=[],newV=[];
+      roster.forEach(m=>{
+        if(m.daysAboard>=50&&!(m.tags||[]).includes("seasoned")&&!(m.tags||[]).includes("veteran")){m.tags=m.tags||[];m.tags.push("seasoned");newS.push(m.firstName);}
+        else if(m.daysAboard>=100&&!(m.tags||[]).includes("veteran")){m.tags=(m.tags||[]).filter(t=>t!=="seasoned");m.tags.push("veteran");newV.push(m.firstName);}
+      });
+      if(newS.length===1)log.push(`${newS[0]} has found their sea legs.`);
+      else if(newS.length>1)log.push(`${newS.length} crew members have found their sea legs.`);
+      if(newV.length===1)log.push(`${newV[0]} has served 100 days aboard. A true veteran.`);
+      else if(newV.length>1)log.push(`${newV.length} crew members are now veterans.`);
+      
+      // Hire
+      while(roster.length<8)roster.push(makeLogCrew(D.PORTS[port]?.faction||"pirate",day));
+      
+      // Mission
+      if(Math.random()<0.7){
+        const mg=100+Math.floor(Math.random()*400);gold+=mg;fame++;morale=Math.min(100,morale+3);
+        log.push(`Mission complete: +${mg}g, +1 fame.`);
+      }
+      // Trade
+      if(Math.random()<0.4){const g=GOODS[Math.floor(Math.random()*GOODS.length)];const q=2+Math.floor(Math.random()*8);log.push(`Bought ${q} ${D.RESOURCES[g]?.name||g} for ${q*30}g.`);}
+      if(Math.random()<0.3){const g=GOODS[Math.floor(Math.random()*GOODS.length)];const q=1+Math.floor(Math.random()*6);log.push(`Sold ${q} ${D.RESOURCES[g]?.name||g} for ${q*50}g.`);}
+      if(Math.random()<0.2){log.push(`Repaired ship for ${50+Math.floor(Math.random()*250)}g.`);}
+      if(Math.random()<0.3)log.push("Game saved.");
+    }
+    
+    // Combat
+    if(Math.random()<0.12){
+      const eFac=FACTIONS_LIST[Math.floor(Math.random()*5)];
+      const eName=SHIP_NAMES[Math.floor(Math.random()*SHIP_NAMES.length)];
+      if(Math.random()<0.7){
+        log.push(`Victory! ${eName} defeated.`);
+        const losses=Math.floor(Math.random()*3);
+        if(losses>0&&roster.length>2){
+          const killed=[];
+          for(let i=0;i<Math.min(losses,roster.length-1);i++){const idx=Math.floor(Math.random()*roster.length);killed.push(roster.splice(idx,1)[0]);}
+          if(killed.length)log.push(`Lost crew: ${killed.map(k=>k.firstName+' '+k.lastName).join(', ')}.`);
+        }
+        roster.forEach(m=>{
+          if(m.faction===eFac&&!(m.tags||[]).includes("upset")&&Math.random()<0.15){m.tags=m.tags||[];m.tags.push("upset");
+            log.push(`${m.firstName} is disturbed by the attack on ${FACTION_LABELS[eFac]||eFac} ships.`);}
+        });
+        if(Math.random()<0.3)log.push(`Plundered ${50+Math.floor(Math.random()*150)}g from the wreckage.`);
+      }else{
+        log.push(`Defeated by ${eName}. Washed ashore. All cargo lost.`);
+        morale=Math.max(0,morale-15);
+      }
+    }
+    
+    // Events
+    if(Math.random()<0.05){
+      const ev=Math.random();
+      if(ev<0.2){log.push("A violent storm batters the ship!");if(roster.length>2&&Math.random()<0.5){const k=roster.splice(Math.floor(Math.random()*roster.length),1)[0];log.push(`${k.firstName} ${k.lastName} was lost in the storm.`);}}
+      else if(ev<0.3)log.push("Becalmed. The winds have died completely.");
+      else if(ev<0.4)log.push(`Found a drifting wreck! Salvaged ${100+Math.floor(Math.random()*400)}g.`);
+      else if(ev<0.5)log.push("A pod of whales surfaces nearby. The crew watches in wonder.");
+      else if(ev<0.6)log.push("Spotted sails on the horizon. They pass without incident.");
+      else if(ev<0.65){const s=makeLogCrew(FACTIONS_LIST[Math.floor(Math.random()*5)],day);s.tags=["scar_shipwreck"];roster.push(s);log.push(`Rescued ${s.firstName} ${s.lastName} from a shipwreck.`);}
+    }
+    
+    roster.forEach(m=>m.daysAboard=(m.daysAboard||0)+1);
+    day++;
+  }
+  return log;
+}
+
+async function runLogAnalysis(){
+  const nRuns=parseInt(document.getElementById('logRuns').value)||10;
+  const maxDays=parseInt(document.getElementById('logDays').value)||500;
+  const fill=document.getElementById('logFill');
+  const status=document.getElementById('statusB');
+  const out=document.getElementById('logResults');
+  
+  status.textContent='Simulating...';fill.style.width='0%';
+  
+  const allLogs=[];
+  for(let i=0;i<nRuns;i++){
+    logCrewId=0;
+    allLogs.push(simLogRun(maxDays));
+    fill.style.width=((i+1)/nRuns*100)+'%';
+    status.textContent=`Run ${i+1}/${nRuns}...`;
+    await new Promise(r=>setTimeout(r,0));
+  }
+  
+  const allEntries=allLogs.flat();
+  const total=allEntries.length;
+  const avgPerRun=Math.round(total/nRuns);
+  const avgPerDay=(total/(nRuns*maxDays)).toFixed(2);
+  
+  // Exact duplicates
+  const exactCounts={};allEntries.forEach(e=>{exactCounts[e]=(exactCounts[e]||0)+1;});
+  const exactSorted=Object.entries(exactCounts).sort((a,b)=>b[1]-a[1]);
+  
+  // Categories
+  const cats={};allEntries.forEach(e=>{const c=classifyLog(e);cats[c]=(cats[c]||0)+1;});
+  const catSorted=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  
+  // Structural patterns
+  const patterns={};allEntries.forEach(e=>{const n=normalize(e);patterns[n]=(patterns[n]||0)+1;});
+  const patSorted=Object.entries(patterns).sort((a,b)=>b[1]-a[1]);
+  
+  // Worst spam (longest same-category streak in first 3 runs)
+  const spamResults=[];
+  allLogs.slice(0,3).forEach((log,ri)=>{
+    let bestLen=0,bestCat='',bestStart=0,curCat='',curLen=0,curStart=0;
+    log.forEach((e,i)=>{
+      const c=classifyLog(e);
+      if(c===curCat){curLen++;}
+      else{if(curLen>bestLen){bestLen=curLen;bestCat=curCat;bestStart=curStart;}curCat=c;curLen=1;curStart=i;}
+    });
+    if(bestLen>2)spamResults.push({run:ri,len:bestLen,cat:bestCat,start:bestStart,entries:log.slice(bestStart,bestStart+Math.min(bestLen,6))});
+  });
+  
+  // Render
+  let html='';
+  html+=h2(`📜 Log Analysis — ${nRuns} runs × ${maxDays} days`);
+  html+=`<div>Total entries: <b>${total.toLocaleString()}</b> · Avg/run: <b>${avgPerRun}</b> · Avg/day: <b>${avgPerDay}</b></div>`;
+  
+  html+=h3('Top 20 Most Common Exact Messages');
+  html+=tbl(['Count','%','Message'],exactSorted.slice(0,20).map(([msg,c])=>[
+    `<b>${c}</b>`,
+    `<span class="${c/total>0.05?'bad':c/total>0.02?'warn':''}">${pct(c,total)}</span>`,
+    `<span class="dim" style="font-size:10px">${msg.slice(0,120)}</span>`
+  ]));
+  
+  html+=h3('Category Distribution');
+  html+=tbl(['Category','Count','%'],catSorted.map(([cat,c])=>[
+    cat,c.toLocaleString(),
+    `<span class="${c/total>0.10?'bad':c/total>0.05?'warn':''}">${pct(c,total)}</span>`
+  ]));
+  
+  // Category bar chart
+  html+=`<canvas id="catChart" width="700" height="250"></canvas>`;
+  
+  html+=h3('Top 15 Structural Patterns (normalized)');
+  html+=tbl(['Count','%','Pattern'],patSorted.slice(0,15).map(([pat,c])=>[
+    `<b>${c}</b>`,
+    `<span class="${c/total>0.10?'bad':c/total>0.05?'warn':''}">${pct(c,total)}</span>`,
+    `<span class="dim" style="font-size:10px">${pat.slice(0,100)}</span>`
+  ]));
+  
+  if(spamResults.length>0){
+    html+=h3('Worst Spam Sequences');
+    spamResults.forEach(s=>{
+      html+=`<div style="margin:8px 0"><span class="warn">Run ${s.run}: ${s.len}× "${s.cat}" starting at entry ${s.start}</span>`;
+      html+='<div style="margin-left:16px;font-size:10px">';
+      s.entries.forEach(e=>{html+=`<div class="dim">${e}</div>`;});
+      html+='</div></div>';
+    });
+  }
+  
+  out.innerHTML=html;
+  
+  // Draw category chart
+  setTimeout(()=>{
+    const canvas=document.getElementById('catChart');
+    if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    const W=canvas.width,H=canvas.height;
+    ctx.fillStyle='#120e04';ctx.fillRect(0,0,W,H);
+    const pad={l:40,r:10,t:20,b:60};
+    const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+    const maxVal=catSorted[0]?catSorted[0][1]:1;
+    const barW=Math.floor(pw/catSorted.length)-2;
+    const colors={"arrival":"#ffd700","combat_win":"#4caf50","combat_loss":"#f44336","mission":"#2196f3",
+      "trade_buy":"#a0a0a0","trade_sell":"#808080","crew_death":"#f44336","crew_upset":"#ff9800",
+      "desertion":"#ff5722","crew_calmed":"#4caf50","crew_milestone":"#ffd700","save":"#606060",
+      "repair":"#a0a0a0","event_storm":"#2196f3","plunder":"#ffd700","other":"#606060"};
+    catSorted.forEach(([cat,c],i)=>{
+      const x=pad.l+i*(barW+2);
+      const h=Math.max(1,(c/maxVal)*ph);
+      ctx.fillStyle=colors[cat]||'#606060';
+      ctx.fillRect(x,pad.t+ph-h,barW,h);
+      ctx.save();ctx.translate(x+barW/2,H-4);ctx.rotate(-Math.PI/4);
+      ctx.fillStyle='#a0a0a0';ctx.font='8px monospace';ctx.textAlign='right';
+      ctx.fillText(cat,0,0);ctx.restore();
+      ctx.fillStyle='#a0a0a0';ctx.font='8px monospace';ctx.textAlign='center';
+      ctx.fillText(c,x+barW/2,pad.t+ph-h-4);
+    });
+  },100);
+  
+  status.textContent=`Done. ${total.toLocaleString()} entries across ${nRuns} runs.`;
+}
+</script>
+</body>
+</html>

@@ -98,6 +98,8 @@ window.E = window.E || {};
     return s;
   };
 
+  window.E.logEntry = (state, message) => `[${state.day}] ${message}`;
+
   window.E.createBattleState = (state, enemy, initialLog = "You engage the enemy!", encounterType = "unknown") => ({
     phase: "player_turn",
     playerHull: state.ship.hull,

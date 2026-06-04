@@ -1691,5 +1691,238 @@ window.TESTS.push({
     u.assertDeepEqual(migrated.crew.roster[0].tags, []);
   }
 },
+
+// ── Coward trait ────────────────────────────────────────────
+{
+  name: "E.TRAIT.01 Coward morale penalty on dangerous mission",
+  run: (u) => {
+    const mission = testMission({ type:"assault", risk:"high", gold:100, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      crew: { roster: [
+        { id:"a", firstName:"A", lastName:"Cow", faction:"english", role:"deckhand", tags:["hidden_coward"] }
+      ], morale:80, max:50 },
+      reputation:{ portRoyal:50 }
+    });
+    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
+    u.assertEqual(s.crew.morale, 77, "Morale -3 from coward");
+    const coward = s.crew.roster[0];
+    u.assert(coward.tags.includes("revealed_coward"), "Coward revealed");
+    u.assert(!coward.tags.includes("hidden_coward"), "Hidden tag removed");
+  }
+},
+{
+  name: "E.TRAIT.02 Coward no effect on low-risk mission",
+  run: (u) => {
+    const mission = testMission({ type:"escort", risk:"low", gold:50, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      crew: { roster: [
+        { id:"a", firstName:"A", lastName:"Cow", faction:"english", role:"deckhand", tags:["hidden_coward"] }
+      ], morale:80, max:50 },
+      reputation:{ portRoyal:50 }
+    });
+    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
+    u.assertEqual(s.crew.morale, 80, "Morale unchanged");
+    u.assert(s.crew.roster[0].tags.includes("hidden_coward"), "Still hidden");
+  }
+},
+
+// ── Greedy trait ────────────────────────────────────────────
+{
+  name: "E.TRAIT.03 Greedy demands bonus on mission complete",
+  run: (u) => {
+    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      activeMission: mission,
+      gold:1000,
+      crew: { roster: [
+        { id:"a", firstName:"A", lastName:"Greed", faction:"english", role:"deckhand", tags:["hidden_greedy"] }
+      ], morale:50, max:50 },
+      reputation:{ portRoyal:50 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assertEqual(s.gold, 1450, "Mission gold (500) minus greedy demand (50)");
+    u.assert(s.crew.roster[0].tags.includes("revealed_greedy"));
+  }
+},
+{
+  name: "E.TRAIT.04 Greedy becomes upset when not paid",
+  run: (u) => {
+    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      activeMission: mission,
+      gold:20,
+      crew: { roster: [
+        { id:"a", firstName:"A", lastName:"Greed", faction:"english", role:"deckhand", tags:["hidden_greedy"] }
+      ], morale:50, max:50 },
+      reputation:{ portRoyal:50 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assert(s.crew.roster[0].tags.includes("upset"), "Greedy becomes upset");
+    u.assert(s.crew.roster[0].tags.includes("revealed_greedy"));
+  }
+},
+
+// ── Drunkard during sailing ──────────────────────────────────
+{
+  name: "E.TRAIT.05 Drunkard consumes rum during ADVANCE_DAY",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence(new Array(20).fill(0.0));
+    const state = makeState({
+      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
+      crew: { roster: [
+        { id:"a", firstName:"A", lastName:"Drunk", faction:"pirate", role:"deckhand", tags:["hidden_drunkard"] }
+      ], morale:80, max:50 },
+      hold:{ items:{ food:10, water:10, rum:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+    u.assertEqual(s.hold.items.rum, 4, "One rum consumed");
+    u.assert(s.crew.roster[0].tags.includes("revealed_drunkard"), "Drunkard revealed");
+    u.assert(s.log.some(l => l.includes("Bosun")), "Log mentions Bosun finding thief");
+    u.resetRandomStub();
+  }
+},
+
+// ── Battle scar ─────────────────────────────────────────────
+{
+  name: "E.SCAR.01 Battle scar on heavy casualties",
+  run: (u) => {
+    const state = makeState({
+      screen:"battle",
+      battleState: {
+        phase:"victory", returnScreen:"port",
+        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
+        encounterType:"random",
+        playerHull:80, enemyHull:0,
+        playerCrew:5, enemyCrew:0,
+        round:2, log:[], initialCrewCount:15, lostCrewNames: new Array(10).fill("X Y")
+      },
+      crew:{ roster:fillRoster(5).map(m => ({...m, tags:[]})), max:50, morale:50 },
+      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 }
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assert(s.crew.roster.every(m => m.tags.includes("scar_battle")), "All survivors get battle scar");
+  }
+},
+
+// ── Storm scar ──────────────────────────────────────────────
+{
+  name: "E.SCAR.02 Storm scar on storm event",
+  run: (u) => {
+    const stormEvent = D.RANDOM_EVENTS.find(e => e.id === "storm");
+    u.assert(stormEvent, "Storm event must exist");
+    const state = makeState({
+      activeEvent: stormEvent,
+      crew:{ roster:fillRoster(5).map(m => ({...m, tags:[]})), max:50, morale:50 }
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
+    u.assert(s.crew.roster.every(m => m.tags.includes("scar_storm")), "All survivors get storm scar");
+  }
+},
+
+// ── Positive traits ─────────────────────────────────────────
+{
+  name: "E.TRAIT.06 Seasoned assigned at 50 days",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
+      crew:{ roster:[{ id:"a", firstName:"Old", lastName:"Salt", faction:"english", role:"deckhand", tags:[], daysAboard:50 }], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.crew.roster[0].tags.includes("seasoned"));
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.TRAIT.07 Veteran replaces seasoned at 100 days",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
+      crew:{ roster:[{ id:"a", firstName:"Old", lastName:"Salt", faction:"english", role:"deckhand", tags:["seasoned"], daysAboard:100 }], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(!s.crew.roster[0].tags.includes("seasoned"), "Seasoned removed");
+    u.assert(s.crew.roster[0].tags.includes("veteran"), "Veteran added");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.TRAIT.08 Loyal assigned at 200 days with faction rep >=80",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
+      reputation:{ portRoyal:85, kingston:85 },
+      crew:{ roster:[{ id:"a", firstName:"Loyal", lastName:"One", faction:"english", role:"deckhand", tags:["veteran"], daysAboard:200 }], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(!s.crew.roster[0].tags.includes("veteran"), "Veteran removed");
+    u.assert(s.crew.roster[0].tags.includes("loyal"), "Loyal added");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.TRAIT.09 Loyal not assigned if upset",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
+      reputation:{ portRoyal:85 },
+      crew:{ roster:[{ id:"a", firstName:"Angry", lastName:"One", faction:"english", role:"deckhand", tags:["veteran","upset"], daysAboard:200 }], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(!s.crew.roster[0].tags.includes("loyal"), "Upset prevents loyal");
+    u.resetRandomStub();
+  }
+},
+
+// ── Desertion logic ─────────────────────────────────────────
+{
+  name: "E.TRAIT.10 Loyal never deserts",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence(new Array(10).fill(0.0));
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
+      crew:{ roster:[
+        { id:"a", firstName:"Loyal", lastName:"One", faction:"english", role:"deckhand", tags:["loyal","upset"], daysAboard:10 },
+        { id:"b", firstName:"Unlucky", lastName:"Two", faction:"english", role:"deckhand", tags:["upset"], daysAboard:10 }
+      ], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.crew.roster.length >= 1, "Loyal still aboard");
+    u.assert(s.crew.roster.find(m => m.id==="a"), "Loyal present");
+    u.resetRandomStub();
+  }
+},
+
+// ── Mutiny tagging ──────────────────────────────────────────
+{
+  name: "E.TRAIT.11 Mutiny crush tags mutineers",
+  run: (u) => {
+    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
+    u.assert(mutinyEvent, "mutiny event must exist");
+    const state = makeState({
+      activeEvent: mutinyEvent,
+      crew:{ roster:fillRoster(30), max:50, morale:15 }
+    });
+    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:1 });
+    const mutineers = s.crew.roster.filter(m => L.hasTag(m, "mutineer"));
+    u.assert(mutineers.length >= 5 && mutineers.length <= 8, `Expected ~6 mutineers, got ${mutineers.length}`);
+  }
+},
   ]
 });

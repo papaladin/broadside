@@ -23,7 +23,6 @@
     const items = { ...(state.hold?.items || {}) };
     let goldDelta = 0;
     let used = Object.values(items).reduce((sum, qty) => sum + qty, 0);
-
     // Sells
     for (const [good, qty] of Object.entries(sells || {})) {
       if (qty <= 0) continue;
@@ -34,7 +33,6 @@
       used -= actualQty;
       goldDelta += actualQty * portGood.sellToPort;
     }
-
     // Buys
     for (const [good, qty] of Object.entries(buys || {})) {
       if (qty <= 0) continue;
@@ -44,11 +42,155 @@
       used += qty;
       goldDelta -= qty * portGood.buyFromPort;
     }
-
     if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled — insufficient gold." };
     if (used > L.getHoldCapacity(state)) return { valid: false, reason: "Trade cancelled — not enough hold space." };
     return { valid: true };
   };
+
+// ── Arrival message picker ──────────────────────────────────
+const arrivalMessages = [
+  name => `⚓ Arrived at ${name}.`,
+  name => `⚓ Dropped anchor at ${name}.`,
+  name => `⚓ Made port at ${name}.`,
+  name => `⚓ The harbour of ${name} comes into view.`,
+  name => `⚓ ${name} at last. The crew is glad to see land.`,
+  name => `⚓ ${name} welcomes you — for now.`,
+];
+
+const pickArrivalMessage = (portName) => {
+  const template = arrivalMessages[Math.floor(Math.random() * arrivalMessages.length)];
+  return template(portName);
+};
+
+// ── Desertion check ─────────────────────────────────────────
+const processDesertion = (nextState, state) => {
+  if (!nextState.crew?.roster) return;
+
+  const destFaction = PORTS[nextState.currentPort]?.faction;
+  const deserters = [];
+  const settlers = [];
+  const newRoster = [];
+
+  for (const member of nextState.crew.roster) {
+    if (L.hasTag(member, "loyal")) {
+      newRoster.push(member);
+      continue;
+    }
+
+    if (L.hasTag(member, "upset")) {
+      let desertChance = 0.30;
+      if (nextState.crew.morale > 60) desertChance = 0.10;
+      if (L.hasTag(member, "mutineer")) desertChance *= 2;
+      if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
+      if (destFaction && member.faction === destFaction) desertChance += 0.20;
+
+      if (Math.random() < desertChance) {
+        deserters.push(`${member.firstName} ${member.lastName}`);
+      } else {
+        settlers.push(`${member.firstName} ${member.lastName}`);
+        newRoster.push(L.removeTag(member, "upset"));
+      }
+    } else {
+      newRoster.push(member);
+    }
+  }
+
+  if (deserters.length > 0) {
+    let deserterMsg = "";
+    if (deserters.length === 1)
+      deserterMsg = `${deserters[0]} has left the crew.`;
+    else if (deserters.length === 2)
+      deserterMsg = `${deserters[0]} and ${deserters[1]} have left the crew.`;
+    else
+      deserterMsg = `${deserters.length} crew members have left the crew.`;
+
+    const repFaction = FACTIONS[state.crew.roster.find(m =>
+      `${m.firstName} ${m.lastName}` === deserters[0]
+    )?.faction]?.label || "their former faction";
+    deserterMsg += ` They could not forgive the attack on ${repFaction} ships.`;
+    nextState.log = [...nextState.log, window.E.logEntry(state, deserterMsg)];
+  }
+
+  if (settlers.length > 0) {
+    const settledTemplates = [
+      "👥 The rest of the upset crew seem to have settled down.",
+      "👥 The mood aboard has improved. Tensions are easing.",
+      "👥 Your upset crew appear to have calmed down. For now.",
+    ];
+    const settledMsg = settledTemplates[Math.floor(Math.random() * settledTemplates.length)];
+    nextState.log = [...nextState.log, window.E.logEntry(state, settledMsg)];
+  }
+
+  if (deserters.length > 0 || settlers.length > 0) {
+    nextState.crew = { ...nextState.crew, roster: newRoster };
+  }
+};
+
+// ── Positive traits (seasoned → veteran → loyal) ────────────
+const processPositiveTraits = (nextState, state) => {
+  const newSeasoned = [];
+  const newVeterans = [];
+  const newLoyal = [];
+
+  nextState.crew.roster = nextState.crew.roster.map(member => {
+    const days = member.daysAboard || 0;
+    const tags = member.tags || [];
+    let updated = member;
+
+    if (tags.includes("loyal")) return updated;
+
+    if (days >= 200 && !tags.includes("upset")) {
+      const memberFaction = member.faction;
+      const factionPorts = Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === memberFaction);
+      const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
+      if (maxRep >= 80) {
+        updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
+        updated = L.addTag(updated, "loyal");
+        newLoyal.push(updated.firstName);
+        return updated;
+      }
+    }
+
+    if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
+      updated = L.removeTag(member, "seasoned");
+      updated = L.addTag(updated, "veteran");
+      newVeterans.push(updated.firstName);
+      return updated;
+    }
+
+    if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
+      updated = L.addTag(member, "seasoned");
+      newSeasoned.push(updated.firstName);
+      return updated;
+    }
+
+    return updated;
+  });
+
+  const promoLines = [];
+  if (newSeasoned.length === 1)
+    promoLines.push(`${newSeasoned[0]} has found their sea legs. A seasoned hand now.`);
+  else if (newSeasoned.length > 1)
+    promoLines.push(`${newSeasoned.length} crew members have found their sea legs.`);
+
+  if (newVeterans.length === 1)
+    promoLines.push(`${newVeterans[0]} has served 100 days aboard. A true veteran.`);
+  else if (newVeterans.length > 1)
+    promoLines.push(`${newVeterans.length} crew members are now veterans.`);
+
+  if (newLoyal.length === 1)
+    promoLines.push(`${newLoyal[0]} has pledged their loyalty. 'This ship is my home now, Captain.'`);
+  else if (newLoyal.length > 1)
+    promoLines.push(`${newLoyal.length} crew members have sworn their loyalty.`);
+
+  if (promoLines.length > 0)
+    nextState.log = [...nextState.log, ...promoLines.map(l => window.E.logEntry(state, l))];
+};
+
+
+
+
+  //----------------------------------------------------------------------------------------------
 
   // ── Reducer ────────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
@@ -172,7 +314,7 @@
             encounterContext,
             screen: "intercept",
             portMarket: G.generatePortMarket(state.destination),
-            log: [...state.log, logMsg]
+            log: [...state.log, window.E.logEntry(state, logMsg)]
           };
         }
 
@@ -184,115 +326,13 @@
           screen: "port",
           missions: G.generateMissions(state.destination, state),
           portMarket: G.generatePortMarket(state.destination),
-          log: [...state.log, `Arrived at ${port.name}.`]
+          log: [...state.log, window.E.logEntry(state, pickArrivalMessage(port.name))]
         };
 
-        // ── Crew desertion check ──────────────────────────────────
-        if (nextState.crew?.roster) {
-          const portFaction = PORTS[nextState.currentPort]?.faction;
-          const deserters = [];
-          const settlers = [];
+        // Run post‑arrival logic
+        processDesertion(nextState, state);
+        processPositiveTraits(nextState, state);
 
-          const newRoster = [];
-          for (const member of nextState.crew.roster) {
-
-            // Skip loyal crew entirely
-            if (L.hasTag(member, "loyal")) {
-              newRoster.push(member);
-              continue;
-            }
-
-            if (L.hasTag(member, "upset")) {
-              let desertChance = 0.30;
-              if (nextState.crew.morale > 60) desertChance = 0.10;
-              if (L.hasTag(member, "mutineer")) desertChance *= 2;
-              if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
-              if (portFaction && member.faction === portFaction) desertChance += 0.20;
-
-              if (Math.random() < desertChance) {
-                // Deserts
-                deserters.push(`${member.firstName} ${member.lastName}`);
-                // don't add to new roster
-              } else {
-                // Stays, calms down
-                settlers.push(`${member.firstName} ${member.lastName}`);
-                newRoster.push(L.removeTag(member, "upset"));
-              }
-            } else {
-              newRoster.push(member);
-            }
-          }
-
-          // Build log lines
-          if (deserters.length > 0) {
-            let deserterMsg = "";
-            if (deserters.length === 1) {
-              deserterMsg = `${deserters[0]} has left the crew.`;
-            } else if (deserters.length === 2) {
-              deserterMsg = `${deserters[0]} and ${deserters[1]} have left the crew.`;
-            } else {
-              deserterMsg = `${deserters.length} crew members have left the crew.`;
-            }
-            // Add reason for first deserter (representative)
-            const repFaction = FACTIONS[nextState.crew.roster.find(m =>
-              `${m.firstName} ${m.lastName}` === deserters[0]
-            )?.faction]?.label || "their former faction";
-            deserterMsg += ` They could not forgive the attack on ${repFaction} ships.`;
-            nextState.log = [...(nextState.log || state.log), deserterMsg];
-          }
-
-          if (settlers.length > 0) {
-            nextState.log = [...(nextState.log || state.log), `The rest of the upset crew seem to have settled down.`];
-          }
-
-          if (deserters.length > 0 || settlers.length > 0) {
-            nextState.crew = { ...nextState.crew, roster: newRoster };
-          }
-        }
-
-        // ── Positive traits: seasoned → veteran → loyal ──────────────
-nextState.crew.roster = nextState.crew.roster.map(member => {
-  const days = member.daysAboard || 0;
-  const tags = member.tags || [];
-
-  // Already loyal — nothing changes
-  if (tags.includes("loyal")) return member;
-
-  // Check if eligible for loyal
-  if (days >= 200 && !tags.includes("upset")) {
-    const memberFaction = member.faction;
-    const factionPorts = Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === memberFaction);
-    const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
-    if (maxRep >= 80) {
-      const updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
-      updated.tags.push("loyal");
-      nextState.log = [...(nextState.log || state.log),
-        `${member.firstName} has pledged their loyalty. 'This ship is my home now, Captain.'`];
-      return updated;
-    }
-  }
-
-  // Veteran (100+ days) — replaces seasoned
-  if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
-    const updated = L.removeTag(member, "seasoned");
-    updated.tags.push("veteran");
-    nextState.log = [...(nextState.log || state.log),
-      `${member.firstName} has served 100 days aboard. A true veteran.`];
-    return updated;
-  }
-
-  // Seasoned (50+ days) — only if not already veteran or loyal
-  if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
-    member.tags.push("seasoned");
-    nextState.log = [...(nextState.log || state.log),
-      `${member.firstName} has found their sea legs. A seasoned hand now.`];
-    return member;
-  }
-
-  return member;
-});
-
-        // ── Port gossip
         nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
         autoSave(nextState);
         return nextState;
@@ -363,7 +403,7 @@ nextState.crew.roster = nextState.crew.roster.map(member => {
           ...state,
           gold: state.gold - cost,
           crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-          log: [...state.log, `Hired ${action.count} crew for ${cost}g.`]
+          log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
         };
       }
 
@@ -486,7 +526,7 @@ nextState.crew.roster = nextState.crew.roster.map(member => {
 
         const newLog = [
           ...state.log,
-          `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`
+          window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`)
         ];
         if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
         if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
@@ -622,7 +662,7 @@ nextState.crew.roster = nextState.crew.roster.map(member => {
       // --- SAVE / LOAD ---
       case A.SAVE_GAME:
         localStorage.setItem("piratesSave", JSON.stringify(state));
-        return { ...state, log: [...state.log, "Game saved."] };
+        return { ...state};
 
       case A.LOAD_GAME: {
         try {
