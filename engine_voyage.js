@@ -200,8 +200,8 @@
 
   const newRoster = state.crew.roster.map(m => m.id === updatedDrunkard.id ? updatedDrunkard : m);
   const newLogLine = wasHidden
-    ? `Someone stole some rum from the hold. The Bosun found it was ${drunkard.firstName}.`
-    : `${drunkard.firstName} took some rum from the hold. Again.`;
+    ? `Someone stole some rum from the hold. The Bosun found it was ${drunkard.firstName} ${drunkard.lastName}.`
+    : `${drunkard.firstName} ${drunkard.lastName} took some rum from the hold. Again.`;
 
   return {
     ...state,

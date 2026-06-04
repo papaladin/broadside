@@ -70,7 +70,7 @@ const isExtremePrice = (good, buyPrice) => {
       lastName  = pickRandom(lastList);
       fullName  = `${firstName} ${lastName}`;
       attempts++;
-    } while (existingNames.includes(fullName) && attempts < 50);
+    } while (existingNames.includes(fullName) && firstName === lastName && attempts < 50);
 
     const member = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -103,47 +103,60 @@ const isExtremePrice = (good, buyPrice) => {
     return roster;
   };
 
-  const generateCrewBio = (member, state) => {
+const generateCrewBio = (member, state) => {
   const days = member.daysAboard || 0;
   const tags = member.tags || [];
   const firstName = member.firstName;
   const lines = [];
 
-  // ── Opening (days aboard) ─────────────────────────────────
-  if (days < 15)
-    lines.push(`${firstName} is still finding their place among the crew.`);
-  else if (days < 50)
-    lines.push(`${firstName} has been aboard for ${days} days. The crew has grown used to them.`);
-  else if (days < 100)
-    lines.push(`${firstName} is a seasoned hand, trusted by the crew after ${days} days at sea.`);
-  else if (days < 200)
-    lines.push(`${firstName} is a veteran of ${days} days, someone the others look to in a crisis.`);
-  else
-    lines.push(`${firstName} is an old salt, with ${days} days aboard. This ship is their home.`);
+  // ── Opening (days aboard, random variant) ──────────────────
+  const factionLabel = window.D.FACTIONS[member.faction]?.label || member.faction;
+  let bracket;
+  if (days < 15) bracket = "newHand";
+  else if (days < 50) bracket = "settling";
+  else if (days < 100) bracket = "seasoned";
+  else if (days < 200) bracket = "veteran";
+  else bracket = "oldSalt";
 
-  // ── Collect tag categories ───────────────────────────────
-  const scars = [];
-  const revealed = [];
-  let hasMutineer = false;
-  if (tags.includes("scar_battle")) scars.push("deadly battle");
-  if (tags.includes("scar_storm")) scars.push("violent storm");
-  if (tags.includes("scar_shipwreck")) scars.push("shipwreck");
-  if (tags.includes("revealed_drunkard")) revealed.push("have a fondness for rum");
-  if (tags.includes("revealed_coward")) revealed.push("lose their nerve when danger looms");
-  if (tags.includes("revealed_greedy")) revealed.push("always look for a bigger cut");
-  if (tags.includes("mutineer")) hasMutineer = true;
+  const pool = window.D.BIO_OPENINGS[bracket] || window.D.BIO_OPENINGS.newHand;
+  const template = pool[Math.floor(Math.random() * pool.length)];
+  lines.push(template
+    .replace(/\{fn\}/g, firstName)
+    .replace(/\{days\}/g, String(days))
+    .replace(/\{role\}/g, member.role)
+    .replace(/\{factionLabel\}/g, factionLabel)
+  );
 
-  // ── Special combination detection ─────────────────────────
+  // ── Combo detection (direct from tags) ──────────────────────
+  const has = (t) => tags.includes(t);
   const combos = [];
-  if (hasMutineer && scars.includes("deadly battle"))       combos.push("m_battle");
-  if (hasMutineer && revealed.includes("lose their nerve when danger looms")) combos.push("m_coward");
-  if (revealed.includes("have a fondness for rum") && revealed.includes("always look for a bigger cut")) combos.push("drunk_greedy");
-  if (revealed.includes("lose their nerve when danger looms") && scars.includes("deadly battle")) combos.push("coward_battle");
-  if (scars.includes("violent storm") && scars.includes("shipwreck")) combos.push("storm_wreck");
-  if (hasMutineer && scars.includes("violent storm"))       combos.push("m_storm");
-  if (revealed.includes("have a fondness for rum") && scars.includes("shipwreck")) combos.push("drunk_wreck");
 
-  // ── Special sentences (replace generic scar/trait/mutineer lines) ──
+  // mutineer + X
+  if (has("mutineer") && has("scar_battle"))             combos.push("m_battle");
+  if (has("mutineer") && has("revealed_coward"))          combos.push("m_coward");
+  if (has("mutineer") && has("scar_storm"))               combos.push("m_storm");
+  if (has("mutineer") && has("scar_shipwreck"))           combos.push("mutineer_wreck");
+
+  // drunk + X
+  if (has("revealed_drunkard") && has("revealed_greedy")) combos.push("drunk_greedy");
+  if (has("revealed_drunkard") && has("scar_battle"))     combos.push("drunk_battle");
+  if (has("revealed_drunkard") && has("scar_shipwreck"))  combos.push("drunk_wreck");
+  if (has("revealed_drunkard") && has("revealed_coward")) combos.push("drunk_coward");
+
+  // coward + X
+  if (has("revealed_coward") && has("scar_battle"))      combos.push("coward_battle");
+  if (has("revealed_coward") && has("scar_storm"))       combos.push("coward_storm");
+  if (has("revealed_coward") && has("scar_shipwreck"))   combos.push("coward_wreck");
+
+  // greedy + X
+  if (has("revealed_greedy") && has("scar_battle"))      combos.push("greedy_battle");
+
+  // scar + scar
+  if (has("scar_storm") && has("scar_shipwreck"))        combos.push("storm_wreck");
+  if (has("scar_battle") && has("scar_storm"))            combos.push("battle_storm");
+  if (has("scar_battle") && has("scar_shipwreck"))        combos.push("battle_wreck");
+
+  // ── Special sentences (replace generic fallback lines) ─────
   const specialSentences = {
     m_battle:      "They have survived battle and mutiny alike. Some scars run deeper than others.",
     m_coward:      "They followed the mutineers, but their courage failed when it mattered most.",
@@ -152,6 +165,14 @@ const isExtremePrice = (good, buyPrice) => {
     storm_wreck:   "Twice the sea tried to claim them — a storm and a wreck. They're still here.",
     m_storm:       "After surviving a storm, they thought they could survive anything — even mutiny.",
     drunk_wreck:   "They say the drink started after the shipwreck. No one asks too many questions.",
+    battle_storm:  "They have faced battle and storm alike. Neither broke them.",
+    battle_wreck:  "They fought and were shipwrecked. The sea couldn't finish what battle started.",
+    drunk_battle:  "They've been drinking since the battle. Some say it keeps the memories at bay.",
+    coward_storm:  "Storms terrify them more than any enemy. They've earned that fear.",
+    coward_wreck:  "Since the wreck, they flinch at every creak of the hull.",
+    drunk_coward:  "They drink to forget what they're afraid of.",
+    mutineer_wreck:"After surviving a shipwreck, they thought mutiny was their only way out.",
+    greedy_battle: "They survived a deadly battle and now demand a larger share for it.",
   };
 
   // ── Determine which generic slots are suppressed ──────────
@@ -172,31 +193,106 @@ const isExtremePrice = (good, buyPrice) => {
   if (combos.includes("storm_wreck")) suppressScars = true;
   if (combos.includes("drunk_wreck")) { suppressTraits = true; suppressScars = true; }
 
+  if (combos.includes("battle_storm") || combos.includes("battle_wreck")) suppressScars = true;
+  if (combos.includes("drunk_battle")) { suppressTraits = true; suppressScars = true; }
+  if (combos.includes("coward_storm") || combos.includes("coward_wreck")) { suppressTraits = true; suppressScars = true; }
+  if (combos.includes("drunk_coward")) suppressTraits = true;
+  if (combos.includes("mutineer_wreck")) { suppressMutineer = true; suppressScars = true; }
+  if (combos.includes("greedy_battle")) { suppressTraits = true; suppressScars = true; }
+
   // Output special sentences
   for (const c of combos) lines.push(specialSentences[c]);
 
-  // ── Scar line (if any, and not suppressed) ────────────────
-  if (!suppressScars && scars.length > 0) {
-    if (scars.length === 1)
-      lines.push(`They carry the scars of a ${scars[0]}.`);
-    else if (scars.length === 2)
-      lines.push(`They have survived a ${scars[0]} and a ${scars[1]}.`);
-    else if (scars.length === 3)
-      lines.push(`They have survived a ${scars[0]}, a ${scars[1]}, and a ${scars[2]}.`);
+  // ── Generic fallback lines (if not suppressed) ───────────
+  const scarLabel = {
+    scar_battle:     "deadly battle",
+    scar_storm:      "violent storm",
+    scar_shipwreck:  "shipwreck",
+  };
+  const traitLabel = {
+    revealed_drunkard:   "have a fondness for rum",
+    revealed_coward:     "lose their nerve when danger looms",
+    revealed_greedy:     "always look for a bigger cut",
+  };
+
+  // Variant pools for single scars
+  const scarVariants = {
+    scar_battle: [
+      (label) => `They carry the scars of a ${label}.`,
+      (label) => `A ${label} left its mark on them.`,
+      (label) => `The ${label} nearly killed them, but they're still here.`,
+      (label) => `Still bearing wounds from a ${label}.`,
+    ],
+    scar_storm: [
+      (label) => `They carry the scars of a ${label}.`,
+      (label) => `A ${label} left its mark on them.`,
+      (label) => `The ${label} nearly killed them, but they're still here.`,
+      (label) => `Still bearing wounds from a ${label}.`,
+    ],
+    scar_shipwreck: [
+      (label) => `They carry the scars of a ${label}.`,
+      (label) => `A ${label} left its mark on them.`,
+      (label) => `The ${label} nearly killed them, but they're still here.`,
+      (label) => `Still bearing wounds from a ${label}.`,
+    ],
+  };
+
+  // Variant pools for single traits
+  const traitVariants = {
+    revealed_drunkard: [
+      (desc) => `Known to ${desc}.`,
+      (desc) => `Has a habit of ${desc.replace("have a fondness for rum", "drinking more than their share")}.`,
+      (desc) => `The crew whispers that they ${desc}.`,
+    ],
+    revealed_coward: [
+      (desc) => `Known to ${desc}.`,
+      (desc) => `Not the bravest soul aboard. The crew has noticed.`,
+      (desc) => `They tend to ${desc} — everyone knows it.`,
+    ],
+    revealed_greedy: [
+      (desc) => `Known to ${desc}.`,
+      (desc) => `Counts every coin twice and still thinks they're owed more.`,
+      (desc) => `Always ${desc.replace("always look for a bigger cut", "angling for a larger share")}.`,
+    ],
+  };
+
+  if (!suppressScars) {
+    const activeScars = tags.filter(t => scarLabel[t]);
+    if (activeScars.length === 1) {
+      const scar = activeScars[0];
+      const variants = scarVariants[scar] || [];
+      if (variants.length > 0) {
+        const pick = variants[Math.floor(Math.random() * variants.length)];
+        lines.push(pick(scarLabel[scar]));
+      } else {
+        lines.push(`They carry the scars of a ${scarLabel[scar]}.`);
+      }
+    } else if (activeScars.length === 2) {
+      lines.push(`They have survived a ${scarLabel[activeScars[0]]} and a ${scarLabel[activeScars[1]]}.`);
+    } else if (activeScars.length >= 3) {
+      lines.push(`They have survived a ${scarLabel[activeScars[0]]}, a ${scarLabel[activeScars[1]]}, and a ${scarLabel[activeScars[2]]}.`);
+    }
   }
 
-  // ── Trait line (if any, and not suppressed) ──────────────
-  if (!suppressTraits && revealed.length > 0) {
-    if (revealed.length === 1)
-      lines.push(`Known to ${revealed[0]}.`);
-    else if (revealed.length === 2)
-      lines.push(`Known to ${revealed[0]} and ${revealed[1]}.`);
-    else if (revealed.length === 3)
+  if (!suppressTraits) {
+    const activeTraits = tags.filter(t => traitLabel[t]);
+    if (activeTraits.length === 1) {
+      const trait = activeTraits[0];
+      const variants = traitVariants[trait] || [];
+      if (variants.length > 0) {
+        const pick = variants[Math.floor(Math.random() * variants.length)];
+        lines.push(pick(traitLabel[trait]));
+      } else {
+        lines.push(`Known to ${traitLabel[trait]}.`);
+      }
+    } else if (activeTraits.length === 2) {
+      lines.push(`Known to ${traitLabel[activeTraits[0]]} and ${traitLabel[activeTraits[1]]}.`);
+    } else if (activeTraits.length >= 3) {
       lines.push("Known to drink, shrink from danger, and demand a larger share.");
+    }
   }
 
-  // ── Mutineer line (if any, and not suppressed) ────────────
-  if (!suppressMutineer && hasMutineer)
+  if (!suppressMutineer && has("mutineer"))
     lines.push("Their involvement in the mutiny is a stain that will never wash off.");
 
   return lines.join(" ");

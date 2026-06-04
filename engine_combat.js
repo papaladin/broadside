@@ -574,7 +574,7 @@ const handleFledMission = (currentState, battleState) => {
               const upsetNames = [];
               const updatedRoster = roster.map(member => {
                 if (shuffled.indexOf(member) < upsetCount) {
-                  upsetNames.push(member.firstName);
+                  upsetNames.push(`${member.firstName} ${member.lastName}`);
                   return L.addTag(member, "upset");
                 }
                 return member;
@@ -602,7 +602,7 @@ const handleFledMission = (currentState, battleState) => {
               const tagged = [];
               const updatedRoster = survivors.map(member => {
                 if (shuffled.indexOf(member) < mutineerCount) {
-                  tagged.push(member.firstName);
+                  tagged.push(`${member.firstName} ${member.lastName}`);
                   return L.addTag(member, "mutineer");
                 }
                 return member;

@@ -459,6 +459,47 @@ const CREW_LAST_NAMES = {
     { role: "navigator",weight: 5 },
   ];
 
+  const BIO_OPENINGS = {
+  newHand: [
+  `{fn} is new aboard. Time will tell what kind of sailor they are.`,
+  `{fn}, a {factionLabel} {role}, is still finding their place among the crew.`,
+  `The new {role} from {factionLabel} waters keeps their head down. Early days.`,
+  `{fn} signed on recently. A quiet {role} — for now.`,
+  `{fn} came aboard from {factionLabel} territory. The crew hasn't made up its mind yet.`,
+  `{fn} is the newest face on deck. No one really knows them yet.`,
+  `Fresh off the dock, {fn} is eager to prove themselves.`,
+  `{fn} joined the crew only a few days ago. Still learning every rope.`,
+  ],
+  settling: [
+    `{fn} has been aboard {days} days. Starting to learn the ropes.`,
+    `After {days} days, {fn} is fitting in. A decent {role} by all accounts.`,
+    `{fn}, the {factionLabel} {role}, has been here {days} days. No complaints so far.`,
+    `The {role} from {factionLabel} ports is settling in. {days} days and counting.`,
+    `{fn} joined {days} days ago. The crew has accepted them.`,
+  ],
+  seasoned: [
+    `{fn} is a seasoned hand with {days} days at sea on this ship.`,
+    `After {days} days, {fn} knows every plank and rope. A reliable {role}.`,
+    `{fn}, the {factionLabel} {role}, has earned respect after {days} days aboard.`,
+    `The crew trusts {fn}. {days} days at sea makes a {role} dependable.`,
+    `A seasoned {role} from {factionLabel} waters, {fn} has served {days} days.`,
+  ],
+  veteran: [
+    `{fn} is a veteran of {days} days. The crew looks up to them.`,
+    `After {days} days, {fn} is one of the most experienced hands aboard.`,
+    `{fn}, a {factionLabel} {role} and veteran of {days} days, is someone the crew turns to in a crisis.`,
+    `The {role} they call {fn} has been here {days} days. A quiet authority.`,
+    `{fn} has served {days} days. Few aboard remember the ship without them.`,
+  ],
+  oldSalt: [
+    `{fn} has served {days} days. This ship is their life now.`,
+    `After {days} days, {fn} is part of the ship itself. An old salt through and through.`,
+    `{fn}, the {factionLabel} {role}, has been aboard longer than most can remember. {days} days.`,
+    `They say {fn} was born on this deck. {days} days — and still counting.`,
+    `The old {role} they call {fn} has {days} days aboard. This ship is home.`,
+  ],
+};
+
 
   // ---- RESOURCES AND ECONOMY SYSTEM -------------------------------
 
@@ -828,7 +869,10 @@ const ENEMY_SHIP_NAMES = {
     "Cursed", "Broken", "Savage", "Dread", "Wicked",
     "Royal", "Gilded", "Vengeful", "Phantom", "Raging", 
     "Shrouded", "Bleak", "Valiant", "Dauntless", "Defiant", 
-    "Bloodied", "Rogue", "Haunted", "Grim", "Fearless",
+    "Bloodied", "Rogue", "Haunted", "Grim", "Fearless","Resolute",
+"Bold","Swift","Steadfast","Proud","Victorious","Relentless",
+"Dark","Restless","Dire","Fierce","Weathered","Stormbound","Windward",
+"Golden","Providence","Endeavour","Enterprise","Constant","Prosperous",
     // --- Historical Elements (Yields "Adventure Galley", "Happy Delivery", etc.) ---
     "Adventure", "Bachelor's", "Portsmouth", "Whydah", "Queen Anne's", "Happy"
   ],
@@ -840,6 +884,9 @@ const ENEMY_SHIP_NAMES = {
     "Corsair", "Galleon", "Spectre", "Vanguard", "Marauder", 
     "Leviathan", "Rover", "Hellhound", "Voyager", "Monarch", 
     "Nightmare", "Kraken", "Banshee", "Gauntlet", "Wraith",
+    "Shark","Whale","Albatross","Privateer","Sentinel","Guardian",
+"Defender","Avenger","Providence","Endeavour","Resolution","Victory",
+"Liberty","Concord","Prosperity","Success","Friendship","Treasure",
     // --- Historical Elements (Yields "Bachelor's Delight", "Royal Sovereign", etc.) ---
     "Galley", "Delight", "Sovereign", "Delivery", "Adventure"
   ]
@@ -857,7 +904,11 @@ const ENEMY_SHIP_NAMES = {
       id: "storm",
       type: "hazard",
       title: "Violent Storm!",
-      desc: "A storm batters your ship for days. The waves are relentless.",
+      desc: [
+          "A violent storm batters the ship! Waves break over the bow.",
+          "Dark clouds roll in without warning. The storm is upon you.",
+          "A squall hits hard and fast. The crew scrambles to secure the rigging.",
+        ],
       choices: [
         {
           label: "Brace for impact",
@@ -874,7 +925,11 @@ const ENEMY_SHIP_NAMES = {
       id: "calm_winds",
       type: "hazard",
       title: "Doldrums",
-      desc: "The winds die down, leaving your ship becalmed.",
+      desc: [
+  "The wind dies completely. The sails hang limp.",
+  "Not a breath of wind. The ship sits motionless under a blazing sun.",
+  "Dead calm. The sea is glass and the heat is unbearable.",
+],
       choices: [
         {
           label: "Wait it out",
@@ -891,7 +946,11 @@ const ENEMY_SHIP_NAMES = {
   id: "distressed_merchant",
   type: "choice",
   title: "Merchant in Distress",
-  desc: "A merchant ship is under attack by pirates! They signal for help.",
+  desc: [
+  "A merchant ship flies a signal of distress. Pirates are closing in.",
+  "Smoke rises from a vessel under attack. A merchant signals for help.",
+  "A panicked merchant captain waves a white flag as raiders circle their ship.",
+],
   condition: (state) => state.screen === "sailing",
   choices: [
     {
@@ -922,7 +981,11 @@ const ENEMY_SHIP_NAMES = {
       id: "drifting_wreck",
       type: "choice",
       title: "Drifting Wreck",
-      desc: "A damaged ship drifts in the current, hull split and sails in tatters. Seabirds circle overhead. It could hold cargo worth salvaging — or something less welcome.",
+      desc: [
+  "A damaged ship drifts in the current, hull split and sails in tatters.",
+  "A derelict vessel wallows in the swell, its crew long gone.",
+  "You spot a wreck adrift — broken masts, silent decks.",
+],
       condition: (state) => state.screen === "sailing",
       choices: [
         {
@@ -946,7 +1009,11 @@ const ENEMY_SHIP_NAMES = {
   id: "drifting_sailors",
   type: "choice",
   title: "Marooned Sailors",
-  desc: "A small boat hails you. Three sailors — sunburnt, desperate — beg for passage. 'Our captain was a tyrant,' one says. 'We'd rather take our chances on the open sea.'\n\nThey seem capable enough. But if they were marooned, there may have been good reason for it.",
+  desc: [
+  "A small boat hails you. Three sunburnt sailors beg for passage.",
+  "Castaways wave frantically from a leaking jolly boat.",
+  "Three desperate souls drift in a battered skiff, nearly out of water.",
+],
   condition: (state) => state.fame >= 10,
   choices: [
     {
@@ -985,7 +1052,11 @@ const ENEMY_SHIP_NAMES = {
       id: "treasure_map",
       type: "reward",
       title: "Treasure Map Found!",
-      desc: "You discover a map leading to buried treasure.",
+      desc: [
+  "You discover a tattered map in a waterproof case. It marks a hidden cove.",
+  "A scrap of parchment flutters from a dead sailor's hand. It's a treasure map.",
+  "Tucked inside an old logbook, you find a hand‑drawn chart with an 'X' on it.",
+],
       choices: [
         {
           label: "Follow the map",
@@ -1008,7 +1079,11 @@ const ENEMY_SHIP_NAMES = {
       id: "whale_sighting",
       type: "reward",
       title: "Whale Sighting",
-      desc: "A pod of whales surfaces near your ship. A good omen!",
+      desc: [
+  "A pod of whales surfaces near your ship. The crew watches in wonder.",
+  "Massive spouts erupt off the bow — whales, dozens of them.",
+  "Whales breach alongside the ship. A good omen, some say.",
+],
       choices: [
         {
           label: "Harvest the whales",
@@ -1032,7 +1107,11 @@ const ENEMY_SHIP_NAMES = {
       id: "mutiny",
       type: "crew",
       title: "Mutiny!",
-      desc: "Your crew revolts due to low morale and harsh conditions!",
+      desc: [
+  "The crew has had enough. Angry voices demand changes — now.",
+  "A group of sailors confronts you on the quarterdeck. This is mutiny.",
+  "Whispers have turned to shouts. The crew is on the brink of revolt.",
+],
       choices: [
         {
           label: "Negotiate",
@@ -1055,7 +1134,11 @@ const ENEMY_SHIP_NAMES = {
       id: "deserters",
       type: "crew",
       title: "Deserters",
-      desc: "Some of your crew abandon ship in the night.",
+      desc: [
+  "Several crew members are missing this morning. They slipped away in the night.",
+  "Your bosun reports empty hammocks. Deserters, no doubt.",
+  "A jolly boat is gone. So are a handful of sailors who couldn't take any more.",
+],
       choices: [
         {
           label: "Let them go",
@@ -1364,6 +1447,7 @@ const ENEMY_SHIP_NAMES = {
     CREW_FIRST_NAMES,
     CREW_LAST_NAMES,
     CREW_ROLES,
+    BIO_OPENINGS,
     RESOURCES,
     GOODS_AVAILABILITY,
     PORT_GOSSIP_TEMPLATES,

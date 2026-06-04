@@ -146,7 +146,7 @@ const processPositiveTraits = (nextState, state) => {
       if (maxRep >= 80) {
         updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
         updated = L.addTag(updated, "loyal");
-        newLoyal.push(updated.firstName);
+        newLoyal.push(`${updated.firstName} ${updated.lastName}`);
         return updated;
       }
     }
@@ -154,13 +154,13 @@ const processPositiveTraits = (nextState, state) => {
     if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
       updated = L.removeTag(member, "seasoned");
       updated = L.addTag(updated, "veteran");
-      newVeterans.push(updated.firstName);
+      newVeterans.push(`${updated.firstName} ${updated.lastName}`);
       return updated;
     }
 
     if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
       updated = L.addTag(member, "seasoned");
-      newSeasoned.push(updated.firstName);
+      newSeasoned.push(`${updated.firstName} ${updated.lastName}`);
       return updated;
     }
 
@@ -450,8 +450,8 @@ const processPositiveTraits = (nextState, state) => {
             const newRoster = state.crew.roster.map(m => m.id === updatedCoward.id ? updatedCoward : m);
             const newMorale = Math.max(0, state.crew.morale - 3);
             const logLine = wasHidden
-              ? `${firstCoward.firstName} is visibly shaking. He didn't sign up for this kind of work.`
-              : `${firstCoward.firstName} looks terrified. Again.`;
+              ? `${firstCoward.firstName} ${updatedCoward.lastName} is visibly shaking. He didn't sign up for this kind of work.`
+              : `${firstCoward.firstName} ${updatedCoward.lastName} looks terrified. Again.`;
 
             return {
               ...state,
@@ -569,8 +569,8 @@ const processPositiveTraits = (nextState, state) => {
             );
             nextState.log = [...nextState.log,
               wasHidden
-                ? `${greedy.firstName} demands a larger share. "I did my part," he says, hand out.`
-                : `${greedy.firstName} demands his usual cut.`
+                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. "I did my part," he says, hand out.`
+                : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
             ];
           } else {
             // Can't afford — becomes upset
@@ -581,8 +581,8 @@ const processPositiveTraits = (nextState, state) => {
             );
             nextState.log = [...nextState.log,
               wasHidden
-                ? `${greedy.firstName} demands a larger share. When refused, he grows bitter.`
-                : `${greedy.firstName} demands his cut, and your refusal leaves him seething.`
+                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. When refused, he grows bitter.`
+                : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
             ];
           }
 }
@@ -601,57 +601,82 @@ const processPositiveTraits = (nextState, state) => {
 
       // --- MARKET ---
       case A.CONFIRM_TRADE: {
-        const { buys, sells } = action;
-        if (!state.portMarket) return state;
+  const { buys, sells } = action;
+  if (!state.portMarket) return state;
 
-        const validation = validateTrade(state, buys, sells);
-        if (!validation.valid) return { ...state, log: [...state.log, validation.reason] };
+  const validation = validateTrade(state, buys, sells);
+  if (!validation.valid) return { ...state, log: [...state.log, validation.reason] };
 
-        const items = { ...(state.hold?.items || {}) };
-        let goldDelta = 0;
-        let infamyDelta = 0;
-        const logLines = [];
-        const marketGoods = { ...state.portMarket.goods };
+  const items = { ...(state.hold?.items || {}) };
+  let goldDelta = 0;
+  let infamyDelta = 0;
+  const logLines = [];
+  const marketGoods = { ...state.portMarket.goods };
 
-        Object.entries(sells || {}).forEach(([good, qty]) => {
-          if (qty <= 0) return;
-          const portGood = state.portMarket.goods[good];
-          if (!portGood) return;
-          const actualQty = Math.min(qty, items[good] || 0);
-          if (actualQty <= 0) return;
-          const revenue = actualQty * portGood.sellToPort;
-          items[good] = (items[good] || 0) - actualQty;
-          goldDelta += revenue;
-          if (marketGoods[good]) marketGoods[good] = { ...marketGoods[good], available: (marketGoods[good].available || 0) + actualQty };
-          logLines.push(`Sold ${actualQty} ${window.D.RESOURCES[good]?.unit || good} of ${window.D.RESOURCES[good]?.name || good} for ${revenue}g.`);
-        });
+  // ── Sells ──────────────────────────────────────────────────
+  const soldGoods = [];
+  Object.entries(sells || {}).forEach(([good, qty]) => {
+    if (qty <= 0) return;
+    const portGood = state.portMarket.goods[good];
+    const actualQty = Math.min(qty, items[good] || 0);
+    if (actualQty <= 0) return;
+    const revenue = actualQty * (portGood ? portGood.sellToPort : 0);
+    items[good] = (items[good] || 0) - actualQty;
+    goldDelta += revenue;
+    if (marketGoods[good]) marketGoods[good] = { ...marketGoods[good], available: (marketGoods[good].available || 0) + actualQty };
+    // Always record the good name — even if market doesn't trade it
+    soldGoods.push(window.D.RESOURCES[good]?.name || good);
+  });
 
-        const buyEntries = Object.entries(buys || {}).filter(([_, qty]) => qty > 0);
-        for (const [good, qty] of buyEntries) {
-          const portGood = state.portMarket.goods[good];
-          if (!portGood) { logLines.push(`${good} is not available at this port.`); continue; }
-          if (qty > portGood.available) { logLines.push(`Not enough ${good} available.`); continue; }
-          const cost = qty * portGood.buyFromPort;
-          items[good] = (items[good] || 0) + qty;
-          goldDelta -= cost;
-          marketGoods[good] = { ...portGood, available: portGood.available - qty };
-          const res = window.D.RESOURCES[good];
-          if (res?.infamyOnBuy) {
-            infamyDelta += res.infamyOnBuy;
-            logLines.push(`Purchasing ${res.name} darkens your reputation.`);
-          }
-          logLines.push(`Bought ${qty} ${res?.unit || good} of ${res?.name || good} for ${cost}g.`);
-        }
+  // ── Buys ───────────────────────────────────────────────────
+  const boughtGoods = [];
+  const buyEntries = Object.entries(buys || {}).filter(([_, qty]) => qty > 0);
+  for (const [good, qty] of buyEntries) {
+    const portGood = state.portMarket.goods[good];
+    if (!portGood) { logLines.push(`${good} is not available at this port.`); continue; }
+    if (qty > portGood.available) { logLines.push(`Not enough ${good} available.`); continue; }
+    const cost = qty * portGood.buyFromPort;
+    items[good] = (items[good] || 0) + qty;
+    goldDelta -= cost;
+    marketGoods[good] = { ...portGood, available: portGood.available - qty };
+    const res = window.D.RESOURCES[good];
+    if (res?.infamyOnBuy) {
+      infamyDelta += res.infamyOnBuy;
+      logLines.push(`Purchasing ${res.name} darkens your reputation.`);
+    }
+    boughtGoods.push(res?.name || good);
+  }
 
-        return {
-          ...state,
-          gold: state.gold + goldDelta,
-          hold: { ...state.hold, items },
-          portMarket: { ...state.portMarket, goods: marketGoods },
-          infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
-          log: [...state.log, ...logLines],
-        };
-      }
+  // ── Build consolidated trade summary ───────────────────────
+  const uniq = arr => [...new Set(arr)];
+  const formatGoods = names => {
+    if (names.length === 0) return null;
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+    return "several goods";
+  };
+
+  const bought = formatGoods(uniq(boughtGoods));
+  const sold = formatGoods(uniq(soldGoods));
+
+  if (bought || sold) {
+    let summary = "";
+    if (bought) summary += `Bought ${bought}`;
+    if (bought && sold) summary += ". ";
+    if (sold)  summary += `Sold ${sold}`;
+    summary += `. Net: ${goldDelta >= 0 ? "+" : ""}${goldDelta}g.`;
+    logLines.push(summary);
+  }
+
+  return {
+    ...state,
+    gold: state.gold + goldDelta,
+    hold: { ...state.hold, items },
+    portMarket: { ...state.portMarket, goods: marketGoods },
+    infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
+    log: [...state.log, ...logLines],
+  };
+}
 
       case A.ENTER_MARKET:
         return { ...state, screen: "market" };

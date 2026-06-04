@@ -17,6 +17,8 @@ input[type=number]{background:#0d1620;border:1px solid #3a2a10;color:#e0e0e0;pad
 button{background:#cc9900;border:1px solid #ffd700;color:#000;padding:8px 16px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;min-height:36px}
 button:hover{background:#ffd700}
 button:disabled{opacity:.5;cursor:not-allowed}
+.copy-btn{background:#2a2a2a;border:1px solid #a0a0a0;color:#e0e0e0;margin-top:10px}
+.copy-btn:hover{background:#444;color:#ffd700}
 .progress-bar{width:100%;height:6px;background:#2a1a08;border-radius:3px;margin:8px 0;overflow:hidden}
 .progress-fill{height:100%;background:#ffd700;border-radius:3px;transition:width .1s;width:0}
 #statusA,#statusB{color:#a0a0a0;font-size:10px;min-height:14px}
@@ -188,7 +190,10 @@ function runBioAnalysis(){
     if(i%50===0){fill.style.width=(i/count*100)+"%";status.textContent=`Generated ${i}/${count}...`;}
   }
   fill.style.width='100%';status.textContent='Analyzing...';
-  
+
+  // Store bios globally for export
+  window._lastBios = bios;
+
   // Analysis
   const uniqueBios=new Set(bios).size;
   const exactCounts={};bios.forEach(b=>{exactCounts[b]=(exactCounts[b]||0)+1;});
@@ -245,8 +250,21 @@ function runBioAnalysis(){
   html+=h3('Bio Length Distribution');
   html+=tbl(['Sentences','Count','%'],Object.entries(lengths).sort((a,b)=>a[0]-b[0]).map(([n,c])=>[n,c,pct(c,count)]));
   
+  // Export button
+  html+=`<button class="copy-btn" id="copyBiosBtn" onclick="copyAllBios()">📋 Copy all ${bios.length} bios</button>`;
+
   out.innerHTML=html;
   status.textContent=`Done. ${uniqueBios} unique bios out of ${count}.`;
+}
+
+function copyAllBios(){
+  const bios = window._lastBios;
+  if (!bios || bios.length===0) return;
+  const text = bios.join("\n\n");
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('copyBiosBtn');
+    if(btn){ btn.textContent = "✓ Copied!"; setTimeout(()=>{ btn.textContent = `📋 Copy all ${bios.length} bios`; }, 2000); }
+  }).catch(()=>alert("Copy failed"));
 }
 
 // ════════════════════════════════════════════════════════
@@ -372,6 +390,7 @@ async function runLogAnalysis(){
   }
   
   const allEntries=allLogs.flat();
+  window._lastLogs = allEntries;   // store for export
   const total=allEntries.length;
   const avgPerRun=Math.round(total/nRuns);
   const avgPerDay=(total/(nRuns*maxDays)).toFixed(2);
@@ -437,7 +456,10 @@ async function runLogAnalysis(){
       html+='</div></div>';
     });
   }
-  
+
+  // Export button
+  html+=`<button class="copy-btn" id="copyLogsBtn" onclick="copyAllLogs()">📋 Copy all ${total.toLocaleString()} log entries</button>`;
+
   out.innerHTML=html;
   
   // Draw category chart
@@ -469,6 +491,16 @@ async function runLogAnalysis(){
   },100);
   
   status.textContent=`Done. ${total.toLocaleString()} entries across ${nRuns} runs.`;
+}
+
+function copyAllLogs(){
+  const logs = window._lastLogs;
+  if (!logs || logs.length===0) return;
+  const text = logs.join("\n");
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('copyLogsBtn');
+    if(btn){ btn.textContent = "✓ Copied!"; setTimeout(()=>{ btn.textContent = `📋 Copy all ${logs.length} log entries`; }, 2000); }
+  }).catch(()=>alert("Copy failed"));
 }
 </script>
 </body>

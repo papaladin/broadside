@@ -340,6 +340,10 @@ const revealTag = (member, traitName) => {
 
     // Randomly select an event
     const event = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+    // If desc is an array, pick a random variant
+    if (Array.isArray(event.desc)) {
+      event.desc = event.desc[Math.floor(Math.random() * event.desc.length)];
+    }
     return { ...event };
   };
 

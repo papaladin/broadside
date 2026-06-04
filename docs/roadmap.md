@@ -276,7 +276,7 @@ Defeat currently means: wash ashore, lose cargo, continue. No lasting scar.
 
 > *Theme: Crew stop being numbers and start being characters. This is where attachment and emergent stories come from.*
 
-### T3.1 — Crew Traits (Visible and Hidden) -> in progress
+### T3.1 — Crew Traits (Visible and Hidden) --> done
 
 Each crew member gains 0–2 traits at generation. Visible traits are shown immediately. Hidden traits reveal after 30+ days aboard.
 
@@ -293,7 +293,7 @@ Each crew member gains 0–2 traits at generation. Visible traits are shown imme
 - **Loyal** (visible): will not desert even at morale 0.
 - **Disloyal** (hidden): attempts to poach crew during port stops if morale < 30.
 
-### T3.2 — Crew Scars
+### T3.2 — Crew Scars --> done
 
 Crew members who survive dangerous events gain permanent scars.
 
@@ -303,7 +303,7 @@ Crew members who survive dangerous events gain permanent scars.
 | **Dependencies** | T3.1 |
 | **Definition of Done** | Storm survivors, battle survivors, and mutiny survivors gain scars. Scars are visible traits with minor effects. A scarred crew tells the story of where you've been. |
 
-### T3.3 — Crew Tensions 
+### T3.3 — Crew Tensions --> parked / covered by crew loyalty & mutiny
 
 Crew members from rival factions generate tension events.
 

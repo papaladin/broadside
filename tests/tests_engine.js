@@ -1924,5 +1924,189 @@ window.TESTS.push({
     u.assert(mutineers.length >= 5 && mutineers.length <= 8, `Expected ~6 mutineers, got ${mutineers.length}`);
   }
 },
+
+// ── Trade consolidation ─────────────────────────────────────
+{
+  name: "E.TRADE.01 CONFIRM_TRADE produces single summary line",
+  run: (u) => {
+    const state = makeState({
+      screen:"port", currentPort:"portRoyal",
+      portMarket: { goods: {
+        rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:20 },
+        sugar: { basePrice:40, buyFromPort:44, sellToPort:36, available:15 },
+      }},
+      hold: { items: { food:5, water:5, rum:10, sugar:5 } },
+      gold: 1000,
+    });
+    // Buy 5 sugar, sell 3 rum
+    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys:{ sugar:5 }, sells:{ rum:3 } });
+    // Should have a single summary line containing "Bought", "Sold", "Net:"
+    const summary = s.log.find(l => l.includes("Net:"));
+    u.assert(summary !== undefined, "Trade summary exists");
+    u.assert(summary.includes("Bought"), "Mentions bought");
+    u.assert(summary.includes("Sold"), "Mentions sold");
+    u.assert(summary.includes("Net:"), "Shows net");
+    u.assertEqual(s.gold, 1000 - (5*44) + (3*27), "Gold correct");
+  }
+},
+
+// ── Arrival message variation ──────────────────────────────
+{
+  name: "E.ARR.01 ENTER_PORT uses varied arrival message",
+  run: (u) => {
+    // Force random to pick the first template each time → "Arrived at"
+    u.resetRandomStub();
+    u.setRandomSequence([0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]); // arrival picker uses random once
+    const state = makeState({
+      screen:"sailing", destination:"havana", sailingDaysLeft:0,
+      reputation:{ havana:50 },
+      crew:{ roster:fillRoster(2), max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.log.some(l => l.includes("⚓ Arrived at") || l.includes("⚓ Dropped") || l.includes("⚓ Made port") || l.includes("⚓ The harbour") || l.includes("⚓ Havana at last") || l.includes("⚓ Havana welcomes")),
+      "Arrival message has an emoji variant");
+    u.resetRandomStub();
+  }
+},
+
+// ── Victory message variation ───────────────────────────────
+{
+  name: "E.VICT.01 DISMISS_BATTLE victory uses varied message",
+  run: (u) => {
+    const state = makeState({
+      screen:"battle",
+      battleState: {
+        phase:"victory", returnScreen:"port",
+        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
+        encounterType:"random",
+        playerHull:80, enemyHull:0,
+        playerCrew:5, enemyCrew:0,
+        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
+      },
+      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
+      crew:{ roster:fillRoster(5), max:50, morale:50 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assert(s.log.some(l => l.includes("⚔")), "Victory has sword icon");
+  }
+},
+
+// ── Defeat message variation ────────────────────────────────
+{
+  name: "E.DEF.01 DISMISS_BATTLE defeat uses varied message",
+  run: (u) => {
+    const state = makeState({
+      screen:"battle",
+      previousPort:"portRoyal",
+      battleState: {
+        phase:"defeat", returnScreen:"port",
+        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
+        encounterType:"random",
+        playerHull:0, enemyHull:80,
+        playerCrew:0, enemyCrew:5,
+        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
+      },
+      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assert(s.log.some(l => l.includes("☠️")), "Defeat has skull icon");
+  }
+},
+
+// ── Fled message variation ──────────────────────────────────
+{
+  name: "E.FLED.01 DISMISS_BATTLE fled uses varied message",
+  run: (u) => {
+    const state = makeState({
+      screen:"battle",
+      battleState: {
+        phase:"fled", returnScreen:"port",
+        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
+        encounterType:"mission_combat",  // forces fled-mission path
+        playerHull:80, enemyHull:80,
+        playerCrew:5, enemyCrew:5,
+        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
+      },
+      activeMission:{ type:"combat", targetPort:null },
+      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
+    });
+    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
+    u.assert(s.log.some(l => l.includes("💨")), "Fled has dash icon");
+  }
+},
+
+// ── Settled‑down variant ────────────────────────────────────
+{
+  name: "E.SETTLE.01 ENTER_PORT settled message uses variant",
+  run: (u) => {
+    u.resetRandomStub();
+    u.setRandomSequence([0.99, 0.0]); // first roll for desertion (high → calm), second for settled picker
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
+      reputation:{ portRoyal:50 },
+      crew:{ roster:[
+        { id:"a", firstName:"Calm", lastName:"One", faction:"english", role:"deckhand", tags:["upset"], daysAboard:10 }
+      ], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.log.some(l => l.includes("Tensions") || l.includes("mood") || l.includes("calmed")),
+      "Settled message uses a variant");
+    u.resetRandomStub();
+  }
+},
+
+// ── Crew full‑name usage ────────────────────────────────────
+{
+  name: "E.NAME.01 Positive trait logs use full names",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
+      reputation:{ portRoyal:50 },
+      crew:{ roster:[
+        { id:"s", firstName:"Salty", lastName:"Dog", faction:"english", role:"deckhand", tags:[], daysAboard:50 }
+      ], max:50, morale:80 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.ENTER_PORT });
+    u.assert(s.log.some(l => l.includes("Salty Dog")), "Seasoned log includes full name");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "E.NAME.02 Coward effect uses full name",
+  run: (u) => {
+    const mission = testMission({ type:"assault", risk:"high", gold:100, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      crew:{ roster:[
+        { id:"c", firstName:"Craven", lastName:"Coward", faction:"english", role:"deckhand", tags:["hidden_coward"], daysAboard:5 }
+      ], max:50, morale:80 },
+      reputation:{ portRoyal:50 }
+    });
+    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
+    u.assert(s.log.some(l => l.includes("Craven Coward")), "Coward log includes full name");
+  }
+},
+{
+  name: "E.NAME.03 Greedy demand uses full name",
+  run: (u) => {
+    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
+    const state = makeState({
+      currentPort:"portRoyal",
+      activeMission: mission,
+      gold:1000,
+      crew:{ roster:[
+        { id:"g", firstName:"Goldie", lastName:"Greed", faction:"english", role:"deckhand", tags:["revealed_greedy"], daysAboard:10 }
+      ], max:50, morale:50 },
+      reputation:{ portRoyal:50 },
+      hold:{ items:{ food:5, water:5 } }
+    });
+    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
+    u.assert(s.log.some(l => l.includes("Goldie Greed")), "Greedy log includes full name");
+  }
+},
   ]
 });

@@ -944,6 +944,70 @@ window.TESTS.push({
     u.assert(bio.includes("fondness for rum is matched"));
   }
 },
+// ── classifyLogLine with emoji‑prefixed messages ──────────────
+{
+  name: "L.LOG.01 classifyLogLine recognises ⚓ arrival",
+  run: (u) => {
+    const result = L.classifyLogLine("⚓ Arrived at Havana.");
+    u.assertEqual(result.icon, "⚓");
+  }
+},
+{
+  name: "L.LOG.02 classifyLogLine recognises ⚔ victory",
+  run: (u) => {
+    const result = L.classifyLogLine("⚔ Victory! The Black Serpent defeated.");
+    u.assertEqual(result.icon, "⚔");
+  }
+},
+{
+  name: "L.LOG.03 classifyLogLine recognises ☠️ defeat",
+  run: (u) => {
+    const result = L.classifyLogLine("☠️ Defeated by The Iron Drake. Washed ashore at Tortuga.");
+    u.assertEqual(result.icon, "☠");
+  }
+},
+{
+  name: "L.LOG.04 classifyLogLine recognises 💨 fled",
+  run: (u) => {
+    const result = L.classifyLogLine("💨 You fled the battle.");
+    u.assertEqual(result.icon, "💨");
+  }
+},
+{
+  name: "L.LOG.05 classifyLogLine does not double‑icon when text already has emoji",
+  run: (u) => {
+    // Line already starts with emoji → icon should be null
+    const result = L.classifyLogLine("⚓ Arrived at Havana.");
+    u.assertEqual(result.icon, "⚓"); // still returns icon, LogList skips duplication
+  }
+},
+
+// ── Bio generation structural tests ──────────────────────────
+{
+  name: "L.BIO.11 bio returns a non‑empty string",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:10, role:"deckhand", faction:"english", tags:[] };
+    const bio = G.generateCrewBio(member, {});
+    u.assert(typeof bio === "string" && bio.length > 0);
+  }
+},
+{
+  name: "L.BIO.12 bio contains member first name",
+  run: (u) => {
+    const member = { firstName:"Jasper", daysAboard:60, role:"gunner", faction:"dutch", tags:["seasoned"] };
+    const bio = G.generateCrewBio(member, {});
+    u.assert(bio.includes("Jasper"));
+  }
+},
+{
+  name: "L.BIO.13 bio openings vary (structural check)",
+  run: (u) => {
+    const member = { firstName:"A", daysAboard:5, role:"deckhand", faction:"pirate", tags:[] };
+    const bios = new Set();
+    for (let i = 0; i < 20; i++) bios.add(G.generateCrewBio(member, {}).split(". ")[0]);
+    u.assert(bios.size >= 2, `Expected at least 2 distinct openings, got ${bios.size}`);
+  }
+},
 
   ]
 });
@@ -1243,6 +1307,42 @@ window.TESTS.push({
     });
     const reason = L.getUnreachableReason(s, "libertalia");
     u.assertEqual(reason, null, "Should reveal nothing about undiscovered ports");
+  }
+},
+
+// ── Bio generator structural tests ──────────────────────────
+{
+  name: "L.BIO.14 bio returns non‑empty string",
+  run: (u) => {
+    const member = { firstName:"Test", daysAboard:10, role:"deckhand", faction:"english", tags:[] };
+    const bio = G.generateCrewBio(member, {});
+    u.assert(typeof bio === "string" && bio.length > 0, "Bio should be a non‑empty string");
+  }
+},
+{
+  name: "L.BIO.15 bio contains member first name",
+  run: (u) => {
+    const member = { firstName:"Jasper", daysAboard:60, role:"gunner", faction:"dutch", tags:["seasoned"] };
+    const bio = G.generateCrewBio(member, {});
+    u.assert(bio.includes("Jasper"), "Bio must include the crew member's first name");
+  }
+},
+{
+  name: "L.BIO.16 bio openings vary (structural check)",
+  run: (u) => {
+    const member = { firstName:"A", daysAboard:5, role:"deckhand", faction:"pirate", tags:[] };
+    const openings = new Set();
+    for (let i = 0; i < 20; i++) openings.add(G.generateCrewBio(member, {}).split(". ")[0]);
+    u.assert(openings.size >= 2, `Expected at least 2 distinct openings, got ${openings.size}`);
+  }
+},
+{
+  name: "L.BIO.17 combo sentence fires for mutineer + scar_battle",
+  run: (u) => {
+    const member = { firstName:"M", daysAboard:80, role:"deckhand", faction:"pirate",
+      tags:["mutineer","scar_battle"] };
+    const bio = G.generateCrewBio(member, {});
+    u.assert(bio.includes("battle and mutiny"), "Combo line should appear");
   }
 },
   ]
