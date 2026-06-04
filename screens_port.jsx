@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, UPGRADES, STARTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine  } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
 
   // ── START SCREEN ─────────────────────────────────────────────────────
@@ -64,155 +64,196 @@ window.S = window.S || {};
   }
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
-  function PortScreen({ state, dispatch }) {
-    const port = PORTS[state.currentPort];
-    const rep = state.reputation[state.currentPort] ?? 0;
-    const perk = L.getRepPerk(rep);
-    const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
-    const effectiveShipStats = L.getShipStats(state);
-    const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
+ function PortScreen({ state, dispatch }) {
+  const port = PORTS[state.currentPort];
+  const rep = state.reputation[state.currentPort] ?? 0;
+  const perk = L.getRepPerk(rep);
+  const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
+  const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
 
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, padding: 14, overflowY: "auto", flex: 1 }}>
-        {/* Port card */}
+  const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 700);
+  React.useEffect(() => {
+    const handleResize = () => setIsNarrow(window.innerWidth < 700);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return (
+    <div style={{
+      display: "flex",
+      flexDirection: isNarrow ? "column" : "row",
+      gap: 12,
+      padding: 14,
+      overflowY: "auto",
+      flex: 1,
+      alignItems: "stretch",
+    }}>
+      {/* ── Column 1: Atmosphere, Actions & Missions ─────────── */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        minWidth: 280,
+        overflowY: "auto",
+      }}>
+        {/* Port header + description + gossip */}
         <div style={panelStyle()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
             <div>
               <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
-              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>{FACTIONS[port.faction]?.label.toUpperCase()} PORT</div>
+              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
+                {FACTIONS[port.faction]?.label.toUpperCase()} PORT
+              </div>
             </div>
             <RepPill rep={rep} />
           </div>
-          <p style={{ color: T.textDim, fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 }}>{port.desc}</p>
-          {state.portGossip?.length > 0 && (
-            <div style={panelStyle({ background: T.bgDeep, borderColor: T.borderFaint, marginBottom: 10 })}>
-              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 6, letterSpacing: "0.08em" }}>
-                WORD ON THE DOCKS
-              </div>
-              {state.portGossip.map((line, i) => (
-                <p key={i} style={{
-                  color: T.textDim, fontSize: 10, marginBottom: 6,
-                  lineHeight: 1.5, fontStyle: "italic"
-                }}>{line}</p>
-              ))}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>{port.services.map(s => <Pill key={s} label={s} />)}</div>
 
+          <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, margin: "0 0 10px", lineHeight: T.narrativeLineHeight }}>
+            {port.desc}
+          </p>
+
+          {state.portGossip?.length > 0 && (
+            <NarrativePanel title="🗣 WORD ON THE DOCKS" variant="gossip">
+              {state.portGossip.map((line, i) => (
+                <NarrativeLine key={i}>{line}</NarrativeLine>
+              ))}
+            </NarrativePanel>
+          )}
+
+          {perk.servicesBlocked && (
+            <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div style={panelStyle()}>
+          <SectionTitle>ACTIONS</SectionTitle>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
             <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
             <Btn onClick={() => dispatch({ type: A.ENTER_MARKET })}>📦 Market</Btn>
           </div>
-
           {!perk.servicesBlocked && (
             <>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {port.services.includes("shipyard") && <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>}
-                {port.services.includes("crew") && <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>}
+                {port.services.includes("shipyard") && (
+                  <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
+                )}
+                {port.services.includes("crew") && (
+                  <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>
+                )}
               </div>
               {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
-                <div style={{ marginTop: 10 }}>
-                  <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>Quick Repair ({repCost}g)</Btn>
-                </div>
+                <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
+                  Quick Repair ({repCost}g)
+                </Btn>
               )}
             </>
           )}
-          {perk.servicesBlocked && <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />}
-          <div style={{ marginTop: 10 }}><Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn></div>
+          <div style={{ marginTop: 8 }}>
+            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
+          </div>
         </div>
 
         {/* Mission board */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column" })}>
-          <SectionTitle action={<Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>}>MISSION BOARD</SectionTitle>
+        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1 })}>
+          <SectionTitle action={<Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>}>
+            MISSION BOARD
+          </SectionTitle>
           {perk.tier !== "neutral" && (
             <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: 10, marginBottom: 8 }}>
-              {perk.missionMult > 1 ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards` : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
+              {perk.missionMult > 1
+                ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
+                : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
             </div>
           )}
-          {!port.services.includes("missions") ? <EmptyState message="No mission board in this port." /> :
-           state.missions.length === 0 ? <EmptyState message="No missions posted. Try refreshing." /> :
-           state.missions.map((m, i) => (
-             <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
-               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                 <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
-                 <div style={{ display: "flex", gap: 4 }}>
-                   <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
-                   <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
-                 </div>
-               </div>
-               <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
-               {m.enemy && (
-                 <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
-                   Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
-                 </div>
-               )}
-               {/* ── Cargo requirement block (trade & smuggle) ── */}
-               {(m.requiredGood && m.requiredQty) && (() => {
-                 const res = window.D.RESOURCES[m.requiredGood];
-                 const inHold = state.hold?.items?.[m.requiredGood] || 0;
-                 const alreadyHave = inHold >= m.requiredQty;
-                 const partialHave = inHold > 0 && inHold < m.requiredQty;
-                 const isIllegal = res?.illegal;
-                 const holdFree = (state.hold?.capacity || 0) - L.getHoldUsed(state.hold?.items || {});
-                 const canFit = holdFree >= (m.requiredQty - inHold);
-
-                 return (
-                   <div style={{
-                     margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
-                     background: T.bgDeep,
-                     border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
-                   }}>
-                     <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
-                       {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
-                     </div>
-                     <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
-                       {m.requiredQty} × {res?.name || m.requiredGood}
-                       {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
-                     </div>
-                     <div style={{ fontSize: 10, marginTop: 3 }}>
-                       {alreadyHave
-                         ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
-                         : partialHave
-                           ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
-                           : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
-                       }
-                     </div>
-                     {!alreadyHave && !canFit && (
-                       <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
-                         ⚠ Only {holdFree} hold space free — sell cargo first
-                       </div>
-                     )}
-                     {m.type === "smuggle" && res?.sourceHint && (
-                       <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
-                         {res.sourceHint}
-                       </div>
-                     )}
-                     {m.type === "trade" && (
-                       <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
-                         Est. cost: ~{res?.basePrice * m.requiredQty}g
-                         · Payment on delivery: {m.gold}g
-                         · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
-                       </div>
-                     )}
-                     {m.type === "smuggle" && (
-                       <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
-                         +{m.infamyGain} infamy on completion
-                         {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
-                       </div>
-                     )}
-                   </div>
-                 );
-               })()}
-               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                 <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
-                 <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
-                 <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
-                 <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
-               </div>
-             </div>
-           ))
-          }
+          {!port.services.includes("missions") ? (
+            <EmptyState message="No mission board in this port." />
+          ) : state.missions.length === 0 ? (
+            <EmptyState message="No missions posted. Try refreshing." />
+          ) : (
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {state.missions.map((m, i) => (
+                <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
+                      <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                    </div>
+                  </div>
+                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
+                  {m.enemy && (
+                    <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
+                      Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
+                    </div>
+                  )}
+                  {(m.requiredGood && m.requiredQty) && (() => {
+                    const res = window.D.RESOURCES[m.requiredGood];
+                    const inHold = state.hold?.items?.[m.requiredGood] || 0;
+                    const alreadyHave = inHold >= m.requiredQty;
+                    const partialHave = inHold > 0 && inHold < m.requiredQty;
+                    const isIllegal = res?.illegal;
+                    const holdFree = (L.getHoldCapacity(state) || 0) - L.getHoldUsed(state.hold?.items || {});
+                    const canFit = holdFree >= (m.requiredQty - inHold);
+                    return (
+                      <div style={{
+                        margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
+                        background: T.bgDeep,
+                        border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
+                      }}>
+                        <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
+                          {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
+                        </div>
+                        <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
+                          {m.requiredQty} × {res?.name || m.requiredGood}
+                          {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
+                        </div>
+                        <div style={{ fontSize: 10, marginTop: 3 }}>
+                          {alreadyHave
+                            ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
+                            : partialHave
+                              ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
+                              : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
+                          }
+                        </div>
+                        {!alreadyHave && !canFit && (
+                          <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
+                            ⚠ Only {holdFree} hold space free — sell cargo first
+                          </div>
+                        )}
+                        {m.type === "smuggle" && res?.sourceHint && (
+                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
+                            {res.sourceHint}
+                          </div>
+                        )}
+                        {m.type === "trade" && (
+                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
+                            Est. cost: ~{res?.basePrice * m.requiredQty}g
+                            · Payment on delivery: {m.gold}g
+                            · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
+                          </div>
+                        )}
+                        {m.type === "smuggle" && (
+                          <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
+                            +{m.infamyGain} infamy on completion
+                            {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
+                    <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
+                    <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
+                    <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {state.activeMission && (
             <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -227,7 +268,6 @@ window.S = window.S || {};
                 <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
                 <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
               </div>
-              {/* ── Cargo status for trade/smuggle ── */}
               {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
                 const res = window.D.RESOURCES[state.activeMission.requiredGood];
                 const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
@@ -245,20 +285,12 @@ window.S = window.S || {};
               })()}
               <div style={{ display: "flex", gap: 8 }}>
                 {canFinish && (
-                  <Btn
-                    v="gold"
-                    onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
-                    disabled={
-                      state.activeMission.requiredGood &&
-                      (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty
-                    }
-                  >
+                  <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
+                    disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
                     Complete Mission
                   </Btn>
                 )}
-                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>
-                  Abandon
-                </Btn>
+                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
               </div>
               {!canFinish && (
                 <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
@@ -268,33 +300,23 @@ window.S = window.S || {};
             </div>
           )}
         </div>
+      </div>
 
-        {/* Ship status */}
-        <div style={panelStyle()}>
-          <SectionTitle>⚓ {state.ship.name}</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <StatBlock label="Class" value={SHIPS[state.ship.type].name} />
-            <StatBlock label="Cannons" value={effectiveShipStats.cannons} />
-            <StatBlock label="Speed" value={effectiveShipStats.speed} />
-            <StatBlock label="Crew" value={`${state.crew.roster.length}/${state.crew.max}`} />
-          </div>
-          <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>HULL</div>
-          <Bar value={state.ship.hull} max={effectiveShipStats.maxHull} color={state.ship.hull / effectiveShipStats.maxHull < 0.3 ? T.redBr : T.greenBr} h={10} />
-          {state.ship.upgrades.length > 0 && (
-            <div style={{ marginTop: 8, display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {state.ship.upgrades.map(u => <Pill key={u} label={UPGRADES[u]?.name ?? u} color={T.blueBr} />)}
-            </div>
-          )}
-        </div>
-
-        {/* Captain's Log */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column", maxHeight: 220, overflow: "auto" })}>
+      {/* ── Column 2: Captain's Log ──────────────────────────── */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 240,
+      }}>
+        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
           <SectionTitle>CAPTAIN'S LOG</SectionTitle>
           <LogList entries={state.log} />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ── SHIPYARD SCREEN ──────────────────────────────────────────────────
   function ShipyardScreen({ state, dispatch }) {
@@ -590,7 +612,7 @@ function renderShipStats(shipType, compareType) {
                   </span>
                   <Btn sm v="ghost" onClick={() => setSelectedMember(null)}>✕</Btn>
                 </div>
-                <div style={{ fontSize: 11, color: T.text }}>
+                <div style={{ fontSize: T.narrativeFontSize, color: T.text }}>
                   <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
                   <div>Role: {selectedMember.role}</div>
                   <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>

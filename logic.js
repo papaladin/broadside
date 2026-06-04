@@ -111,6 +111,38 @@ const getHeatLabel = (level) => {
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
 
+
+// --------------------------------------------
+// LOGS FUNCTIONS
+// --------------------------------------------
+
+
+const classifyLogLine = (text) => {
+  if (!text) return { icon: null };
+  const t = text;
+
+  if (t.includes("Arrived at"))      return { icon: "⚓" };
+  if (t.includes("Setting sail"))    return { icon: "⛵" };
+  if (t.includes("left the crew") || t.includes("has left")|| t.includes("Hired")) return { icon: "👥" };
+  if (t.includes("upset") || t.includes("disturbed"))       return { icon: "⚠" };
+  if (t.includes("settled down"))   return { icon: "👥" };
+  if (t.includes("mutineer") || t.includes("Mutiny"))       return { icon: "⚔" };
+  if (t.includes("Victory") || t.includes("Defeated"))      return { icon: "⚔" };
+  if (t.includes("Escaped") || t.includes("fled"))          return { icon: "💨" };
+  if (t.includes("Bought") || t.includes("Sold") || t.includes("trade")) return { icon: "💰" };
+  if (t.includes("Completed:") || t.includes("mission"))    return { icon: "📜" };
+  if (t.includes("New port discovered") || t.includes("chart")) return { icon: "🗺" };
+  if (t.includes("infamy") || t.includes("wanted") || t.includes("Wanted")) return { icon: "☠" };
+  if (t.includes("heat") || t.includes("alert") || t.includes("patrol")) return { icon: "🚨" };
+  if (t.includes("Plundered") || t.includes("plunder"))    return { icon: "🏴‍☠️" };
+  if (t.includes("survivor") || t.includes("rescue"))      return { icon: "🆘" };
+  if (t.includes("stores are empty") || t.includes("barrels are dry")) return { icon: "⚠" };
+  if (t.includes("morale") || t.includes("drinks"))        return { icon: "🍻" };
+
+  return { icon: null };
+};
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIP & REPAIR FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -850,6 +882,7 @@ const applyLoseContraband = (holdItems) => {
     hasUpgrade,
     getShipStats,
     getEffectiveMorale,
+    classifyLogLine,
     returnScreen,
 
     // Ship/Repair

@@ -70,7 +70,7 @@
     const mission = state.activeMission;
     const progress = 1 - (newDays / state.sailingDaysTotal);
 
-    if (mission.type === "escort") {
+    if (mission.type === "escort" && !mission.starter) {
       const chance = 0.20 + 0.60 * progress;
       if (newDays <= 1 || Math.random() < chance) {
         const enemy = mission.enemy || G.generateEnemy("medium", state.fame, mission.faction);

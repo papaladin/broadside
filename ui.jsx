@@ -10,22 +10,33 @@ window.UI = (() => {
   const { FACTIONS } = window.D;
   const L = window.L;
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  THEME TOKENS (T)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const T = {
-    // Colors
-    bg: "#0a141e",
-    bgDeep: "#040c18",
-    bgAlt: "#0d1620",
-    panel: "#121c28",
-    panelAlt: "#0d1620",
-    border: "#2a3a4a",
-    borderFaint: "#1a2a3a",
-    borderBr: "#3a4a5a",
-    text: "#e0e0e0",
-    textDim: "#a0a0a0",
-    textFaint: "#606060",
+ 
+const T = {
+    // ── Page background (stays dark blue) ────────────────────
+    bg: "#0a141e",           // unchanged — dark navy
+    bgDeep: "#040c18",      // unchanged — deepest blue
+    bgAlt: "#0d1620",       // unchanged — slightly lighter blue
+
+
+    // ── Panels (slightly lighter brown — more visible) ───────
+    panel: "#1c1610",        // was #161210 — lifted slightly, warmer
+    panelAlt: "#141008",     // was #100c08 — lifted slightly
+
+    
+  
+    // ── Borders (THIS IS THE KEY CHANGE — much brighter gold) 
+    border: "#6b5530",       // was #302010 — visible gold-brown frame
+    borderFaint: "#4a3820",  // was #2a1a08 — still subtle but present
+    borderBr: "#8a6a3a",     // was #5a4020 — bright gold for emphasis/hover
+
+
+    // ── Text (keep your current warm parchment) ──────────────
+    text: "#dcd0b8",
+    textDim: "#a09080",      // was #a0a0a0 — warm it slightly to match
+    textFaint: "#706050",    // was #606060 — warm it slightly
+
+
+    // ── Accents (unchanged) ──────────────────────────────────
     gold: "#ffd700",
     goldDim: "#cc9900",
     goldBr: "#ffcc33",
@@ -44,17 +55,24 @@ window.UI = (() => {
     purple: "#9c27b0",
     purpleBr: "#9c27b0",
     purpleBg: "#10081a",
-    // Risk colors
+
+    // Risk colors (unchanged)
     riskColor: {
       low: "#4caf50",
       medium: "#ff9800",
       high: "#f44336"
     },
-    // Fonts & layout
+
+    // Fonts & layout (unchanged)
     font: "'Courier New', monospace",
     fontSize: 'max(10px, min(1.2vw, 13px))',
     btnMinHeight: 44,
-  };
+    narrativeFontSize: 11,
+    narrativeLineHeight: 1.6,
+    metadataFontSize: 10,
+    captionFontSize: 9,
+};
+
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  STYLE HELPERS
@@ -183,20 +201,85 @@ window.UI = (() => {
     </div>
   );
 
-  const LogList = ({ entries, maxEntries = 20 }) => (
+  // ── Narrative panel component ──────────────────────────────────
+const NarrativePanel = ({ title, icon, variant = "neutral", children, style = {} }) => {
+  const variants = {
+    neutral:  { border: T.border,     titleColor: T.gold,   bg: T.panel },
+    gossip:   { border: T.gold,       titleColor: T.gold,   bg: T.bgDeep },
+    danger:   { border: T.redBr,      titleColor: T.redBr,  bg: T.panel },
+    crew:     { border: T.blueBr,     titleColor: T.blueBr, bg: T.panel },
+    discovery:{ border: T.greenBr,    titleColor: T.greenBr,bg: T.panel },
+    trade:    { border: T.gold,       titleColor: T.gold,   bg: T.panel },
+  };
+  const v = variants[variant] || variants.neutral;
+
+  return (
     <div style={{
-      fontSize: 10,
-      color: T.textDim,
-      lineHeight: 1.4,
-      overflowY: "auto",
-      flex: 1,
-      padding: "4px 0"
+      background: v.bg,
+      border: `1px solid ${v.border}`,
+      borderRadius: 4,
+      padding: 10,
+      marginBottom: 10,
+      color: T.text,
+      boxSizing: 'border-box',
+      ...style,
     }}>
-      {entries.slice(-maxEntries).map((entry, i) => (
-        <div key={i} style={{ marginBottom: 4 }}>{entry}</div>
-      ))}
+      {title && (
+        <div style={{
+          color: v.titleColor,
+          fontSize: 11,
+          fontWeight: 'bold',
+          letterSpacing: '0.08em',
+          marginBottom: 8,
+        }}>
+          {icon && <span style={{ marginRight: 6 }}>{icon}</span>}
+          {title}
+        </div>
+      )}
+      {children}
     </div>
   );
+};
+
+const NarrativeLine = ({ children, style = {} }) => (
+  <p style={{
+    color: T.textDim,
+    fontSize: T.narrativeFontSize,
+    lineHeight: T.narrativeLineHeight,
+    margin: '0 0 6px 0',
+    fontStyle: 'italic',
+    ...style,
+  }}>
+    {children}
+  </p>
+);
+
+const LogList = ({ entries, maxEntries = 20 }) => (
+  <div style={{
+    fontSize: T.narrativeFontSize,
+    color: T.textDim,
+    lineHeight: T.narrativeLineHeight,
+    overflowY: "auto",
+    flex: 1,
+    padding: "4px 0"
+  }}>
+    {entries.slice(-maxEntries).map((entry, i) => {
+      // Skip extra icon if the entry already starts with an emoji
+      const startsWithEmoji = entry && /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/u.test(entry.trim());
+      const category = startsWithEmoji ? { icon: null } : window.L.classifyLogLine(entry);
+      return (
+        <div key={i} style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline" }}>
+          {category.icon && (
+            <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>
+              {category.icon}
+            </span>
+          )}
+          <span>{entry}</span>
+        </div>
+      );
+    })}
+  </div>
+);
 
   const Divider = ({ style = {} }) => (
     <hr style={{ border: `1px solid ${T.borderFaint}`, margin: "8px 0", ...style }} />
@@ -252,6 +335,8 @@ window.UI = (() => {
     StatBlock,
     SectionTitle,
     ScreenHeader,
+    NarrativePanel,
+    NarrativeLine,
     LogList,
     Divider,
     EmptyState,

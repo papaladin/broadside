@@ -186,7 +186,7 @@ window.S = window.S || {};
         <div style={{ ...panelStyle({ maxWidth: 500, width: "100%" }), borderColor: typeColor[ev.type] ?? T.border }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><Pill label={ev.type} color={typeColor[ev.type] ?? T.textDim} /><span style={{ color: T.textDim, fontSize: 10 }}>Day {state.day}</span></div>
           <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold", marginBottom: 8 }}>{ev.title}</div>
-          <p style={{ color: T.text, fontSize: 12, marginBottom: 20, lineHeight: 1.6 }}>{ev.desc}</p>
+          <p style={{ color: T.text, fontSize: T.narrativeFontSize, marginBottom: 20, lineHeight: T.narrativeLineHeight }}>{ev.desc}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {ev.choices.map((c, i) => (
               <div key={i} onClick={() => dispatch({ type: A.RESOLVE_EVENT, choiceIndex: i })} style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }} onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
@@ -200,7 +200,6 @@ window.S = window.S || {};
     );
   }
 
-  // ── INTERCEPT SCREEN ──────────────────────────────────────────────────
   // ── INTERCEPT SCREEN (data‑driven from options array) ──────────────
 const InterceptScreen = ({ state, dispatch }) => {
   const ctx = state.encounterContext;
@@ -309,7 +308,7 @@ const InterceptScreen = ({ state, dispatch }) => {
           </div>
         </div>
         <div style={{ ...panelStyle({ background: T.bgDeep, height: 130, overflowY: "auto" }) }}>
-          {[...bs.log].reverse().map((e, i) => <div key={i} style={{ color: i === 0 ? T.text : T.textDim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>{e}</div>)}
+          {[...bs.log].reverse().map((e, i) => <div key={i} style={{ color: i === 0 ? T.text : T.textDim, fontSize: T.narrativeFontSize, marginBottom: 3, lineHeight: T.narrativeLineHeight }}>{e}</div>)}
         </div>
         {!done ? (
   <div>

@@ -152,7 +152,7 @@ Each tier is self-contained. The game is fully playable at every tier boundary.
 
 ## Tier 1 — Final Clean-Up & Balance Grounding
 
-### T1.1 — Fix Test Suite
+### T1.1 — Fix Test Suite --> done
 
 **Status:** In progress (down from 74 failures to ~15)
 
@@ -167,7 +167,7 @@ Root causes of remaining failures:
 - Mission flow assertions that don't match current reducer logic (COMPLETE_MISSION at wrong port)
 - Discovery condition edge cases (dryTortugas requires ALL conditions, not ANY)
 
-### T1.2 — Economy Balance Validation
+### T1.2 — Economy Balance Validation --> done
 
 | | |
 |---|---|
@@ -181,7 +181,7 @@ Root causes of remaining failures:
 
 > *Theme: Make existing systems visible and interconnected. The world stops being a backdrop and starts being a participant.*
 
-### T2.1 — Alert System (Faction Heat)
+### T2.1 — Alert System (Faction Heat) --> done
 
 When you do something aggressive near a faction's territory, that faction's ports get a temporary **alert level** that decays over 10–15 days.
 
@@ -195,7 +195,7 @@ When you do something aggressive near a faction's territory, that faction's port
 
 **Implementation:** `state.factionAlerts: { spanish: { level: 3, decayDay: 45 } }`. Checked by `maybeRandomPatrol()`. Set by `DISMISS_BATTLE` and `INTERCEPT_FLEE`.
 
-### T2.2 — Crew Faction Loyalty
+### T2.2 — Crew Faction Loyalty --> done
 
 Crew members react when you attack ships belonging to their faction.
 
@@ -209,7 +209,7 @@ Crew members react when you attack ships belonging to their faction.
 
 **Implementation:** Check in `DISMISS_BATTLE`: loop roster, find members whose `faction` matches defeated `enemy.faction`, apply morale delta, add log entry.
 
-### T2.3 — Arrival Gossip
+### T2.3 — Arrival Gossip --> done
 
 When entering a port, contextual log lines reflect recent player actions.
 
@@ -224,7 +224,7 @@ When entering a port, contextual log lines reflect recent player actions.
 - *"Merchants approach eagerly — your reputation as a reliable trader precedes you."*
 - *"The harbourmaster frowns. The contraband in your hold is poorly hidden."*
 
-### T2.4 — Port Personality and Ambiance
+### T2.4 — Port Personality and Ambiance --> done
 
 Each port gets a generated flavour paragraph on arrival — weather, crowd mood, market activity, rumours.
 
@@ -236,7 +236,7 @@ Each port gets a generated flavour paragraph on arrival — weather, crowd mood,
 
 **Note:** This is pure content via generators — template strings filled with game state. Zero new systems, massive feel improvement.
 
-### T2.5 — Rumour System
+### T2.5 — Rumour System  --> done
 
 Taverns and port arrivals surface procedurally generated rumours about trade opportunities, dangers, and missions elsewhere.
 
@@ -248,7 +248,7 @@ Taverns and port arrivals surface procedurally generated rumours about trade opp
 
 **Implementation:** Template system in `data.js` + `generators.js`. Rumours reflect real game state (actual prices, actual alert levels, actual reputation). Some are misleading (10% chance of false rumour).
 
-### T2.6 — Friendly Encounter Types
+### T2.6 — Friendly Encounter Types --> done or parked item
 
 Not every encounter at sea is hostile.
 
@@ -276,7 +276,7 @@ Defeat currently means: wash ashore, lose cargo, continue. No lasting scar.
 
 > *Theme: Crew stop being numbers and start being characters. This is where attachment and emergent stories come from.*
 
-### T3.1 — Crew Traits (Visible and Hidden)
+### T3.1 — Crew Traits (Visible and Hidden) -> in progress
 
 Each crew member gains 0–2 traits at generation. Visible traits are shown immediately. Hidden traits reveal after 30+ days aboard.
 
@@ -303,7 +303,7 @@ Crew members who survive dangerous events gain permanent scars.
 | **Dependencies** | T3.1 |
 | **Definition of Done** | Storm survivors, battle survivors, and mutiny survivors gain scars. Scars are visible traits with minor effects. A scarred crew tells the story of where you've been. |
 
-### T3.3 — Crew Tensions
+### T3.3 — Crew Tensions 
 
 Crew members from rival factions generate tension events.
 
@@ -313,7 +313,7 @@ Crew members from rival factions generate tension events.
 | **Dependencies** | T3.1 |
 | **Definition of Done** | Having English and Spanish crew aboard triggers occasional tension events. Player must mediate (cost: gold/morale) or let it escalate (risk: crew fight, injury, desertion). |
 
-### T3.4 — Officer Poaching & Mutiny Crises
+### T3.4 — Officer Poaching & Mutiny Crises --> parked
 
 | | |
 |---|---|
@@ -436,6 +436,49 @@ Replace the current flat `upgrades[]` array with a slot-based system where each 
 | **Complexity** | High |
 | **Dependencies** | T5.2 (world events), T6.1 (rival captains) |
 | **Definition of Done** | Each starting scenario has a 3–5 step personal quest that unfolds as fame increases. Quests interact with world events and rival captains. Completing the quest is one path to the endgame. Inspired by Occidental Heroes' main quest as spine. |
+
+### T6.5 — Combat Log Transcript Reformatting
+
+| | |
+|---|---|
+| **Complexity** | Low |
+| **Dependencies** | None |
+| **Definition of Done** | Battle log entries are grouped by round, player actions rendered in gold, enemy actions in red, crew loss lines in danger color. Victory/defeat shows as a large banner. Better spacing and icons throughout. |
+
+### T6.6 — Crew Veteran Status & Detail Card
+
+| | |
+|---|---|
+| **Complexity** | Low |
+| **Dependencies** | T2.2 (crew loyalty tags) |
+| **Definition of Done** | Crew detail card shows veteran badge based on days aboard (New hand <15, Seasoned 30+, Veteran 100+, Old Salt 200+). Days aboard displayed prominently. Tag explanations visible directly in card. |
+
+### T6.7 — Lightweight Crew Stats
+
+| | |
+|---|---|
+| **Complexity** | Low |
+| **Dependencies** | T6.6 |
+| **Definition of Done** | Each crew member tracks `stats: { battlesSurvived, voyagesSurvived, timesUpset, stormsSurvived }`. Stats increment automatically on relevant events. Displayed in crew detail card. |
+
+### T6.8 — Rumour Memory
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | T2.5 (rumour system) |
+| **Definition of Done** | Useful rumours (hidden port hints, market tips, heat warnings) are stored in `state.rumoursHeard` and can be revisited later. Last 5 shown in Status screen. |
+
+### T6.9 — Captain’s Journal
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | T6.8 (rumour memory), log categories from T2.3 |
+| **Definition of Done** | A new Journal screen (accessible from Port, Sailing, Status) displays the captain's log grouped by day with category filters (All, Crew, Combat, Ports, Missions, Trade, Rumours). Entry categories derived from log prefixes. |
+
+
+
 
 ---
 

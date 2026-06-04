@@ -1394,6 +1394,106 @@ window.TESTS.push({
   }
 },
 
+// ── Gossip Generator ──────────────────────────────────────────
+{
+  name: "G.GOSSIP.1 generatePortGossip returns 2-4 strings for a valid port",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({ currentPort: "portRoyal", portMarket: null });
+    const lines = G.generatePortGossip(state, "portRoyal");
+    u.assert(lines.length >= 2 && lines.length <= 4, `Expected 2-4 lines, got ${lines.length}`);
+    u.assert(lines.every(l => typeof l === "string"), "All lines should be strings");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "G.GOSSIP.2 heat gossip appears when faction alert >= 3",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "havana",
+      factionAlerts: { english: 0, spanish: 5, french: 0, dutch: 0, pirate: 0 },
+      portMarket: null,
+    });
+    const lines = G.generatePortGossip(state, "havana");
+    // Heat = 5 -> medium bucket. Should contain a heat line.
+    u.assert(lines.some(l =>
+      l.includes("harbourmaster") || l.includes("soldiers") || l.includes("guards") || l.includes("notice board")
+    ), "Should contain a heat warning line");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "G.GOSSIP.3 contraband gossip appears when hold has illegal goods and heat < 3",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "portRoyal",
+      hold: { items: { food: 5, water: 5, tobacco: 3 } },
+      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+      portMarket: null,
+    });
+    const lines = G.generatePortGossip(state, "portRoyal");
+    // No heat, but contraband -> should see contraband line
+    u.assert(lines.some(l =>
+      l.includes("customs") || l.includes("dockworkers") || l.includes("smell") || l.includes("manifests")
+    ), "Should contain a contraband warning line");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "G.GOSSIP.4 reputation line appears based on rep tier",
+  run: (u) => {
+    u.resetRandomStub();
+    const state = makeState({
+      currentPort: "bridgetown",
+      reputation: { bridgetown: 80 }, // allied
+      portMarket: null,
+    });
+    const lines = G.generatePortGossip(state, "bridgetown");
+    // Should have a reputation line (allied bucket has specific phrases)
+    u.assert(lines.some(l =>
+      l.includes("welcome") || l.includes("opens doors") || l.includes("raise a glass") || l.includes("hero")
+    ), "Allied reputation should produce a positive gossip line");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "G.GOSSIP.5 local market gossip appears only when price deviation is extreme",
+  run: (u) => {
+    u.resetRandomStub();
+    // Force market with a good at extreme low price
+    const state = makeState({
+      currentPort: "curacao",
+      portMarket: {
+        goods: {
+          rum: { basePrice: 30, buyFromPort: 20, sellToPort: 18, available: 50 }, // 20 is well below min (24)
+        }
+      },
+      hold: { items: { food: 5, water: 5 } },
+    });
+    const lines = G.generatePortGossip(state, "curacao");
+    // Rum is cheap -> should see surplus line
+    u.assert(lines.some(l =>
+      l.includes("overflow") || l.includes("cheap") || l.includes("flooded") || l.includes("giving")
+    ), "Cheap rum should produce surplus gossip");
+    u.resetRandomStub();
+  }
+},
+{
+  name: "G.GOSSIP.6 SAIL_TO clears portGossip",
+  run: (u) => {
+    const state = makeState({
+      screen: "map",
+      currentPort: "portRoyal",
+      destination: null,
+      portGossip: ["test gossip"],
+    });
+    const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
+    u.assert(s.portGossip.length === 0, "portGossip should be cleared on SAIL_TO");
+  }
+},
+
 
 // ── Crew Loyalty: Alignment on Mission Complete ─────────────
 {
