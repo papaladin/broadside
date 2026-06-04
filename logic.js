@@ -291,6 +291,7 @@ const getUnreachableReason = (state, portKey) => {
   
     // ── Crew tags (for T2.2+ traits system) ────────────────────────
   const hasTag = (member, tag) => (member.tags || []).includes(tag);
+  
   const addTag = (member, tag) => ({
     ...member,
     tags: [...(member.tags || []), tag]
@@ -300,6 +301,18 @@ const getUnreachableReason = (state, portKey) => {
     tags: (member.tags || []).filter(t => t !== tag)
   });
   const crewWithTag = (roster, tag) => roster.filter(m => hasTag(m, tag));
+
+const revealTag = (member, traitName) => {
+  const hidden = "hidden_" + traitName;
+  const revealed = "revealed_" + traitName;
+  if (member.tags?.includes(hidden)) {
+    return {
+      ...member,
+      tags: [...(member.tags || []).filter(t => t !== hidden), revealed],
+    };
+  }
+  return member;
+};
 
   // ── Crew faction alignment ─────────────────────────────────────
   const getCrewAlignment = (state, faction) => {
@@ -906,6 +919,7 @@ const applyLoseContraband = (holdItems) => {
     addTag,
     removeTag,
     crewWithTag,
+    revealTag,
     getCrewAlignment,
     getAlignmentModifier,
 

@@ -72,7 +72,7 @@ const isExtremePrice = (good, buyPrice) => {
       attempts++;
     } while (existingNames.includes(fullName) && attempts < 50);
 
-    return {
+    const member = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       firstName,
       lastName,
@@ -81,6 +81,15 @@ const isExtremePrice = (good, buyPrice) => {
       daysAboard: 0,
       tags: [], 
     };
+     // 5% chance of one hidden trait (max 1)
+    const traitRoll = Math.random();
+    if (traitRoll < 0.02) member.tags.push("hidden_drunkard");
+    else if (traitRoll < 0.03) member.tags.push("hidden_coward");
+    else if (traitRoll < 0.04) member.tags.push("hidden_greedy");
+    else if (traitRoll < 0.05) member.tags.push("hidden_troublemaker");
+
+    return member;
+
   };
 
   const generateRoster = (count, faction = "pirate") => {
@@ -93,6 +102,108 @@ const isExtremePrice = (good, buyPrice) => {
     }
     return roster;
   };
+
+  const generateCrewBio = (member, state) => {
+  const days = member.daysAboard || 0;
+  const tags = member.tags || [];
+  const firstName = member.firstName;
+  const lines = [];
+
+  // ── Opening (days aboard) ─────────────────────────────────
+  if (days < 15)
+    lines.push(`${firstName} is still finding their place among the crew.`);
+  else if (days < 50)
+    lines.push(`${firstName} has been aboard for ${days} days. The crew has grown used to them.`);
+  else if (days < 100)
+    lines.push(`${firstName} is a seasoned hand, trusted by the crew after ${days} days at sea.`);
+  else if (days < 200)
+    lines.push(`${firstName} is a veteran of ${days} days, someone the others look to in a crisis.`);
+  else
+    lines.push(`${firstName} is an old salt, with ${days} days aboard. This ship is their home.`);
+
+  // ── Collect tag categories ───────────────────────────────
+  const scars = [];
+  const revealed = [];
+  let hasMutineer = false;
+  if (tags.includes("scar_battle")) scars.push("deadly battle");
+  if (tags.includes("scar_storm")) scars.push("violent storm");
+  if (tags.includes("scar_shipwreck")) scars.push("shipwreck");
+  if (tags.includes("revealed_drunkard")) revealed.push("have a fondness for rum");
+  if (tags.includes("revealed_coward")) revealed.push("lose their nerve when danger looms");
+  if (tags.includes("revealed_greedy")) revealed.push("always look for a bigger cut");
+  if (tags.includes("mutineer")) hasMutineer = true;
+
+  // ── Special combination detection ─────────────────────────
+  const combos = [];
+  if (hasMutineer && scars.includes("deadly battle"))       combos.push("m_battle");
+  if (hasMutineer && revealed.includes("lose their nerve when danger looms")) combos.push("m_coward");
+  if (revealed.includes("have a fondness for rum") && revealed.includes("always look for a bigger cut")) combos.push("drunk_greedy");
+  if (revealed.includes("lose their nerve when danger looms") && scars.includes("deadly battle")) combos.push("coward_battle");
+  if (scars.includes("violent storm") && scars.includes("shipwreck")) combos.push("storm_wreck");
+  if (hasMutineer && scars.includes("violent storm"))       combos.push("m_storm");
+  if (revealed.includes("have a fondness for rum") && scars.includes("shipwreck")) combos.push("drunk_wreck");
+
+  // ── Special sentences (replace generic scar/trait/mutineer lines) ──
+  const specialSentences = {
+    m_battle:      "They have survived battle and mutiny alike. Some scars run deeper than others.",
+    m_coward:      "They followed the mutineers, but their courage failed when it mattered most.",
+    drunk_greedy:  "Their fondness for rum is matched only by their hunger for gold.",
+    coward_battle: "They've seen too many battles; it has left them fearful and scarred.",
+    storm_wreck:   "Twice the sea tried to claim them — a storm and a wreck. They're still here.",
+    m_storm:       "After surviving a storm, they thought they could survive anything — even mutiny.",
+    drunk_wreck:   "They say the drink started after the shipwreck. No one asks too many questions.",
+  };
+
+  // ── Determine which generic slots are suppressed ──────────
+  let suppressScars = false;
+  let suppressTraits = false;
+  let suppressMutineer = false;
+
+  if (combos.includes("m_battle") || combos.includes("m_storm")) {
+    suppressMutineer = true;
+    suppressScars = true;
+  }
+  if (combos.includes("m_coward")) {
+    suppressMutineer = true;
+    suppressTraits = true;
+  }
+  if (combos.includes("drunk_greedy")) suppressTraits = true;
+  if (combos.includes("coward_battle")) { suppressTraits = true; suppressScars = true; }
+  if (combos.includes("storm_wreck")) suppressScars = true;
+  if (combos.includes("drunk_wreck")) { suppressTraits = true; suppressScars = true; }
+
+  // Output special sentences
+  for (const c of combos) lines.push(specialSentences[c]);
+
+  // ── Scar line (if any, and not suppressed) ────────────────
+  if (!suppressScars && scars.length > 0) {
+    if (scars.length === 1)
+      lines.push(`They carry the scars of a ${scars[0]}.`);
+    else if (scars.length === 2)
+      lines.push(`They have survived a ${scars[0]} and a ${scars[1]}.`);
+    else if (scars.length === 3)
+      lines.push(`They have survived a ${scars[0]}, a ${scars[1]}, and a ${scars[2]}.`);
+  }
+
+  // ── Trait line (if any, and not suppressed) ──────────────
+  if (!suppressTraits && revealed.length > 0) {
+    if (revealed.length === 1)
+      lines.push(`Known to ${revealed[0]}.`);
+    else if (revealed.length === 2)
+      lines.push(`Known to ${revealed[0]} and ${revealed[1]}.`);
+    else if (revealed.length === 3)
+      lines.push("Known to drink, shrink from danger, and demand a larger share.");
+  }
+
+  // ── Mutineer line (if any, and not suppressed) ────────────
+  if (!suppressMutineer && hasMutineer)
+    lines.push("Their involvement in the mutiny is a stain that will never wash off.");
+
+  return lines.join(" ");
+};
+
+
+
 
 // ---- MARKET GENRATORS ---------------------------------
 
@@ -767,8 +878,9 @@ const generatePortGossip = (state, portKey) => {
     // crew (migrated)
     generateCrewMember,
     generateRoster,
-    generateEnemyCargo,
+    generateCrewBio,
     // missions
+    generateEnemyCargo,
     generateMissions,
     generateEnemy,
     generateEnemyName,

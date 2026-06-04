@@ -60,6 +60,7 @@ window.E = window.E || {};
     DEBUG_MAX_CREW: "DEBUG_MAX_CREW",
     DEBUG_COMPLETE_MISSION: "DEBUG_COMPLETE_MISSION",
     DEBUG_SET_HEAT: "DEBUG_SET_HEAT",
+    DEBUG_AGE_CREW: "DEBUG_AGE_CREW",
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -238,33 +239,62 @@ window.E._reducers.push((state, action) => {
         log: [...state.log, "⚙ All hidden ports unlocked."],
       };
 
-    case window.E.A.DEBUG_MAX_CREW: {
-      const max = L.getShipStats(state).maxCrew;
-      const deficit = Math.max(0, max - state.crew.roster.length);
-      if (deficit === 0) return state;
+case window.E.A.DEBUG_MAX_CREW: {
+  const max = L.getShipStats(state).maxCrew;
+  const deficit = Math.max(0, max - state.crew.roster.length);
+  if (deficit === 0) return state;
 
-      const factions = Object.keys(window.D.FACTIONS);
-      const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
-      const newMembers = [];
-      for (let i = 0; i < deficit; i++) {
-        const faction = factions[Math.floor(Math.random() * factions.length)];
-        const member = G.generateCrewMember(faction, existingNames);
-        // Randomly assign some tags for testing purposes
-        const roll = Math.random();
-        if (roll < 0.20) member.tags.push("upset");
-        else if (roll < 0.30) member.tags.push("mutineer");
-        else if (roll < 0.35) member.tags.push("loyal");
-        else if (roll < 0.40) member.tags.push("trait_drunkard");
-        newMembers.push(member);
-        existingNames.push(`${member.firstName} ${member.lastName}`);
-      }
+  const factions = Object.keys(window.D.FACTIONS);
+  const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
+  const newMembers = [];
 
-      return {
-        ...state,
-        crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-        log: [...state.log, `⚙ Hired ${deficit} crew to fill ship capacity (random factions & tags).`],
-      };
+  for (let i = 0; i < deficit; i++) {
+    const faction = factions[Math.floor(Math.random() * factions.length)];
+    const member = G.generateCrewMember(faction, existingNames);
+
+    // Random days aboard (10–250) to trigger seasoned/veteran/loyal
+    member.daysAboard = Math.floor(Math.random() * 240) + 10;
+
+    // ── Status tags ──────────────────────────────────────
+    const rollLoyal = Math.random() < 0.30;  // 30% loyal
+    if (rollLoyal) {
+      member.tags.push("loyal");
     }
+
+    const rollUpset = Math.random() < 0.30 && !rollLoyal;  // upset only if not loyal
+    if (rollUpset) {
+      member.tags.push("upset");
+    }
+
+    if (Math.random() < 0.25) member.tags.push("mutineer");  // 25% mutineer
+
+    // ── Scars ────────────────────────────────────────────
+    if (Math.random() < 0.35) member.tags.push("scar_battle");
+    if (Math.random() < 0.25) member.tags.push("scar_storm");
+    if (Math.random() < 0.15) member.tags.push("scar_shipwreck");
+
+    // ── Revealed traits (bypass hidden, for UI testing) ───
+    if (Math.random() < 0.25) member.tags.push("revealed_drunkard");
+    if (Math.random() < 0.15) member.tags.push("revealed_coward");
+    if (Math.random() < 0.15) member.tags.push("revealed_greedy");
+
+    // ── Also add a hidden trait occasionally (will be invisible) ──
+    if (Math.random() < 0.20) {
+      const hiddenPool = ["hidden_drunkard", "hidden_coward", "hidden_greedy"];
+      member.tags.push(hiddenPool[Math.floor(Math.random() * hiddenPool.length)]);
+    }
+
+    newMembers.push(member);
+    existingNames.push(`${member.firstName} ${member.lastName}`);
+  }
+
+  return {
+    ...state,
+    crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
+    log: [...state.log, `⚙ Hired ${deficit} crew with random traits for testing.`],
+  };
+}
+
 
     case window.E.A.DEBUG_COMPLETE_MISSION: {
       const mission = state.activeMission;
@@ -292,6 +322,19 @@ window.E._reducers.push((state, action) => {
   alerts[action.faction] = Math.min(10, Math.max(0, action.amount));
   return { ...state, factionAlerts: alerts };
 }
+
+case window.E.A.DEBUG_AGE_CREW: {
+  const aged = state.crew.roster.map(member => ({
+    ...member,
+    daysAboard: (member.daysAboard || 0) + 50,
+  }));
+  return {
+    ...state,
+    crew: { ...state.crew, roster: aged },
+    log: [...state.log, `⚙ Added 50 days aboard to all crew.`],
+  };
+}
+
 
     default:
       return state;

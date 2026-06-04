@@ -195,10 +195,18 @@
 
           const newRoster = [];
           for (const member of nextState.crew.roster) {
+
+            // Skip loyal crew entirely
+            if (L.hasTag(member, "loyal")) {
+              newRoster.push(member);
+              continue;
+            }
+
             if (L.hasTag(member, "upset")) {
               let desertChance = 0.30;
               if (nextState.crew.morale > 60) desertChance = 0.10;
               if (L.hasTag(member, "mutineer")) desertChance *= 2;
+              if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
               if (portFaction && member.faction === portFaction) desertChance += 0.20;
 
               if (Math.random() < desertChance) {
@@ -241,6 +249,48 @@
             nextState.crew = { ...nextState.crew, roster: newRoster };
           }
         }
+
+        // ── Positive traits: seasoned → veteran → loyal ──────────────
+nextState.crew.roster = nextState.crew.roster.map(member => {
+  const days = member.daysAboard || 0;
+  const tags = member.tags || [];
+
+  // Already loyal — nothing changes
+  if (tags.includes("loyal")) return member;
+
+  // Check if eligible for loyal
+  if (days >= 200 && !tags.includes("upset")) {
+    const memberFaction = member.faction;
+    const factionPorts = Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === memberFaction);
+    const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
+    if (maxRep >= 80) {
+      const updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
+      updated.tags.push("loyal");
+      nextState.log = [...(nextState.log || state.log),
+        `${member.firstName} has pledged their loyalty. 'This ship is my home now, Captain.'`];
+      return updated;
+    }
+  }
+
+  // Veteran (100+ days) — replaces seasoned
+  if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
+    const updated = L.removeTag(member, "seasoned");
+    updated.tags.push("veteran");
+    nextState.log = [...(nextState.log || state.log),
+      `${member.firstName} has served 100 days aboard. A true veteran.`];
+    return updated;
+  }
+
+  // Seasoned (50+ days) — only if not already veteran or loyal
+  if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
+    member.tags.push("seasoned");
+    nextState.log = [...(nextState.log || state.log),
+      `${member.firstName} has found their sea legs. A seasoned hand now.`];
+    return member;
+  }
+
+  return member;
+});
 
         // ── Port gossip
         nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
@@ -346,6 +396,32 @@
             log: [...state.log, `Accepted mission: ${mission.name}.`]
           };
         }
+
+        // ── Coward trait: fear on dangerous missions ─────────────────
+        const isDangerous = (mission) => mission.risk === "high" || mission.type === "assault";
+        if (isDangerous(mission)) {
+          const cowards = state.crew.roster.filter(m =>
+            m.tags?.includes("hidden_coward") || m.tags?.includes("revealed_coward")
+          );
+          if (cowards.length > 0) {
+            const firstCoward = cowards[0];
+            const wasHidden = firstCoward.tags?.includes("hidden_coward");
+            const updatedCoward = wasHidden ? L.revealTag(firstCoward, "coward") : firstCoward;
+            const newRoster = state.crew.roster.map(m => m.id === updatedCoward.id ? updatedCoward : m);
+            const newMorale = Math.max(0, state.crew.morale - 3);
+            const logLine = wasHidden
+              ? `${firstCoward.firstName} is visibly shaking. He didn't sign up for this kind of work.`
+              : `${firstCoward.firstName} looks terrified. Again.`;
+
+            return {
+              ...state,
+              activeMission: { ...mission, encounterOccurred: false },
+              crew: { ...state.crew, roster: newRoster, morale: newMorale },
+              log: [...state.log, logLine],
+            };
+          }
+        }
+
         return {
           ...state,
           activeMission: { ...mission, encounterOccurred: false },
@@ -438,6 +514,38 @@
             nextState.factionAlerts = alerts;
           }
         }
+
+        // ── Greedy trait: demands bonus ──────────────────────────────
+        const greedyMembers = nextState.crew.roster.filter(m =>
+          m.tags?.includes("hidden_greedy") || m.tags?.includes("revealed_greedy")
+        );
+        if (greedyMembers.length > 0) {
+          const greedy = greedyMembers[0]; // only one triggers per mission
+          const wasHidden = greedy.tags?.includes("hidden_greedy");
+          if (nextState.gold >= 50) {
+            nextState.gold -= 50;
+            nextState.crew.roster = nextState.crew.roster.map(m =>
+              m.id === greedy.id ? (wasHidden ? L.revealTag(m, "greedy") : m) : m
+            );
+            nextState.log = [...nextState.log,
+              wasHidden
+                ? `${greedy.firstName} demands a larger share. "I did my part," he says, hand out.`
+                : `${greedy.firstName} demands his usual cut.`
+            ];
+          } else {
+            // Can't afford — becomes upset
+            nextState.crew.roster = nextState.crew.roster.map(m =>
+              m.id === greedy.id
+                ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
+                : m
+            );
+            nextState.log = [...nextState.log,
+              wasHidden
+                ? `${greedy.firstName} demands a larger share. When refused, he grows bitter.`
+                : `${greedy.firstName} demands his cut, and your refusal leaves him seething.`
+            ];
+          }
+}
 
         autoSave(nextState);
         return nextState;

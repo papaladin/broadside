@@ -177,6 +177,47 @@
     return { discoveredPorts: autoDiscovered, log: autoDiscoveryLog };
   };
 
+
+  const maybeDrunkardEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
+  if (newDays < 1) return null;
+  // 20% chance to even check for drunkards
+  if (Math.random() >= 0.20) return null;
+
+  const rumInHold = state.hold?.items?.rum || 0;
+  if (rumInHold <= 0) return null;
+
+  // Skip if on a smuggling mission (except smuggling rum specifically)
+  if (state.activeMission?.type === "smuggle" && state.activeMission.requiredGood !== "rum") return null;
+
+  const drunkards = state.crew.roster.filter(m =>
+    (m.tags || []).includes("hidden_drunkard") || (m.tags || []).includes("revealed_drunkard")
+  );
+  if (drunkards.length === 0) return null;
+
+  const drunkard = drunkards[Math.floor(Math.random() * drunkards.length)];
+  const wasHidden = (drunkard.tags || []).includes("hidden_drunkard");
+  const updatedDrunkard = wasHidden ? L.revealTag(drunkard, "drunkard") : drunkard;
+
+  const newRoster = state.crew.roster.map(m => m.id === updatedDrunkard.id ? updatedDrunkard : m);
+  const newLogLine = wasHidden
+    ? `Someone stole some rum from the hold. The Bosun found it was ${drunkard.firstName}.`
+    : `${drunkard.firstName} took some rum from the hold. Again.`;
+
+  return {
+    ...state,
+    wind: newWind,
+    day: state.day + 1,
+    sailingDaysLeft: newDays,
+    gold: newGold,
+    reputation: newRep,
+    crew: { ...state.crew, roster: newRoster, morale: newMorale },
+    hold: { ...state.hold, items: { ...newHoldItems, rum: rumInHold - 1 } },
+    log: [...state.log, newLogLine],
+  };
+};
+
+
+
   // ── Reducer ──────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
     switch (action.type) {
@@ -208,7 +249,6 @@
           });
         }
 
-
         const newLog = [...state.log];
         if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
         if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
@@ -228,6 +268,10 @@
         // Escort / Patrol mission encounter
         const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
         if (missionEncResult) return missionEncResult;
+
+        // Drunkard event
+        const drunkardResult = maybeDrunkardEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (drunkardResult) return drunkardResult;
 
         // Hidden port discovery
         const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);

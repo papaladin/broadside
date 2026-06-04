@@ -364,6 +364,13 @@ const DebugPanel = ({ state, dispatch }) => {
   style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
   ✅ Complete active mission
 </button>
+
+{/* Crew Ageing */}
+<button onClick={() => dispatch({ type: A.DEBUG_AGE_CREW })}
+  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
+  📅 +50 days aboard (all crew)
+</button>
+
     </div>
   );
 };

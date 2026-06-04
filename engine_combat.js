@@ -391,7 +391,7 @@
           if (enemyFaction) {
             const upsetMembers = [];
             const updatedRoster = currentState.crew.roster.map(member => {
-              if (member.faction === enemyFaction && !L.hasTag(member, "upset") && Math.random() < 0.15) {
+              if (member.faction === enemyFaction && !L.hasTag(member, "upset") && !L.hasTag(member, "loyal") && Math.random() < 0.15) {
                 upsetMembers.push(`${member.firstName} ${member.lastName}`);
                 return L.addTag(member, "upset");
               }
@@ -413,6 +413,24 @@
                 log: newLog,
               };
             }
+          }
+        }
+
+        // ── Battle scar: heavy casualties ──────────────────────────
+        if (battleState.phase === "victory" && currentState.crew?.roster) {
+          const initialCrew = battleState.initialCrewCount ?? currentState.crew.roster.length;
+          const lostCount = initialCrew - currentState.crew.roster.length;
+          if (lostCount >= 10) {
+            const scarredRoster = currentState.crew.roster.map(member => {
+              if (!L.hasTag(member, "scar_battle")) {
+                return L.addTag(member, "scar_battle");
+              }
+              return member;
+            });
+            currentState = {
+              ...currentState,
+              crew: { ...currentState.crew, roster: scarredRoster },
+            };
           }
         }
 
@@ -601,6 +619,16 @@
           newState.reputation = rep;
         }
         if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
+        // ── Storm scar: all survivors tagged ───────────────────────
+        if (event.id === "storm") {
+          const scarredRoster = (newState.crew?.roster || state.crew.roster).map(member => {
+            if (!L.hasTag(member, "scar_storm")) {
+              return L.addTag(member, "scar_storm");
+            }
+            return member;
+          });
+          newState.crew = { ...(newState.crew || state.crew), roster: scarredRoster };
+        }
         if (choice.outcome.moraleBonus) newState.crew = { ...newState.crew, morale: Math.max(0, Math.min(100, (newState.crew.morale || state.crew.morale) + choice.outcome.moraleBonus)) };
 
         if (choice.outcome.battle) {
@@ -664,7 +692,7 @@
         // ── outcome.addCrew ───────────────────────────────────────
         if (choice.outcome.addCrew) {
           const { count, faction, tags, negativeTagChance } = choice.outcome.addCrew;
-          const negativeTags = ["trait_troublemaker", "trait_drunkard", "trait_coward", "trait_greedy"];
+          const negativeTags = ["hidden_troublemaker", "hidden_drunkard", "hidden_coward", "hidden_greedy"];
           const factions = faction ? [faction] : ["english", "spanish", "french", "dutch", "pirate"];
 
           const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
