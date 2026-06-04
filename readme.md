@@ -11,12 +11,12 @@ Build your ship, manage your crew, and navigate the treacherous waters of the 17
 - **Caribbean map** – 14 ports across 5 factions, each with its own economy and services.
 - **Turn‑based naval combat** – broadsides, precision shots, grappling, and evasive maneuvers.
 - **Pre‑battle intercept** – negotiate, bribe, flee, or surrender before every encounter.
-- **Dynamic missions** – trade, escort, smuggle, hunt pirates, or assault ports (generated fresh each visit).
-- **Cargo trading** – buy low, sell high across ports; a full hold slows your ship.
-- **Provision management** – stock food and water for voyages; shortages hurt morale and speed.
+- **Dynamic missions** – trade, escort, smuggle, hunt pirates, or assault ports, each mission is randomly generated, creating thousands of combinations.
+- **Cargo trading** – 14 tradeable goods (food, water, rum, sugar, timber, cloth, spices, silk, coffee, cocoa, weapons, tobacco, silver, slaves), each with unique availability, legality, and pricing per port. Buy low, sell high across ports; a full hold slows your ship.
+- **Provision management** – stock food and water for voyages; shortages hurt morale, full hold impacts speed.
 - **Fame & Infamy** – permanent reputation that unlocks ships, upgrades, and missions (or closes options).
 - **Ship upgrades** – reinforced hull, extra cannons, figureheads, and more.
-- **Morale system** – keep the crew happy with port drinks; low morale weakens combat and travel.
+- **Crew Management** – keep the crew happy with port drinks; low morale weakens combat and travel, or could lead to mutiny and deserters. Over the days, each crew member will have its own story written.
 - **Random events** – storms, mutinies, treasures, and patrols.
 - **Save & Load** – progress stored in your browser’s localStorage.
 
@@ -76,7 +76,10 @@ Broadside/
 ├── data.js                 # Game constants (ports, ships, factions, etc.)
 ├── logic.js                # Pure game logic functions
 ├── generators.js           # Runtime content generators (crew, missions, market)
-├── engine.js               # State management (reducer, actions, initial state)
+├── engine_core.js          # **Core engine**: Action constants, initial state, reducer chain, auto-save, state migration
+├── engine_port.js          # **Port engine**: Reducers for port actions (REPAIR, BUY_SHIP, BUY_UPGRADE, HIRE_CREW, MISSIONS, SAVE/LOAD)
+├── engine_voyage.js        # **Voyage engine**: Reducers for sailing (ADVANCE_DAY, DISCOVER_PORT, hidden port discovery, random events, patrols)
+├── engine_combat.js        # **Combat engine**: Reducers for intercepts, battles, plunder, and events (INTERCEPT_*, BATTLE_ACTION, DISMISS_BATTLE, RESOLVE_EVENT)
 ├── ui.jsx                  # Reusable UI components & theme tokens
 ├── screens_shared.jsx      # Shared micro‑components
 ├── screens_port.jsx        # Port‑zone screens (Start, Port, Shipyard, Crew, Status, Market)

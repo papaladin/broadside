@@ -112,6 +112,16 @@ const App = () => {
     const effectiveShipStats = L.getShipStats(state);
     const effectiveMorale = L.getEffectiveMorale(state);
     const [showDetails, setShowDetails] = React.useState(true);
+    const start = state.startDate || { day: 1, month: 6, year: 1695 };
+    const calendarDate = new Date(
+      start.year,
+      start.month - 1,                // JS months are 0‑based
+      start.day + state.day - 1       // Day 1 of the game = the start date
+    ).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
 
     return (
       <div style={{
@@ -132,7 +142,9 @@ const App = () => {
       }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
           <span title={TOOLTIPS.gold} style={{ color: T.gold }}>💰 {state.gold}</span>
-          <span title={TOOLTIPS.day} style={{ color: T.textDim }}>📅 Day {state.day}</span>
+          <span title={TOOLTIPS.day} style={{ color: T.textDim }}>
+  📅 Day {state.day} — {calendarDate}
+</span>
           <button
             onClick={() => setShowDetails(v => !v)}
             style={{

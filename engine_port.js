@@ -208,6 +208,7 @@ const processPositiveTraits = (nextState, state) => {
           infamy: 0,
           fame: start.debugStartFame ?? 0,
           gold: start.gold,
+          startDate: start.startDate ?? { day: 1, month: 6, year: 1695 }, 
           currentPort: start.startPort,
           portMarket: null,
           log: [...(start.openingLog || [])],

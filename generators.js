@@ -545,37 +545,47 @@ const generateCrewBio = (member, state) => {
   };
 
   // Pick a destination port, respecting faction politics
-  const pickTargetPort = (currentPortKey, type, state, faction) => {
-    if (type === "combat") return null; // no destination
+ const pickTargetPort = (currentPortKey, type, state, faction) => {
+  if (type === "combat") return null; // no destination
 
-    const allPorts = Object.keys(window.D.PORTS);
-    let eligible = allPorts.filter(k => k !== currentPortKey);
+  const allPorts = Object.keys(window.D.PORTS);
+  let eligible = allPorts.filter(k => k !== currentPortKey);
 
-    if (type === "assault") {
-      // Only ports whose faction is different from the commissioning faction
-      eligible = eligible.filter(k => window.D.PORTS[k].faction !== faction);
-    } else if (type === "smuggle") {
-      // Exclude pirate ports — you smuggle TO colonial powers, not pirate havens
-      eligible = eligible.filter(k => window.D.PORTS[k].faction !== "pirate");
-    }  else if (type === "patrol") {
-      // Patrol: target a port of a rival faction
-      const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
-      eligible = eligible.filter(k => rivals.includes(window.D.PORTS[k].faction));
-      if (eligible.length === 0) {
-        // fallback: any port of a different faction
-        eligible = allPorts.filter(k => k !== currentPortKey && window.D.PORTS[k].faction !== faction);
-      }
-    } else {
-      // trade, escort: exclude enemy (rival) factions
-      const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
-      eligible = eligible.filter(k => !rivals.includes(window.D.PORTS[k].faction));
+  if (type === "assault") {
+    // Only ports whose faction is different from the commissioning faction
+    eligible = eligible.filter(k => window.D.PORTS[k].faction !== faction);
+  } else if (type === "smuggle") {
+    // Exclude pirate ports — you smuggle TO colonial powers, not pirate havens
+    eligible = eligible.filter(k => window.D.PORTS[k].faction !== "pirate");
+  } else if (type === "patrol") {
+    // Patrol: target a port of a rival faction
+    const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
+    eligible = eligible.filter(k => rivals.includes(window.D.PORTS[k].faction));
+    if (eligible.length === 0) {
+      // fallback: any port of a different faction
+      eligible = allPorts.filter(k => k !== currentPortKey && window.D.PORTS[k].faction !== faction);
     }
-    // Exclude hidden ports that the player hasn't discovered yet
-    eligible = eligible.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
+  } else {
+    // trade, escort: exclude enemy (rival) factions
+    const rivals = window.D.FACTIONS[faction]?.rivalFactions || [];
+    eligible = eligible.filter(k => !rivals.includes(window.D.PORTS[k].faction));
+  }
 
-    if (eligible.length === 0) return null;
-    return pickRandom(eligible);
-  };
+  // Exclude hidden ports that the player hasn't discovered yet
+  eligible = eligible.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
+
+  // NEW: Early-game restriction — limit target ports for fame < 10
+  if ((state.fame ?? 0) < 10) {
+    const starterPorts = [
+      "havana", "nassau", "santiagoDeCuba", "portDePaix", "tortuga",
+      "santoDomingo", "petitGoave", "portRoyal", "kingston"
+    ];
+    eligible = eligible.filter(k => starterPorts.includes(k));
+  }
+
+  if (eligible.length === 0) return null;
+  return pickRandom(eligible);
+};
 
   // ── Trade mission generator ──────────────────────────────────
   const generateTradeMission = (portKey, state, faction, risk) => {

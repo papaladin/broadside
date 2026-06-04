@@ -95,6 +95,9 @@ window.E = window.E || {};
         tags: member.tags || [],
       }));
     }
+    if (!s.startDate) {
+      s.startDate = { day: 1, month: 6, year: 1695 };
+    }
     return s;
   };
 
@@ -123,6 +126,7 @@ window.E = window.E || {};
     version: 1,
     screen: "start",
     day: 1,
+    startDate: { day: 1, month: 6, year: 1695 },
     log: [],
     gold: 1000,
     fame: 0,
