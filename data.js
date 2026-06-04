@@ -1237,7 +1237,7 @@ const ENEMY_SHIP_NAMES = {
       "I need a real reputation before someone calls my bluff. That means work. English work, legal work — at least for now.",
     ],
     starterMission: {
-      type: "escort", name: "Carry the Dispatch to Kingston",
+      type: "delivery", name: "Carry the Dispatch to Kingston",
       description: "An official packet needs to reach the governor's secretary at Kingston. The harbormaster was very clear it should arrive sealed. It's routine paperwork — or it would be, if you were a real Sailing Master.",
       faction: "english", targetPort: "kingston", risk: "low",
       gold: 240, fame: 1, infamyGain: 0,
@@ -1267,7 +1267,7 @@ const ENEMY_SHIP_NAMES = {
       "Sailing alone is harder than I expected. I'll need crew. Someone who doesn't ask questions.",
     ],
     starterMission: {
-      type: "escort", name: "The Package for Santiago",
+      type: "delivery", name: "The Package for Santiago",
       description: "Don Luis's crate must reach a contact in Santiago de Cuba. No questions. No inspection. A sealed delivery, prompt and quiet.",
       faction: "spanish", targetPort: "santiagoDeCuba", risk: "low",
       gold: 280, fame: 1, infamyGain: 0,
@@ -1297,7 +1297,7 @@ const ENEMY_SHIP_NAMES = {
       "There is a note in Deschamps's margin on the passage to Port‑de‑Paix. Something that doesn't appear on any official chart. I'll look when I'm there.",
     ],
     starterMission: {
-      type: "patrol", name: "Chart the Northern Passage",
+      type: "delivery", name: "Chart the Northern Passage",
       description: "The French naval office wants updated soundings on the route between Martinique and Port‑de‑Paix. Sail the passage and return. Deschamps's notes mention something interesting near the northern end that no official chart acknowledges.",
       faction: "french", targetPort: "portDePaix", risk: "low",
       gold: 220, fame: 1, infamyGain: 0,
@@ -1327,7 +1327,7 @@ const ENEMY_SHIP_NAMES = {
       "I'll need crew. A one‑man dinghy in these waters is a statement of either poverty or arrogance. I can't afford either.",
     ],
     starterMission: {
-      type: "escort", name: "The Consignment for Petit-Goâve",
+      type: "delivery", name: "The Consignment for Petit-Goâve",
       description: "A Dutch merchant factor on Petit-Goâve is waiting for a consignment order Pieter is to collect from Santo Domingo company warehouse and deliver. The manifest is signed by someone Pieter recognises from the discrepancy he recorded. He chooses not to think about that.",
       faction: "dutch", targetPort: "petitGoave", risk: "low",
       gold: 250, fame: 1, infamyGain: 0,
@@ -1357,7 +1357,7 @@ const ENEMY_SHIP_NAMES = {
       "Two years of watching from the deck. I know the routes. I know the prices. I know the mistakes people make. Now I find out if knowing is enough.",
     ],
     starterMission: {
-      type: "escort", name: "Find Renard in Torguga",
+      type: "delivery", name: "Find Renard in Torguga",
       description: "A message from the port master needs to reach Captain Renard, last seen in Tortuga. Renard is someone Bouchard dealt with — Rosa knows the name but not the face. Delivering the message is a way to introduce herself to the network Bouchard left behind.",
       faction: "pirate", targetPort: "tortuga", risk: "low",
       gold: 200, fame: 1, infamyGain: 0,
