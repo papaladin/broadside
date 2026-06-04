@@ -1,18 +1,10 @@
-- [[Home]]
-- 🎮 **[[player_guide|Player Guide]]**
-- 🛠️ **[[developer_guide|Developer Guide]]**
+- [Home](Home)
+- 🎮 **[Player Guide](player_guide)**
+- 🛠️ **[Developer Guide](developer_guide)**
 - 📖 **Documentation**
-  - [[architecture|Architecture]]
-  - [[specs_engine|Engine Specs]]
-  - [[specs_logic|Logic Specs]]
-  - [[specs_generator|Generator Specs]]
-  - [[specs_data|Data Specs]]
-  - [[roadmap|Roadmap]]
-- [[player_guide]]
-- [[developer_guide]]
-- [[architecture]]
-- [[specs_engine]]
-- [[specs_logic]]
-- [[specs_generator]]
-- [[specs_data]]
-- [[roadmap]]
+  - [Architecture](architecture)
+  - [Engine Specs](specs_engine)
+  - [Logic Specs](specs_logic)
+  - [Generator Specs](specs_generator)
+  - [Data Specs](specs_data)
+  - [Roadmap](roadmap)
