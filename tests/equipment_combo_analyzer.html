@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Broadside — Equipment Combination Analyzer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a141e;color:#dcd0b8;font-family:'Courier New',monospace;font-size:12px;padding:16px;min-height:100vh}
+h1{color:#ffd700;font-size:18px;letter-spacing:.12em;margin-bottom:4px}
+h2{color:#ffd700;font-size:14px;margin:18px 0 8px;border-bottom:1px solid #6b5530;padding-bottom:4px}
+h3{color:#cc9900;font-size:12px;margin:14px 0 6px}
+.subtitle{color:#a09070;font-size:10px;margin-bottom:16px;line-height:1.5}
+.panel{background:#1c1610;border:1px solid #6b5530;border-radius:4px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{color:#a09070;font-size:11px}
+input[type=number],select{background:#120e04;border:1px solid #6b5530;color:#dcd0b8;padding:4px 8px;border-radius:3px;width:90px;font-family:inherit;font-size:12px}
+button{background:#cc9900;border:1px solid #ffd700;color:#000;padding:8px 16px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;min-height:34px}
+button:hover{background:#ffd700}
+button.secondary{background:#1c1610;color:#ffd700;border-color:#6b5530}
+button.secondary:hover{background:#2a1a08}
+.tabs{display:flex;gap:4px;margin:12px 0;flex-wrap:wrap}
+.tab{padding:7px 12px;background:#120e04;border:1px solid #6b5530;border-radius:3px;cursor:pointer;color:#a09070;font-family:inherit;font-size:11px}
+.tab.active{background:#1c1610;color:#ffd700;border-color:#ffd700}
+.tab-content{display:none}.tab-content.active{display:block}
+table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11px}
+th{color:#ffd700;text-align:left;padding:5px 6px;border-bottom:1px solid #6b5530;font-size:10px;position:sticky;top:0;background:#1c1610;z-index:1}
+td{padding:4px 6px;border-bottom:1px solid #2a1a08;vertical-align:top}
+.val{text-align:right}.good{color:#4caf50}.bad{color:#f44336}.warn{color:#ff9800}.gold{color:#ffd700}.dim{color:#a09070}.faint{color:#706050}.blue{color:#2196f3}
+.pill{display:inline-block;padding:1px 5px;border:1px solid #6b5530;border-radius:3px;margin:1px;color:#dcd0b8;font-size:10px;background:#120e04}
+.pill.hull{border-color:#4caf50;color:#4caf50}.pill.armament{border-color:#f44336;color:#f44336}.pill.rigging{border-color:#2196f3;color:#2196f3}.pill.special{border-color:#ffd700;color:#ffd700}
+.scroll{max-height:480px;overflow:auto;border:1px solid #4a3820;border-radius:4px;background:#120e04;padding:4px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.metric-card{background:#120e04;border:1px solid #4a3820;border-radius:4px;padding:10px}
+.metric-card .num{font-size:18px;color:#ffd700;font-weight:bold}
+.note{line-height:1.55;color:#a09070;margin:6px 0}
+.bar{height:8px;background:#2a1a08;border-radius:3px;overflow:hidden}.fill{height:100%;background:#ffd700}
+pre{white-space:pre-wrap;background:#120e04;border:1px solid #4a3820;border-radius:4px;padding:8px;color:#dcd0b8;font-size:10px;line-height:1.45}
+</style>
+</head>
+<body>
+<h1>⚓ Broadside — Equipment Combination Analyzer</h1>
+<div class="subtitle">
+Standalone balancing tool for the proposed T5 equipment overhaul. It enumerates all legal ship × equipment combinations using fixed typed slots, equipment hull requirements, unique item per ship, revised cargo holds, and the latest Storm Rigging / Tar-Sealed Hull / War Pennants rules.
+</div>
+
+<div class="panel">
+  <h3>⚙ Configuration</h3>
+  <div class="row" style="margin-top:8px">
+    <div><label>Outclass threshold %</label><br><input id="outclassPct" type="number" value="0" min="0" max="50"></div>
+    <div><label>Near-outclass tolerance %</label><br><input id="nearPct" type="number" value="10" min="1" max="50"></div>
+    <div><label>Suspicious gain % vs baseline</label><br><input id="gainPct" type="number" value="35" min="5" max="200"></div>
+    <div><label>Top builds per archetype</label><br><input id="topN" type="number" value="12" min="3" max="50"></div>
+    <div style="margin-left:auto"><button onclick="runAnalysis()">▶ Run Analysis</button></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('summary', this)">Summary</div>
+  <div class="tab" onclick="switchTab('outliers', this)">Outliers</div>
+  <div class="tab" onclick="switchTab('archetypes', this)">Archetype Builds</div>
+  <div class="tab" onclick="switchTab('ships', this)">Best Per Ship</div>
+  <div class="tab" onclick="switchTab('items', this)">Item Usage</div>
+  <div class="tab" onclick="switchTab('data', this)">Data</div>
+</div>
+
+<div id="tab-summary" class="tab-content active"></div>
+<div id="tab-outliers" class="tab-content"></div>
+<div id="tab-archetypes" class="tab-content"></div>
+<div id="tab-ships" class="tab-content"></div>
+<div id="tab-items" class="tab-content"></div>
+<div id="tab-data" class="tab-content"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  AGREED SHIP DATA — includes cargo hold revamp
+// ═══════════════════════════════════════════════════════════════════
+const SHIPS = {
+  dinghy:        { name:"Dinghy",           tier:0, maxHull:30,  maxCrew:5,   cannons:2,  speed:6,  maxDays:5,  holdCapacity:20,   cost:200,     slots:{hull:0,armament:0,rigging:0,special:0} },
+  cutter:        { name:"Cutter",           tier:0, maxHull:60,  maxCrew:20,  cannons:6,  speed:20, maxDays:8,  holdCapacity:80,   cost:1000,    slots:{hull:1,armament:0,rigging:1,special:0} },
+  sloop:         { name:"Sloop",            tier:1, maxHull:100, maxCrew:40,  cannons:10, speed:18, maxDays:10, holdCapacity:200,  cost:15000,   slots:{hull:1,armament:1,rigging:1,special:0} },
+  schooner:      { name:"Schooner",         tier:2, maxHull:110, maxCrew:55,  cannons:8,  speed:19, maxDays:12, holdCapacity:240,  cost:70000,   slots:{hull:1,armament:1,rigging:1,special:1} },
+  merchantman:   { name:"Merchantman",      tier:2, maxHull:180, maxCrew:60,  cannons:5,  speed:10, maxDays:14, holdCapacity:700,  cost:60000,   slots:{hull:1,armament:0,rigging:1,special:2} },
+  brigantine:    { name:"Brigantine",       tier:2, maxHull:150, maxCrew:80,  cannons:15, speed:14, maxDays:14, holdCapacity:448,  cost:150000,  slots:{hull:1,armament:1,rigging:1,special:1} },
+  corvette:      { name:"Corvette",         tier:3, maxHull:180, maxCrew:90,  cannons:18, speed:15, maxDays:16, holdCapacity:500,  cost:250000,  slots:{hull:1,armament:1,rigging:1,special:1} },
+  frigate:       { name:"Frigate",          tier:3, maxHull:220, maxCrew:120, cannons:24, speed:12, maxDays:18, holdCapacity:720,  cost:500000,  slots:{hull:1,armament:1,rigging:1,special:1} },
+  fluyt:         { name:"Fluyt",            tier:3, maxHull:180, maxCrew:70,  cannons:6,  speed:9,  maxDays:24, holdCapacity:1500, cost:200000,  slots:{hull:1,armament:0,rigging:1,special:3} },
+  galleon:       { name:"Galleon",          tier:4, maxHull:300, maxCrew:150, cannons:30, speed:7,  maxDays:22, holdCapacity:1000, cost:1000000, slots:{hull:1,armament:1,rigging:1,special:2} },
+  ship_of_line:  { name:"Ship of the Line", tier:4, maxHull:420, maxCrew:280, cannons:50, speed:5,  maxDays:28, holdCapacity:900,  cost:2000000, slots:{hull:1,armament:2,rigging:1,special:1} },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROPOSED EQUIPMENT DATA
+// ═══════════════════════════════════════════════════════════════════
+const EQUIPMENT = {
+  // Hull
+  reinforced_hull:   { name:"Reinforced Hull",  slot:"hull",     removable:false, fame:0,   minHull:0,   cost:500,  effects:{hullPct:0.20}, tags:["durability"] },
+  ironclad_plates:   { name:"Ironclad Plates",  slot:"hull",     removable:false, fame:50,  minHull:100, cost:2000, effects:{hullPct:0.35,speed:-2}, tags:["durability","slow"] },
+  copper_plating:    { name:"Copper Plating",   slot:"hull",     removable:false, fame:100, minHull:150, cost:3500, effects:{speed:2,repairCostPct:0.40}, tags:["speed","expensive_repair"] },
+  tar_sealed_hull:   { name:"Tar-Sealed Hull",  slot:"hull",     removable:false, fame:20,  minHull:60,  cost:1200, effects:{maxDays:2,speed:-1,calmImmune:1}, tags:["certainty","range","slow"] },
+
+  // Armament
+  extra_cannons:     { name:"Extra Cannons",    slot:"armament", removable:true,  fame:20,  minHull:60,  cost:800,  effects:{cannons:4,speed:-1}, tags:["combat","slow"] },
+  grapeshot_supply:  { name:"Grapeshot Supply", slot:"armament", removable:true,  fame:50,  minHull:100, cost:1800, effects:{crewDmgPct:0.50,hullDmgPct:-0.20}, tags:["boarding","crew_damage"] },
+  long_guns:         { name:"Long Guns",        slot:"armament", removable:true,  fame:100, minHull:150, cost:3000, effects:{precisionHitPct:0.10,cannons:-2}, tags:["precision"] },
+
+  // Rigging
+  extra_sails:       { name:"Extra Sails",      slot:"rigging",  removable:true,  fame:0,   minHull:60,  cost:600,  effects:{speed:3,hullPct:-0.10}, tags:["speed","fragile"] },
+  storm_rigging:     { name:"Storm Rigging",    slot:"rigging",  removable:true,  fame:20,  minHull:60,  cost:900,  effects:{maxDays:2,speed:-1,stormHullImmune:1}, tags:["certainty","range","slow"] },
+  lateen_rig:        { name:"Lateen Rig",       slot:"rigging",  removable:false, fame:50,  minHull:100, cost:1500, effects:{maxDays:1,hullPct:-0.10}, tags:["range","fragile"] },
+  war_pennants:      { name:"War Pennants",     slot:"rigging",  removable:true,  fame:100, minHull:100, cost:3500, effects:{missionCombatFameBonus:1,combatHeatMult:2}, tags:["fame_rush","heat"] },
+
+  // Special
+  expanded_hold:     { name:"Expanded Hold",    slot:"special",  removable:true,  fame:0,   minHull:60,  cost:700,  effects:{holdPct:0.20,speed:-2}, tags:["trade","slow"] },
+  hidden_compartment:{ name:"Hidden Compartment",slot:"special", removable:false, fame:20,  minHull:60,  cost:1000, effects:{contrabandAvoidChance:0.50,holdPct:-0.10}, tags:["smuggle"] },
+  surgeons_bay:      { name:"Surgeon's Bay",    slot:"special",  removable:true,  fame:50,  minHull:100, cost:2000, effects:{crewLossPct:-0.40,holdPct:-0.15}, tags:["crew_survival"] },
+  officer_quarters:  { name:"Officer Quarters", slot:"special",  removable:true,  fame:50,  minHull:100, cost:1800, effects:{maxCrew:10,holdPct:-0.20}, tags:["crew"] },
+  ornate_figurehead: { name:"Ornate Figurehead",slot:"special",  removable:true,  fame:0,   minHull:0,   cost:300,  effects:{repGainBonus:2}, tags:["reputation"] },
+  navigation_tools:  { name:"Navigation Tools", slot:"special",  removable:true,  fame:50,  minHull:60,  cost:600,  effects:{longVoyageDayReduction:1}, tags:["travel"] },
+};
+
+const SLOT_ORDER = ["hull","armament","rigging","special"];
+const ARCHETYPES = {
+  combat: {
+    name:"Combat",
+    desc:"Raw battle survivability and damage potential.",
+    score: (r) => r.scores.combat
+  },
+  trade: {
+    name:"Trade",
+    desc:"Cargo throughput: hold, speed, endurance.",
+    score: (r) => r.scores.trade
+  },
+  smuggle: {
+    name:"Smuggle",
+    desc:"Trade score plus contraband protection, minus heat visibility.",
+    score: (r) => r.scores.smuggle
+  },
+  travel: {
+    name:"Travel",
+    desc:"Speed, range, and Navigation Tools utility.",
+    score: (r) => r.scores.travel
+  },
+  certainty: {
+    name:"Certainty",
+    desc:"Avoiding random voyage disruption: calm/storm protection plus range.",
+    score: (r) => r.scores.certainty
+  },
+  fameRush: {
+    name:"Fame Rush",
+    desc:"Combat score plus War Pennants mission fame bonus, penalized by heat.",
+    score: (r) => r.scores.fameRush
+  },
+};
+
+function switchTab(id, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+function combos(arr, maxCount){
+  const result=[];
+  function rec(start, picked){
+    if(picked.length<=maxCount) result.push([...picked]);
+    if(picked.length===maxCount) return;
+    for(let i=start;i<arr.length;i++){
+      picked.push(arr[i]); rec(i+1,picked); picked.pop();
+    }
+  }
+  rec(0,[]);
+  return result;
+}
+
+function cartesian(groups){
+  let out=[[]];
+  for(const group of groups){
+    const next=[];
+    for(const prev of out){
+      for(const g of group) next.push(prev.concat(g));
+    }
+    out=next;
+  }
+  return out;
+}
+
+function eligibleItems(shipKey, slot){
+  const ship=SHIPS[shipKey];
+  return Object.entries(EQUIPMENT)
+    .filter(([k,e])=>e.slot===slot && e.minHull<=ship.maxHull)
+    .map(([k])=>k);
+}
+
+function enumerateCombos(shipKey){
+  const ship=SHIPS[shipKey];
+  const groups=[];
+  for(const slot of SLOT_ORDER){
+    const count=ship.slots[slot]||0;
+    if(count<=0) continue;
+    const elig=eligibleItems(shipKey,slot);
+    groups.push(combos(elig,count));
+  }
+  return groups.length ? cartesian(groups) : [[]];
+}
+
+function applyCombo(shipKey, combo){
+  const base=SHIPS[shipKey];
+  const stats={
+    maxHull:base.maxHull, maxCrew:base.maxCrew, cannons:base.cannons,
+    speed:base.speed, maxDays:base.maxDays, holdCapacity:base.holdCapacity,
+  };
+  const effects={
+    hullPct:0, holdPct:0, repairCostPct:0, stormHullImmune:0, calmImmune:0,
+    crewDmgPct:0, hullDmgPct:0, precisionHitPct:0, missionCombatFameBonus:0,
+    combatHeatMult:1, contrabandAvoidChance:0, crewLossPct:0, repGainBonus:0,
+    longVoyageDayReduction:0,
+  };
+  let cost=0;
+  for(const key of combo){
+    const e=EQUIPMENT[key]; cost+=e.cost;
+    for(const [k,v] of Object.entries(e.effects)){
+      if(k==='hullPct') effects.hullPct+=v;
+      else if(k==='holdPct') effects.holdPct+=v;
+      else if(k==='combatHeatMult') effects.combatHeatMult*=v;
+      else if(k in stats) stats[k]+=v;
+      else effects[k]=(effects[k]||0)+v;
+    }
+  }
+  stats.maxHull=Math.round(base.maxHull*(1+effects.hullPct));
+  stats.holdCapacity=Math.round(base.holdCapacity*(1+effects.holdPct));
+  stats.speed=Math.max(1,stats.speed);
+  stats.maxDays=Math.max(1,stats.maxDays);
+
+  const combat = stats.maxHull*0.35 + stats.cannons*8 + stats.maxCrew*0.6 + stats.speed*2
+    + (effects.precisionHitPct>0 ? stats.cannons*8*0.12 : 0)
+    + (effects.crewDmgPct>0 ? 20 : 0)
+    + (effects.hullDmgPct<0 ? -10 : 0)
+    + (effects.crewLossPct<0 ? 35 : 0);
+  const trade = stats.holdCapacity*0.8 + stats.speed*10 + stats.maxDays*8;
+  const smuggle = trade + effects.contrabandAvoidChance*150 - (effects.combatHeatMult-1)*75;
+  const travel = stats.speed*12 + stats.maxDays*10 + effects.longVoyageDayReduction*25;
+  const certainty = travel + effects.stormHullImmune*80 + effects.calmImmune*80 + (effects.repairCostPct>0?-20:0);
+  const fameRush = combat + effects.missionCombatFameBonus*90 - (effects.combatHeatMult-1)*45;
+
+  return { shipKey, shipName:base.name, tier:base.tier, combo, stats, effects, cost,
+    scores:{combat,trade,smuggle,travel,certainty,fameRush} };
+}
+
+function analyze(){
+  const rows=[];
+  for(const shipKey of Object.keys(SHIPS)){
+    for(const combo of enumerateCombos(shipKey)) rows.push(applyCombo(shipKey, combo));
+  }
+  return rows;
+}
+
+function fmt(n){ return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+function pct(n){ return (n*100).toFixed(1)+"%"; }
+function itemPills(combo){
+  if(!combo.length) return '<span class="faint">none</span>';
+  return combo.map(k=>`<span class="pill ${EQUIPMENT[k].slot}" title="${EQUIPMENT[k].slot}">${EQUIPMENT[k].name}</span>`).join(' ');
+}
+function statLine(r){
+  const s=r.stats;
+  return `H${s.maxHull} · C${s.cannons} · Crew${s.maxCrew} · Sp${s.speed} · D${s.maxDays} · Hold${s.holdCapacity}`;
+}
+function table(headers, rows){
+  return '<table><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')+'</table>';
+}
+function tableScroll(headers, rows){ return '<div class="scroll">'+table(headers,rows)+'</div>'; }
+function byScore(rows, archetype){ return [...rows].sort((a,b)=>ARCHETYPES[archetype].score(b)-ARCHETYPES[archetype].score(a)); }
+function baselineFor(rows, shipKey){ return rows.find(r=>r.shipKey===shipKey && r.combo.length===0); }
+function dominates(a,b,thresholdPct=0){
+  const keys=['maxHull','maxCrew','cannons','speed','maxDays','holdCapacity'];
+  const mult=1+thresholdPct/100;
+  return keys.every(k=>a.stats[k] >= b.stats[k]*mult) && keys.some(k=>a.stats[k] > b.stats[k]*mult);
+}
+function nearDominates(a,b,tolerancePct=10){
+  const keys=['maxHull','maxCrew','cannons','speed','maxDays','holdCapacity'];
+  const tol=1-tolerancePct/100;
+  return keys.every(k=>a.stats[k] >= b.stats[k]*tol) && keys.filter(k=>a.stats[k] > b.stats[k]).length>=4;
+}
+function mainstreamBuilds(rows){
+  const picks=[];
+  for(const shipKey of Object.keys(SHIPS)){
+    const shipRows=rows.filter(r=>r.shipKey===shipKey);
+    const base=baselineFor(rows,shipKey);
+    picks.push({...base, label:'Baseline'});
+    for(const a of Object.keys(ARCHETYPES)){
+      picks.push({...byScore(shipRows,a)[0], label:ARCHETYPES[a].name});
+    }
+  }
+  // Dedup by ship + combo
+  const seen=new Set();
+  return picks.filter(r=>{const key=r.shipKey+'|'+r.combo.join(','); if(seen.has(key))return false; seen.add(key); return true;});
+}
+
+function runAnalysis(){
+  const rows=analyze();
+  const outclassPct=Number(document.getElementById('outclassPct').value)||0;
+  const nearPct=Number(document.getElementById('nearPct').value)||10;
+  const gainPct=Number(document.getElementById('gainPct').value)||35;
+  const topN=Number(document.getElementById('topN').value)||12;
+
+  renderSummary(rows);
+  renderOutliers(rows,outclassPct,nearPct,gainPct);
+  renderArchetypes(rows,topN);
+  renderShips(rows);
+  renderItems(rows);
+  renderData();
+}
+
+function renderSummary(rows){
+  const total=rows.length;
+  const byShip=Object.keys(SHIPS).map(k=>[SHIPS[k].name, rows.filter(r=>r.shipKey===k).length]);
+  const totalSlots=Object.values(SHIPS).reduce((a,s)=>a+Object.values(s.slots).reduce((x,y)=>x+y,0),0);
+  const structural=Object.values(EQUIPMENT).filter(e=>!e.removable).length;
+  const removable=Object.values(EQUIPMENT).filter(e=>e.removable).length;
+
+  let html='<div class="panel"><h2>Summary</h2>';
+  html+='<div class="summary-grid">';
+  html+=`<div class="metric-card"><div class="dim">Legal combinations</div><div class="num">${total}</div></div>`;
+  html+=`<div class="metric-card"><div class="dim">Ships</div><div class="num">${Object.keys(SHIPS).length}</div></div>`;
+  html+=`<div class="metric-card"><div class="dim">Equipment items</div><div class="num">${Object.keys(EQUIPMENT).length}</div><div class="dim">${removable} removable · ${structural} structural</div></div>`;
+  html+=`<div class="metric-card"><div class="dim">Total ship slots</div><div class="num">${totalSlots}</div></div>`;
+  html+='</div>';
+  html+='<p class="note"><b class="gold">Current balance intent:</b> Fluyt should be trade king, Ship of the Line should be combat king, Galleon should be heavy hybrid, Merchantman should be mid-game cargo specialist.</p>';
+  html+=table(['Ship','Tier','Slots','Legal combos','Base stats'], byShip.map(([name,count])=>{
+    const key=Object.keys(SHIPS).find(k=>SHIPS[k].name===name); const s=SHIPS[key];
+    return [name, s.tier, SLOT_ORDER.map(sl=>`${sl[0].toUpperCase()}:${s.slots[sl]||0}`).join(' '), count, `H${s.maxHull} C${s.cannons} Crew${s.maxCrew} Sp${s.speed} D${s.maxDays} Hold${s.holdCapacity}`];
+  }));
+  html+='</div>';
+  document.getElementById('tab-summary').innerHTML=html;
+}
+
+function renderOutliers(rows,outclassPct,nearPct,gainPct){
+  const full=[]; const near=[]; const suspicious=[]; const mainstream=mainstreamBuilds(rows);
+  for(const a of mainstream){
+    for(const b of mainstream){
+      if(a.shipKey===b.shipKey) continue;
+      if(a.tier>=b.tier) continue; // lower tier outclassing higher tier only
+      if(dominates(a,b,outclassPct)) full.push({a,b});
+      else if(nearDominates(a,b,nearPct)) near.push({a,b});
+    }
+  }
+  for(const shipKey of Object.keys(SHIPS)){
+    const base=baselineFor(rows,shipKey);
+    const shipRows=rows.filter(r=>r.shipKey===shipKey);
+    for(const arch of Object.keys(ARCHETYPES)){
+      const best=byScore(shipRows,arch)[0];
+      const gain=(ARCHETYPES[arch].score(best)/ARCHETYPES[arch].score(base)-1)*100;
+      if(gain>=gainPct) suspicious.push({ship:SHIPS[shipKey].name, arch, best, base, gain});
+    }
+  }
+
+  let html='<div class="panel"><h2>Outliers & Balance Warnings</h2>';
+  html+=`<p class="note">Checks mainstream builds only: baseline + best archetype build per ship. This prevents noise from thousands of deliberately bad combinations.</p>`;
+  html+=`<h3>Strict outclassing: lower-tier build beats higher-tier build in every core stat</h3>`;
+  if(!full.length) html+='<p class="good">No strict lower-tier outclassing detected.</p>';
+  else html+=tableScroll(['Lower-tier build','Higher-tier build being outclassed','Stats'], full.map(x=>[
+    `<b>${x.a.shipName}</b> T${x.a.tier}<br>${itemPills(x.a.combo)}`,
+    `<b>${x.b.shipName}</b> T${x.b.tier}<br>${itemPills(x.b.combo)}`,
+    `<span class="good">${statLine(x.a)}</span><br><span class="bad">${statLine(x.b)}</span>`
+  ]));
+
+  html+=`<h3>Near-outclassing: lower-tier build is within ${nearPct}% on every stat and better on 4+ stats</h3>`;
+  if(!near.length) html+='<p class="good">No near-outclassing detected.</p>';
+  else html+=tableScroll(['Lower-tier build','Higher-tier comparison','Stats'], near.slice(0,80).map(x=>[
+    `<b>${x.a.shipName}</b> T${x.a.tier}<br>${itemPills(x.a.combo)}`,
+    `<b>${x.b.shipName}</b> T${x.b.tier}<br>${itemPills(x.b.combo)}`,
+    `<span class="warn">${statLine(x.a)}</span><br><span class="dim">${statLine(x.b)}</span>`
+  ]));
+
+  html+=`<h3>Suspicious gains vs naked baseline (>${gainPct}%)</h3>`;
+  suspicious.sort((a,b)=>b.gain-a.gain);
+  if(!suspicious.length) html+='<p class="good">No suspicious high-gain builds above threshold.</p>';
+  else html+=tableScroll(['Ship','Archetype','Gain','Best build','Stats'], suspicious.map(s=>[
+    s.ship, ARCHETYPES[s.arch].name, `<span class="warn">+${s.gain.toFixed(1)}%</span>`, itemPills(s.best.combo), statLine(s.best)
+  ]));
+  html+='</div>';
+  document.getElementById('tab-outliers').innerHTML=html;
+}
+
+function renderArchetypes(rows,topN){
+  let html='<div class="panel"><h2>Top Min-Max Builds by Archetype</h2>';
+  for(const arch of Object.keys(ARCHETYPES)){
+    const top=byScore(rows,arch).slice(0,topN);
+    html+=`<h3>${ARCHETYPES[arch].name}</h3><p class="note">${ARCHETYPES[arch].desc}</p>`;
+    html+=tableScroll(['Rank','Ship','Score','Stats','Build','Flags'], top.map((r,i)=>[
+      i+1, `<b>${r.shipName}</b> <span class="dim">T${r.tier}</span>`, fmt(ARCHETYPES[arch].score(r)), statLine(r), itemPills(r.combo), flagText(r)
+    ]));
+  }
+  html+='</div>';
+  document.getElementById('tab-archetypes').innerHTML=html;
+}
+
+function flagText(r){
+  const f=[];
+  if(r.effects.stormHullImmune) f.push('storm-safe');
+  if(r.effects.calmImmune) f.push('calm-safe');
+  if(r.effects.contrabandAvoidChance) f.push('smuggler');
+  if(r.effects.missionCombatFameBonus) f.push('fame+heat');
+  if(r.effects.crewLossPct<0) f.push('crew-safe');
+  if(r.effects.repGainBonus) f.push('rep+');
+  if(r.effects.longVoyageDayReduction) f.push('long-route');
+  if(r.effects.repairCostPct>0) f.push('repair-cost+');
+  return f.map(x=>`<span class="pill">${x}</span>`).join(' ');
+}
+
+function renderShips(rows){
+  let html='<div class="panel"><h2>Best Builds Per Ship</h2>';
+  for(const shipKey of Object.keys(SHIPS)){
+    const shipRows=rows.filter(r=>r.shipKey===shipKey);
+    const base=baselineFor(rows,shipKey);
+    html+=`<h3>${SHIPS[shipKey].name} <span class="dim">T${SHIPS[shipKey].tier}</span></h3>`;
+    html+=table(['Archetype','Score','Gain vs baseline','Stats','Build'], Object.keys(ARCHETYPES).map(arch=>{
+      const best=byScore(shipRows,arch)[0];
+      const score=ARCHETYPES[arch].score(best); const baseScore=ARCHETYPES[arch].score(base);
+      return [ARCHETYPES[arch].name, fmt(score), `<span class="${score>=baseScore?'good':'bad'}">${((score/baseScore-1)*100).toFixed(1)}%</span>`, statLine(best), itemPills(best.combo)];
+    }));
+  }
+  html+='</div>';
+  document.getElementById('tab-ships').innerHTML=html;
+}
+
+function renderItems(rows){
+  let html='<div class="panel"><h2>Item Usage & Underwhelming Candidates</h2>';
+  html+='<p class="note">Counts how often each item appears in best-per-ship archetype builds. Items with zero appearances may still be situational, but should get extra tooltip clarity or later simulation.</p>';
+  const rowsOut=[];
+  for(const [key,e] of Object.entries(EQUIPMENT)){
+    const appearances=rows.filter(r=>r.combo.includes(key)).length;
+    const bestCounts={};
+    for(const arch of Object.keys(ARCHETYPES)){
+      bestCounts[arch]=0;
+      for(const shipKey of Object.keys(SHIPS)){
+        const best=byScore(rows.filter(r=>r.shipKey===shipKey),arch)[0];
+        if(best.combo.includes(key)) bestCounts[arch]++;
+      }
+    }
+    const useScore=Object.values(bestCounts).reduce((a,b)=>a+b,0);
+    rowsOut.push([`<span class="pill ${e.slot}">${e.name}</span>`, e.slot, e.removable?'yes':'structural', e.fame, e.minHull, appearances, useScore, Object.entries(bestCounts).map(([a,c])=>`${a}:${c}`).join(' · '), describeEffects(e.effects)]);
+  }
+  rowsOut.sort((a,b)=>b[6]-a[6]);
+  html+=tableScroll(['Item','Slot','Removable','Fame','Min Hull','Combo appearances','Best-build hits','By archetype','Effects'], rowsOut);
+  html+='</div>';
+  document.getElementById('tab-items').innerHTML=html;
+}
+
+function describeEffects(eff){
+  return Object.entries(eff).map(([k,v])=>`${k}:${v}`).join(', ');
+}
+
+function renderData(){
+  const eqRows=Object.entries(EQUIPMENT).map(([k,e])=>[
+    `<span class="pill ${e.slot}">${e.name}</span>`, e.slot, e.removable?'yes':'no', e.fame, e.minHull, e.cost, describeEffects(e.effects), e.tags.join(', ')
+  ]);
+  const shipRows=Object.entries(SHIPS).map(([k,s])=>[
+    s.name, s.tier, s.maxHull, s.maxCrew, s.cannons, s.speed, s.maxDays, s.holdCapacity, SLOT_ORDER.map(sl=>`${sl}:${s.slots[sl]||0}`).join(' · ')
+  ]);
+  let html='<div class="panel"><h2>Data Used by This Tool</h2>';
+  html+='<h3>Ships</h3>'+tableScroll(['Ship','Tier','Hull','Crew','Cannons','Speed','Days','Hold','Slots'], shipRows);
+  html+='<h3>Equipment</h3>'+tableScroll(['Item','Slot','Removable','Fame','Min Hull','Cost','Effects','Tags'], eqRows);
+  html+='<h3>Implementation Notes</h3><pre>'+
+`Storm Rigging: prevents storm hull damage only. It does NOT prevent crew loss from storm events.\n`+
+`Tar-Sealed Hull: now protects against calm winds / doldrums effects, gives +2 maxDays, and has -1 speed.\n`+
+`War Pennants: +1 fame only on hunt/combat, patrol, and assault mission victories. Not starter, trade, smuggle, escort, or random fights. Heat from those victories is doubled.\n`+
+`Ship sale rule: removable equipment should be unmounted before selling; do not silently move it to inventory. Structural equipment is always lost with the ship.\n`+
+`Old saves: old upgrades are discarded, not migrated.\n`+
+`Cargo hold revamp: Fluyt 1500, Merchantman 700, Galleon 1000, Ship of the Line 900.`+
+'</pre>';
+  html+='</div>';
+  document.getElementById('tab-data').innerHTML=html;
+}
+
+runAnalysis();
+</script>
+</body>
+</html>

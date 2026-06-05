@@ -6,11 +6,80 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, UPGRADES, STARTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine  } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
+  const { shouldShowTutorial, markTutorialSeen } = window.L;
 
-  // ── START SCREEN ─────────────────────────────────────────────────────
-  function StartScreen({ dispatch }) {
+  // ---- TITLE SCREEN -----------------------------------------------------------------------
+
+  function TitleScreen({ dispatch }) {
+    const hasSave = L.hasSave();
+    const importRef = React.useRef(null);
+    const [tutorialEnabled, setTutorialEnabled] = React.useState(() => L.loadTutorialState().enabled);
+    const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+    const localStorageWarning = React.useMemo(() => !L.checkLocalStorageAvailable(), []);
+
+    const handleImport = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
+      reader.readAsText(file);
+      e.target.value = "";
+    };
+
+    const toggleTutorial = (checked) => {
+      setTutorialEnabled(checked);
+      const ts = L.loadTutorialState();
+      ts.enabled = checked;
+      if (checked) {
+        ts.seen = { ...L.getDefaultTutorialState().seen };
+      }
+      L.saveTutorialState(ts);
+    };
+
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        minHeight: "100vh", padding: 20,
+        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+      }}>
+        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 280 }}>
+          <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
+
+          {hasSave && (
+            <Btn v="ghost" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
+          )}
+
+          <input
+            type="file"
+            accept=".broadside"
+            ref={importRef}
+            style={{ display: "none" }}
+            onChange={handleImport}
+          />
+          <Btn v="ghost" onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
+
+          <label style={{ color: T.textDim, fontSize: 10, marginTop: 16, textAlign: "center", cursor: "pointer" }}>
+            <input type="checkbox" checked={tutorialEnabled} onChange={e => toggleTutorial(e.target.checked)} style={{ marginRight: 6 }} />
+            Show tutorial hints
+          </label>
+
+          {localStorageWarning && (
+            <div style={{ color: T.redBr, fontSize: 9, textAlign: "center", marginTop: 8 }}>
+              Browser storage is blocked. Use Import/Export Save to keep your progress.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── SCENARIO SCREEN ─────────────────────────────────────────────────────
+  function ScenarioScreen({ dispatch }) {
     const hasSave = L.hasSave();
     const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
     const visibleStarts = isDebug ? STARTS : STARTS.filter(s => s.id !== 'debug');
@@ -57,266 +126,315 @@ window.S = window.S || {};
             </div>
           ))}
         </div>
-
-        {hasSave && (<Btn v="gold" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue Saved Game</Btn>)}
       </div>
     );
   }
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
- function PortScreen({ state, dispatch }) {
-  const port = PORTS[state.currentPort];
-  const rep = state.reputation[state.currentPort] ?? 0;
-  const perk = L.getRepPerk(rep);
-  const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
-  const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
+  function PortScreen({ state, dispatch }) {
+    const port = PORTS[state.currentPort];
+    const rep = state.reputation[state.currentPort] ?? 0;
+    const perk = L.getRepPerk(rep);
+    const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
+    const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
+    const importRef = React.useRef(null);
 
-  const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 700);
-  React.useEffect(() => {
-    const handleResize = () => setIsNarrow(window.innerWidth < 700);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    const handleImport = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
+      reader.readAsText(file);
+      e.target.value = "";
+    };
 
-  return (
-    <div style={{
-      display: "flex",
-      flexDirection: isNarrow ? "column" : "row",
-      gap: 12,
-      padding: 14,
-      overflowY: "auto",
-      flex: 1,
-      alignItems: "stretch",
-    }}>
-      {/* ── Column 1: Atmosphere, Actions & Missions ─────────── */}
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("port"));
+
+    const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 700);
+    React.useEffect(() => {
+      const handleResize = () => setIsNarrow(window.innerWidth < 700);
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    return (
       <div style={{
-        flex: 1,
         display: "flex",
-        flexDirection: "column",
+        flexDirection: isNarrow ? "column" : "row",
         gap: 12,
-        minWidth: 280,
+        padding: 14,
         overflowY: "auto",
+        flex: 1,
+        alignItems: "stretch",
       }}>
-        {/* Port header + description + gossip */}
-        <div style={panelStyle()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-            <div>
-              <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
-              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
-                {FACTIONS[port.faction]?.label.toUpperCase()} PORT
+        {showTutorial && (
+          <TutorialPopup
+            title="Welcome to Port"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("port", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>This is where you'll plan your next move. From here you can:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li>Accept missions from the <strong>Mission Board</strong> — they pay gold and build your fame</li>
+              <li>Buy and sell goods at the <strong>Market</strong> — buy cheap, sell dear</li>
+              <li><strong>Hire crew</strong> and buy them drinks to keep morale up</li>
+              <li><strong>Repair your ship</strong> at the Shipyard</li>
+              <li>Read the <strong>gossip</strong> — the locals know more than they let on</li>
+            </ul>
+            <p>Your first mission is already accepted. Open the <strong>Map</strong> to set sail.</p>
+          </TutorialPopup>
+        )}
+
+        {/* ── Column 1: Atmosphere, Actions & Missions ─────────── */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          minWidth: 280,
+          overflowY: "auto",
+        }}>
+          {/* Port header + description + gossip */}
+          <div style={panelStyle()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
+                <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
+                  {FACTIONS[port.faction]?.label.toUpperCase()} PORT
+                </div>
               </div>
+              <RepPill rep={rep} />
             </div>
-            <RepPill rep={rep} />
+
+            <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, margin: "0 0 10px", lineHeight: T.narrativeLineHeight }}>
+              {port.desc}
+            </p>
+
+            {state.portGossip?.length > 0 && (
+              <NarrativePanel title="🗣 WORD ON THE DOCKS" variant="gossip">
+                {state.portGossip.map((line, i) => (
+                  <NarrativeLine key={i}>{line}</NarrativeLine>
+                ))}
+              </NarrativePanel>
+            )}
+
+            {perk.servicesBlocked && (
+              <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
+            )}
           </div>
 
-          <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, margin: "0 0 10px", lineHeight: T.narrativeLineHeight }}>
-            {port.desc}
-          </p>
-
-          {state.portGossip?.length > 0 && (
-            <NarrativePanel title="🗣 WORD ON THE DOCKS" variant="gossip">
-              {state.portGossip.map((line, i) => (
-                <NarrativeLine key={i}>{line}</NarrativeLine>
-              ))}
-            </NarrativePanel>
-          )}
-
-          {perk.servicesBlocked && (
-            <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div style={panelStyle()}>
-          <SectionTitle>ACTIONS</SectionTitle>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
-            <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
-            <Btn onClick={() => dispatch({ type: A.ENTER_MARKET })}>📦 Market</Btn>
-          </div>
-          {!perk.servicesBlocked && (
-            <>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {port.services.includes("shipyard") && (
-                  <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
-                )}
-                {port.services.includes("crew") && (
-                  <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>
-                )}
-              </div>
-              {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
-                <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
-                  Quick Repair ({repCost}g)
-                </Btn>
-              )}
-            </>
-          )}
-          <div style={{ marginTop: 8 }}>
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
-          </div>
-        </div>
-
-        {/* Mission board */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1 })}>
-          <SectionTitle action={<Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>}>
-            MISSION BOARD
-          </SectionTitle>
-          {perk.tier !== "neutral" && (
-            <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: 10, marginBottom: 8 }}>
-              {perk.missionMult > 1
-                ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
-                : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
+          {/* Action buttons */}
+          <div style={panelStyle()}>
+            <SectionTitle>ACTIONS</SectionTitle>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
+              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
+              <Btn onClick={() => dispatch({ type: A.ENTER_MARKET })}>📦 Market</Btn>
             </div>
-          )}
-          {!port.services.includes("missions") ? (
-            <EmptyState message="No mission board in this port." />
-          ) : state.missions.length === 0 ? (
-            <EmptyState message="No missions posted. Try refreshing." />
-          ) : (
-            <div style={{ overflowY: "auto", flex: 1 }}>
-              {state.missions.map((m, i) => (
-                <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
-                      <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
-                    </div>
-                  </div>
-                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
-                  {m.enemy && (
-                    <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
-                      Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
-                    </div>
+            {!perk.servicesBlocked && (
+              <>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                  {port.services.includes("shipyard") && (
+                    <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
                   )}
-                  {(m.requiredGood && m.requiredQty) && (() => {
-                    const res = window.D.RESOURCES[m.requiredGood];
-                    const inHold = state.hold?.items?.[m.requiredGood] || 0;
-                    const alreadyHave = inHold >= m.requiredQty;
-                    const partialHave = inHold > 0 && inHold < m.requiredQty;
-                    const isIllegal = res?.illegal;
-                    const holdFree = (L.getHoldCapacity(state) || 0) - L.getHoldUsed(state.hold?.items || {});
-                    const canFit = holdFree >= (m.requiredQty - inHold);
-                    return (
-                      <div style={{
-                        margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
-                        background: T.bgDeep,
-                        border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
-                      }}>
-                        <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
-                          {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
-                        </div>
-                        <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
-                          {m.requiredQty} × {res?.name || m.requiredGood}
-                          {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
-                        </div>
-                        <div style={{ fontSize: 10, marginTop: 3 }}>
-                          {alreadyHave
-                            ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
-                            : partialHave
-                              ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
-                              : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
-                          }
-                        </div>
-                        {!alreadyHave && !canFit && (
-                          <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
-                            ⚠ Only {holdFree} hold space free — sell cargo first
-                          </div>
-                        )}
-                        {m.type === "smuggle" && res?.sourceHint && (
-                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
-                            {res.sourceHint}
-                          </div>
-                        )}
-                        {m.type === "trade" && (
-                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
-                            Est. cost: ~{res?.basePrice * m.requiredQty}g
-                            · Payment on delivery: {m.gold}g
-                            · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
-                          </div>
-                        )}
-                        {m.type === "smuggle" && (
-                          <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
-                            +{m.infamyGain} infamy on completion
-                            {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
-                    <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
-                    <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
-                    <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
-                  </div>
+                  {port.services.includes("crew") && (
+                    <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-          {state.activeMission && (
-            <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
-                <div style={{ display: "flex", gap: 4 }}>
-                  <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
-                  <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
-                </div>
-              </div>
-              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
-              <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-                <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
-                <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
-              </div>
-              {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
-                const res = window.D.RESOURCES[state.activeMission.requiredGood];
-                const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
-                const hasGoods = inHold >= state.activeMission.requiredQty;
-                const goodName = res?.name || state.activeMission.requiredGood;
-                return (
-                  <div style={{ marginBottom: 8, fontSize: 10 }}>
-                    <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
-                      {hasGoods
-                        ? `✓ ${inHold} ${goodName} in hold — ready`
-                        : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
-                    </div>
-                  </div>
-                );
-              })()}
-              <div style={{ display: "flex", gap: 8 }}>
-                {canFinish && (
-                  <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
-                    disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
-                    Complete Mission
+                {port.services.includes("shipyard") && state.ship.hull < SHIPS[state.ship.type].maxHull && (
+                  <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
+                    Quick Repair ({repCost}g)
                   </Btn>
                 )}
-                <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
-              </div>
-              {!canFinish && (
-                <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
-                  Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
-                </div>
-              )}
+              </>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
             </div>
-          )}
-        </div>
-      </div>
+            {L.hasSave() && (
+              <Btn v="ghost" sm onClick={() => dispatch({ type: A.LOAD_GAME })} style={{ marginTop: 4 }}>
+                💾 Load Game
+              </Btn>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}>📤 Export Save</Btn>
+              <Btn v="ghost" sm onClick={() => importRef.current?.click()}>📥 Import Save</Btn>
+            </div>
+            <input
+              type="file"
+              accept=".broadside"
+              ref={importRef}
+              style={{ display: "none" }}
+              onChange={handleImport}
+            />
+            <div style={{ marginTop: 8 }}>
+              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}>📖 Journal</Btn>
+            </div>
+          </div>
 
-      {/* ── Column 2: Captain's Log ──────────────────────────── */}
-      <div style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        minWidth: 240,
-      }}>
-        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
-          <SectionTitle>CAPTAIN'S LOG</SectionTitle>
-          <LogList entries={state.log} />
+          {/* Mission board */}
+          <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1 })}>
+            <SectionTitle action={<Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>}>
+              MISSION BOARD
+            </SectionTitle>
+            {perk.tier !== "neutral" && (
+              <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: 10, marginBottom: 8 }}>
+                {perk.missionMult > 1
+                  ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
+                  : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
+              </div>
+            )}
+            {!port.services.includes("missions") ? (
+              <EmptyState message="No mission board in this port." />
+            ) : state.missions.length === 0 ? (
+              <EmptyState message="No missions posted. Try refreshing." />
+            ) : (
+              <div style={{ overflowY: "auto", flex: 1 }}>
+                {state.missions.map((m, i) => (
+                  <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                      <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
+                        <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                      </div>
+                    </div>
+                    <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
+                    {m.enemy && (
+                      <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
+                        Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
+                      </div>
+                    )}
+                    {(m.requiredGood && m.requiredQty) && (() => {
+                      const res = window.D.RESOURCES[m.requiredGood];
+                      const inHold = state.hold?.items?.[m.requiredGood] || 0;
+                      const alreadyHave = inHold >= m.requiredQty;
+                      const partialHave = inHold > 0 && inHold < m.requiredQty;
+                      const isIllegal = res?.illegal;
+                      const holdFree = (L.getHoldCapacity(state) || 0) - L.getHoldUsed(state.hold?.items || {});
+                      const canFit = holdFree >= (m.requiredQty - inHold);
+                      return (
+                        <div style={{
+                          margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
+                          background: T.bgDeep,
+                          border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
+                        }}>
+                          <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
+                            {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
+                          </div>
+                          <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
+                            {m.requiredQty} × {res?.name || m.requiredGood}
+                            {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
+                          </div>
+                          <div style={{ fontSize: 10, marginTop: 3 }}>
+                            {alreadyHave
+                              ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
+                              : partialHave
+                                ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
+                                : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
+                            }
+                          </div>
+                          {!alreadyHave && !canFit && (
+                            <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
+                              ⚠ Only {holdFree} hold space free — sell cargo first
+                            </div>
+                          )}
+                          {m.type === "smuggle" && res?.sourceHint && (
+                            <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
+                              {res.sourceHint}
+                            </div>
+                          )}
+                          {m.type === "trade" && (
+                            <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
+                              Est. cost: ~{res?.basePrice * m.requiredQty}g
+                              · Payment on delivery: {m.gold}g
+                              · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
+                            </div>
+                          )}
+                          {m.type === "smuggle" && (
+                            <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
+                              +{m.infamyGain} infamy on completion
+                              {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
+                      <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
+                      <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
+                      <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {state.activeMission && (
+              <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
+                    <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
+                  </div>
+                </div>
+                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
+                <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                  <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
+                  <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
+                </div>
+                {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
+                  const res = window.D.RESOURCES[state.activeMission.requiredGood];
+                  const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
+                  const hasGoods = inHold >= state.activeMission.requiredQty;
+                  const goodName = res?.name || state.activeMission.requiredGood;
+                  return (
+                    <div style={{ marginBottom: 8, fontSize: 10 }}>
+                      <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
+                        {hasGoods
+                          ? `✓ ${inHold} ${goodName} in hold — ready`
+                          : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div style={{ display: "flex", gap: 8 }}>
+                  {canFinish && (
+                    <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
+                      disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
+                      Complete Mission
+                    </Btn>
+                  )}
+                  <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
+                </div>
+                {!canFinish && (
+                  <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
+                    Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Column 2: Captain's Log ──────────────────────────── */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 240,
+        }}>
+          <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
+            <SectionTitle>CAPTAIN'S LOG</SectionTitle>
+            <LogList entries={state.log} />
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // ── SHIPYARD SCREEN ──────────────────────────────────────────────────
   function ShipyardScreen({ state, dispatch }) {
@@ -333,48 +451,67 @@ window.S = window.S || {};
     const currentShip = SHIPS[state.ship.type];
     const effectiveShipStats = L.getShipStats(state);
 
-    // --- new local state for comparison ---
     const [comparing, setComparing] = React.useState(null);
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("shipyard"));
 
-    // --- helper to render stat rows with arrows ---
-function renderShipStats(shipType, compareType) {
-  const s = SHIPS[shipType];
-  const c = compareType ? SHIPS[compareType] : null;
-  const stats = [
-    ["Hull", s.maxHull],
-    ["Cannons", s.cannons],
-    ["Crew", s.maxCrew],
-    ["Hold", s.holdCapacity],
-    ["Speed", s.speed],
-    ["Max days at sea", s.maxDays],   // changed
-  ];
-  return stats.map(([label, val]) => {
-    let arrow = "";
-    let color = T.text;
-    if (c) {
-      const diff = val - (
-        c[label === "Hull" ? "maxHull" :
-          label === "Crew" ? "maxCrew" :
-          label === "Hold" ? "holdCapacity" :
-          label === "Max days at sea" ? "maxDays" :   // explicit mapping
-          label.toLowerCase()]
-      );
-      if (diff > 0) { arrow = " ↑"; color = T.greenBr; }
-      else if (diff < 0) { arrow = " ↓"; color = T.redBr; }
-      else { arrow = " ="; color = T.textDim; }
+    function renderShipStats(shipType, compareType) {
+      const s = SHIPS[shipType];
+      const c = compareType ? SHIPS[compareType] : null;
+      const stats = [
+        ["Hull", s.maxHull],
+        ["Cannons", s.cannons],
+        ["Crew", s.maxCrew],
+        ["Hold", s.holdCapacity],
+        ["Speed", s.speed],
+        ["Max days at sea", s.maxDays],
+      ];
+      return stats.map(([label, val]) => {
+        let arrow = "";
+        let color = T.text;
+        if (c) {
+          const diff = val - (
+            c[label === "Hull" ? "maxHull" :
+              label === "Crew" ? "maxCrew" :
+              label === "Hold" ? "holdCapacity" :
+              label === "Max days at sea" ? "maxDays" :
+              label.toLowerCase()]
+          );
+          if (diff > 0) { arrow = " ↑"; color = T.greenBr; }
+          else if (diff < 0) { arrow = " ↓"; color = T.redBr; }
+          else { arrow = " ="; color = T.textDim; }
+        }
+        return (
+          <div key={label} style={{ fontSize: 11, color, marginBottom: 2 }}>
+            {label}: {val}{arrow}
+          </div>
+        );
+      });
     }
-    return (
-      <div key={label} style={{ fontSize: 11, color, marginBottom: 2 }}>
-        {label}: {val}{arrow}
-      </div>
-    );
-  });
-}
-    // --- end new helper ---
 
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
         <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
+
+        {showTutorial && (
+          <TutorialPopup
+            title="The Shipyard"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("shipyard", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>This is where you upgrade your ship — or buy a new one entirely.</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li><strong>Repair your hull</strong> if you've taken damage. Allied ports offer a discount.</li>
+              <li><strong>Browse ships for sale.</strong> Click any ship to compare it with your current vessel.</li>
+              <li>Ships are locked behind <strong>fame requirements</strong> — build your reputation to unlock bigger hulls.</li>
+              <li>Buying a new ship <strong>clears all upgrades</strong>. Choose carefully.</li>
+              <li><strong>Upgrades</strong> (if available at this port) improve your hull, cannons, speed, or morale.</li>
+            </ul>
+            <p>A bigger ship means more crew, more cargo, more firepower — but also higher wages and slower speed.</p>
+          </TutorialPopup>
+        )}
+
         <div style={panelStyle()}>
           <SectionTitle>REPAIR VESSEL</SectionTitle>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
@@ -392,7 +529,7 @@ function renderShipStats(shipType, compareType) {
             const shipReq = L.meetsRequirement(state, s);
             const canBuy = !isCur && shipReq.allowed && state.gold >= s.cost;
             const lack = !isCur && shipReq.allowed && state.gold < s.cost ? s.cost - state.gold : 0;
-            const isComparing = comparing === key; // highlight selected
+            const isComparing = comparing === key;
             return (
               <div key={key}
                 onClick={() => setComparing(isComparing ? null : key)}
@@ -402,7 +539,7 @@ function renderShipStats(shipType, compareType) {
                     borderColor: isCur ? T.greenBr : (isComparing ? T.gold : T.border),
                   }),
                   opacity: shipReq.allowed ? 1 : 0.55,
-                  cursor: 'pointer', // make whole card feel clickable
+                  cursor: 'pointer',
                 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                   <span style={{ color: T.text, fontSize: 13, fontWeight: "bold" }}>{s.name}</span>
@@ -419,7 +556,6 @@ function renderShipStats(shipType, compareType) {
           })}
         </div>
 
-        {/* --- new comparison panel --- */}
         {comparing && (
           <div style={panelStyle({ marginTop: 12 })}>
             <SectionTitle>SHIP COMPARISON</SectionTitle>
@@ -436,7 +572,6 @@ function renderShipStats(shipType, compareType) {
             <Btn sm onClick={() => setComparing(null)} style={{ marginTop: 8 }}>Close comparison</Btn>
           </div>
         )}
-        {/* --- end comparison panel --- */}
 
         {PORTS[state.currentPort]?.services.includes("upgrades") && (
           <>
@@ -467,202 +602,214 @@ function renderShipStats(shipType, compareType) {
   }
 
   // ── CREW SCREEN ──────────────────────────────────────────────────────
- function CrewScreen({ state, dispatch }) {
-  const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
-  if (perk.servicesBlocked) {
+  function CrewScreen({ state, dispatch }) {
+    const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+    if (perk.servicesBlocked) {
+      return (
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+          <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
+          <EmptyState message="⚔ You are at war with this port. No crew services available." />
+        </div>
+      );
+    }
+    const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
+    const [selectedMember, setSelectedMember] = React.useState(null);
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("crew"));
+
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
         <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
-        <EmptyState message="⚔ You are at war with this port. No crew services available." />
+
+        {showTutorial && (
+          <TutorialPopup
+            title="Your Crew"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("crew", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Click any crew member to see their story. Over time, they earn:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li><strong>Scars</strong> from battles and storms they survived</li>
+              <li><strong>Traits</strong> that reveal hidden personalities</li>
+              <li><strong>Loyalty</strong> status — veterans who've served 200+ days may pledge loyalty</li>
+            </ul>
+            <p>Watch crew faction alignment — attacking a crew member's home faction can make them upset and eventually desert.</p>
+          </TutorialPopup>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          {/* ── ROSTER PANEL ──────────────────────────────── */}
+          <div style={panelStyle()}>
+            <SectionTitle>ROSTER</SectionTitle>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <StatBlock label="Aboard" value={`${state.crew.roster.length}/${state.crew.max}`} />
+              <StatBlock label="Berths Free" value={open} />
+              <StatBlock label="Morale" value={`${state.crew.morale}%`} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} />
+              <StatBlock label="Daily Wage" value={`${state.crew.roster.length * 2}g`} />
+            </div>
+            <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>MORALE</div>
+            <Bar value={state.crew.morale} max={100} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} h={10} />
+            {state.crew.morale < 50 && <div style={{ color: T.redBr, fontSize: 10, marginTop: 6 }}>⚠ Low morale weakens combat effectiveness</div>}
+
+            {(() => {
+              const counts = {};
+              state.crew.roster.forEach(m => {
+                counts[m.faction] = (counts[m.faction] || 0) + 1;
+              });
+              return (
+                <div style={{ fontSize: 10, color: T.textDim, marginTop: 10 }}>
+                  {Object.entries(counts).map(([faction, count]) => {
+                    const fac = FACTIONS[faction];
+                    return (
+                      <span key={faction} style={{ color: fac?.color || T.textDim, marginRight: 10 }}>
+                        {fac?.label || faction}: {count}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            <div style={{ marginTop: 10 }}>
+              <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>🍻 Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale</Btn>
+            </div>
+          </div>
+
+          {/* ── HIRE PANEL ────────────────────────────────── */}
+          <div style={panelStyle()}>
+            <SectionTitle>HIRE</SectionTitle>
+            <p style={{ color: T.textDim, fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < 1 || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
+            </div>
+            {open === 0 && <EmptyState message="Ship is at full capacity." />}
+          </div>
+
+          {/* ── CREW DETAIL / LEGEND PANEL ────────────────── */}
+          <div style={panelStyle()}>
+            <SectionTitle>CREW DETAILS</SectionTitle>
+            {selectedMember ? (
+              (() => {
+                const ALL_ICONS = {
+                  seasoned:           { icon: "⭐", label: "Seasoned — halved desertion chance" },
+                  veteran:            { icon: "🎖️", label: "Veteran — halved desertion chance" },
+                  loyal:              { icon: "👑", label: "Loyal Officer — never deserts" },
+                  upset:              { icon: "⚠️", label: "Upset — may desert at next port" },
+                  mutineer:           { icon: "⚓", label: "Mutineer — permanent; doubles desertion chance if upset" },
+                  scar_battle:        { icon: "⚔️", label: "Battle-Scarred" },
+                  scar_storm:         { icon: "🌊", label: "Storm Survivor" },
+                  scar_shipwreck:     { icon: "🚢", label: "Shipwreck Survivor" },
+                  revealed_drunkard:  { icon: "🍺", label: "Drunkard — drinks the ship's rum" },
+                  revealed_coward:    { icon: "🐔", label: "Coward — loses morale on dangerous missions" },
+                  revealed_greedy:    { icon: "💰", label: "Greedy — demands a bonus after missions" },
+                };
+                const visibleTags = (selectedMember.tags || []).filter(t => !t.startsWith("hidden_"));
+                const memberIcons = Object.entries(ALL_ICONS).filter(([tag]) => visibleTags.includes(tag));
+
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: T.gold, fontSize: 13, fontWeight: "bold" }}>
+                        {selectedMember.firstName} {selectedMember.lastName}
+                      </span>
+                      <Btn sm v="ghost" onClick={() => setSelectedMember(null)}>✕</Btn>
+                    </div>
+                    <div style={{ fontSize: T.narrativeFontSize, color: T.text }}>
+                      <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
+                      <div>Role: {selectedMember.role}</div>
+                      <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>
+                      {memberIcons.length > 0 && (
+                        <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {memberIcons.map(([tag, { icon, label }]) => (
+                            <span key={tag} title={label} style={{ fontSize: 16 }}>{icon}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
+                        {typeof G.generateCrewBio === 'function'
+                          ? G.generateCrewBio(selectedMember, state)
+                          : `${selectedMember.firstName} is a crew member.`}
+                      </div>
+                      {memberIcons.length > 0 && (
+                        <details style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
+                          <summary style={{ cursor: "pointer", color: T.gold, fontSize: 10, letterSpacing: "0.05em" }}>ICON LEGEND</summary>
+                          <div style={{ marginTop: 4, lineHeight: 1.8, paddingLeft: 4 }}>
+                            {memberIcons.map(([tag, { icon, label }]) => (
+                              <div key={tag} title={label}>{icon} {label}</div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, fontStyle: "italic" }}>
+                Click on any crew member icon for details.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── MANIFEST ───────────────────────────────────── */}
+        <div style={{ ...panelStyle() }}>
+          <SectionTitle>MANIFEST</SectionTitle>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {state.crew.roster.map(member => {
+              const visibleTags = (member.tags || []).filter(t => !t.startsWith("hidden_"));
+              const roleIcon = { deckhand: "⚓", gunner: "🗡", cook: "🍖", carpenter: "🔧", navigator: "🧭" }[member.role] ?? "👤";
+              const factionColor = FACTIONS[member.faction]?.color || T.textDim;
+              const isMutineer = L.hasTag(member, "mutineer");
+              const tagLabels = visibleTags.map(t => {
+                if (t === "upset") return "Upset";
+                if (t === "mutineer") return "Mutineer";
+                if (t === "scar_shipwreck") return "Shipwreck Survivor";
+                if (t === "loyal") return "Loyal Officer";
+                if (t === "seasoned") return "Seasoned";
+                if (t === "veteran") return "Veteran";
+                if (t.startsWith("revealed_")) return t.replace("revealed_", "").replace(/_/g, " ");
+                return t;
+              });
+              const tooltipText = `${member.firstName} ${member.lastName} · ${member.role} · ${member.faction} · ${member.daysAboard}d aboard` +
+                (tagLabels.length > 0 ? ` · ${tagLabels.join(", ")}` : "");
+
+              return (
+                <div
+                  key={member.id}
+                  title={tooltipText}
+                  onClick={() => setSelectedMember(selectedMember?.id === member.id ? null : member)}
+                  style={{
+                    width: 34, height: 34, borderRadius: 3,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 15, cursor: "pointer",
+                    background: selectedMember?.id === member.id ? T.panelAlt : T.panel,
+                    border: `2px solid ${selectedMember?.id === member.id ? T.gold : T.border}`,
+                    position: "relative",
+                  }}
+                >
+                  <span>{roleIcon}</span>
+                  <div style={{
+                    position: "absolute", bottom: 2, right: 2,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: factionColor,
+                    border: `1px solid ${T.bgDeep}`,
+                  }} />
+                  {isMutineer && (
+                    <span style={{
+                      position: "absolute", top: -2, right: -2,
+                      fontSize: 10, color: T.purpleBr,
+                    }}>⚠</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   }
-  const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
-  const [selectedMember, setSelectedMember] = React.useState(null);
-
-  return (
-    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
-      <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-        {/* ── ROSTER PANEL ──────────────────────────────── */}
-        <div style={panelStyle()}>
-          <SectionTitle>ROSTER</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <StatBlock label="Aboard" value={`${state.crew.roster.length}/${state.crew.max}`} />
-            <StatBlock label="Berths Free" value={open} />
-            <StatBlock label="Morale" value={`${state.crew.morale}%`} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} />
-            <StatBlock label="Daily Wage" value={`${state.crew.roster.length * 2}g`} />
-          </div>
-          <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>MORALE</div>
-          <Bar value={state.crew.morale} max={100} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} h={10} />
-          {state.crew.morale < 50 && <div style={{ color: T.redBr, fontSize: 10, marginTop: 6 }}>⚠ Low morale weakens combat effectiveness</div>}
-
-          {/* ── Crew composition summary ─────────────────── */}
-          {(() => {
-            const counts = {};
-            state.crew.roster.forEach(m => {
-              counts[m.faction] = (counts[m.faction] || 0) + 1;
-            });
-            return (
-              <div style={{ fontSize: 10, color: T.textDim, marginTop: 10 }}>
-                {Object.entries(counts).map(([faction, count]) => {
-                  const fac = FACTIONS[faction];
-                  return (
-                    <span key={faction} style={{ color: fac?.color || T.textDim, marginRight: 10 }}>
-                      {fac?.label || faction}: {count}
-                    </span>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          <div style={{ marginTop: 10 }}>
-            <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>🍻 Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale</Btn>
-          </div>
-        </div>
-
-        {/* ── HIRE PANEL ────────────────────────────────── */}
-        <div style={panelStyle()}>
-          <SectionTitle>HIRE</SectionTitle>
-          <p style={{ color: T.textDim, fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < 1 || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
-          </div>
-          {open === 0 && <EmptyState message="Ship is at full capacity." />}
-        </div>
-
-        {/* ── CREW DETAIL / LEGEND PANEL ────────────────── */}
-        <div style={panelStyle()}>
-          <SectionTitle>CREW DETAILS</SectionTitle>
-          {selectedMember ? (
-            (() => {
-              const ALL_ICONS = {
-                seasoned:           { icon: "⭐", label: "Seasoned — halved desertion chance" },
-                veteran:            { icon: "🎖️", label: "Veteran — halved desertion chance" },
-                loyal:              { icon: "👑", label: "Loyal Officer — never deserts" },
-                upset:              { icon: "⚠️", label: "Upset — may desert at next port" },
-                mutineer:           { icon: "⚓", label: "Mutineer — permanent; doubles desertion chance if upset" },
-                scar_battle:        { icon: "⚔️", label: "Battle-Scarred" },
-                scar_storm:         { icon: "🌊", label: "Storm Survivor" },
-                scar_shipwreck:     { icon: "🚢", label: "Shipwreck Survivor" },
-                revealed_drunkard:  { icon: "🍺", label: "Drunkard — drinks the ship's rum" },
-                revealed_coward:    { icon: "🐔", label: "Coward — loses morale on dangerous missions" },
-                revealed_greedy:    { icon: "💰", label: "Greedy — demands a bonus after missions" },
-              };
-              const visibleTags = (selectedMember.tags || []).filter(t => !t.startsWith("hidden_"));
-              const memberIcons = Object.entries(ALL_ICONS).filter(([tag]) => visibleTags.includes(tag));
-
-              return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: T.gold, fontSize: 13, fontWeight: "bold" }}>
-                      {selectedMember.firstName} {selectedMember.lastName}
-                    </span>
-                    <Btn sm v="ghost" onClick={() => setSelectedMember(null)}>✕</Btn>
-                  </div>
-                  <div style={{ fontSize: T.narrativeFontSize, color: T.text }}>
-                    <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
-                    <div>Role: {selectedMember.role}</div>
-                    <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>
-
-                    {/* Tag icon row */}
-                    {memberIcons.length > 0 && (
-                      <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {memberIcons.map(([tag, { icon, label }]) => (
-                          <span key={tag} title={label} style={{ fontSize: 16 }}>{icon}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Bio paragraph */}
-                    <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
-                      {typeof G.generateCrewBio === 'function'
-                        ? G.generateCrewBio(selectedMember, state)
-                        : `${selectedMember.firstName} is a crew member.`}
-                    </div>
-
-                    {/* Icon legend */}
-                    {memberIcons.length > 0 && (
-                      <details style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
-                        <summary style={{ cursor: "pointer", color: T.gold, fontSize: 10, letterSpacing: "0.05em" }}>ICON LEGEND</summary>
-                        <div style={{ marginTop: 4, lineHeight: 1.8, paddingLeft: 4 }}>
-                          {memberIcons.map(([tag, { icon, label }]) => (
-                            <div key={tag} title={label}>{icon} {label}</div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                </div>
-              );
-            })()
-          ) : (
-            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, fontStyle: "italic" }}>
-              Click on any crew member icon for details.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── MANIFEST ───────────────────────────────────── */}
-      <div style={{ ...panelStyle() }}>
-        <SectionTitle>MANIFEST</SectionTitle>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {state.crew.roster.map(member => {
-            const visibleTags = (member.tags || []).filter(t => !t.startsWith("hidden_"));
-            const roleIcon = { deckhand: "⚓", gunner: "🗡", cook: "🍖", carpenter: "🔧", navigator: "🧭" }[member.role] ?? "👤";
-            const factionColor = FACTIONS[member.faction]?.color || T.textDim;
-            const isMutineer = L.hasTag(member, "mutineer");
-            const tagLabels = visibleTags.map(t => {
-              if (t === "upset") return "Upset";
-              if (t === "mutineer") return "Mutineer";
-              if (t === "scar_shipwreck") return "Shipwreck Survivor";
-              if (t === "loyal") return "Loyal Officer";
-              if (t === "seasoned") return "Seasoned";
-              if (t === "veteran") return "Veteran";
-              if (t.startsWith("revealed_")) return t.replace("revealed_", "").replace(/_/g, " ");
-              return t;
-            });
-            const tooltipText = `${member.firstName} ${member.lastName} · ${member.role} · ${member.faction} · ${member.daysAboard}d aboard` +
-              (tagLabels.length > 0 ? ` · ${tagLabels.join(", ")}` : "");
-
-            return (
-              <div
-                key={member.id}
-                title={tooltipText}
-                onClick={() => setSelectedMember(selectedMember?.id === member.id ? null : member)}
-                style={{
-                  width: 34, height: 34, borderRadius: 3,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 15, cursor: "pointer",
-                  background: selectedMember?.id === member.id ? T.panelAlt : T.panel,
-                  border: `2px solid ${selectedMember?.id === member.id ? T.gold : T.border}`,
-                  position: "relative",
-                }}
-              >
-                <span>{roleIcon}</span>
-                <div style={{
-                  position: "absolute", bottom: 2, right: 2,
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: factionColor,
-                  border: `1px solid ${T.bgDeep}`,
-                }} />
-                {isMutineer && (
-                  <span style={{
-                    position: "absolute", top: -2, right: -2,
-                    fontSize: 10, color: T.purpleBr,
-                  }}>⚠</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
   // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
@@ -763,6 +910,7 @@ function renderShipStats(shipType, compareType) {
     const portName = PORTS[state.currentPort]?.name || "Port";
     const [buyPending, setBuyPending] = useState({});
     const [sellPending, setSellPending] = useState({});
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("market"));
 
     if (!market) return (
       <div style={{ padding: 14 }}>
@@ -815,17 +963,34 @@ function renderShipStats(shipType, compareType) {
       });
     };
 
-    // Exclude illegal goods from the main list
     const shownGoods = Object.keys(RESOURCES).filter(good => {
       if (good === "food" || good === "water") return true;
       const res = RESOURCES[good];
-      if (res.illegal) return false;   // illegal goods moved to Black Market section
+      if (res.illegal) return false;
       return market.goods[good] || (holdItems[good] || 0) > 0;
     });
 
     return (
       <div style={{ padding: 14, overflowY: "auto", flex: 1 }}>
         <button onClick={() => dispatch({ type: A.LEAVE_MARKET })} style={{ background:T.panel, border:`1px solid ${T.gold}`, color:T.gold, padding:"6px 12px", borderRadius:3, cursor:"pointer", fontSize:12, fontFamily:T.font, marginBottom:10 }}>← Back to Port</button>
+
+        {showTutorial && (
+          <TutorialPopup
+            title="The Market"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("market", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Buy goods to trade at other ports for profit. A few things to know:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li>Prices vary between ports — buy where it's cheap, sell where it's rare</li>
+              <li>Loading your hold above 50% <strong>slows your ship</strong></li>
+              <li>Goods marked <strong>illegal</strong> risk confiscation by patrol inspection at sea</li>
+            </ul>
+            <p>Check the port gossips for hints about good deals to be made.</p>
+          </TutorialPopup>
+        )}
 
         <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
 
@@ -1026,5 +1191,162 @@ function renderShipStats(shipType, compareType) {
     );
   };
 
-  Object.assign(window.S, { StartScreen, PortScreen, ShipyardScreen, CrewScreen, StatusScreen, MarketScreen });
+  // ── JOURNAL SCREEN ──────────────────────────────────────────────────
+  function JournalScreen({ state, dispatch }) {
+    const [filterTab, setFilterTab] = useState("all");
+    const [search, setSearch] = useState("");
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("journal"));
+
+    // Parse log entries
+    const parsed = state.log.map(entry => {
+      const match = entry.match(/^\[(\d+)\]\s*(.*)/);
+      const day = match ? parseInt(match[1], 10) : null;
+      const text = match ? match[2] : entry;
+      return { day, text, raw: entry, tab: L.getLogTabCategory(text) };
+    });
+
+    // Apply category filter
+    let filtered = parsed;
+    if (filterTab !== "all") {
+      filtered = filtered.filter(e => e.tab === filterTab);
+    }
+
+    // Apply search filter
+    if (search.trim()) {
+      const query = search.toLowerCase();
+      filtered = filtered.filter(e => e.text.toLowerCase().includes(query));
+    }
+
+    // Reverse chronological order (most recent first)
+    filtered = [...filtered].reverse();
+
+    // Group by day for rendering
+    let lastDay = null;
+
+    const tabs = [
+      { key: "all", label: "All" },
+      { key: "crew", label: "Crew" },
+      { key: "combat", label: "Combat" },
+      { key: "ports", label: "Ports" },
+      { key: "missions", label: "Missions" },
+      { key: "trade", label: "Trade" },
+    ];
+
+    return (
+      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+        <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
+
+        {showTutorial && (
+          <TutorialPopup
+            title="Your Captain's Journal"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("journal", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Everything that has happened on this voyage is recorded here — battles, arrivals, crew events, trades, and discoveries.</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li>Use the <strong>tabs</strong> to filter by category: Crew, Combat, Ports, Missions, or Trade.</li>
+              <li>Use the <strong>search bar</strong> to find a specific crew member, port, or event by name.</li>
+              <li>Entries are <strong>grouped by day</strong> — scroll back to relive the story of your run.</li>
+            </ul>
+            <p>The journal is the story of your career. The longer you sail, the richer it becomes.</p>
+          </TutorialPopup>
+        )}
+
+        <SectionTitle>📖 CAPTAIN'S JOURNAL</SectionTitle>
+
+        {/* Filter tabs */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {tabs.map(tab => (
+            <Btn
+              key={tab.key}
+              sm
+              v={filterTab === tab.key ? "gold" : "ghost"}
+              onClick={() => setFilterTab(tab.key)}
+            >
+              {tab.label}
+            </Btn>
+          ))}
+        </div>
+
+        {/* Search bar */}
+        <div style={{ marginBottom: 12 }}>
+          <input
+            type="text"
+            placeholder="🔍 Search journal..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "6px 10px",
+              background: T.panel,
+              border: `1px solid ${T.border}`,
+              color: T.text,
+              borderRadius: 3,
+              fontSize: 11,
+              fontFamily: T.font,
+              outline: "none",
+            }}
+          />
+          {search && (
+            <div style={{ color: T.textFaint, fontSize: 9, marginTop: 4, textAlign: "right" }}>
+              {filtered.length} entr{filtered.length === 1 ? "y" : "ies"} found
+            </div>
+          )}
+        </div>
+
+        {/* Entries */}
+        <div style={{ ...panelStyle(), flex: 1, overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <EmptyState message="No entries found." />
+          ) : (
+            filtered.map((entry, i) => {
+              const showDay = entry.day !== null && entry.day !== lastDay;
+              lastDay = entry.day;
+              return (
+                <React.Fragment key={i}>
+                  {showDay && (
+                    <div style={{
+                      color: T.textFaint,
+                      fontSize: 9,
+                      borderBottom: `1px solid ${T.borderFaint}`,
+                      marginTop: 12,
+                      marginBottom: 6,
+                      paddingBottom: 2,
+                    }}>
+                      Day {entry.day}
+                    </div>
+                  )}
+                  <div style={{
+                    fontSize: T.narrativeFontSize,
+                    color: T.textDim,
+                    lineHeight: T.narrativeLineHeight,
+                    marginBottom: 6,
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 6,
+                  }}>
+                    <span>{entry.text}</span>
+                  </div>
+                </React.Fragment>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── EXPORT ALL SCREENS ──────────────────────────────────────────────
+  Object.assign(window.S, {
+    TitleScreen,
+    ScenarioScreen,
+    PortScreen,
+    ShipyardScreen,
+    CrewScreen,
+    StatusScreen,
+    MarketScreen,
+    JournalScreen,
+  });
 })();

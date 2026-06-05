@@ -1,7 +1,171 @@
-# Broadside — Architecture Documentation
+# Gameplay Architecture: Loops, Systems, Mechanics, and Presentation Layers
 
-> Canonical reference for project structure, conventions, and game mechanics.
-> Last updated to match codebase: June 2026.
+
+---
+
+## Gameplay Architecture: Loops, Systems, Mechanics, and Presentation Layers
+
+Broadside is designed as a systems-driven game. The goal is not to add isolated features, but to build interacting rule sets where player choices create consequences across multiple parts of the game.
+
+A useful distinction is:
+
+| Term | Meaning in Broadside | Example |
+|---|---|---|
+| **Loop** | A repeated player activity cycle | Port → Prepare → Sail → Encounter → Arrive → Recover |
+| **System** | A stateful rule set that can be affected by actions and can mechanically affect other systems | Heat, Crew, Combat, Economy |
+| **Mechanic** | A specific action or rule operation within a system | Buy goods, grapple, install equipment, buy drinks |
+| **Stat / Resource / Tag** | A value read or written by systems | Gold, hull, fame, morale, `upset`, `loyal`, `scar_battle` |
+| **Feature / Screen** | A player-facing implementation that exposes or supports systems | Shipyard screen, Captain’s Journal, tutorial overlay |
+| **Narrative Presentation Layer** | Textual output that makes systemic consequences readable | Gossip, captain’s log, crew bios, journal entries |
+
+The design goal is:
+
+> Every major gameplay system should create consequences that at least one or two other systems care about — but not every stat needs to affect everything.
+
+This avoids both isolated mechanics and chaotic over-coupling.
+
+---
+
+## Core Game Loops
+
+Broadside is built around several nested loops.
+
+### Main Loop
+
+```text
+Port
+→ Prepare
+→ Sail
+→ Encounter / Event / Battle
+→ Arrive
+→ Resolve consequences
+→ Port
+```
+
+### Supporting Loops
+
+| Loop | Player activity |
+|---|---|
+| **Port loop** | Accept missions, trade, repair, hire, buy drinks, manage ship/equipment |
+| **Voyage loop** | Choose destination, spend days, consume provisions, trigger events |
+| **Combat loop** | Choose actions, take damage, lose crew, win/lose/plunder |
+| **Recovery loop** | Repair hull, replace crew, sell cargo, manage morale/reputation |
+| **Progression loop** | Earn gold/fame, buy ships, install equipment, take harder risks |
+
+---
+
+## Core Gameplay Systems
+
+A Broadside gameplay system has state, rules, can be affected by player or world action and can mechanically affect other systems.
+
+The current core systems are:
+
+| System | Main state | Main design role |
+|---|---|---|
+| **Economy** | Gold, cargo, provisions, wages, prices, repair costs | Pressure |
+| **Mission** | Active mission, rewards, destination, risk, target, reputation impact | Structure |
+| **Navigation** | Current port, destination, travel days, range, speed, provisions | Time cost |
+| **Combat** | Hull, crew, cannons, enemy state, action choices, plunder | Consequence generator |
+| **Crew** | Roster, morale, faction, traits, scars, tags, days aboard | Attachment and human consequence |
+| **Reputation** | Port/faction standing, service access, prices | World memory |
+| **Heat** | Temporary faction alert, decay, patrol pressure | Short-term consequence |
+| **Fame / Infamy** | Career progression, unlocks, notoriety | Long-term identity |
+| **Ship** | Hull, speed, cannons, hold, max crew, max days | Strategic capability |
+| **Equipment** | Installed items, slots, equipment inventory, effect flags | Build specialization |
+| **Port / Market / Services** | Port faction, services, goods, missions, shipyard access | Decision hub |
+| **Events** | Voyage events, event choices, outcomes | System disruption and surprise |
+
+---
+
+## Narrative Presentation Is Not a Core Gameplay System
+
+Gossip, captain’s log entries, crew biographies, and the Captain’s Journal are not treated as core gameplay systems by themselves.
+
+They are part of the **Narrative Presentation Layer**.
+
+Their role is to:
+
+- make consequences visible;
+- make system interactions readable;
+- preserve the story of the run;
+- provide hints, tone, and emotional continuity;
+- help the player understand why things happened.
+
+They generally do not create mechanical effects on their own.
+
+Example:
+
+```text
+Combat system:
+  The player defeats a Spanish ship.
+
+Crew system:
+  Spanish crew members may become upset.
+
+Heat system:
+  Spanish heat increases.
+
+Reputation system:
+  Spanish reputation may fall.
+
+Narrative Presentation Layer:
+  "Maria Navarro is disturbed by the attack on Spanish ships."
+  "Soldiers patrol the docks. The garrison has been reinforced."
+  The Journal records both under the relevant day.
+```
+
+The narrative layer does not drive the mechanics here. It surfaces the collision between systems.
+
+### Presentation / Memory Features
+
+| Feature | Classification | Purpose |
+|---|---|---|
+| **Captain’s Log** | Narrative presentation | Immediate feedback on consequences |
+| **Captain’s Journal** | Narrative memory feature | Search, filter, and revisit the run’s story |
+| **Port Gossip** | Narrative presentation / information layer | Exposes heat, reputation, market hints, and local tone |
+| **Crew Bios** | Character presentation | Turns crew state into readable personality/history |
+| **Combat Log** | Tactical presentation | Makes battle outcomes readable |
+| **Tutorial Text** | Onboarding feature | Explains systems to new players |
+
+If a future feature makes rumours persistent, actionable, and mechanically tracked, then that feature may become a light **information subsystem**. Until then, gossip and logs remain presentation/memory layers.
+
+---
+
+## System Interaction Matrix
+
+Rows are source systems. Columns are impacted systems.
+
+| From ↓ / To → | Economy | Mission | Navigation | Combat | Crew | Reputation | Heat | Fame/Infamy | Ship | Equipment | Port/Market | Events |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Economy** | — | Afford risk | Provisions | Repair cost | Wages/drinks | Bribes/help | Bribes/fines | Progress spend | Buy/repair | Buy/install | Trade/services | Gold/cargo logs |
+| **Mission** | Rewards/costs | — | Destination | Targets | Faction upset | Rep gain/loss | Violent heat | Fame/infamy | Ship viability | Build demand | Board refresh | Mission story |
+| **Navigation** | Wages/food | Time cost | — | Encounters | Days aboard | Arrival context | Patrol chance | Discovery | Range/speed | Travel effects | Arrival | Voyage events |
+| **Combat** | Plunder/repair | Progress/fail | Forced return | — | Death/scars | Faction impact | Heat gain | Fame/infamy | Hull damage | Uses effects | Recovery needs | Battle events |
+| **Crew** | Wages/costs | Mission risk | Morale pressure | Combat power | — | Faction loyalty | Indirect risk | Story value | Max crew | Crew equipment | Hire/drinks | Trait/scar events |
+| **Reputation** | Prices/services | Mission access | Hostile ports | Attack context | Loyalty gate | — | Danger context | Unlock context | Shipyard access | Shop access | Services | Gossip tone |
+| **Heat** | Fines/bribes | Risk selection | Patrol rate | Intercepts | Danger pressure | Pressure layer | — | Notoriety feel | Damage risk | Pennants modify | Map/status | Heat events |
+| **Fame/Infamy** | Reward scale | Mission tier | Hidden reach | Enemy scale | Narrative status | Port reaction | Patrol pressure | — | Ship unlocks | Equipment unlocks | Port reaction | Career events |
+| **Ship** | Hold/repair | Mission viability | Speed/range | Hull/cannons | Max crew | Strategic leverage | Survival | Progression spend | — | Slot capacity | Shipyard | Ship damage |
+| **Equipment** | Costs/mods | Fame/rep mods | Speed/range | Combat mods | Crew loss mods | Figurehead | Pennants heat | Fame bonus | Stat changes | — | Shipyard loop | Event immunity |
+| **Port/Market** | Prices | Mission board | Route choices | Recovery | Hire/morale | Local standing | Alert display | Fame reaction | Ships/repair | Shop access | — | Ambience/events |
+| **Events** | Gold/cargo loss | Disruption | Delay/discovery | Event combat | Crew loss/scars | Choice impact | Danger hints | Discovery/fame | Hull damage | Immunities | Arrival context | — |
+
+
+Technical modules should remain simple and data-driven, but gameplay architecture should preserve clear boundaries:
+
+- Systems own state and rules.
+- Mechanics are actions or rule operations inside systems.
+- Stats/resources/tags are data read and written by systems.
+- Features/screens expose systems to the player.
+- Narrative presentation translates system consequences into readable story.
+
+This keeps Broadside expandable without turning every feature into an isolated mini-system or making every stat affect every other stat.
+
+
+---------------------------------------------------
+
+# Technical Architecture
+
 
 ## Table of Contents
 

@@ -254,6 +254,42 @@ const NarrativeLine = ({ children, style = {} }) => (
   </p>
 );
 
+// tutorial 
+
+const TutorialPopup = ({ title, children, onDismiss }) => {
+  const [dontShowAgain, setDontShowAgain] = React.useState(false);
+  const { T } = window.UI; // re-use the theme from within the module
+
+  return React.createElement('div', {
+    style: {
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }
+  }, React.createElement('div', {
+    style: {
+      ...panelStyle({ maxWidth: 460, width: "90%" }),
+      borderColor: T.gold,
+    }
+  },
+    React.createElement('div', { style: { color: T.gold, fontSize: 14, fontWeight: "bold", marginBottom: 10 } }, `📖 ${title}`),
+    React.createElement('div', { style: { color: T.text, fontSize: 11, lineHeight: 1.6, marginBottom: 16 } }, children),
+    React.createElement('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+      React.createElement('label', { style: { color: T.textDim, fontSize: 10, cursor: "pointer" } },
+        React.createElement('input', {
+          type: "checkbox",
+          checked: dontShowAgain,
+          onChange: e => setDontShowAgain(e.target.checked),
+          style: { marginRight: 6 }
+        }),
+        "Don't show tutorial hints again"
+      ),
+      React.createElement(Btn, { v: "gold", onClick: () => onDismiss(dontShowAgain) }, "Got it!")
+    )
+  ));
+};
+
+// LOGS
 const LogList = ({ entries, maxEntries = 20 }) => {
   let lastDay = null;
 
@@ -359,6 +395,7 @@ const LogList = ({ entries, maxEntries = 20 }) => {
     StatBlock,
     SectionTitle,
     ScreenHeader,
+    TutorialPopup,
     NarrativePanel,
     NarrativeLine,
     LogList,

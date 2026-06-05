@@ -107,7 +107,7 @@ const App = () => {
 
   // --- HUD Component ---
   const HUD = () => {
-    if (screen === "start") return null;
+    if (screen === "start" || screen === "title") return null;
     const currentPort = PORTS[state.currentPort];
     const effectiveShipStats = L.getShipStats(state);
     const effectiveMorale = L.getEffectiveMorale(state);
@@ -222,7 +222,8 @@ const App = () => {
   const renderScreen = () => {
     const { S } = window;
     switch (state.screen) {
-      case "start":      return <S.StartScreen dispatch={dispatch} />;
+      case "title":     return <S.TitleScreen dispatch={dispatch} />;
+      case "start":     return <S.ScenarioScreen dispatch={dispatch} />;
       case "port":       return <S.PortScreen state={state} dispatch={dispatch} />;
       case "map":        return <S.MapScreen state={state} dispatch={dispatch} />;
       case "sailing":    return <S.SailingScreen state={state} dispatch={dispatch} />;
@@ -234,6 +235,8 @@ const App = () => {
       case "battle":     return <S.BattleScreen state={state} dispatch={dispatch} />;
       case "plunder": return <S.PlunderScreen state={state} dispatch={dispatch} />;
       case "market":     return <S.MarketScreen state={state} dispatch={dispatch} />;
+      case "journal":    return <S.JournalScreen state={state} dispatch={dispatch} />;
+
       default: return <div style={{ color: T.text, padding: 20 }}>Unknown screen: {state.screen}</div>;
     }
   };

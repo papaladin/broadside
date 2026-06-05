@@ -6,16 +6,37 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, UPGRADES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState, TutorialPopup } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
+  const { shouldShowTutorial, markTutorialSeen } = window.L;
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
     const [hov, setHov] = useState(null);
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("map"));
     const W = 760, H = 460;
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden", minHeight: "100%" }}>
         <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
+
+        {/* Tutorial Popup */}
+        {showTutorial && (
+          <TutorialPopup
+            title="The Caribbean"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("map", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Click any port to set sail. Hover to see:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li>How many days the voyage will take</li>
+              <li>Your reputation at that port</li>
+            </ul>
+            <p>Grey ports are out of range — you'll need a bigger ship. Upgrade at a Shipyard when you can afford it.</p>
+          </TutorialPopup>
+        )}
+
         <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, minHeight: 400 }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep, minHeight: 400 }}>
             <defs>
@@ -104,8 +125,30 @@ window.S = window.S || {};
     const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, consumption);
     const loadPct = L.getHoldLoadPct(state.hold?.items, L.getHoldCapacity(state));
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
+
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("sailing"));
+
     return (
       <div style={{ padding: 14, display: "flex", gap: 12, flex: 1, overflow: "hidden", flexWrap: "wrap",flexDirection: window.innerWidth < 480 ? "column" : "row" }}>
+        {/* Tutorial Popup */}
+        {showTutorial && (
+          <TutorialPopup
+            title="At Sea"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("sailing", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Click <strong>Advance Day</strong> to sail toward your destination. Each day:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li>Your crew consumes food and water</li>
+              <li>Crew wages are deducted</li>
+              <li>Random events may happen — storms, encounters, opportunities</li>
+            </ul>
+            <p>When you arrive, click <strong>Enter Port</strong> to dock.</p>
+          </TutorialPopup>
+        )}
+
         <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
             <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
@@ -281,8 +324,31 @@ const InterceptScreen = ({ state, dispatch }) => {
     const done = ["victory","defeat","fled"].includes(bs.phase);
     const playerPct = bs.playerHull / SHIPS[state.ship.type].maxHull;
     const enemyPct = bs.enemyHull / bs.enemy.hull;
+
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("battle"));
+
     return (
       <div style={{ padding: 14, maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+        {/* Tutorial Popup */}
+        {showTutorial && (
+          <TutorialPopup
+            title="Naval Combat"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("battle", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>Choose an action each round:</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li><strong>Broadside</strong> — reliable cannon volley</li>
+              <li><strong>Precision</strong> — risky but devastating if it hits</li>
+              <li><strong>Grapple</strong> — board the enemy. High risk, instant victory if successful. Depends on your crew size advantage and morale.</li>
+              <li><strong>Evade</strong> — attempt to flee the battle, depend on your ship speed.</li>
+            </ul>
+            <p>Watch your hull and crew. If your hull reaches zero, you lose.</p>
+          </TutorialPopup>
+        )}
+
         <div style={{ textAlign: "center", color: T.redBr, fontSize: 16, fontWeight: "bold", letterSpacing: "0.1em" }}>⚔ NAVAL BATTLE — ROUND {bs.round}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 36px 1fr", gap: 10, alignItems: "center" }}>
           <div style={panelStyle({ borderColor: T.blueBr })}>
@@ -449,9 +515,6 @@ function PlunderScreen({ state, dispatch }) {
     </div>
   );
 }
-
-
-
 
 Object.assign(window.S, { MapScreen, SailingScreen, EventScreen, InterceptScreen, BattleScreen, PlunderScreen });
 })();

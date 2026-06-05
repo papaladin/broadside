@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broadside — Screenshot Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060e18;color:#dcd0b8;font-family:'Courier New',monospace;font-size:12px;padding:20px}
+h1{color:#ffd700;font-size:22px;letter-spacing:.15em;margin-bottom:4px;text-align:center}
+h2{color:#ffd700;font-size:16px;margin:30px 0 10px;border-bottom:1px solid #6b5530;padding-bottom:6px}
+.subtitle{color:#a09070;font-size:11px;margin-bottom:20px;text-align:center}
+nav{text-align:center;margin:16px 0 30px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+nav a{color:#ffd700;text-decoration:none;padding:6px 14px;border:1px solid #6b5530;border-radius:3px;font-size:11px;font-family:inherit}
+nav a:hover{background:#1c1610}
+.export-all{background:#cc9900;border:1px solid #ffd700;color:#000;padding:10px 24px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold;display:block;margin:0 auto 20px}
+.export-all:hover{background:#ffd700}
+.size-block{display:inline-flex;flex-direction:column;align-items:center;gap:6px;margin:0 12px 16px 0;vertical-align:top}
+.size-label{color:#a09070;font-size:10px}
+.export-btn{background:#1c1610;border:1px solid #6b5530;color:#ffd700;padding:4px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:10px}
+.export-btn:hover{background:#2a1a08}
+.scene{overflow:hidden;position:relative}
+.scene *{font-family:'Courier New',monospace}
+</style>
+</head>
+<body>
+<h1>Broadside Screenshot Generator</h1>
+<div class="subtitle">Dev tool for itch.io assets</div>
+<button class="export-all" onclick="exportAll()">Export All</button>
+<nav><a href="#sceneA">Cover</a><a href="#sceneB">Log</a><a href="#sceneC">Combat</a><a href="#sceneD">Port</a><a href="#sceneE">Crew</a><a href="#sceneF">F: itch.io Assets</a></nav>
+<script>window.E=window.E||{A:{},_reducers:[]};window.UI=window.UI||{T:{}};window.S=window.S||{};window.L=window.L||{};window.G=window.G||{};</script>
+<script src="../data.js"></script>
+<div id="scenes"></div>
+<script>
+const D=window.D;
+const SIZES=[{w:315,h:250,l:"315x250"},{w:630,h:500,l:"630x500"},{w:1280,h:640,l:"1280x640"}];
+const C={bg:"#0a141e",p:"#1c1610",pa:"#120e04",b:"#6b5530",bf:"#4a3820",t:"#dcd0b8",d:"#a09070",f:"#706050",g:"#ffd700",gd:"#cc9900",r:"#f44336",gr:"#4caf50",bl:"#2196f3",pu:"#9c27b0"};
+const FC={english:"#ff0000",spanish:"#ffcc00",french:"#0066ff",dutch:"#ff6600",pirate:"#800080"};
+function exportScene(id,fn){const el=document.getElementById(id);if(!el)return;html2canvas(el,{backgroundColor:null,scale:2}).then(c=>{const a=document.createElement("a");a.download=fn;a.href=c.toDataURL("image/png");a.click();})}
+async function exportAll(){for(const b of document.querySelectorAll(".export-btn")){b.click();await new Promise(r=>setTimeout(r,600));}}
+const o=document.getElementById("scenes");let h="";
+
+// SCENE A
+h+=`<div id="sceneA"><h2>Scene A — Cover</h2>`;
+SIZES.forEach((sz,si)=>{const id=`sA${si}`;const ts=sz.w>=1000?48:sz.w>=500?36:24;const ss=sz.w>=1000?20:sz.w>=500?15:12;const tg=sz.w>=1000?13:sz.w>=500?10:0;const an=sz.w>=1000?60:sz.w>=500?44:28;const dt=sz.w>=1000?8:sz.w>=500?6:4;
+h+=`<div class="size-block"><div class="size-label">${sz.l}</div><div class="scene" id="${id}" style="width:${sz.w}px;height:${sz.h}px;background:${C.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative">`;
+h+=`<svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.04" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice"><path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70" fill="none" stroke="${C.g}" stroke-width="1.5"/><path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90" fill="none" stroke="${C.g}" stroke-width="1"/><path d="M100,110 Q120,105 140,112 T180,108 Q200,104 220,110" fill="none" stroke="${C.g}" stroke-width="0.8"/><ellipse cx="160" cy="90" rx="8" ry="4" fill="${C.g}" opacity="0.3"/><ellipse cx="250" cy="78" rx="12" ry="5" fill="${C.g}" opacity="0.2"/><ellipse cx="300" cy="88" rx="6" ry="3" fill="${C.g}" opacity="0.25"/><ellipse cx="120" cy="75" rx="5" ry="3" fill="${C.g}" opacity="0.15"/><path d="M30,120 Q60,115 80,118 T130,115" fill="none" stroke="${C.g}" stroke-width="0.6"/><path d="M280,100 Q310,95 340,100 T390,95" fill="none" stroke="${C.g}" stroke-width="0.6"/></svg>`;
+h+=`<div style="position:absolute;inset:8px;border:1px solid ${C.b};border-radius:4px"></div>`;
+h+=`<svg width="${an}" height="${an}" viewBox="0 0 40 40" style="margin-bottom:${sz.w>=500?12:6}px;opacity:0.7;z-index:1"><circle cx="20" cy="20" r="18" fill="none" stroke="${C.g}" stroke-width="0.8" opacity="0.4"/><line x1="20" y1="2" x2="20" y2="38" stroke="${C.g}" stroke-width="0.5" opacity="0.3"/><line x1="2" y1="20" x2="38" y2="20" stroke="${C.g}" stroke-width="0.5" opacity="0.3"/><polygon points="20,4 22,16 20,14 18,16" fill="${C.g}" opacity="0.8"/><polygon points="20,36 22,24 20,26 18,24" fill="${C.gd}" opacity="0.5"/><polygon points="4,20 16,18 14,20 16,22" fill="${C.gd}" opacity="0.5"/><polygon points="36,20 24,18 26,20 24,22" fill="${C.gd}" opacity="0.5"/><text x="20" y="9" text-anchor="middle" font-size="4" fill="${C.d}" font-family="serif">N</text></svg>`;
+h+=`<div style="color:${C.g};font-size:${ts}px;font-weight:bold;letter-spacing:0.2em;text-shadow:0 0 30px ${C.gd};z-index:1">&#9875; BROADSIDE</div>`;
+h+=`<div style="color:${C.d};font-size:${ss}px;letter-spacing:0.15em;margin-top:${sz.w>=500?8:4}px;z-index:1">CARIBBEAN &middot; 1695</div>`;
+if(tg>0)h+=`<div style="color:${C.f};font-size:${tg}px;margin-top:${sz.w>=1000?16:10}px;z-index:1;font-style:italic">A turn-based, narrative pirate strategy game</div>`;
+h+=`<div style="position:absolute;bottom:${sz.w>=500?16:8}px;display:flex;gap:${dt}px;z-index:1">`;Object.values(FC).forEach(c=>{h+=`<div style="width:${dt}px;height:${dt}px;border-radius:50%;background:${c};opacity:0.6"></div>`;});h+=`</div>`;
+h+=`</div><button class="export-btn" onclick="exportScene('${id}','broadside-cover-${sz.l}.png')">Export ${sz.l}</button></div>`;});
+h+=`</div>`;
+
+// SCENE B
+h+=`<div id="sceneB"><h2>Scene B — Captain's Log</h2>`;
+const L=[{d:47,t:"Dropped anchor at Havana.",i:"&#9875;",c:C.g},{d:47,t:"&quot;Soldiers patrol the docks. The garrison has been reinforced.&quot;",i:"&#128483;",c:C.d,it:1},{d:48,t:"Accepted mission: Hunt down The Scarlet Fortune.",i:"&#128220;",c:C.bl},{d:50,t:"A squall hits without warning! The ship takes damage.",i:"&#127754;",c:C.bl},{d:50,t:"Pedro Garc&iacute;a was lost in the storm.",i:"&#9760;",c:C.r},{d:52,t:"The Scarlet Fortune strikes her colours. Victory!",i:"&#9876;",c:C.gr},{d:52,t:"Lost crew: Henri Dubois, Cornelis de Vries.",i:"&#128101;",c:C.r},{d:52,t:"Maria Navarro is disturbed by the attack on Spanish ships.",i:"&#9888;",c:C.g},{d:53,t:"Made port at Tortuga. The crew is glad to see land.",i:"&#9875;",c:C.g},{d:53,t:"Completed: Hunt down The Scarlet Fortune. +375g, +2 fame.",i:"&#10003;",c:C.gr},{d:53,t:"Sold 3 Rum for 99g.",i:"&#128176;",c:C.d},{d:53,t:"Bought 5 Sugar for 210g.",i:"&#128176;",c:C.d},{d:53,t:"Bought drinks for the crew: -50g. Morale +5.",i:"&#127867;",c:C.d},{d:53,t:"Willem de Boer joins the crew as carpenter.",i:"&#128101;",c:C.bl}];
+SIZES.forEach((sz,si)=>{const id=`sB${si}`;const fs=sz.w>=1000?13:sz.w>=500?11:9;const p=sz.w>=1000?20:sz.w>=500?14:8;const lh=sz.w>=1000?26:sz.w>=500?20:15;const mx=sz.h<300?7:sz.w>=1000?14:10;
+h+=`<div class="size-block"><div class="size-label">${sz.l}</div><div class="scene" id="${id}" style="width:${sz.w}px;height:${sz.h}px;background:${C.bg};padding:${p}px;display:flex;flex-direction:column">`;
+h+=`<div style="color:${C.g};font-size:${fs+2}px;font-weight:bold;margin-bottom:${p/2}px;letter-spacing:0.08em">&#128214; CAPTAIN'S LOG</div>`;
+h+=`<div style="background:${C.p};border:1px solid ${C.b};border-radius:4px;padding:${p-2}px;flex:1;overflow:hidden">`;
+let ld=-1;L.slice(0,mx).forEach(e=>{const sd=e.d!==ld;ld=e.d;h+=`<div style="display:flex;align-items:flex-start;margin-bottom:${lh*0.15}px;font-size:${fs}px;line-height:${lh}px"><span style="width:${fs+4}px;flex-shrink:0">${e.i}</span><span style="flex:1;color:${e.c||C.t};${e.it?'font-style:italic;':''}">${e.t}</span>${sd?`<span style="color:${C.f};font-size:${fs-2}px;margin-left:8px;flex-shrink:0">Day ${e.d}</span>`:''}</div>`;});
+h+=`</div></div><button class="export-btn" onclick="exportScene('${id}','broadside-log-${sz.l}.png')">Export ${sz.l}</button></div>`;});
+h+=`</div>`;
+
+// SCENE C
+h+=`<div id="sceneC"><h2>Scene C — Combat</h2>`;
+SIZES.forEach((sz,si)=>{const id=`sC${si}`;const p=sz.w>=1000?20:sz.w>=500?12:8;const fs=sz.w>=1000?13:sz.w>=500?11:9;const bh=sz.w>=500?10:6;
+h+=`<div class="size-block"><div class="size-label">${sz.l}</div><div class="scene" id="${id}" style="width:${sz.w}px;height:${sz.h}px;background:${C.bg};padding:${p}px;display:flex;flex-direction:column;gap:${p/2}px">`;
+h+=`<div style="text-align:center;color:${C.r};font-size:${fs+3}px;font-weight:bold;letter-spacing:0.1em">&#9876; NAVAL BATTLE &mdash; ROUND 4</div>`;
+h+=`<div style="display:flex;gap:${p}px;flex:1">`;
+h+=`<div style="flex:1;background:${C.p};border:1px solid ${C.bl};border-radius:4px;padding:${p-2}px"><div style="color:${C.bl};font-size:${fs}px;margin-bottom:4px;font-weight:bold">&#9875; The Cartographer's Folly</div><div style="color:${C.d};font-size:${fs-2}px;margin-bottom:6px">Brigantine &middot; 12 crew &middot; 15 cannons</div><div style="color:${C.d};font-size:${fs-2}px;margin-bottom:2px">Hull: 98 / 150</div><div style="background:${C.pa};border-radius:3px;overflow:hidden;height:${bh}px"><div style="width:65%;height:100%;background:${C.gr};border-radius:3px"></div></div>${sz.w>=500?`<div style="margin-top:6px;display:flex;gap:4px"><span style="color:${C.bl};font-size:${fs-2}px;background:${C.bl}20;border:1px solid ${C.bl};padding:1px 4px;border-radius:2px">Reinforced Hull</span><span style="color:${C.bl};font-size:${fs-2}px;background:${C.bl}20;border:1px solid ${C.bl};padding:1px 4px;border-radius:2px">Extra Cannons</span></div>`:''}</div>`;
+h+=`<div style="display:flex;align-items:center;color:${C.r};font-size:${sz.w>=500?22:14}px">&#9889;</div>`;
+h+=`<div style="flex:1;background:${C.p};border:1px solid ${C.r};border-radius:4px;padding:${p-2}px"><div style="color:${C.r};font-size:${fs}px;margin-bottom:4px;font-weight:bold">The Scarlet Fortune</div><div style="color:${C.d};font-size:${fs-2}px;margin-bottom:6px">Spanish Frigate &middot; 18 crew &middot; 20 cannons</div><div style="color:${C.d};font-size:${fs-2}px;margin-bottom:2px">Hull: 42 / 120</div><div style="background:${C.pa};border-radius:3px;overflow:hidden;height:${bh}px"><div style="width:35%;height:100%;background:${C.r};border-radius:3px"></div></div>${sz.w>=500?`<div style="margin-top:6px"><span style="color:${FC.spanish};font-size:${fs-2}px;background:${FC.spanish}20;border:1px solid ${FC.spanish};padding:1px 4px;border-radius:2px">Spanish</span></div>`:''}</div></div>`;
+if(sz.h>300)h+=`<div style="background:${C.pa};border:1px solid ${C.bf};border-radius:4px;padding:${p-4}px;font-size:${fs-1}px;max-height:${sz.h*0.18}px;overflow:hidden"><div style="color:${C.g};margin-bottom:3px">&#9875; Your broadside tears into the enemy hull. -18 damage.</div><div style="color:${C.r};margin-bottom:3px">&#9760; The enemy answers with precision fire. -12 damage.</div><div style="color:${C.r}">&#128101; Lost crew: Fran&ccedil;ois Bonnet.</div></div>`;
+h+=`<div style="display:flex;gap:${p/2}px;justify-content:center;flex-wrap:wrap">`;
+[["&#128293; Broadside","Full cannon volley"],["&#127919; Precision","Aimed shot"],["&#9876; Grapple","Board them"],["&#128168; Evade","Flee the battle"]].forEach(([l,d])=>{h+=`<div style="background:${C.p};border:1px solid ${C.b};border-radius:4px;padding:${p/2}px ${p}px;text-align:center;flex:1;min-width:${sz.w>=1000?140:sz.w>=500?100:55}px"><div style="color:${C.t};font-size:${fs}px;font-weight:bold">${l}</div>${sz.w>=500?`<div style="color:${C.d};font-size:${fs-2}px">${d}</div>`:''}</div>`;});
+h+=`</div></div><button class="export-btn" onclick="exportScene('${id}','broadside-combat-${sz.l}.png')">Export ${sz.l}</button></div>`;});
+h+=`</div>`;
+
+// SCENE D
+h+=`<div id="sceneD"><h2>Scene D — Port</h2>`;
+const gs=["The tavern is already loud, and the sun hasn't set yet.","A merchant claims Spices sell well at Cura&ccedil;ao. He seems unreliable.","Children point at your flag. Sailors trade stories about you."];
+SIZES.forEach((sz,si)=>{const id=`sD${si}`;const p=sz.w>=1000?20:sz.w>=500?12:8;const fs=sz.w>=1000?13:sz.w>=500?11:9;
+h+=`<div class="size-block"><div class="size-label">${sz.l}</div><div class="scene" id="${id}" style="width:${sz.w}px;height:${sz.h}px;background:${C.bg};padding:${p}px;display:flex;flex-direction:column;gap:${p/2}px">`;
+h+=`<div style="background:${C.p};border:1px solid ${C.b};border-radius:4px;padding:${p}px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><div style="color:${C.g};font-size:${fs+4}px;font-weight:bold">&#9875; Tortuga</div><div style="color:${FC.pirate};font-size:${fs-1}px;letter-spacing:0.1em">&#127988;&#8205;&#9760;&#65039; PIRATE PORT</div></div><span style="color:${C.gr};font-size:${fs-1}px;background:${C.gr}20;border:1px solid ${C.gr};padding:2px 6px;border-radius:3px">Allied (82)</span></div>${sz.w>=500?`<p style="color:${C.d};font-size:${fs-1}px;line-height:1.5">A lawless haven for pirates and buccaneers. The most notorious port in the Caribbean.</p>`:''}</div>`;
+h+=`<div style="background:${C.pa};border:1px solid ${C.bf};border-radius:4px;padding:${p}px"><div style="color:${C.d};font-size:${fs-2}px;margin-bottom:6px;letter-spacing:0.08em">&#128483; WORD ON THE DOCKS</div>`;gs.forEach(l=>{h+=`<p style="color:${C.d};font-size:${fs-1}px;margin-bottom:5px;line-height:1.5;font-style:italic">&quot;${l}&quot;</p>`;});h+=`</div>`;
+if(sz.h>300){h+=`<div style="display:flex;gap:${p/2}px;flex-wrap:wrap">`;["&#128506; Map","&#128202; Status","&#128230; Market","&#9875; Shipyard","&#128101; Crew","&#128190; Save"].forEach(l=>{h+=`<div style="background:${C.p};border:1px solid ${C.b};padding:4px 8px;border-radius:3px;color:${C.g};font-size:${fs-1}px">${l}</div>`;});h+=`</div>`;}
+if(sz.h>400){h+=`<div style="background:${C.p};border:1px solid ${C.b};border-radius:4px;padding:${p-2}px;flex:1;overflow:hidden"><div style="color:${C.g};font-size:${fs-1}px;margin-bottom:4px;font-weight:bold;letter-spacing:0.08em">MISSION BOARD</div><div style="background:${C.pa};border:1px solid ${C.bf};border-radius:3px;padding:${p-4}px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:${C.t};font-size:${fs}px;font-weight:bold">Escort the merchant convoy to Martinique</span><div style="display:flex;gap:3px"><span style="display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;border:1px solid ${FC.pirate};color:${FC.pirate}">Pirate</span><span style="display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;border:1px solid ${C.gr};color:${C.gr}">low</span></div></div><p style="color:${C.d};font-size:${fs-2}px;margin-bottom:4px;font-style:italic">The Brotherhood needs safe passage. Keep the convoy intact.</p><div style="display:flex;gap:10px;font-size:${fs-1}px"><span style="color:${C.g}">&#128176; 425g</span><span style="color:${C.bl}">&#11088; +1</span><span style="color:${C.d}">&rarr; Martinique</span></div></div></div>`;}
+h+=`</div><button class="export-btn" onclick="exportScene('${id}','broadside-port-${sz.l}.png')">Export ${sz.l}</button></div>`;});
+h+=`</div>`;
+
+// SCENE E
+h+=`<div id="sceneE"><h2>Scene E — Crew</h2>`;
+const cw=[{n:"Juan Rodr&iacute;guez",fc:"spanish",rl:"gunner",dy:147,lb:"Veteran",sc:["&#9876;","&#127754;"],tg:["revealed_drunkard"],bi:"Juan is a veteran of 147 days. The crew looks up to them. They survived a deadly battle and a violent storm. Has a fondness for the bottle."},{n:"Katherine Brown",fc:"english",rl:"navigator",dy:203,lb:"Old Salt",sc:["&#9876;","&#9875;","&#127754;"],tg:["loyal"],bi:"Katherine has served 203 days. This ship is their life now. Loyal to the ship and the captain. They will never leave."},{n:"Calico Rackham",fc:"pirate",rl:"deckhand",dy:34,lb:"Crew",sc:["&#128674;"],tg:["mutineer"],bi:"Calico, the Pirate deckhand, has been here 34 days. Survived a shipwreck. Was part of a mutiny once."},{n:"Marie Fontaine",fc:"french",rl:"cook",dy:88,lb:"Seasoned",sc:[],tg:["revealed_coward"],bi:"Marie is a seasoned hand with 88 days at sea. Not the bravest soul aboard."},{n:"Pieter van Dijk",fc:"dutch",rl:"carpenter",dy:12,lb:"New Hand",sc:[],tg:[],bi:"Pieter asked about the pay structure before anything else. Time will tell."}];
+SIZES.forEach((sz,si)=>{const id=`sE${si}`;const p=sz.w>=1000?16:sz.w>=500?10:6;const fs=sz.w>=1000?12:sz.w>=500?10:8;const mc=sz.h<300?3:sz.w>=1000?5:4;
+h+=`<div class="size-block"><div class="size-label">${sz.l}</div><div class="scene" id="${id}" style="width:${sz.w}px;height:${sz.h}px;background:${C.bg};padding:${p}px;display:flex;flex-direction:column;gap:${p/2}px">`;
+h+=`<div style="color:${C.g};font-size:${fs+3}px;font-weight:bold;letter-spacing:0.08em">&#128101; CREW MANIFEST</div>`;
+h+=`<div style="color:${C.d};font-size:${fs-1}px;margin-bottom:4px"><span style="color:${FC.english}">&bull;</span> English: 1 &middot; <span style="color:${FC.spanish}">&bull;</span> Spanish: 1 &middot; <span style="color:${FC.french}">&bull;</span> French: 1 &middot; <span style="color:${FC.dutch}">&bull;</span> Dutch: 1 &middot; <span style="color:${FC.pirate}">&bull;</span> Pirate: 1</div>`;
+h+=`<div style="display:flex;flex-direction:column;gap:${p/2}px;flex:1;overflow:hidden">`;
+cw.slice(0,mc).forEach(c=>{const fC=FC[c.fc]||C.d;const bC=c.tg.includes("loyal")?C.g:c.tg.includes("mutineer")?C.pu:C.b;
+h+=`<div style="background:${C.p};border:1px solid ${bC};border-radius:4px;padding:${p}px;display:flex;gap:${p}px;align-items:flex-start"><div style="flex-shrink:0"><div style="color:${C.t};font-size:${fs+1}px;font-weight:bold">${c.n}</div><div style="color:${fC};font-size:${fs-1}px"><span style="color:${fC}">&bull;</span> ${D.FACTIONS[c.fc]?.label||c.fc} ${c.rl.charAt(0).toUpperCase()+c.rl.slice(1)} &mdash; ${c.lb} (${c.dy}d)</div>${c.sc.length?`<div style="margin-top:3px;font-size:${fs}px">${c.sc.join(' ')}</div>`:''}${c.tg.length?`<div style="margin-top:2px;display:flex;gap:3px;flex-wrap:wrap">${c.tg.map(t=>{const tc=t.includes("loyal")?C.g:t.includes("mutineer")?C.pu:t.includes("drunkard")?C.g:t.includes("coward")?C.r:C.d;return`<span style="color:${tc};font-size:${fs-2}px;background:${tc}15;border:1px solid ${tc}40;padding:1px 4px;border-radius:2px">${t.replace("revealed_","").replace(/_/g," ")}</span>`}).join('')}</div>`:''}</div>${sz.w>=500?`<div style="flex:1;color:${C.d};font-size:${fs-1}px;line-height:1.5;font-style:italic">&quot;${c.bi}&quot;</div>`:''}</div>`;});
+h+=`</div></div><button class="export-btn" onclick="exportScene('${id}','broadside-crew-${sz.l}.png')">Export ${sz.l}</button></div>`;});
+h+=`</div>`;
+
+// SCENE F
+h+=`<div id="sceneF"><h2>Scene F — itch.io Page Assets</h2>`;
+
+const idF1 = "sF0";
+h+=`<div class="size-block"><div class="size-label">Banner 960×480</div>`;
+h+=`<div class="scene" id="${idF1}" style="width:960px;height:480px;background:${C.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative">`;
+h+=`<svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.04" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice"><path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70" fill="none" stroke="${C.g}" stroke-width="1.5"/><path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90" fill="none" stroke="${C.g}" stroke-width="1"/><ellipse cx="160" cy="90" rx="8" ry="4" fill="${C.g}" opacity="0.3"/><ellipse cx="250" cy="78" rx="12" ry="5" fill="${C.g}" opacity="0.2"/></svg>`;
+h+=`<div style="position:absolute;inset:8px;border:1px solid ${C.b};border-radius:4px"></div>`;
+h+=`<svg width="50" height="50" viewBox="0 0 40 40" style="margin-bottom:10px;opacity:0.7;z-index:1"><circle cx="20" cy="20" r="18" fill="none" stroke="${C.g}" stroke-width="0.8" opacity="0.4"/><polygon points="20,4 22,16 20,14 18,16" fill="${C.g}" opacity="0.8"/><polygon points="20,36 22,24 20,26 18,24" fill="${C.gd}" opacity="0.5"/><polygon points="4,20 16,18 14,20 16,22" fill="${C.gd}" opacity="0.5"/><polygon points="36,20 24,18 26,20 24,22" fill="${C.gd}" opacity="0.5"/></svg>`;
+h+=`<div style="color:${C.g};font-size:42px;font-weight:bold;letter-spacing:0.2em;text-shadow:0 0 30px ${C.gd};z-index:1">&#9875; BROADSIDE</div>`;
+h+=`<div style="color:${C.d};font-size:18px;letter-spacing:0.15em;margin-top:8px;z-index:1">CARIBBEAN &middot; 1695</div>`;
+h+=`<div style="color:${C.f};font-size:12px;margin-top:14px;z-index:1;font-style:italic">A turn-based, narrative pirate strategy game</div>`;
+h+=`<div style="position:absolute;bottom:14px;display:flex;gap:6px;z-index:1">`;
+Object.values(FC).forEach(c=>{h+=`<div style="width:6px;height:6px;border-radius:50%;background:${c};opacity:0.6"></div>`;});
+h+=`</div></div>`;
+h+=`<button class="export-btn" onclick="exportScene('${idF1}','broadside-banner-960x480.png')">Export Banner</button></div>`;
+
+const idF2 = "sF1";
+h+=`<div class="size-block"><div class="size-label">Background 1920×1080</div>`;
+h+=`<div class="scene" id="${idF2}" style="width:1920px;height:1080px;background:${C.bg};position:relative">`;
+h+=`<svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.03" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice"><path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70" fill="none" stroke="${C.g}" stroke-width="1.5"/><path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90" fill="none" stroke="${C.g}" stroke-width="1"/><path d="M100,110 Q120,105 140,112 T180,108" fill="none" stroke="${C.g}" stroke-width="0.8"/><ellipse cx="160" cy="90" rx="8" ry="4" fill="${C.g}" opacity="0.3"/><ellipse cx="250" cy="78" rx="12" ry="5" fill="${C.g}" opacity="0.2"/><ellipse cx="300" cy="88" rx="6" ry="3" fill="${C.g}" opacity="0.25"/></svg>`;
+h+=`</div>`;
+h+=`<button class="export-btn" onclick="exportScene('${idF2}','broadside-background-1920x1080.png')">Export Background</button></div>`;
+
+const idF3 = "sF2";
+h+=`<div class="size-block"><div class="size-label">Embed BG 640×480</div>`;
+h+=`<div class="scene" id="${idF3}" style="width:640px;height:480px;background:${C.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative">`;
+h+=`<svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.04" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice"><path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70" fill="none" stroke="${C.g}" stroke-width="1.5"/><path d="M60,100 Q90,90 130,95 T190,88" fill="none" stroke="${C.g}" stroke-width="1"/><ellipse cx="160" cy="90" rx="8" ry="4" fill="${C.g}" opacity="0.3"/><ellipse cx="250" cy="78" rx="12" ry="5" fill="${C.g}" opacity="0.2"/></svg>`;
+h+=`<div style="position:absolute;inset:8px;border:1px solid ${C.b};border-radius:4px"></div>`;
+h+=`<svg width="44" height="44" viewBox="0 0 40 40" style="margin-bottom:10px;opacity:0.7;z-index:1"><circle cx="20" cy="20" r="18" fill="none" stroke="${C.g}" stroke-width="0.8" opacity="0.4"/><polygon points="20,4 22,16 20,14 18,16" fill="${C.g}" opacity="0.8"/><polygon points="20,36 22,24 20,26 18,24" fill="${C.gd}" opacity="0.5"/><polygon points="4,20 16,18 14,20 16,22" fill="${C.gd}" opacity="0.5"/><polygon points="36,20 24,18 26,20 24,22" fill="${C.gd}" opacity="0.5"/></svg>`;
+h+=`<div style="color:${C.g};font-size:36px;font-weight:bold;letter-spacing:0.2em;text-shadow:0 0 30px ${C.gd};z-index:1">&#9875; BROADSIDE</div>`;
+h+=`<div style="color:${C.d};font-size:15px;letter-spacing:0.15em;margin-top:6px;z-index:1">CARIBBEAN &middot; 1695</div>`;
+h+=`<div style="color:${C.f};font-size:10px;margin-top:12px;z-index:1;font-style:italic">A turn-based, narrative pirate strategy game</div>`;
+h+=`<div style="position:absolute;bottom:12px;display:flex;gap:5px;z-index:1">`;
+Object.values(FC).forEach(c=>{h+=`<div style="width:5px;height:5px;border-radius:50%;background:${c};opacity:0.6"></div>`;});
+h+=`</div></div>`;
+h+=`<button class="export-btn" onclick="exportScene('${idF3}','broadside-embed-640x480.png')">Export Embed BG</button></div>`;
+
+h+=`</div>`;
+
+
+o.innerHTML=h;
+</script>
+</body>
+</html>

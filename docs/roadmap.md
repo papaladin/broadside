@@ -1,10 +1,12 @@
 # Broadside — Development Roadmap
 
-> Last updated: June 2026
+> Last updated: June 5, 2026
+
+---
 
 ## Current Playable State
 
-Broadside is fully playable in its current form:
+Broadside is fully playable with rich narrative systems:
 
 - **5 starting scenarios** with unique characters, factions, backstories, and opening missions
 - **25 ports** across the Caribbean (16 standard, 5 remote, 4 hidden)
@@ -14,11 +16,19 @@ Broadside is fully playable in its current form:
 - **Turn-based combat** with 4 actions (broadside, precision, grapple, evade) + plunder screen
 - **Encounter system** with data-driven options (fight, flee, parley, bribe, surrender, inspect)
 - **Dynamic market economy** with 14 tradeable resources, per-port availability, buy/sell/black market
+- **Faction heat system** — short-term regional danger from aggressive actions, decays over time
+- **Port gossip generator** — atmospheric text based on heat, reputation, fame, infamy, contraband, market prices, hidden port hints
+- **Crew loyalty system** — faction alignment morale modifier, upset/desertion mechanics, named crew consequences
+- **Crew traits** — hidden traits (drunkard, coward, greedy, troublemaker) revealed through gameplay, scars earned from events, positive progression (seasoned → veteran → loyal)
+- **Generated crew biographies** — role/faction/days/scars/traits combined into readable character descriptions
 - **Reputation system** per port (5 tiers: At War → Allied), affects services, prices, and missions
 - **Fame & infamy** progression gating ships, missions, upgrades, and hidden port discovery
-- **Random events** at sea (storms, shipwrecks, merchant distress, mutiny, map fragment discovery)
+- **Random events** at sea (storms, shipwrecks, merchant distress, mutiny, drifting wreck, marooned sailors, map fragment discovery)
+- **Warm gold/brown visual theme** with responsive 3-column port layout
+- **Captain's Log** with category icons, day stamps, varied message templates
 - **Save/load** with migration support + error recovery
-- **Economy simulator** (`tests/sim.html`) for balance validation
+- **Economy simulator** (`tests/sim.html`), **crew lifecycle simulator** (`tests/crew_sim.html`), **bio/log redundancy analyzer** (`tests/crew_bio_log_sim.html`), **balance dashboard** (`tests/tests_balance.html`)
+- **Screenshot generator** for itch.io assets (`screenshots/index.html`)
 
 The game is always in a fully playable state at any phase boundary.
 
@@ -26,7 +36,7 @@ The game is always in a fully playable state at any phase boundary.
 
 ## Design Philosophy
 
-Broadside is a **systems-driven pirate game** that creates stories through mechanical interaction, not scripted narrative. The design philosophy can be summarised in one sentence:
+Broadside is a **systems-driven pirate game** that creates stories through mechanical interaction, not scripted narrative.
 
 > *A few mechanics that interact strongly beat many mechanics that exist independently.*
 
@@ -34,10 +44,11 @@ Every feature must pass this test: **does it create situations where two or more
 
 Core design axioms:
 
-- **Every success creates a new problem.** Win a battle → hull damaged, crew lost, cargo to manage, reputation shifted. No victory is clean.
-- **The world remembers what you did.** Reputation, infamy, crew loyalty, faction alert — actions have echoes.
-- **Resources are interconnected.** Gold buys crew, crew costs wages, wages require missions, missions require ships, ships require fame. Every resource feeds into and drains from others.
+- **Every success creates a new problem.** Win a battle → hull damaged, crew lost, cargo to manage, reputation shifted, heat increased.
+- **The world remembers what you did.** Reputation, infamy, heat, crew loyalty, gossip — actions have echoes.
+- **Resources are interconnected.** Gold buys crew, crew costs wages, wages require missions, missions require ships, ships require fame.
 - **Time is the universal cost.** Every action takes days. Days consume provisions. Provisions cost gold. The clock is always ticking.
+- **Crew are people, not numbers.** Named individuals with traits, scars, faction loyalties, and generated biographies. Losing a veteran hurts because you remember their story.
 
 ### Core Emotional Targets
 
@@ -46,9 +57,9 @@ Core design axioms:
 | **Pressure** | Resource interconnection | You need crew but can't afford wages. You need gold but can't afford the mission's risk. |
 | **Consequence** | Permanent state changes | Your best navigator dies. A faction remembers your betrayal. Your ship is scarred. |
 | **Attachment** | Named crew, emergent reputation | You protect crew members who've been with you since the beginning. |
-| **Emergent story** | System collisions | A smuggle run goes wrong because your English crew refused to attack an English patrol. |
+| **Emergent story** | System collisions | A smuggle run goes wrong because your Spanish crew refused to forgive the attack on a Spanish patrol. |
 
-### 🧭 Game Influences & Systems Extraction
+### Game Influences & Systems Extraction
 
 | Game | What We're Taking | What We're Rejecting |
 |---|---|---|
@@ -57,12 +68,11 @@ Core design axioms:
 | **Caravaneer** | Brutal economic weight, crew wages as constant drain, distance-as-risk | Inventory tetris, vehicle fuel micromanagement |
 | **Dwarf Fortress** | Named individuals with traits creating emergent crises, losing is fun | Simulation depth beyond the player's ability to track, ASCII UI |
 | **Occidental Heroes** | Lethal turn-based combat, every choice has structural permanence, main quest as spine | Party RPG mechanics, dungeon crawling |
+| **Sunless Sea** | Crew accumulate biography that feeds back into the game, narrative and mechanical rewards are the same thing | Real-time movement, permadeath-by-default, excessive grinding |
 
 ### The Systemic Filter
 
-Before adding any feature, ask:
-
-> *Does this feel like Caravaneer's economic weight, reacting to Dwarf Fortress's chaotic human psychology, wrapped in the pacing of Sid Meier's Pirates!, executed with the lethal turn-based simplicity of Occidental Heroes?*
+> *Does this feel like Caravaneer's economic weight, reacting to Dwarf Fortress's chaotic human psychology, wrapped in the pacing of Sid Meier's Pirates!, executed with the lethal turn-based simplicity of Occidental Heroes, where crew biographies actually matter like Sunless Sea?*
 
 If the answer is no, don't build it.
 
@@ -70,7 +80,7 @@ If the answer is no, don't build it.
 
 - A **text-driven strategy game** with systemic depth
 - A game where **every port visit is a decision tree** (repair vs. upgrade vs. hire vs. trade vs. mission)
-- A game where **losing your best crew member hurts** because you remember their name
+- A game where **losing your best crew member hurts** because you remember their name, their scars, their loyalty
 - A game where **the map is a web of trade-offs**, not a checklist of locations
 
 ### What this game is not
@@ -84,8 +94,6 @@ If the answer is no, don't build it.
 
 ## Architecture Principles (Locked)
 
-These are structural constraints that will not change:
-
 | Principle | Rationale |
 |---|---|
 | Port ownership does not change | Keeps the map stable and learnable. Faction politics happen through reputation, not conquest. |
@@ -95,6 +103,7 @@ These are structural constraints that will not change:
 | Ship equipment is per-hull, lost on upgrade | Prevents hoarding. Every ship purchase is a fresh start. |
 | No build step, no npm, no TypeScript | The game runs from `<script>` tags. This constraint keeps the project shippable by one person. |
 | Economy validated by simulation | Every balance change is verified against `tests/sim.html` before shipping. |
+| **Wind is intentionally cosmetic** | Wind direction/speed is displayed for atmosphere. It does NOT affect travel times. This is a design decision, not unfinished work. |
 
 ---
 
@@ -110,39 +119,47 @@ These are structural constraints that will not change:
 
 ## ✅ COMPLETED
 
-### Foundation & Stabilisation
+### Tier 1 — Foundation & Clean-Up
 - 4-file engine architecture (core, port, voyage, combat) with reducer chaining
-- 25 ports with faction-specific services, goods availability, hidden port system
-- 11 ships across 5 tiers with fame-gated progression
-- 5 upgrades with per-ship compatibility
+- Test suite infrastructure (tests.html, test helpers, logic/engine/flow/UI tests)
+- Economy balance validation via Monte Carlo simulator (tests/sim.html)
 - Save/load with state migration for backward compatibility
-- Error boundary with "Load Last Save" recovery
-- Debug mode (`?debug=1`) with full cheat panel
 
-### Core Loop
-- 6 mission types (escort, patrol, combat, trade, smuggle, assault) with procedural generation
-- Turn-based combat (broadside, precision, grapple, evade) with speed-based evade check
-- Encounter system with data-driven intercept options (fight, flee, parley, bribe, surrender, inspect)
-- Plunder screen with manual cargo selection
-- Dynamic market with per-port availability tiers and black market for illegal goods
-- Provision system (food + water consumption, starvation morale penalty)
-- Hold load speed penalty (>50% = slower voyages)
-- Wind display (cosmetic — does not currently affect travel time)
+### Tier 2 — The World Notices You
+- **Heat system** — `factionAlerts` per faction (0-10), triggers on combat/flee/smuggle, decays -1/2 days, patrol frequency scales with heat + rep dampening, patrol strength escalates, heat gossip on port entry, visible in HUD/map/status/debug
+- **Crew faction loyalty** — `getCrewAlignment` modifier on morale, upset trigger (15% per matching-faction crew), desertion at port (30%/10%/mutineer×2), mutineer tagging on mutiny crush
+- **Port gossip generator** — priority-based system (heat/contraband P3, rep/fame/infamy P2, market/hidden hints P1, ambiance/weather P0), gossip size 25/50/25% distribution, bracket-based market price detection, 5% hidden port hints
+- **Port personality** — faction-flavoured ambiance templates, WORD ON THE DOCKS panel
+- **Friendly encounters** — Drifting Wreck (4 outcomes: cargo/nothing/survivor/trap), Marooned Sailors (hidden trait chance)
+- **Defeat consequences** — wash ashore at previous port, all cargo lost, mission cancelled
 
-### Progression & Identity
-- Fame system (5 tiers: Unknown → Immortal) gating ships, upgrades, missions
-- Infamy system affecting patrol frequency and bribe availability
-- Reputation per port (5 tiers: At War → Allied) with decay toward neutral
-- Named crew roster with faction-specific name pools and cosmetic roles
-- Hidden ports unlocked by fame, reputation, infamy, or map fragment events
-- 5 starting scenarios with unique characters and opening missions
+### Tier 3 — Crew Become People
+- **Crew traits** — hidden_drunkard/coward/greedy/troublemaker assigned at hire (5%) and via marooned sailors (40%). Trigger-based reveal (hidden_X → revealed_X). Effects: drunkard consumes rum, coward morale penalty on high-risk, greedy demands gold, troublemaker brawls
+- **Crew scars** — scar_battle (≥10 crew died), scar_storm, scar_shipwreck, scar_grapple, scar_mutiny. Permanent, visible, pure narrative
+- **Positive traits** — seasoned (50d, halved desertion), veteran (100d, flavour), loyal (200d + no upset + faction rep ≥ 80, immune to upset/desertion)
+- **Generated biographies** — 25 opening templates (5 brackets × 5 variants using name/role/faction), 15 combination sentences, scar/trait variants, suppression logic
+- **Crew detail card** — faction dots, scar icons with tooltips, revealed traits, veteran labels (New Hand → Old Salt), generated bio paragraph
 
-### UI & Polish
-- Responsive HUD with tooltips, auto-save flash, detail toggle
-- Ship comparison panel in shipyard
-- Market UI with batch buy/sell, hold preview, speed warning
-- Status screen with faction relations overview
-- Map with wind compass, hover info, mission destination line
+### UI & Presentation
+- Warm gold/brown panel color palette (global theme shift from cold blue)
+- Responsive PortScreen redesign (3-column laptop, stacked mobile)
+- Ship Status panel removed from PortScreen (redundant with HUD)
+- Actions panel with Save + Load buttons
+- Faction flag icons on port headers and mission cards
+- HUD contraband indicator
+- Captain's Log with category icons, day stamps (right-aligned, shown on day change)
+- Victory/defeat/arrival/fled message template pools (4-6 variants each)
+- Trade line compression (single summary per transaction)
+- "Game saved" removed from log (HUD flash only)
+- Narrative typography pass (larger font, increased line height for story text)
+- Log category classification (arrival/combat/crew/trade/event with color coding)
+
+### Tools & Testing
+- Economy simulator — `tests/sim.html` (reads game files, 6 strategies, fame-indexed output)
+- Crew lifecycle simulator — `tests/crew_sim.html` (6 playstyles, per-member tracking, survival curves)
+- Bio/log redundancy analyzer — `tests/crew_bio_log_sim.html` (bio uniqueness, log pattern detection)
+- Balance dashboard — `tests/tests_balance.html` (reachability, economy, combat, patrol, trade, events, gossip)
+- Screenshot generator — `screenshots/index.html` (5 scenes × 3 sizes + itch.io assets, html2canvas export)
 
 ---
 
@@ -150,186 +167,127 @@ These are structural constraints that will not change:
 
 Each tier is self-contained. The game is fully playable at every tier boundary.
 
-## Tier 1 — Final Clean-Up & Balance Grounding
-
-### T1.1 — Fix Test Suite --> done
-
-**Status:** In progress (down from 74 failures to ~15)
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | None |
-| **Definition of Done** | All tests in `tests/tests.html` pass green. No skipped tests without documented reason. |
-
-Root causes of remaining failures:
-- Random stub exhaustion (combat uses many `Math.random()` calls via `removeRandomCrew` sort)
-- Mission flow assertions that don't match current reducer logic (COMPLETE_MISSION at wrong port)
-- Discovery condition edge cases (dryTortugas requires ALL conditions, not ANY)
-
-### T1.2 — Economy Balance Validation --> done
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T1.1 |
-| **Definition of Done** | `tests/sim.html` shows all non-smuggle strategies reaching Fame 200. Pacing: Cutter by missions 4–6, Sloop by Fame ~60, gold S-curve confirmed. |
-
 ---
 
-## Tier 2 — The World Notices You
+## Tier 4 — Polish, Readability & Save Robustness
 
-> *Theme: Make existing systems visible and interconnected. The world stops being a backdrop and starts being a participant.*
+> *Theme: Make what exists more usable, more readable, and more robust. Every player from this point on has a solid first experience.*
 
-### T2.1 — Alert System (Faction Heat) --> done
+### T4.1 — Robust Save System
 
-When you do something aggressive near a faction's territory, that faction's ports get a temporary **alert level** that decays over 10–15 days.
-
-| | |
-|---|---|
-| **Complexity** | Low (~50 lines) |
-| **Dependencies** | None |
-| **Definition of Done** | Attacking a Spanish patrol near Cartagena raises Spanish alert. Patrol frequency spikes in Spanish waters for 10–15 days. Alert visible on map (subtle glow or icon). Alert decays by 1/day. |
-
-**Why it matters:** Creates regional consequences. The player must weigh *where* they act, not just *what* they do. Enables "laying low" as a tactical choice.
-
-**Implementation:** `state.factionAlerts: { spanish: { level: 3, decayDay: 45 } }`. Checked by `maybeRandomPatrol()`. Set by `DISMISS_BATTLE` and `INTERCEPT_FLEE`.
-
-### T2.2 — Crew Faction Loyalty --> done
-
-Crew members react when you attack ships belonging to their faction.
-
-| | |
-|---|---|
-| **Complexity** | Low (~30 lines) |
-| **Dependencies** | None |
-| **Definition of Done** | Defeating an English ship causes English crew members to lose morale (−5 per member affected). Log names the upset crew. Repeated offenses: crew member may desert at next port. |
-
-**Why it matters:** Crew composition becomes a strategic consideration layered on top of faction missions. Creates attachment to specific crew members.
-
-**Implementation:** Check in `DISMISS_BATTLE`: loop roster, find members whose `faction` matches defeated `enemy.faction`, apply morale delta, add log entry.
-
-### T2.3 — Arrival Gossip --> done
-
-When entering a port, contextual log lines reflect recent player actions.
-
-| | |
-|---|---|
-| **Complexity** | Low (~40 lines) |
-| **Dependencies** | None |
-| **Definition of Done** | Port entry log includes 1–2 contextual lines based on: recent combat (faction + outcome), cargo contents (contraband), reputation changes, fame level. Generated by `G.generateArrivalGossip(state)`. |
-
-**Examples:**
-- *"Dockworkers eye your battered hull. Word of a fight near Cartagena has reached here."*
-- *"Merchants approach eagerly — your reputation as a reliable trader precedes you."*
-- *"The harbourmaster frowns. The contraband in your hold is poorly hidden."*
-
-### T2.4 — Port Personality and Ambiance --> done
-
-Each port gets a generated flavour paragraph on arrival — weather, crowd mood, market activity, rumours.
-
-| | |
-|---|---|
-| **Complexity** | Low (~60 lines in generators.js) |
-| **Dependencies** | None |
-| **Definition of Done** | Every port entry shows a 2–3 sentence generated description. Templates in `data.js`, assembly in `generators.js`. No two visits identical. |
-
-**Note:** This is pure content via generators — template strings filled with game state. Zero new systems, massive feel improvement.
-
-### T2.5 — Rumour System  --> done
-
-Taverns and port arrivals surface procedurally generated rumours about trade opportunities, dangers, and missions elsewhere.
-
-| | |
-|---|---|
-| **Complexity** | Low-Medium (~80 lines) |
-| **Dependencies** | T2.4 (port personality) |
-| **Definition of Done** | Arriving at port shows 1–3 rumours generated from current game state: good prices elsewhere, patrol activity, hidden port hints, faction tensions. Generated by `G.generateRumours(state, portKey)`, not handcrafted. |
-
-**Implementation:** Template system in `data.js` + `generators.js`. Rumours reflect real game state (actual prices, actual alert levels, actual reputation). Some are misleading (10% chance of false rumour).
-
-### T2.6 — Friendly Encounter Types --> done or parked item
-
-Not every encounter at sea is hostile.
+The game is deployed on GitHub Pages and itch.io. Saves must survive platform changes, browser wipes, and iframe restrictions.
 
 | | |
 |---|---|
 | **Complexity** | Medium |
 | **Dependencies** | None |
-| **Definition of Done** | 3–4 new encounter types: friendly merchant (trade opportunity), allied patrol (safe passage bonus), stranded sailor (rescue for crew/morale), fishing fleet (provision resupply). Each uses existing InterceptScreen with non-combat options. |
+| **Definition of Done** | Player can save/load via localStorage (fast default) AND export/import via JSON file (indestructible backup). Both methods work on GitHub Pages and itch.io. |
 
-### T2.7 — Defeat Has Teeth
+**The problem:**
+- localStorage is tied to origin — saves from GitHub Pages don't exist on itch.io
+- itch.io can embed in iframes — some browsers (Safari, Brave) block localStorage in iframes
+- Clearing browser data destroys all saves
+- Redeploying to a different URL loses all saves
 
-Defeat currently means: wash ashore, lose cargo, continue. No lasting scar.
+**The solution: dual save system.**
+
+- **localStorage** remains the fast auto-save/quick-load default (current behavior)
+- **JSON file export** — new "Export Save" button downloads the complete game state as a `.json` file
+- **JSON file import** — new "Import Save" button loads a `.json` file and restores game state
+- **Both accessible from**: StartScreen (load), PortScreen actions panel (save/export), and the debug panel
+
+**Implementation:**
+- [ ] Add `exportSave()` function — `JSON.stringify(state)` → download as `broadside-save-YYYY-MM-DD.json`
+- [ ] Add `importSave()` function — file input → `JSON.parse` → `migrateState` → dispatch `LOAD_GAME`
+- [ ] Add "Export Save" button on PortScreen actions panel alongside Save
+- [ ] Add "Import Save" button on StartScreen alongside "Continue Saved Game"
+- [ ] Add "Import Save" button on PortScreen actions panel
+- [ ] Handle errors gracefully (corrupt file, wrong format, old version → migrateState handles it)
+- [ ] Test on: GitHub Pages, itch.io iframe embed, itch.io full-page, Safari, Chrome, Firefox
+- [ ] Consider: auto-detect when localStorage is blocked (iframe) and show a warning + redirect to file export
+
+### T4.2 — Captain's Journal Screen
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | None — all narrative systems are already generating content |
+| **Definition of Done** | Dedicated Journal screen accessible from Port, Sailing, and Status. Log entries grouped by day. Category filter tabs. |
+
+**Why now (not Tier 6):** The game now generates rich narrative content — gossip, crew events, trait reveals, battle outcomes, desertion, scars. Without a Journal, all of this scrolls away in the log and is lost. The narrative payoff of T2+T3 needs a readable screen.
+
+- [ ] Add `📖 Journal` navigation target and screen constant
+- [ ] Add `JournalScreen` component
+- [ ] Display log entries grouped by day (use day prefix `[N]` already encoded)
+- [ ] Category filter tabs: All / Crew / Combat / Ports / Missions / Trade
+- [ ] Accessible from PortScreen, SailingScreen, StatusScreen
+- [ ] Scrollable, with most recent at top
+- [ ] Warm panel styling consistent with rest of UI
+
+### T4.3 — Onboarding Overlay
 
 | | |
 |---|---|
 | **Complexity** | Low-Medium |
 | **Dependencies** | None |
-| **Definition of Done** | On defeat: ship takes permanent hull scar (max hull reduced by 5–10%, repairable at shipyard for extra cost). Defeating faction gains +5 rep boost at their ports. Log reflects the lasting damage. |
+| **Definition of Done** | First-time player sees contextual tooltips on first port visit, first sailing, first combat. Can be dismissed permanently. |
 
-**Why it matters:** Makes combat feel consequential beyond cargo loss. Creates a recovery arc — "I need to get my ship repaired before I can take on anything serious."
+**Why now (not Tier 7):** Every player who discovers the game from this point forward plays without guidance. The Sunless Sea postmortem is explicit: neglecting the early game because veteran players dominated feedback was their biggest regret. Even basic contextual hints prevent confusion.
 
----
+- [ ] Detect first-time player (no save exists, or `state.day === 1`)
+- [ ] Show tooltip overlay on first port visit: "This is your port. Accept missions, trade goods, hire crew."
+- [ ] Show tooltip on first map interaction: "Click a port to sail there."
+- [ ] Show tooltip on first combat: "Choose an action each round."
+- [ ] Show tooltip on first gossip panel: "Word on the docks — listen for hints."
+- [ ] "Got it" / "Don't show again" button — stores flag in localStorage
+- [ ] Non-intrusive — overlays don't block gameplay, just highlight
 
-## Tier 3 — Crew Become People
-
-> *Theme: Crew stop being numbers and start being characters. This is where attachment and emergent stories come from.*
-
-### T3.1 — Crew Traits (Visible and Hidden) --> done
-
-Each crew member gains 0–2 traits at generation. Visible traits are shown immediately. Hidden traits reveal after 30+ days aboard.
+### T4.4 — Defeat Has Teeth (Persistent Consequences)
 
 | | |
 |---|---|
-| **Complexity** | Medium |
+| **Complexity** | Low-Medium |
 | **Dependencies** | None |
-| **Definition of Done** | 8+ traits implemented. Each trait has at least one mechanical effect. Hidden traits reveal with a log entry. Crew manifest shows trait icons. |
+| **Definition of Done** | On defeat: ship takes permanent hull scar (max hull reduced by 5-10%, repairable at extra cost). Defeating faction gains +5 rep at their ports. |
 
-**Trait examples:**
-- **Drunkard** (hidden): consumes rum from hold. Revealed when rum disappears.
-- **Eagle-Eyed** (visible): +5% precision hit chance when this crew member is aboard.
-- **Coward** (hidden): morale drops −10 before assault missions. Revealed on first assault.
-- **Loyal** (visible): will not desert even at morale 0.
-- **Disloyal** (hidden): attempts to poach crew during port stops if morale < 30.
+- [ ] On defeat in `DISMISS_BATTLE`: reduce `ship.maxHullScar` (new field, default 0) by 5-10%
+- [ ] `L.getShipStats` accounts for hull scar: `maxHull = SHIPS[type].maxHull * (1 - ship.hullScar/100) + upgrades`
+- [ ] Repair scar at shipyard for extra cost (e.g., 2× normal repair cost)
+- [ ] Add `hullScar` to migrateState (default 0)
+- [ ] Log: "Your ship bears the scars of defeat. Maximum hull reduced."
+- [ ] Defeating faction gets +5 rep at their ports (they're emboldened)
 
-### T3.2 — Crew Scars --> done
-
-Crew members who survive dangerous events gain permanent scars.
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T3.1 |
-| **Definition of Done** | Storm survivors, battle survivors, and mutiny survivors gain scars. Scars are visible traits with minor effects. A scarred crew tells the story of where you've been. |
-
-### T3.3 — Crew Tensions --> parked / covered by crew loyalty & mutiny
-
-Crew members from rival factions generate tension events.
+### T4.5 — Crew Flashpoint Events
 
 | | |
 |---|---|
 | **Complexity** | Medium |
-| **Dependencies** | T3.1 |
-| **Definition of Done** | Having English and Spanish crew aboard triggers occasional tension events. Player must mediate (cost: gold/morale) or let it escalate (risk: crew fight, injury, desertion). |
+| **Dependencies** | T3 (crew traits + scars must be complete) |
+| **Definition of Done** | After X days aboard + specific trait/scar combinations, a named crew member generates a one-off decision event. The biography feeds back into gameplay. |
 
-### T3.4 — Officer Poaching & Mutiny Crises --> parked
+**The Sunless Sea insight:** Mechanical reward and narrative reward should be the same thing. Right now, crew accumulate biography but the biography doesn't feed back into the game. Flashpoint events close that loop.
 
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T3.1, T3.3 |
-| **Definition of Done** | Named officers (gunner, navigator, cook with high stats) can be poached by rival captains at port. Mutiny events escalate from tension events rather than appearing randomly. |
+**Trigger conditions (examples):**
+- Veteran (100d+) with scar_battle: "Juan asks to be your first mate. He's earned it."
+- Seasoned (50d+) with revealed_drunkard: "Maria is found passed out near the rum stores. The crew is angry."
+- Loyal (200d+) with scar_mutiny: "Katherine pulls you aside. 'Captain, I've heard talk among the new hands. Watch the Dutchman.'"
+- Mutineer (any) with 150d+ aboard: "Calico has been unusually quiet. He approaches you alone at sunset."
+
+**Implementation:**
+- [ ] Define 6-8 flashpoint conditions in `data.js` (tag combinations + days thresholds)
+- [ ] Check conditions in `ENTER_PORT` or `ADVANCE_DAY` (low frequency — once per port visit)
+- [ ] Generate event as a special `RANDOM_EVENT` variant that references the specific crew member by name
+- [ ] Each flashpoint has 2-3 choices with meaningful consequences (reputation shift, crew loss/gain, trait change, gold cost)
+- [ ] A crew member can only trigger ONE flashpoint ever (tag `flashpoint_fired` to prevent repeats)
+- [ ] Log the outcome narratively
 
 ---
 
-## Tier 4 — Ship Identity & Equipment Overhaul
+## Tier 5 — Ship Identity & Equipment Overhaul
 
 > *Theme: Ships stop being stat blocks and start being characters of their own.*
 
-### T4.1 — Equipment Slot System
-
-Replace the current flat `upgrades[]` array with a slot-based system where each ship class has specific slot types (hull, rigging, armament, special).
+### T5.1 — Equipment Slot System
 
 | | |
 |---|---|
@@ -337,369 +295,182 @@ Replace the current flat `upgrades[]` array with a slot-based system where each 
 | **Dependencies** | None |
 | **Definition of Done** | Each ship has named slots. Equipment is installed per-slot. Swapping equipment is a port action with a cost. Equipment defines ship personality (fast raider vs. armoured trader vs. balanced warship). |
 
-### T4.2 — Ship Visual Differentiation
+### T5.2 — Ship Visual Differentiation
 
 | | |
 |---|---|
 | **Complexity** | Medium |
-| **Dependencies** | T4.1 |
-| **Definition of Done** | Each ship type has a distinct SVG sprite. Equipped items visually alter the sprite (e.g., copper hull = green tint, extra cannons = gun ports). Ship sprite appears in HUD, map, and battle. |
+| **Dependencies** | T5.1 |
+| **Definition of Done** | Each ship type has a distinct SVG sprite. Equipped items visually alter the sprite. Ship sprite appears in HUD, map, and battle. |
 
 ---
 
-## Tier 5 — World Comes Alive
+## Tier 6 — World Comes Alive
 
 > *Theme: The Caribbean reacts to forces larger than the player.*
 
-### T5.1 — World State Flags (Infrastructure)
+### T6.1 — World State Flags (Infrastructure)
 
 | | |
 |---|---|
 | **Complexity** | Medium |
 | **Dependencies** | None |
-| **Definition of Done** | `state.world` object with named flags (`warEnglishSpanish`, `plagueHavana`, `treasureFleetSailing`). Flags have start day and duration. Checked by mission generation, market prices, encounter frequency. |
+| **Definition of Done** | `state.world` object with named flags. Flags have start day and duration. Checked by mission generation, market prices, encounter frequency. |
 
-### T5.2 — Scripted World Events
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T5.1 |
-| **Definition of Done** | 4+ world events (war declaration, plague outbreak, treasure fleet, trade embargo). Each sets world flags + shows announcement on next port entry. Events fire at fame thresholds or day thresholds. |
-
-### T5.3 — Dynamic Prices Reacting to World Events
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T5.1 |
-| **Definition of Done** | Market prices modified by active world flags. War → weapons expensive. Plague → medicine valuable. Embargo → affected goods scarce. Validated by `tests/sim.html`. |
-
-### T5.4 — Mission Board Reacts to World Events
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T5.1 |
-| **Definition of Done** | Mission generation weights shift based on world flags. War → more combat/escort missions. Plague → more trade missions (supplies needed). |
-
-### T5.5 — Bounty Hunter Spawns
+### T6.2 — Scripted World Events
 
 | | |
 |---|---|
 | **Complexity** | Medium |
-| **Dependencies** | T2.1 (Alert System) |
-| **Definition of Done** | At very high infamy (75+) or max faction alert, named bounty hunters spawn as encounters. They are tougher than regular patrols and specifically target the player. Defeating them gives fame + gold. |
+| **Dependencies** | T6.1 |
+| **Definition of Done** | 4+ world events (war declaration, plague, treasure fleet, embargo). Each sets world flags + shows announcement on port entry. |
 
-### T5.6 — Infamy Pardon Mechanic
+### T6.3 — Dynamic Prices Reacting to World Events
+
+| | |
+|---|---|
+| **Complexity** | Low |
+| **Dependencies** | T6.1 |
+| **Definition of Done** | Market prices modified by active world flags. Validated by `tests/sim.html`. |
+
+### T6.4 — Mission Board Reacts to World Events
+
+| | |
+|---|---|
+| **Complexity** | Low |
+| **Dependencies** | T6.1 |
+| **Definition of Done** | Mission generation weights shift based on world flags. |
+
+### T6.5 — Bounty Hunter Spawns
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | T2.1 (Heat System) |
+| **Definition of Done** | At very high infamy (75+) or max faction alert, named bounty hunters spawn. Tougher than regular patrols. Defeating them gives fame + gold. |
+
+### T6.6 — Infamy Pardon Mechanic
 
 | | |
 |---|---|
 | **Complexity** | Low-Medium |
 | **Dependencies** | None |
-| **Definition of Done** | At certain ports (governor ports), player can pay gold + do a mission to reduce infamy. Cost scales with infamy level. Creates an infamy management loop. |
+| **Definition of Done** | At governor ports, player can pay gold + do a mission to reduce infamy. Cost scales with infamy level. |
 
 ---
 
-## Tier 6 — Depth & Replayability
+## Tier 7 — Depth & Replayability
 
 > *Theme: The game world has memory, personality, and recurring characters.*
 
-### T6.1 — Named Rival NPC Captains
+### T7.1 — Named Rival NPC Captains
 
 | | |
 |---|---|
 | **Complexity** | High |
-| **Dependencies** | T5.1 (world flags) |
-| **Definition of Done** | 3–5 named NPC captains generated at game start. Each has a faction, ship, personality. They appear as encounters at dramatically appropriate moments. Defeating them is a major fame event. They can also appear as mission targets. |
+| **Dependencies** | T6.1 (world flags) |
+| **Definition of Done** | 3-5 named NPC captains generated at game start. Each has a faction, ship, personality. They appear as encounters at dramatically appropriate moments. |
 
-### T6.2 — Governor Missions & Letters of Marque
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T5.1 |
-| **Definition of Done** | At Allied reputation with a faction, the governor offers special high-reward missions. Letters of Marque legalize piracy against a specific rival faction (reduces infamy from attacking them). |
-
-### T6.3 — Crew Officers
+### T7.2 — Governor Missions & Letters of Marque
 
 | | |
 |---|---|
 | **Complexity** | Medium |
-| **Dependencies** | T3.1 (crew traits) |
+| **Dependencies** | T6.1 |
+| **Definition of Done** | At Allied reputation, the governor offers special high-reward missions. Letters of Marque legalize piracy against a specific rival faction. |
+
+### T7.3 — Crew Officers
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | T3 (crew traits) |
 | **Definition of Done** | Designated officer slots (First Mate, Navigator, Gunner Chief, Surgeon). Officers provide passive bonuses. Losing an officer is mechanically significant. |
 
-### T6.4 — Personal Quest Line
+### T7.4 — Personal Quest Line + Career Clock ⚠️ DESIGN TOGETHER
+
+These are the same design decision. The quest line provides structure. The clock provides pressure. Design them as one system even if implemented sequentially.
 
 | | |
 |---|---|
 | **Complexity** | High |
-| **Dependencies** | T5.2 (world events), T6.1 (rival captains) |
-| **Definition of Done** | Each starting scenario has a 3–5 step personal quest that unfolds as fame increases. Quests interact with world events and rival captains. Completing the quest is one path to the endgame. Inspired by Occidental Heroes' main quest as spine. |
+| **Dependencies** | T6.2 (world events), T7.1 (rival captains) |
+| **Definition of Done** | Each starting scenario has a 3-5 step personal quest. The quest IS the career clock — fame milestones unlock quest chapters. Completing the quest ends the career with a final score. Ignoring it means the world escalates. |
 
-### T6.5 — Combat Log Transcript Reformatting
+**The design question to answer before building:**
+
+> *What does "completing your career" look like for each of the 5 starting scenarios?*
+
+If you can answer that, the career clock answers itself.
+
+**Reference approaches:**
+- Sid Meier's Pirates! aging: punishes time mechanically but feels arbitrary in a text game
+- Caravaneer economic collapse: thematically right but requires T6 world events first
+- **Occidental Heroes main quest spine** (recommended): the clock IS the quest. Fame milestones unlock chapters. The world escalates if you ignore it. Player can keep playing freely but at increasing cost.
+
+### T7.5 — Crew Tensions (Revisit)
+
+| | |
+|---|---|
+| **Complexity** | Medium |
+| **Dependencies** | T3 (crew traits), T6 (world events) |
+| **Definition of Done** | TBD — revisit after T6. Crew members from rival factions generate tension events. Player mediates or lets it escalate. |
+
+**Not the same as upset/mutiny.** This is a system collision: crew roster × faction reputation. Two existing systems interact in a way the player didn't expect. Worth keeping on the roadmap rather than fully parking.
+
+---
+
+## Tier 8 — Endgame & Final Polish
+
+### T8.1 — Multiple Save Slots + Cloud Awareness
+
+| | |
+|---|---|
+| **Complexity** | Low-Medium |
+| **Dependencies** | T4.1 (robust save) |
+| **Definition of Done** | 3 save slots in localStorage. JSON export/import already exists from T4.1. Add slot selection UI. |
+
+### T8.2 — Difficulty Settings
 
 | | |
 |---|---|
 | **Complexity** | Low |
 | **Dependencies** | None |
-| **Definition of Done** | Battle log entries are grouped by round, player actions rendered in gold, enemy actions in red, crew loss lines in danger color. Victory/defeat shows as a large banner. Better spacing and icons throughout. |
+| **Definition of Done** | Easy/Normal/Hard modifier on mission gold, combat damage, crew wages, event frequency. |
 
-### T6.6 — Crew Veteran Status & Detail Card
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T2.2 (crew loyalty tags) |
-| **Definition of Done** | Crew detail card shows veteran badge based on days aboard (New hand <15, Seasoned 30+, Veteran 100+, Old Salt 200+). Days aboard displayed prominently. Tag explanations visible directly in card. |
-
-### T6.7 — Lightweight Crew Stats
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | T6.6 |
-| **Definition of Done** | Each crew member tracks `stats: { battlesSurvived, voyagesSurvived, timesUpset, stormsSurvived }`. Stats increment automatically on relevant events. Displayed in crew detail card. |
-
-### T6.8 — Rumour Memory
+### T8.3 — Retirement & Final Score
 
 | | |
 |---|---|
 | **Complexity** | Medium |
-| **Dependencies** | T2.5 (rumour system) |
-| **Definition of Done** | Useful rumours (hidden port hints, market tips, heat warnings) are stored in `state.rumoursHeard` and can be revisited later. Last 5 shown in Status screen. |
+| **Dependencies** | T7.4 (quest line) |
+| **Definition of Done** | Player can retire at any port. Final score based on fame, gold, crew alive, missions completed, ports discovered. |
 
-### T6.9 — Captain’s Journal
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T6.8 (rumour memory), log categories from T2.3 |
-| **Definition of Done** | A new Journal screen (accessible from Port, Sailing, Status) displays the captain's log grouped by day with category filters (All, Crew, Combat, Ports, Missions, Trade, Rumours). Entry categories derived from log prefixes. |
-
-
-
-
----
-
-## Tier 7 — Save, Polish, and Endgame
-
-### T7.1 — Onboarding Overlay
+### T8.4 — Advanced Text Generation (Slot-Based NLG)
 
 | | |
 |---|---|
-| **Complexity** | Low |
-| **Dependencies** | None |
-| **Definition of Done** | First-time player sees contextual tooltips on first port visit, first sailing, first combat. Can be dismissed permanently. |
-
-### T7.2 — Multiple Save Slots + JSON Export
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | None |
-| **Definition of Done** | 3 save slots. Export/import as JSON file. Useful for sharing saves and bug reports. |
-
-### T7.3 — Difficulty Settings
-
-| | |
-|---|---|
-| **Complexity** | Low |
-| **Dependencies** | None |
-| **Definition of Done** | Easy/Normal/Hard modifier on: mission gold, combat damage, crew wages, event frequency. Applied as multiplier in `logic.js`. |
-
-### T7.4 — Endgame: Retirement and Final Score
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T6.4 (quest line) |
-| **Definition of Done** | Player can retire at any port. Final score based on: fame, gold, ships owned, crew alive, missions completed, ports discovered. Leaderboard (local). |
-
-### T7.5 — Career Clock ⚠️ NEEDS DESIGN DISCUSSION
-
-The game currently has no time pressure — a player can grind indefinitely with no consequence. This is the most significant missing systemic element.
-
-| | |
-|---|---|
-| **Complexity** | Medium |
-| **Dependencies** | T3 (crew), T5 (world events) |
-| **Definition of Done** | TBD — requires design discussion |
-
-**Open design questions:**
-- Is the clock tied to **real time** (day count, like Sid Meier's Pirates! aging)?
-- Or tied to **fame level** milestones (at fame 100, something happens)?
-- Or tied to a **main quest** spine (like Occidental Heroes)?
-- Or tied to **something else** (crew unrest, faction escalation, world event cascade)?
-- What happens when the clock triggers? Is it:
-  - **End of game** (retirement forced)?
-  - **A major crisis** (mutiny, bounty, war) that you survive and continue?
-  - **A new stage** (the game changes — new mechanics unlock, old ones shift)?
-- Can the player delay or accelerate the clock through their choices?
-
-**Reference:** Sid Meier's Pirates! uses aging (stats degrade over years, forcing eventual retirement). Occidental Heroes uses a main quest deadline. Caravaneer uses economic collapse.
-
-
-
-# T7.6 — Advanced Text Generation (Slot-Based NLG)
-
-> Roadmap item for long-term polish. Not blocking any gameplay features.
-
-## Purpose
-
-Reduce gossip and event text repetition by evolving from static templates to **slot-based sentence assembly**. The player should rarely see the exact same line twice across dozens of port visits — without requiring hundreds of handcrafted strings.
-
-**Player mental model:** "Every port visit has something new to read. The world feels alive and talkative."
-
----
-
-## Current State (Level 1: Template Interpolation)
-
-The gossip generator uses handcrafted sentences with `{good}` / `{Good}` variable slots:
-
-```js
-"Warehouses overflow with {good}. A buyer's market."
-→ "Warehouses overflow with sugar. A buyer's market."
-```
-
-This works well but each template always produces the same sentence structure. With ~50 templates, players start recognising lines after ~15 port visits.
-
----
-
-## Target State (Level 2: Slot-Based Sentence Assembly)
-
-Templates are decomposed into **independent slot pools** that combine combinatorially:
-
-```js
-// One template definition:
-{
-  pattern: "{source} says {good} {verb} at {port}.",
-  source: [
-    "A merchant",
-    "A drunk sailor",
-    "A trader just arrived from {otherPort}",
-    "The harbourmaster's clerk",
-    "An old captain nursing his rum",
-  ],
-  verb: [
-    "fetches a fortune",
-    "sells for double the usual price",
-    "is in high demand",
-    "commands a premium",
-    "is worth the voyage alone",
-  ],
-}
-
-// Assembly:
-function assembleSlotTemplate(template, context) {
-  let text = template.pattern;
-  // Replace each {slot} with a random pick from its pool
-  if (template.source) text = text.replace("{source}", pickRandom(template.source));
-  if (template.verb) text = text.replace("{verb}", pickRandom(template.verb));
-  // Replace context variables
-  text = text.replace(/\{good\}/g, context.goodName.toLowerCase());
-  text = text.replace(/\{Good\}/g, context.goodName);
-  text = text.replace(/\{port\}/g, context.portName);
-  text = text.replace(/\{otherPort\}/g, context.otherPortName || "parts unknown");
-  return text;
-}
-```
-
-**Output variety:** 1 template × 5 sources × 5 verbs = **25 unique sentences**.
-10 templates per category = **250 unique sentences** from ~50 lines of data.
-
----
-
-## What Gets Upgraded
-
-| Category | Current Templates | With Slots | Unique Outputs |
-|---|---|---|---|
-| Market surplus | 4 static | 4 patterns × 5 sources × 5 verbs | ~100 |
-| Market shortage | 4 static | 4 patterns × 5 sources × 5 verbs | ~100 |
-| Heat warnings | 4+4 static | 4 patterns × 3 observers × 3 details | ~36 per tier |
-| Fame reactions | 2-3 per tier | 3 patterns × 4 crowd reactions | ~12 per tier |
-| Infamy reactions | 2-4 per tier | 3 patterns × 4 watcher types | ~12 per tier |
-| Ambiance | 4 per faction | 4 patterns × 3 details × 2 weather | ~24 per faction |
-| **Total** | ~60 static lines | ~60 pattern lines + ~30 slot pools | **~500+ unique outputs** |
-
-Reputation and contraband gossip remain static — they're already varied enough and benefit from precise authorial control.
-
----
-
-## Slot Pool Design Principles
-
-1. **Slots must be independently combinable** — any source × any verb must make grammatical sense
-2. **Context slots** (`{good}`, `{port}`) come from game state — always factually accurate
-3. **Flavour slots** (`{source}`, `{verb}`) come from pools — always grammatically safe
-4. **No recursive expansion** — this is NOT a grammar/Tracery system. One level of slots only. Keep it simple.
-5. **Existing templates remain valid** — a template without slot pools is just a static string. The system is backward-compatible.
-
----
-
-## Implementation
-
-| | |
-|---|---|
-| **Complexity** | Low-Medium (~80 lines in generators.js + ~100 lines of slot data) |
-| **Dependencies** | T2.3 Gossip Generator (must be complete and stable) |
-| **Files Changed** | `data.js` (slot pool data), `generators.js` (assembly function) |
-| **New Functions** | `assembleSlotTemplate(template, context)` in generators.js |
-| **Risk** | Low — backward-compatible, no new systems, pure content expansion |
-
-### Task List
-
-- [ ] **generators.js**: Add `assembleSlotTemplate(template, context)` — replaces `{slot}` from pools + `{variable}` from context
-- [ ] **data.js**: Convert market surplus/shortage templates from strings to slot objects
-- [ ] **data.js**: Add slot pools: `source` (5+), `verb` (5+ per category), `detail` (3+ per category)
-- [ ] **data.js**: Convert heat, fame, infamy templates to slot format
-- [ ] **data.js**: Add ambiance slot pools per faction (crowd, sound, smell, activity)
-- [ ] **generators.js**: Update `generatePortGossip` to detect slot templates vs static strings and handle both
-- [ ] Test: verify no grammatical nonsense in 100 random generations
-- [ ] Test: verify context variables ({good}, {port}) are always factually correct
-
----
-
-## Definition of Done
-
-- [ ] `assembleSlotTemplate` produces grammatically correct output for all template × slot combinations
-- [ ] At least 5 source slots and 5 verb/adjective slots per gossip category
-- [ ] 500+ unique gossip outputs possible across all categories (verified by combinatorial count)
-- [ ] Static templates still work (backward-compatible)
-- [ ] No player-visible regression — gossip feels richer, not different
-- [ ] Player sees a repeated exact line less than 5% of the time across 20 consecutive port visits
-
----
-
-## Future Consideration: Grammar-Based Generation (Level 3)
-
-If slot assembly still feels repetitive after hundreds of hours, the next step is a **recursive grammar system** (e.g., Tracery). This allows:
-
-```
-"#source# heard that #rumour#, and #reaction#."
-→ "A sailor heard that spices are scarce at Curaçao, and is heading there with a full hold."
-```
-
-Tracery is a ~5KB JS library designed for exactly this use case. It would be loaded as a vendored dependency (no CDN, no npm). This is a **long-term consideration**, not a current plan — slot assembly should provide sufficient variety for the foreseeable future.
-
-
-
+| **Complexity** | Low-Medium |
+| **Dependencies** | T4.2 (journal), all narrative systems stable |
+| **Definition of Done** | Template interpolation upgraded to slot-based assembly. 500+ unique gossip/log outputs from 60 pattern lines + 30 slot pools. |
 
 ---
 
 ## Long-Term Vision
 
-These are ideas that are interesting but require major new systems or significant scope expansion. They may never be built — they exist here to capture the design intent.
+Ideas that require major new systems or significant scope expansion:
 
 | Idea | Description | Status |
 |---|---|---|
-| **Prize Ship Escort** | Capture enemy ships, escort them to port for bonus gold. Adds travel modifier + intercept vulnerability. | Deferred from T2 — fleet management territory |
-| **Fleet Management** | Own multiple ships, assign captains, run trade routes. Transforms the game's scope entirely. | Long-term only |
-| **Ship Naming & History** | Ships track their battle history, ports visited, enemies defeated. A "ship's log" that tells the vessel's story. | Needs T4 (ship identity) first |
-| **Market Saturation & Shipping Lanes** | Prices respond to player trading patterns. Flooding a market with sugar crashes the price. | Needs T5.3 (dynamic prices) first |
-| **Hold Disasters & Cargo Shifts** | Storm events can damage specific cargo. Loose cargo shifts in heavy seas. | Needs more event system maturity |
-| **Divide the Plunder** | Periodic crew payout events where gold is redistributed. | Tied to Career Clock design |
-| **Psychological Trauma** | Crew who survive near-death events develop PTSD-like traits. | Needs T3.2 (scars) first |
-| **Native Asset Bundling** | Replace CDN scripts with vendored copies. Service worker for offline play. | Polish-tier, not gameplay |
+| **Prize Ship Escort** | Capture enemy ships, escort to port for bonus gold | Deferred — fleet management territory |
+| **Fleet Management** | Own multiple ships, assign captains, run trade routes | Long-term only |
+| **Ship Naming & History** | Ships track battle history, ports visited | Needs T5 first |
+| **Market Saturation** | Prices respond to player trading patterns | Needs T6.3 first |
+| **Hold Disasters** | Storm events damage specific cargo | Needs more event maturity |
+| **Divide the Plunder** | Periodic crew payout events | Tied to Career Clock design |
+| **Psychological Trauma** | Crew develop PTSD-like traits from near-death | Needs T3 scars first |
+| **Native Asset Bundling** | Vendored scripts, service worker for offline | Polish-tier |
+| **Rumour Memory** | Store useful gossip for later review | Only if playtesting demands it |
 
 ---
 
@@ -707,15 +478,13 @@ These are ideas that are interesting but require major new systems or significan
 
 | Tier | Theme | Key Deliverable | Estimated Scope |
 |---|---|---|---|
-| **T1** | Clean-up | Tests pass, balance validated | 1–2 weeks |
-| **T2** | World notices you | Alert system, gossip, port personality, rumours, friendly encounters, defeat scars | 3–4 weeks |
-| **T3** | Crew become people | Traits, scars, tensions, officer poaching | 3–4 weeks |
-| **T4** | Ship identity | Equipment slots, ship visuals | 2–3 weeks |
-| **T5** | World comes alive | World events, dynamic prices, bounty hunters, infamy pardon | 4–5 weeks |
-| **T6** | Depth & replayability | Rival captains, governor missions, officers, quest line | 5–6 weeks |
-| **T7** | Endgame | Onboarding, saves, difficulty, retirement, career clock | 3–4 weeks |
+| **T4** | Polish & robustness | Robust saves, journal, onboarding, defeat scars, crew flashpoints | 3-4 weeks |
+| **T5** | Ship identity | Equipment slots, ship visuals | 2-3 weeks |
+| **T6** | World comes alive | World events, dynamic prices, bounty hunters, infamy pardon | 4-5 weeks |
+| **T7** | Depth & replayability | Rival captains, governors, officers, quest line + career clock, crew tensions | 5-6 weeks |
+| **T8** | Endgame | Save slots, difficulty, retirement, NLG | 3-4 weeks |
 
-**Total estimated: ~22–28 weeks of focused work** (solo developer pace)
+**Total estimated: ~18-22 weeks of focused work** (solo developer pace)
 
 ---
 
@@ -723,8 +492,10 @@ These are ideas that are interesting but require major new systems or significan
 
 | Concept | Reason | Date |
 |---|---|---|
-| **Perishable Cargo & Spoilage** | Punishes luck (wind/weather), not decisions. "Your sugar rotted because of a headwind" doesn't create interesting choices — the player can't control the wind. Fails the systemic filter. | June 2026 |
-| **Morale Floor Cascade** | Originally morale would compound-decay below 10. Playtesting showed this created unrecoverable death spirals with no player agency. | Earlier |
-| **Post-Defeat Stat Screen** | A detailed "what you lost" screen after combat defeat. Cut because it slowed the recovery loop — players want to get back in action, not review their losses. | Earlier |
-| **Crew XP / Leveling** | Crew were going to gain XP and level up skills. Rejected because it turns crew into RPG party members rather than named individuals with personality. Conflicts with Dwarf Fortress influence (traits > stats). | Earlier |
-| **Dynamic port ownership** | Factions conquering each other's ports. Rejected: makes the map unpredictable in a way that frustrates rather than challenges. The player should be the agent of change, not the world. | Earlier |
+| **Perishable Cargo & Spoilage** | Punishes luck (wind/weather), not decisions. Fails the systemic filter. | June 2026 |
+| **Morale Floor Cascade** | Compound-decay below 10 created unrecoverable death spirals with no player agency. | Earlier |
+| **Post-Defeat Stat Screen** | Slowed the recovery loop. Players want to get back in action. | Earlier |
+| **Crew XP / Leveling** | Turns crew into RPG party members rather than named individuals. Conflicts with Dwarf Fortress influence. | Earlier |
+| **Dynamic Port Ownership** | Makes the map unpredictable in a way that frustrates rather than challenges. The player should be the agent of change. | Earlier |
+| **Crew Stats Counters** | Deferred. Scars tell the story for now. Add if detail card needs more data. | June 2026 |
+| **T3.4 Officer Poaching** | Requires named NPCs (T7), officer slots (T7.3), poaching economy. Too many dependencies for now. | June 2026 |

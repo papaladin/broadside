@@ -25,6 +25,100 @@ window.L = (() => {
     return saved ? JSON.parse(saved) : null;
   };
 
+  // simpleHash – used for save file checksum
+const simpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+};
+
+// encodeSave – returns Base64 string for file download
+const encodeSave = (state) => {
+  const data = JSON.stringify(state);
+  const payload = JSON.stringify({
+    v: 1,
+    check: simpleHash(data),
+    data: data,
+  });
+  // Base64 encode with full Unicode support
+  const bytes = new TextEncoder().encode(payload);
+  const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+  return btoa(binary);
+};
+
+// decodeSave – returns { state, tampered, error }
+const decodeSave = (fileContent) => {
+  try {
+    const binary = atob(fileContent.trim());
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const decoded = new TextDecoder().decode(bytes);
+    const payload = JSON.parse(decoded);
+    if (!payload.data) return { state: null, tampered: false, error: "Invalid save format" };
+
+    const state = JSON.parse(payload.data);
+    const expectedCheck = simpleHash(payload.data);
+    const tampered = payload.check !== expectedCheck;
+
+    return { state, tampered, error: null };
+  } catch (e) {
+    return { state: null, tampered: false, error: "Could not read save file: " + e.message };
+  }
+};
+
+// localStorage availability check (not a pure function but it's a one‑time check, acceptable here)
+const checkLocalStorageAvailable = () => {
+  try {
+    localStorage.setItem('__test', '1');
+    localStorage.removeItem('__test');
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// ------------------------------------
+// TUTORIAL FUNCTIONS
+//--------------------------------------
+
+// ── Tutorial state (localStorage, separate from game save) ────────
+const TUTORIAL_KEY = "broadside_tutorial";
+
+const getDefaultTutorialState = () => ({
+  enabled: true,
+  seen: { port: false, map: false, sailing: false, battle: false, market: false, crew: false, shipyard: false, journal: false  },
+});
+
+const loadTutorialState = () => {
+  try {
+    const raw = localStorage.getItem(TUTORIAL_KEY);
+    if (!raw) return getDefaultTutorialState();
+    return { ...getDefaultTutorialState(), ...JSON.parse(raw) };
+  } catch { return getDefaultTutorialState(); }
+};
+
+const saveTutorialState = (ts) => {
+  try { localStorage.setItem(TUTORIAL_KEY, JSON.stringify(ts)); } catch {}
+};
+
+const shouldShowTutorial = (screenName) => {
+  const ts = loadTutorialState();
+  return ts.enabled && !ts.seen[screenName];
+};
+
+const markTutorialSeen = (screenName, disableAll = false) => {
+  const ts = loadTutorialState();
+  ts.seen[screenName] = true;
+  if (disableAll) ts.enabled = false;
+  saveTutorialState(ts);
+};
+
+
+
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  HELPER FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -140,6 +234,26 @@ const classifyLogLine = (text) => {
   if (t.includes("morale") || t.includes("drinks"))        return { icon: "🍻" };
 
   return { icon: null };
+};
+
+const getLogTabCategory = (text) => {
+  const t = text || '';
+  // Crew (including traits)
+  if (/disturbed|left the crew|settled|seasoned|veteran|loyal|Hired|drinks|mutineer|upset|shaking|terrified|demands|brawl|rum|Bosun/i.test(t))
+    return "crew";
+  // Combat & Encounters
+  if (/Victory|Defeated|sinks|strikes|fled|escaped|Plundered|patrol|inspection|Bribed|Parley|surrendered|contraband/i.test(t))
+    return "combat";
+  // Ports (navigation, discovery, provisions)
+  if (/Arrived|Dropped anchor|Made port|Setting sail|New port discovered|food stores|water barrels/i.test(t))
+    return "ports";
+  // Missions
+  if (/Accepted mission|Completed:|Abandoned|Cannot complete|infamy/i.test(t))
+    return "missions";
+  // Trade & Repairs
+  if (/Bought|Sold|Net:|Repaired|Purchased|Installed/i.test(t))
+    return "trade";
+  return "other"; // fallback – will show under "All"
 };
 
 
@@ -893,6 +1007,16 @@ const applyLoseContraband = (holdItems) => {
     hasSave,
     saveGame,
     loadGame,
+    simpleHash,
+  encodeSave,
+  decodeSave,
+  checkLocalStorageAvailable,
+
+  // Tutorial 
+  loadTutorialState,
+saveTutorialState,
+shouldShowTutorial,
+markTutorialSeen,
 
     // Helpers
     canAfford,
@@ -906,6 +1030,7 @@ const applyLoseContraband = (holdItems) => {
     getShipStats,
     getEffectiveMorale,
     classifyLogLine,
+    getLogTabCategory,
     returnScreen,
 
     // Ship/Repair

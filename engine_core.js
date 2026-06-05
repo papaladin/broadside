@@ -23,6 +23,8 @@ window.E = window.E || {};
     START_GAME: "START_GAME",
     SAVE_GAME: "SAVE_GAME",
     LOAD_GAME: "LOAD_GAME",
+    EXPORT_SAVE: "EXPORT_SAVE",
+    IMPORT_SAVE: "IMPORT_SAVE",
     REPAIR: "REPAIR",
     BUY_SHIP: "BUY_SHIP",
     BUY_UPGRADE: "BUY_UPGRADE",
@@ -98,6 +100,7 @@ window.E = window.E || {};
     if (!s.startDate) {
       s.startDate = { day: 1, month: 6, year: 1695 };
     }
+    if (!s.scenarioId) s.scenarioId = null;
     return s;
   };
 
@@ -124,7 +127,7 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   window.E.initialState = {
     version: 1,
-    screen: "start",
+    screen: "title",
     day: 1,
     startDate: { day: 1, month: 6, year: 1695 },
     log: [],
@@ -139,6 +142,7 @@ window.E = window.E || {};
       pirate: 0,
     },
     currentPort: "portRoyal",
+    scenarioId: null,
     previousPort: null,
     destination: null,
     discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),

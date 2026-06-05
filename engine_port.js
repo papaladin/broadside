@@ -209,6 +209,7 @@ const processPositiveTraits = (nextState, state) => {
           fame: start.debugStartFame ?? 0,
           gold: start.gold,
           startDate: start.startDate ?? { day: 1, month: 6, year: 1695 }, 
+          scenarioId: start.id,
           currentPort: start.startPort,
           portMarket: null,
           log: [...(start.openingLog || [])],
@@ -709,6 +710,44 @@ const processPositiveTraits = (nextState, state) => {
         } catch (e) {
           return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
         }
+      }
+
+      case A.EXPORT_SAVE: {
+        const encoded = L.encodeSave(state);
+        const scenario = state.scenarioId || "unknown";
+        const day = state.day || 0;
+        const filename = `broadside-${scenario}-day${day}.broadside`;
+
+        // Trigger download (side effect inside reducer – acceptable as per project conventions)
+        const blob = new Blob([encoded], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        return state; // no state change
+      }
+
+      case A.IMPORT_SAVE: {
+        const { state: loaded, tampered, error } = L.decodeSave(action.fileContent);
+        if (error) {
+          return { ...state, log: [...state.log, `⚠ ${error}`] };
+        }
+        const migrated = window.E.migrateState(loaded);
+        if (tampered) {
+          migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
+        }
+        // Reset transient state like we do in LOAD_GAME
+        return {
+          ...migrated,
+          screen: "port",
+          battleState: null,
+          activeEvent: null,
+          encounterContext: null,
+          portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"),
+          missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated),
+        };
       }
 
       default:
