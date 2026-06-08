@@ -307,7 +307,6 @@ const generateCrewBio = (member, state) => {
   const generatePortMarket = (portKey) => {
     const resources   = window.D.RESOURCES;
     const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
-    const goodKeys    = Object.keys(resources);
 
     // Column order in GOODS_AVAILABILITY rows (must match data.js comment):
     const colOrder = [

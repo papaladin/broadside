@@ -407,5 +407,28 @@ window.TESTS.push({
         u.assert(missions.every(m => m.risk === "low"), "Only low risk if any");
       }
     },
+    {
+      name: "U.T4.01 TitleScreen renders",
+      run: (u) => {
+        const { unmount } = u.mountReact(window.S.TitleScreen, { dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "U.T4.02 JournalScreen renders with empty log",
+      run: (u) => {
+        const state = makeState({ log: [] });
+        const { unmount } = u.mountReact(window.S.JournalScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "U.T4.03 JournalScreen renders with entries",
+      run: (u) => {
+        const state = makeState({ log: ["[1] Test entry one", "[2] Another test entry", "[3] Arrived at Tortuga."] });
+        const { unmount } = u.mountReact(window.S.JournalScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    }
   ]
 });

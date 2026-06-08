@@ -3,10 +3,10 @@ window.S = window.S || {};
 
 (() => {
   const { useState } = React;
-  const { PORTS, SHIPS, FACTIONS, UPGRADES } = window.D;
+  const { PORTS, SHIPS, FACTIONS, EQUIPMENT} = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState, TutorialPopup } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState, TutorialPopup, BackButton } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -17,8 +17,7 @@ window.S = window.S || {};
     const W = 760, H = 460;
     return (
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden", minHeight: "100%" }}>
-        <button onClick={() => dispatch({ type: A.NAVIGATE, screen: "port" })} style={{ alignSelf: "flex-start", background: T.panel, border: `1px solid ${T.gold}`, color: T.gold, padding: "6px 12px", borderRadius: 3, cursor: "pointer", fontSize: 12, fontFamily: T.font, marginBottom: 10 }}>← Back to Port</button>
-
+        <BackButton dispatch={dispatch} />
         {/* Tutorial Popup */}
         {showTutorial && (
           <TutorialPopup
@@ -315,7 +314,7 @@ const InterceptScreen = ({ state, dispatch }) => {
       </div>
     </div>
   );
-};
+};  
 
   // ── BATTLE SCREEN (actions stack vertically on narrow) ──────────
   function BattleScreen({ state, dispatch }) {
@@ -362,7 +361,6 @@ const InterceptScreen = ({ state, dispatch }) => {
               </>
             )}
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
-            {state.ship.upgrades.length > 0 && <div style={{ marginTop: 5, display: "flex", gap: 4, flexWrap: "wrap" }}>{state.ship.upgrades.map(u => <Pill key={u} label={UPGRADES[u]?.name ?? u} color={T.blueBr} />)}</div>}
           </div>
           <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
           <div style={panelStyle({ borderColor: T.red })}>

@@ -1,7 +1,6 @@
 // engine_core.js — Shared Infrastructure
 // Exposes window.E with A, initialState, reducer, shared helpers.
 // Loaded first; domain files push reducers into window.E._reducers.
-console.log("engine_core.js loaded");
 
 // Ensure window.E exists before anything else
 window.E = window.E || {};
@@ -27,7 +26,9 @@ window.E = window.E || {};
     IMPORT_SAVE: "IMPORT_SAVE",
     REPAIR: "REPAIR",
     BUY_SHIP: "BUY_SHIP",
-    BUY_UPGRADE: "BUY_UPGRADE",
+    BUY_EQUIPMENT: "BUY_EQUIPMENT",
+    INSTALL_EQUIPMENT: "INSTALL_EQUIPMENT",
+    REMOVE_EQUIPMENT: "REMOVE_EQUIPMENT",
     HIRE_CREW: "HIRE_CREW",
     RAISE_MORALE: "RAISE_MORALE",
     REFRESH_MISSIONS: "REFRESH_MISSIONS",
@@ -35,8 +36,6 @@ window.E = window.E || {};
     COMPLETE_MISSION: "COMPLETE_MISSION",
     ABANDON_MISSION: "ABANDON_MISSION",
     CONFIRM_TRADE: "CONFIRM_TRADE",
-    ENTER_MARKET: "ENTER_MARKET",
-    LEAVE_MARKET: "LEAVE_MARKET",
     INTERCEPT_FIGHT: "INTERCEPT_FIGHT",
     INTERCEPT_FLEE: "INTERCEPT_FLEE",
     INTERCEPT_PARLEY: "INTERCEPT_PARLEY",
@@ -101,6 +100,14 @@ window.E = window.E || {};
       s.startDate = { day: 1, month: 6, year: 1695 };
     }
     if (!s.scenarioId) s.scenarioId = null;
+    if (!s.ship.equipment) {
+      s.ship.equipment = { hull: [], armament: [], rigging: [], special: [] };
+      // discard old upgrades silently
+      delete s.ship.upgrades;
+    }
+    if (!s.equipmentInventory) {
+      s.equipmentInventory = [];
+    }
     return s;
   };
 
@@ -147,10 +154,22 @@ window.E = window.E || {};
     destination: null,
     discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),
     mapFragments: [],
+    equipmentInventory: [],
     sailingDaysLeft: 0,
     sailingDaysTotal: 0,
     wind: { angle: 45, speed: 10 },
-    ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, upgrades: [] },
+    ship: {
+      type: "sloop",
+      name: "Sea Dog",
+      hull: 100,
+      cannons: 10,
+      equipment: {
+        hull: [],
+        armament: [],
+        rigging: [],
+        special: [],
+      },
+    },
     crew: { roster: [], max: 50, morale: 80 },
     hold: {
       items: {
@@ -185,11 +204,16 @@ window.E = window.E || {};
     );
   };
 
-  console.log("engine_core.js setup complete, _reducers ready");
-
   // ── Debug reducer ──────────────────────────────────────────────
 window.E._reducers.push((state, action) => {
   switch (action.type) {
+
+
+
+
+
+
+
     case window.E.A.DEBUG_ADD_GOLD:
       return { ...state, gold: state.gold + action.amount };
 
@@ -204,7 +228,14 @@ window.E._reducers.push((state, action) => {
       if (!s) return state;
       return {
         ...state,
-        ship: { type: action.shipType, name: s.name, hull: s.maxHull, cannons: s.cannons, upgrades: [] },
+        ship: {
+          type: action.shipType,
+          name: s.name,
+          hull: s.maxHull,
+          cannons: s.cannons,
+          equipment: { hull: [], armament: [], rigging: [], special: [] },   // NEW
+        },
+        equipmentInventory: [],           // reset inventory
         hold: { ...state.hold, capacity: s.holdCapacity },
         crew: { ...state.crew, max: s.maxCrew },
       };
@@ -350,4 +381,76 @@ case window.E.A.DEBUG_AGE_CREW: {
       return state;
   }
 });
+
+
+  // ── Save / Load / Export / Import ────────────────────────────
+  window.E._reducers.push((state, action) => {
+    switch (action.type) {
+      case window.E.A.SAVE_GAME:
+        localStorage.setItem("piratesSave", JSON.stringify(state));
+        return { ...state };
+
+      case window.E.A.LOAD_GAME: {
+        try {
+          const raw = localStorage.getItem("piratesSave");
+          if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
+          const parsed = JSON.parse(raw);
+          const loaded = window.E.migrateState(parsed);
+          const currentPort = loaded.currentPort || "portRoyal";
+          return {
+            ...loaded,
+            screen: "port",
+            battleState: null,
+            activeEvent: null,
+            encounterContext: null,
+            portMarket: G.generatePortMarket(currentPort),
+            missions: G.generateMissions(currentPort, loaded),
+          };
+        } catch (e) {
+          return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
+        }
+      }
+
+      case window.E.A.EXPORT_SAVE: {
+        const encoded = L.encodeSave(state);
+        const scenario = state.scenarioId || "unknown";
+        const day = state.day || 0;
+        const filename = `broadside-${scenario}-day${day}.broadside`;
+        const blob = new Blob([encoded], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        return state;
+      }
+
+      case window.E.A.IMPORT_SAVE: {
+        const { state: loaded, tampered, error } = L.decodeSave(action.fileContent);
+        if (error) {
+          return { ...state, log: [...state.log, `⚠ ${error}`] };
+        }
+        const migrated = window.E.migrateState(loaded);
+        if (tampered) {
+          migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
+        }
+        return {
+          ...migrated,
+          screen: "port",
+          battleState: null,
+          activeEvent: null,
+          encounterContext: null,
+          portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"),
+          missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated),
+        };
+      }
+
+      default:
+        return state;
+    }
+  });
+
+
+
 })();

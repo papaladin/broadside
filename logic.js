@@ -7,124 +7,11 @@
 
 window.L = (() => {
   // Destructure constants for easier access
-  const { PORTS, SHIPS, FACTIONS, UPGRADES, RANDOM_EVENTS, STARTS, } = window.D;
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  SAVE/LOAD FUNCTIONS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const hasSave = () => {
-    return !!localStorage.getItem("piratesSave");
-  };
-
-  const saveGame = (state) => {
-    localStorage.setItem("piratesSave", JSON.stringify(state));
-  };
-
-  const loadGame = () => {
-    const saved = localStorage.getItem("piratesSave");
-    return saved ? JSON.parse(saved) : null;
-  };
-
-  // simpleHash – used for save file checksum
-const simpleHash = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-};
-
-// encodeSave – returns Base64 string for file download
-const encodeSave = (state) => {
-  const data = JSON.stringify(state);
-  const payload = JSON.stringify({
-    v: 1,
-    check: simpleHash(data),
-    data: data,
-  });
-  // Base64 encode with full Unicode support
-  const bytes = new TextEncoder().encode(payload);
-  const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
-  return btoa(binary);
-};
-
-// decodeSave – returns { state, tampered, error }
-const decodeSave = (fileContent) => {
-  try {
-    const binary = atob(fileContent.trim());
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const decoded = new TextDecoder().decode(bytes);
-    const payload = JSON.parse(decoded);
-    if (!payload.data) return { state: null, tampered: false, error: "Invalid save format" };
-
-    const state = JSON.parse(payload.data);
-    const expectedCheck = simpleHash(payload.data);
-    const tampered = payload.check !== expectedCheck;
-
-    return { state, tampered, error: null };
-  } catch (e) {
-    return { state: null, tampered: false, error: "Could not read save file: " + e.message };
-  }
-};
-
-// localStorage availability check (not a pure function but it's a one‑time check, acceptable here)
-const checkLocalStorageAvailable = () => {
-  try {
-    localStorage.setItem('__test', '1');
-    localStorage.removeItem('__test');
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
-
-// ------------------------------------
-// TUTORIAL FUNCTIONS
-//--------------------------------------
-
-// ── Tutorial state (localStorage, separate from game save) ────────
-const TUTORIAL_KEY = "broadside_tutorial";
-
-const getDefaultTutorialState = () => ({
-  enabled: true,
-  seen: { port: false, map: false, sailing: false, battle: false, market: false, crew: false, shipyard: false, journal: false  },
-});
-
-const loadTutorialState = () => {
-  try {
-    const raw = localStorage.getItem(TUTORIAL_KEY);
-    if (!raw) return getDefaultTutorialState();
-    return { ...getDefaultTutorialState(), ...JSON.parse(raw) };
-  } catch { return getDefaultTutorialState(); }
-};
-
-const saveTutorialState = (ts) => {
-  try { localStorage.setItem(TUTORIAL_KEY, JSON.stringify(ts)); } catch {}
-};
-
-const shouldShowTutorial = (screenName) => {
-  const ts = loadTutorialState();
-  return ts.enabled && !ts.seen[screenName];
-};
-
-const markTutorialSeen = (screenName, disableAll = false) => {
-  const ts = loadTutorialState();
-  ts.seen[screenName] = true;
-  if (disableAll) ts.enabled = false;
-  saveTutorialState(ts);
-};
-
-
-
-
+  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, RANDOM_EVENTS, STARTS, } = window.D;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  HELPER FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const canAfford = (state, cost) => {
-    return state.gold >= cost;
-  };
 
   const reputationLabel = (rep) => {
     if (rep >= 80) return "Allied";
@@ -159,10 +46,6 @@ const getHeatLabel = (level) => {
   return "";
 };
 
-  const hasUpgrade = (state, upgradeKey) => {
-    return state.ship.upgrades.includes(upgradeKey);
-  };
-
   const meetsRequirement = (state, item) => {
   if (item.requiredFame && state.fame < item.requiredFame)
     return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${getFameInfo(item.requiredFame).label})` };
@@ -179,27 +62,85 @@ const getHeatLabel = (level) => {
   };
 
   const getShipStats = (state) => {
-    const ship = SHIPS[state.ship.type];
-    const stats = { ...ship };
-    // Apply upgrades
-    state.ship.upgrades.forEach(upgradeKey => {
-      const upgrade = UPGRADES[upgradeKey];
-      if (!upgrade) return;
-      if (upgrade.effects.hullBonus) {
-        stats.maxHull = Math.floor(stats.maxHull * (1 + upgrade.effects.hullBonus));
+    const base = SHIPS[state.ship.type];
+    const stats = { ...base };
+    let hullPct = 0;
+    let holdPct = 0;
+
+    const eq = state.ship.equipment || {};
+    for (const key of Object.values(eq).flat()) {
+      const item = EQUIPMENT[key];
+      if (!item) continue;
+      for (const [effect, value] of Object.entries(item.effects || {})) {
+        if (effect === "hullPct") {
+          hullPct += value;
+        } else if (effect === "holdPct") {
+          holdPct += value;
+        } else if (typeof stats[effect] === "number") {
+          stats[effect] += value;
+        }
       }
-      if (upgrade.effects.cannonBonus) {
-        stats.cannons += upgrade.effects.cannonBonus;
-      }
-      if (upgrade.effects.speedBonus) {
-        stats.speed += upgrade.effects.speedBonus;
-      }
-      if (upgrade.effects.moraleBonus) {
-        stats.moraleBonus = (stats.moraleBonus || 0) + upgrade.effects.moraleBonus; // Track morale bonus
-      }
-    });
+    }
+
+    stats.maxHull = Math.round(base.maxHull * (1 + hullPct));
+    stats.holdCapacity = Math.round(base.holdCapacity * (1 + holdPct));
+    stats.speed = Math.max(1, stats.speed);
+    stats.maxDays = Math.max(1, stats.maxDays);
+    stats.moraleBonus = 0; // no more figurehead, but keep for compatibility
+
     return stats;
   };
+
+  const getEquipmentEffect = (state, effectKey) => {
+    const eq = state.ship?.equipment || {};
+    let total;
+
+    // multiplicative effects default to 1, additive to 0
+    if (effectKey === "combatHeatMult" || effectKey === "crewLossMult") {
+      total = 1;
+    } else {
+      total = typeof effectKey === 'string' && (effectKey.endsWith('Pct') || effectKey.endsWith('Chance')) ? 0 : 0;
+    }
+
+    for (const key of Object.values(eq).flat()) {
+      const item = EQUIPMENT[key];
+      if (!item) continue;
+      const value = item.effects?.[effectKey];
+      if (value === undefined) continue;
+
+      if (typeof value === "boolean") {
+        total = total || value; // any true makes it true
+      } else if (effectKey === "combatHeatMult" || effectKey === "crewLossMult") {
+        total *= value; // multiplicative
+      } else {
+        total += value; // additive
+      }
+    }
+
+    return total;
+  };
+
+  const canInstallEquipment = (state, equipmentKey) => {
+    const item = EQUIPMENT[equipmentKey];
+    if (!item) return { ok: false, reason: "Unknown equipment" };
+
+    const shipDef = SHIPS[state.ship.type];
+    const current = state.ship.equipment?.[item.slot] || [];
+
+    if ((state.fame || 0) < item.requiredFame)
+      return { ok: false, reason: "Requires more fame" };
+    if ((shipDef.maxHull || 0) < item.requiredHull)
+      return { ok: false, reason: "Ship hull too small" };
+    if ((shipDef.slots?.[item.slot] || 0) <= 0)
+      return { ok: false, reason: "No matching slot" };
+    if (current.length >= shipDef.slots[item.slot])
+      return { ok: false, reason: "Slot full" };
+    if (Object.values(state.ship.equipment || {}).flat().includes(equipmentKey))
+      return { ok: false, reason: "Already installed" };
+
+    return { ok: true };
+  };
+
 
 
   const returnScreen = (state) =>
@@ -289,7 +230,14 @@ const getLogTabCategory = (text) => {
     if (windAngleDiff < 45 || windAngleDiff > 315) days -= 1; // Favorable wind
     else if (windAngleDiff > 135 && windAngleDiff < 225) days += 1; // Opposing wind
 
-    const baseDays = Math.max(1, days);
+    let baseDays = Math.max(1, days);
+
+    // Navigation Tools: reduce long voyages by 1 day
+    if (baseDays > 4) {
+      const reduction = getEquipmentEffect(state, "longVoyageDayReduction") || 0;
+      baseDays = Math.max(1, baseDays - reduction);
+    }
+
     const loadPct = getHoldLoadPct(state.hold?.items, state.hold?.capacity);
     const mult = getHoldSpeedMultiplier(loadPct);
     return Math.max(1, Math.round(baseDays * mult)); // Minimum 1 day
@@ -355,12 +303,6 @@ const getUnreachableReason = (state, portKey) => {
     return newRep;
   };
 
-  const updateReputation = (state, port, delta) => {
-    const newRep = { ...state.reputation };
-    newRep[port] = Math.max(0, Math.min(100, (newRep[port] || 50) + delta));
-    return newRep;
-  };
-
   // Apply reputation impact from an object (e.g., { english: +10, spanish: -5 })
   const applyReputationImpact = (state, repImpact) => {
     const newRep = { ...state.reputation };
@@ -414,7 +356,6 @@ const getUnreachableReason = (state, portKey) => {
     ...member,
     tags: (member.tags || []).filter(t => t !== tag)
   });
-  const crewWithTag = (roster, tag) => roster.filter(m => hasTag(m, tag));
 
 const revealTag = (member, traitName) => {
   const hidden = "hidden_" + traitName;
@@ -525,15 +466,20 @@ const revealTag = (member, traitName) => {
     switch (action) {
       case "broadside": {
         const dmg = shipStats.cannons * (0.8 + Math.random() * 0.4);
-        out.player.hullDamage = Math.floor(dmg * 0.6);
-        out.player.crewLoss   = maybeCrewLoss(dmg * 0.4 / 3);
+        const hullMod = 1 + (getEquipmentEffect(state, "hullDmgPct") || 0);
+        const crewMod = 1 + (getEquipmentEffect(state, "crewDmgPct") || 0);
+        out.player.hullDamage = Math.floor(dmg * 0.6 * hullMod);
+        out.player.crewLoss   = maybeCrewLoss(dmg * 0.4 / 3 * crewMod);
         break;
       }
       case "precision": {
-        if (Math.random() < 0.7) {
+        const precisionBaseChance = 0.7 + (getEquipmentEffect(state, "precisionHitPct") || 0);
+        if (Math.random() < precisionBaseChance) {
           const dmg = shipStats.cannons * (1.2 + Math.random() * 0.6);
-          out.player.hullDamage = Math.floor(dmg * 0.9);
-          out.player.crewLoss   = maybeCrewLoss(dmg * 0.1 / 3);
+          const hullMod = 1 + (getEquipmentEffect(state, "hullDmgPct") || 0);
+          const crewMod = 1 + (getEquipmentEffect(state, "crewDmgPct") || 0);
+          out.player.hullDamage = Math.floor(dmg * 0.9 * hullMod);
+          out.player.crewLoss   = maybeCrewLoss(dmg * 0.1 / 3 * crewMod);
         }
         break;
       }
@@ -554,7 +500,6 @@ const revealTag = (member, traitName) => {
         if (Math.random() < successChance) {
           out.instantVictory = true;
           const risk = state.activeMission?.risk || "medium";
-          console.log("enemy object passed to generateEnemyCargo:", state.battleState.enemy);
           const plunder = G.generateEnemyCargo(state, state.battleState.enemy, risk);
           out.goldReward = plunder.gold;
           out.enemyCargo = plunder.cargo;
@@ -683,9 +628,6 @@ const revealTag = (member, traitName) => {
     return final;
   };
 
-
-
-
   const resolveCombatAction = (state, action) => {
   if (!state.battleState) return emptyOutcome();
 
@@ -704,71 +646,16 @@ const revealTag = (member, traitName) => {
   // 4. Combine all parts
   const combined = combineCombatOutcomes(playerOutcome, moraleOutcome, npcOutcome);
 
+  // 4b. Apply Surgeon's Bay crew loss reduction
+  const crewLossMult = getEquipmentEffect(state, "crewLossMult");
+  if (crewLossMult !== 1) {
+    combined.player.crewLoss = Math.floor(combined.player.crewLoss * crewLossMult);
+  }
+
   // 5. Apply morale modifier to player damage
   return applyDamageMoralePenalty(state, combined);
 };
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  INITIALIZATION FUNCTIONS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const initializeReputation = () => {
-    const reputation = {};
-    Object.keys(PORTS).forEach(port => {
-      reputation[port] = 50; // Start neutral with all ports
-    });
-    return reputation;
-  };
-
-  const getStartingShip = (bonuses) => {
-    const shipBonus = bonuses.find(b => b.startsWith("ship:"));
-    if (shipBonus) {
-      const shipType = shipBonus.split(":")[1].trim();
-      const ship = SHIPS[shipType];
-      return {
-        type: shipType,
-        name: ship.name,
-        hull: ship.maxHull,
-        cannons: ship.cannons,
-        upgrades: []
-      };
-    }
-    // Default to sloop
-    return {
-      type: "sloop",
-      name: "Sea Dog",
-      hull: SHIPS.sloop.maxHull,
-      cannons: SHIPS.sloop.cannons,
-      upgrades: []
-    };
-  };
-
-  const getStartingGold = (bonuses) => {
-    let gold = 1000;
-    bonuses.forEach(bonus => {
-      if (bonus.startsWith("+")) {
-        const amount = parseInt(bonus.substring(1).replace(/[^0-9]/g, ""));
-        gold += amount;
-      }
-    });
-    return gold;
-  };
-
-  const getStartingReputation = (bonuses) => {
-    const reputation = initializeReputation();
-    bonuses.forEach(bonus => {
-      const repMatch = bonus.match(/([+-]\d+) reputation with (\w+)/i);
-      if (repMatch) {
-        const delta = parseInt(repMatch[1]);
-        const faction = repMatch[2].toLowerCase();
-        Object.keys(PORTS).forEach(port => {
-          if (PORTS[port].faction === faction) {
-            reputation[port] = Math.max(0, Math.min(100, reputation[port] + delta));
-          }
-        });
-      }
-    });
-    return reputation;
-  };
 
 //--------------------------------------
 // ---  encounter context & pre-screen ---
@@ -955,8 +842,7 @@ function buildEncounterContext(state, type, enemy) {
 //----- cargo, economy, trade, and resources functions 
 //---------------------------------------------------
 
-const getHoldCapacity = (state) =>
-  SHIPS[state.ship.type]?.holdCapacity ?? 200;
+const getHoldCapacity = (state) => getShipStats(state).holdCapacity ?? 200;
 
 const getHoldUsed = (holdItems) =>
   Object.values(holdItems || {}).reduce((sum, qty) => sum + qty, 0);
@@ -1003,31 +889,17 @@ const applyLoseContraband = (holdItems) => {
 
   // Expose all functions globally
   return {
-    // Save/Load
-    hasSave,
-    saveGame,
-    loadGame,
-    simpleHash,
-  encodeSave,
-  decodeSave,
-  checkLocalStorageAvailable,
-
-  // Tutorial 
-  loadTutorialState,
-saveTutorialState,
-shouldShowTutorial,
-markTutorialSeen,
 
     // Helpers
-    canAfford,
     reputationLabel,
     getFameInfo,
     getInfamyLabel,
     getHeatLabel,
     meetsRequirement,
     canBribe,
-    hasUpgrade,
     getShipStats,
+    getEquipmentEffect,
+    canInstallEquipment,
     getEffectiveMorale,
     classifyLogLine,
     getLogTabCategory,
@@ -1043,7 +915,7 @@ markTutorialSeen,
 
     // Reputation
     decayReputation,
-    updateReputation,
+    //updateReputation,
     applyReputationImpact,
     getRepPerk,
 
@@ -1053,7 +925,7 @@ markTutorialSeen,
     hasTag,
     addTag,
     removeTag,
-    crewWithTag,
+    //crewWithTag,
     revealTag,
     getCrewAlignment,
     getAlignmentModifier,
@@ -1070,11 +942,6 @@ markTutorialSeen,
     getNPCAction,
     resolveCombatAction,
 
-    // Initialization
-    initializeReputation,
-    getStartingShip,
-    getStartingGold,
-    getStartingReputation,
 
     // Resource & trade
     getHoldCapacity,
@@ -1085,8 +952,6 @@ markTutorialSeen,
     getDaysOfProvisions,
     applyLoseCargoPercent,
     applyLoseContraband,
-
-
 
   };
 })();

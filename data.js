@@ -5,11 +5,47 @@
 // ═══════════════════════════════════════════════════════════════════
 
 window.D = (() => {
+
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  FACTIONS: Political factions in the Caribbean.
+  //  label: Display name.
+  //  color: Primary color (for UI).
+  //  rivalFactions: Array of faction keys that are rivals.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const FACTIONS = {
+    english: {
+      label: "English",
+      color: "#ff0000",
+      rivalFactions: ["spanish", "french"]
+    },
+    spanish: {
+      label: "Spanish",
+      color: "#ffcc00",
+      rivalFactions: ["english", "dutch"]
+    },
+    french: {
+      label: "French",
+      color: "#0066ff",
+      rivalFactions: ["english"]
+    },
+    dutch: {
+      label: "Dutch",
+      color: "#ff6600",
+      rivalFactions: ["spanish"]
+    },
+    pirate: {
+      label: "Pirate",
+      color: "#800080",
+      rivalFactions: ["english", "spanish", "french", "dutch"]
+    }
+  };
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  PORTS: All ports in the Caribbean.
   //  x, y: Coordinates for the map (0-760, 0-460).
   //  faction: Key in FACTIONS.
-  //  services: Available services (shipyard, missions, crew, upgrades).
+  //  services: Available services (shipyard, missions, crew).
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const PORTS = {
  
@@ -118,7 +154,7 @@ window.D = (() => {
   martinique: {
     name: "Martinique", faction: "french",
     x: 700, y: 335,
-    services: ["tavern", , "shipyard", "crew", "missions"],
+    services: ["tavern", "shipyard", "crew", "missions"],
     desc: "A proud French colony rich in sugar and rum. The most cultivated port in the eastern Caribbean.",
   },
  
@@ -252,254 +288,299 @@ window.D = (() => {
   //  cannons: Number of cannons.
   //  speed: Sailing speed (higher = faster).
   //  cost: Gold cost to purchase.
-  //  upgradeable: Array of upgrade keys from UPGRADES.
+//  slots: Equipment slot counts per type (hull, armament, rigging, special).
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const SHIPS = {
-
   // Tier 0
-  dinghy: { name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 20,
-    upgradeable: [],
+  dinghy: {
+    name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 20,
+    slots: { hull: 0, armament: 0, rigging: 0, special: 0 },
     desc: "A tiny boat. Barely seaworthy, but cheap."
   },
 
-  cutter: { name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1000, requiredFame: 0, maxDays: 8, holdCapacity: 80,
-    upgradeable: ["reinforced_hull"],
+  cutter: {
+    name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1000, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+    slots: { hull: 1, armament: 0, rigging: 1, special: 0 },
     desc: "Small, fast, and agile. Excellent for scouting and smuggling."
   },
 
   // Tier 1
-  sloop: { name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 15000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
-    upgradeable: ["reinforced_hull", "extra_cannons"],
+  sloop: {
+    name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 15000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 0 },
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
 
-
   // Tier 2
-  schooner: { name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 70000, requiredFame: 50, maxDays: 12, holdCapacity: 240,
-    upgradeable: ["reinforced_hull", "figurehead"],
+  schooner: {
+    name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 70000, requiredFame: 50, maxDays: 12, holdCapacity: 240,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "Favored by smugglers and pirates for its speed and shallow draft."
   },
 
-  merchantman: { name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 60000, requiredFame: 50, maxDays: 14, holdCapacity: 600,
-    upgradeable: ["reinforced_hull"],
+  merchantman: {
+    name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 60000, requiredFame: 50, maxDays: 14, holdCapacity: 700,
+    slots: { hull: 1, armament: 0, rigging: 1, special: 2 },
     desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
   },
 
-  brigantine: { name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 150000, requiredFame: 50, maxDays: 14, holdCapacity: 448,
-    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead"],
+  brigantine: {
+    name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 150000, requiredFame: 50, maxDays: 14, holdCapacity: 448,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "Balanced ship with good speed and firepower."
   },
 
-
   // Tier 3
-  corvette: { name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 250000, requiredFame: 100, maxDays: 16, holdCapacity: 500,
-    upgradeable: ["reinforced_hull", "extra_cannons", "copper_hull"],
+  corvette: {
+    name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 250000, requiredFame: 100, maxDays: 16, holdCapacity: 500,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "A swift naval warship designed to hunt pirates and escort convoys."
   },
 
-  frigate: { name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 500000, requiredFame: 100, maxDays: 18, holdCapacity: 720,
-    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+  frigate: {
+    name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 500000, requiredFame: 100, maxDays: 18, holdCapacity: 720,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "A powerful warship with heavy guns and solid endurance."
   },
 
-  fluyt: { name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 200000, requiredFame: 100, maxDays: 24, holdCapacity: 1100,
-    upgradeable: ["reinforced_hull", "expanded_hold"],
+  fluyt: {
+    name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 200000, requiredFame: 100, maxDays: 24, holdCapacity: 1500,
+    slots: { hull: 1, armament: 0, rigging: 1, special: 3 },
     desc: "A Dutch cargo vessel optimized for long-distance trade and massive profits."
   },
 
-
   // Tier 4
-  galleon: { name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 1000000, requiredFame: 150, maxDays: 22, holdCapacity: 1320,
-    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+  galleon: {
+    name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 1000000, requiredFame: 150, maxDays: 22, holdCapacity: 1000,
+    slots: { hull: 1, armament: 1, rigging: 1, special: 2 },
     desc: "The king of the seas. Slow but nearly unstoppable in combat."
   },
 
-  ship_of_the_line: { name: "Ship of the Line", maxHull: 420, maxCrew: 280, cannons: 50, speed: 5, cost: 2000000, requiredFame: 150, maxDays: 28, holdCapacity: 1600,
-    upgradeable: ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"],
+  ship_of_the_line: {
+    name: "Ship of the Line", maxHull: 420, maxCrew: 280, cannons: 50, speed: 5, cost: 2000000, requiredFame: 150, maxDays: 28, holdCapacity: 900,
+    slots: { hull: 1, armament: 2, rigging: 1, special: 1 },
     desc: "A colossal naval fortress capable of dominating entire fleets."
   }
-
 };
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  FACTIONS: Political factions in the Caribbean.
-  //  label: Display name.
-  //  color: Primary color (for UI).
-  //  rivalFactions: Array of faction keys that are rivals.
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const FACTIONS = {
-    english: {
-      label: "English",
-      color: "#ff0000",
-      rivalFactions: ["spanish", "french"]
-    },
-    spanish: {
-      label: "Spanish",
-      color: "#ffcc00",
-      rivalFactions: ["english", "dutch"]
-    },
-    french: {
-      label: "French",
-      color: "#0066ff",
-      rivalFactions: ["english"]
-    },
-    dutch: {
-      label: "Dutch",
-      color: "#ff6600",
-      rivalFactions: ["spanish"]
-    },
-    pirate: {
-      label: "Pirate",
-      color: "#800080",
-      rivalFactions: ["english", "spanish", "french", "dutch"]
-    }
-  };
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  UPGRADES: Ship upgrades.
-  //  name: Display name.
-  //  desc: Description.
-  //  cost: Gold cost.
-  //  effects: Object with stat bonuses (e.g., { hullBonus: 0.2 }).
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const UPGRADES = {
-    reinforced_hull: {
-      name: "Reinforced Hull",
-      desc: "+20% hull HP",
-      cost: 500,
-      effects: { hullBonus: 0.2 }
-    },
-    extra_cannons: {
-      name: "Extra Cannons",
-      desc: "+2 cannons",
-      cost: 800,
-      requiredFame: 50,
-      effects: { cannonBonus: 2 }
-    },
-    figurehead: {
-      name: "Ornate Figurehead",
-      desc: "+5% crew morale (max +15%)",
-      cost: 300,
-      effects: { moraleBonus: 5 }
-    },
-    copper_hull: {
-      name: "Copper-Plated Hull",
-      desc: "-1 day travel time (wind resistance)",
-      cost: 1200,
-      requiredFame: 100,
-      effects: { speedBonus: 1 }
-    },
-    navigational_tools: {
-      name: "Navigational Tools",
-      desc: "-1 day travel time (better routing)",
-      cost: 600,
-      requiredFame: 50,
-      effects: { speedBonus: 1 }
-    }
-  };
+const EQUIPMENT = {
+  // ── Hull (all structural) ──────────────────────────────────
+  reinforced_hull: {
+    name: "Reinforced Hull",
+    desc: "+20% max hull.",
+    downsideDesc: null,
+    slot: "hull",
+    removable: false,
+    requiredFame: 0,
+    requiredHull: 0,
+    cost: 500,
+    installFee: 100,
+    effects: { hullPct: 0.20 },
+  },
+  ironclad_plates: {
+    name: "Ironclad Plates",
+    desc: "+35% max hull.",
+    downsideDesc: "-2 speed.",
+    slot: "hull",
+    removable: false,
+    requiredFame: 50,
+    requiredHull: 100,
+    cost: 2000,
+    installFee: 200,
+    effects: { hullPct: 0.35, speed: -2 },
+  },
+  copper_plating: {
+    name: "Copper Plating",
+    desc: "+2 speed.",
+    downsideDesc: "+40% repair cost.",
+    slot: "hull",
+    removable: false,
+    requiredFame: 100,
+    requiredHull: 150,
+    cost: 3500,
+    installFee: 300,
+    effects: { speed: 2, repairCostPct: 0.40 },
+  },
+  tar_sealed_hull: {
+    name: "Tar-Sealed Hull",
+    desc: "+2 max days at sea. Prevents calm wind delays.",
+    downsideDesc: "-1 speed.",
+    slot: "hull",
+    removable: false,
+    requiredFame: 20,
+    requiredHull: 60,
+    cost: 1200,
+    installFee: 150,
+    effects: { maxDays: 2, speed: -1, calmImmune: true },
+  },
 
-  // ── Crew Name Pools (minimal starter set) ───────────────────────
-const CREW_FIRST_NAMES = {
-  english: ["William","John","Henry","Edward","Charles","James","Thomas","George",
-    "Samuel","Richard","Robert","Joseph","Benjamin","Nathaniel","Francis",
-    "Peter","Jacob","Andrew","Nicholas","Matthew","Anne","Mary","Elizabeth",
-    "Sarah","Margaret","Jane","Alice","Katherine","Rebecca","Abigail"],
+  // ── Armament (all removable) ───────────────────────────────
+  extra_cannons: {
+    name: "Extra Cannons",
+    desc: "+4 cannons.",
+    downsideDesc: "-1 speed.",
+    slot: "armament",
+    removable: true,
+    requiredFame: 20,
+    requiredHull: 60,
+    cost: 800,
+    installFee: 50,
+    effects: { cannons: 4, speed: -1 },
+  },
+  grapeshot_supply: {
+    name: "Grapeshot Supply",
+    desc: "+50% crew damage to enemy.",
+    downsideDesc: "-20% hull damage to enemy.",
+    slot: "armament",
+    removable: true,
+    requiredFame: 50,
+    requiredHull: 100,
+    cost: 1800,
+    installFee: 100,
+    effects: { crewDmgPct: 0.50, hullDmgPct: -0.20 },
+  },
+  long_guns: {
+    name: "Long Guns",
+    desc: "Precision hit chance 70% → 80%.",
+    downsideDesc: "-2 cannons.",
+    slot: "armament",
+    removable: true,
+    requiredFame: 100,
+    requiredHull: 150,
+    cost: 3000,
+    installFee: 150,
+    effects: { cannons: -2, precisionHitPct: 0.10 },
+  },
 
-  spanish: ["Carlos","Miguel","Diego","José","Francisco","Antonio",
-    "Manuel","Pedro","Juan","Alonso","Fernando","Rafael","Joaquín",
-    "Isabella","María","Catalina","Inés","Juana","Teresa","Beatriz",
-    "Ana","Leonor","Magdalena"],
+  // ── Rigging ────────────────────────────────────────────────
+  extra_sails: {
+    name: "Extra Sails",
+    desc: "+3 speed.",
+    downsideDesc: "-10% max hull.",
+    slot: "rigging",
+    removable: true,
+    requiredFame: 0,
+    requiredHull: 60,
+    cost: 600,
+    installFee: 50,
+    effects: { speed: 3, hullPct: -0.10 },
+  },
+  storm_rigging: {
+    name: "Storm Rigging",
+    desc: "+2 max days at sea. Prevents storm hull damage.",
+    downsideDesc: "-1 speed.",
+    slot: "rigging",
+    removable: true,
+    requiredFame: 20,
+    requiredHull: 60,
+    cost: 900,
+    installFee: 75,
+    effects: { maxDays: 2, speed: -1, stormHullImmune: true },
+  },
+  lateen_rig: {
+    name: "Lateen Rig",
+    desc: "+1 max days at sea.",
+    downsideDesc: "-10% max hull.",
+    slot: "rigging",
+    removable: false,
+    requiredFame: 50,
+    requiredHull: 100,
+    cost: 1500,
+    installFee: 150,
+    effects: { maxDays: 1, hullPct: -0.10 },
+  },
+  war_pennants: {
+    name: "War Pennants",
+    desc: "+1 fame from combat/patrol/assault mission victories.",
+    downsideDesc: "Heat from those victories doubled.",
+    slot: "rigging",
+    removable: true,
+    requiredFame: 100,
+    requiredHull: 100,
+    cost: 3500,
+    installFee: 150,
+    effects: { missionCombatFameBonus: 1, combatHeatMult: 2 },
+  },
 
-  french: ["Jean","Pierre","Louis","Henri","Antoine","Claude","Jacques",
-    "François","Étienne","Michel","Nicolas","André","Luc","Guillaume",
-    "Marie","Jeanne","Marguerite","Catherine","Anne","Louise","Madeleine",
-    "Élisabeth","Charlotte","Françoise"],
-
-  dutch: ["Willem","Jan","Pieter","Hendrik","Cornelis","Dirk","Adriaan",
-    "Jacob","Claes","Maarten","Johannes","Frans","Michiel",
-    "Anna","Maria","Elisabeth","Catharina","Geertruida","Margaretha",
-    "Johanna","Eva"],
-
-  pirate: ["Calico","Blackwood","Bloodworth","Crowe","Morgan","Rackham",
-    "Teach","Vane","Bonny","Low","Avery","Read","Drake",
-    "Ashford","Briggs","Graves","Storm","Skullridge","Dread"],
+  // ── Special ────────────────────────────────────────────────
+  expanded_hold: {
+    name: "Expanded Hold",
+    desc: "+20% hold capacity.",
+    downsideDesc: "-2 speed.",
+    slot: "special",
+    removable: true,
+    requiredFame: 0,
+    requiredHull: 60,
+    cost: 700,
+    installFee: 50,
+    effects: { holdPct: 0.20, speed: -2 },
+  },
+  hidden_compartment: {
+    name: "Hidden Compartment",
+    desc: "50% chance contraband is not detected on inspection.",
+    downsideDesc: "-10% hold capacity.",
+    slot: "special",
+    removable: false,
+    requiredFame: 20,
+    requiredHull: 60,
+    cost: 1000,
+    installFee: 100,
+    effects: { contrabandAvoidChance: 0.50, holdPct: -0.10 },
+  },
+  surgeons_bay: {
+    name: "Surgeon's Bay",
+    desc: "-40% crew loss in combat.",
+    downsideDesc: "-15% hold capacity.",
+    slot: "special",
+    removable: true,
+    requiredFame: 50,
+    requiredHull: 100,
+    cost: 2000,
+    installFee: 100,
+    effects: { crewLossMult: 0.60, holdPct: -0.15 },
+  },
+  officer_quarters: {
+    name: "Officer Quarters",
+    desc: "+10 max crew.",
+    downsideDesc: "-20% hold capacity.",
+    slot: "special",
+    removable: true,
+    requiredFame: 50,
+    requiredHull: 100,
+    cost: 1800,
+    installFee: 100,
+    effects: { maxCrew: 10, holdPct: -0.20 },
+  },
+  ornate_figurehead: {
+    name: "Ornate Figurehead",
+    desc: "+2 positive reputation gain from missions.",
+    downsideDesc: null,
+    slot: "special",
+    removable: true,
+    requiredFame: 0,
+    requiredHull: 0,
+    cost: 300,
+    installFee: 25,
+    effects: { repGainBonus: 2 },
+  },
+  navigation_tools: {
+    name: "Navigation Tools",
+    desc: "-1 travel day if base voyage is > 4 days.",
+    downsideDesc: null,
+    slot: "special",
+    removable: true,
+    requiredFame: 50,
+    requiredHull: 60,
+    cost: 600,
+    installFee: 50,
+    effects: { longVoyageDayReduction: 1 },
+  },
 };
 
-const CREW_LAST_NAMES = {
-  english: ["Smith","Brown","Taylor","Wilson","Davies","Jones","Williams","Clark",
-    "White","Harris","Walker","Wright","Turner","Cooper","Baker","Carter",
-    "Hill","Ward","Morgan","Bell","Parker","Mitchell","Wood","Cook",
-    "Webb","Bailey","Price","Bennett","Foster","Griffin"],
 
-  spanish: ["García","Rodríguez","López","Martínez","Hernández","González",
-    "Pérez","Sánchez","Ramírez","Torres","Ruiz","Flores","Morales",
-    "Navarro","Castillo","Romero","Ortega","Delgado","Cruz","Mendoza",
-    "Vargas","Silva","Rojas","Herrera","Campos"],
 
-  french: ["Martin","Bernard","Dubois","Thomas","Robert","Richard","Petit",
-    "Durand","Leroy","Moreau","Simon","Laurent","Michel","Lefebvre",
-    "Roux","Fontaine","Chevalier","Mercier","Girard","Blanchard",
-    "Garnier","Bonnet","Lambert","Renaud"],
-
-  dutch: ["de Vries","van Dijk","Bakker","Janssen","Smit","Meijer",
-    "de Boer","Mulder","Dekker","van den Berg","Visser","Vos",
-    "van Rijn","Kuiper","van Leeuwen","van der Meer","Post",
-    "de Groot","Kramer","van Dam","Schouten"],
-
-  pirate: ["Rackham","Teach","Vane","Bonny","Drake","Morgan","Low",
-    "Avery","Read","Thatch","Blackwood","Bloodworth","Crowe",
-    "Hawkins","Graves","Storm","Ashford","Briggs","Skullridge","Dread"],
-};
-
-  const CREW_ROLES = [
-    { role: "deckhand", weight: 60 },
-    { role: "gunner",   weight: 20 },
-    { role: "cook",     weight: 5 },
-    { role: "carpenter",weight: 10 },
-    { role: "navigator",weight: 5 },
-  ];
-
-  const BIO_OPENINGS = {
-  newHand: [
-  `{fn} is new aboard. Time will tell what kind of sailor they are.`,
-  `{fn}, a {factionLabel} {role}, is still finding their place among the crew.`,
-  `The new {role} from {factionLabel} waters keeps their head down. Early days.`,
-  `{fn} signed on recently. A quiet {role} — for now.`,
-  `{fn} came aboard from {factionLabel} territory. The crew hasn't made up its mind yet.`,
-  `{fn} is the newest face on deck. No one really knows them yet.`,
-  `Fresh off the dock, {fn} is eager to prove themselves.`,
-  `{fn} joined the crew only a few days ago. Still learning every rope.`,
-  ],
-  settling: [
-    `{fn} has been aboard {days} days. Starting to learn the ropes.`,
-    `After {days} days, {fn} is fitting in. A decent {role} by all accounts.`,
-    `{fn}, the {factionLabel} {role}, has been here {days} days. No complaints so far.`,
-    `The {role} from {factionLabel} ports is settling in. {days} days and counting.`,
-    `{fn} joined {days} days ago. The crew has accepted them.`,
-  ],
-  seasoned: [
-    `{fn} is a seasoned hand with {days} days at sea on this ship.`,
-    `After {days} days, {fn} knows every plank and rope. A reliable {role}.`,
-    `{fn}, the {factionLabel} {role}, has earned respect after {days} days aboard.`,
-    `The crew trusts {fn}. {days} days at sea makes a {role} dependable.`,
-    `A seasoned {role} from {factionLabel} waters, {fn} has served {days} days.`,
-  ],
-  veteran: [
-    `{fn} is a veteran of {days} days. The crew looks up to them.`,
-    `After {days} days, {fn} is one of the most experienced hands aboard.`,
-    `{fn}, a {factionLabel} {role} and veteran of {days} days, is someone the crew turns to in a crisis.`,
-    `The {role} they call {fn} has been here {days} days. A quiet authority.`,
-    `{fn} has served {days} days. Few aboard remember the ship without them.`,
-  ],
-  oldSalt: [
-    `{fn} has served {days} days. This ship is their life now.`,
-    `After {days} days, {fn} is part of the ship itself. An old salt through and through.`,
-    `{fn}, the {factionLabel} {role}, has been aboard longer than most can remember. {days} days.`,
-    `They say {fn} was born on this deck. {days} days — and still counting.`,
-    `The old {role} they call {fn} has {days} days aboard. This ship is home.`,
-  ],
-};
-
+  
 
   // ---- RESOURCES AND ECONOMY SYSTEM -------------------------------
 
@@ -563,190 +644,7 @@ const GOODS_AVAILABILITY = {
 };
 
 
-const PORT_GOSSIP_TEMPLATES = {
 
-  // ── HEAT (Priority 3) ─────────────────────────────────────────────
-  heat: {
-    medium: [
-      "The harbourmaster checks papers more carefully than usual. Extra soldiers loiter near the quay.",
-      "A pair of guards watch you from the shade of a warehouse. They don't approach, but they don't look away.",
-      "Someone has posted a description on the notice board. It could be anyone, really.",
-      "The dockworkers are quieter than usual. An officer is making rounds.",
-    ],
-    high: [
-      "Warships sit in the harbour, crews at the ready. They're looking for someone. Possibly you.",
-      "Every soldier you pass studies your face. The garrison is on full alert.",
-      "The harbour battery is manned and the chains across the harbour mouth are raised.",
-      "A patrol stops you before you've walked twenty paces. They let you go — this time.",
-    ],
-  },
-
-  // ── CONTRABAND (Priority 3) ───────────────────────────────────────
-  contraband: [
-    "A customs officer lingers near your berth, nose in the air. He knows something.",
-    "Dockworkers glance at your hold with knowing eyes. Word travels fast on the docks.",
-    "The smell from your hold is drawing attention. Not the good kind.",
-    "A harbour official is checking manifests more thoroughly than usual. You're glad he hasn't reached your slip yet.",
-  ],
-
-  // ── REPUTATION (Priority 2) ───────────────────────────────────────
-  reputation: {
-    at_war: [
-      "Armed men watch your every move. You are not welcome here.",
-      "The harbourmaster spits as you pass. 'Sail out while you still can.'",
-    ],
-    hostile: [
-      "The harbourmaster's greeting is ice cold. Your papers are checked twice.",
-      "Merchants pull their children inside as you walk past. Word has spread.",
-      "'Keep your business quick,' a dockhand mutters. 'Nobody wants you here.'",
-    ],
-    neutral: [
-      "Nobody pays you special attention. Just another ship in port.",
-      "A few dockworkers nod as you pass. Nothing more, nothing less.",
-      "The harbourmaster stamps your papers without looking up. Routine business.",
-    ],
-    friendly: [
-      "The dockmaster nods in recognition. Your usual berth is ready.",
-      "A merchant you've dealt with before waves from across the quay.",
-      "Someone buys you a drink before you've even asked. Good to be back.",
-    ],
-    allied: [
-      "Merchants approach before you've tied off. Your name opens doors in this port.",
-      "The harbourmaster personally welcomes you. 'Anything you need, Captain.'",
-      "Children wave your colours. Sailors raise a glass. A hero's welcome.",
-    ],
-  },
-
-  // ── FAME (Priority 2) ─────────────────────────────────────────────
-  fame: {
-    unknown: [
-      "Nobody recognises you. Just another captain scraping by.",
-      "A tavern keeper asks your name twice. It doesn't stick.",
-    ],
-    emerging: [
-      "A few sailors nod in recognition. You've been making a name.",
-      "Someone in the tavern whispers your name. They know your ship.",
-    ],
-    recognised: [
-      "Tavern conversations pause as you pass. People know your ship.",
-      "'That's the one,' a dockworker says to his mate. They step aside.",
-      "A young sailor asks if the stories about you are true. You let him wonder.",
-    ],
-    notorious: [
-      "Children point at your flag. Sailors trade stories about you — some of them true.",
-      "A crowd gathers when you come ashore. They want to see if the legends match.",
-      "The tavern keeper refuses your coin. 'Your money's no good here, Captain. Tell us a tale instead.'",
-    ],
-    legendary: [
-      "Your arrival is the talk of the port. Captains raise a glass in your honour.",
-      "A painter sketches your ship from the quay. He says it'll sell in every port in the Caribbean.",
-      "The governor sends a messenger with compliments — and a request for a private audience.",
-    ],
-  },
-
-  // ── INFAMY (Priority 2) ───────────────────────────────────────────
-  infamy: {
-    low: [
-      "A wanted notice on the tavern wall bears a description that could be yours.",
-      "Someone studies your face a moment too long. Then looks away.",
-    ],
-    medium: [
-      "People avoid eye contact. Your reputation precedes you — and not the good kind.",
-      "A barmaid serves you quickly and retreats. She's heard the stories.",
-      "No one sits at the table next to yours. They prefer the distance.",
-    ],
-    high: [
-      "The constable watches from the dock. You feel the noose tightening.",
-      "Wanted posters with your name — your real name — are nailed to the customs house door.",
-      "A bounty hunter in the corner pretends not to see you. He's waiting for the right moment.",
-    ],
-    extreme: [
-      "Every colonial power wants you dead. The question is who gets there first.",
-      "The crowd parts when you walk. Not out of respect — out of fear.",
-      "A child asks if you're really the devil. His mother pulls him away before you can answer.",
-      "The tavern falls silent when you enter. The bravest man in the room is the one who serves your drink.",
-    ],
-  },
-
-  // ── AMBIANCE (Priority 0) — Faction-specific ──────────────────────
-  ambiance: {
-    english: [
-      "The smell of tar and tobacco drifts from the shipyard.",
-      "English sailors argue over cards in the shade of a warehouse.",
-      "A preacher on the dock warns of God's judgment. Nobody is listening.",
-      "Redcoats drill in the square, muskets gleaming in the afternoon sun.",
-    ],
-    spanish: [
-      "Church bells echo across the harbour. Mass has just ended.",
-      "The scent of coffee and gunpowder hangs in the humid air.",
-      "A line of soldiers marches past, breastplates shining.",
-      "A priest blesses a fishing boat. The fishermen cross themselves.",
-    ],
-    french: [
-      "The sound of French drifts from the tavern, mixed with laughter and breaking glass.",
-      "Buccaneers lounge on the dock, sharpening knives and lying about their catches.",
-      "A woman sells fresh fruit from a cart. The mangoes look almost worth the price.",
-      "Someone is playing a violin. Someone else is singing along badly.",
-    ],
-    dutch: [
-      "Merchants crowd the counting houses, ledgers open, voices sharp.",
-      "The harbour is immaculate. Even the bollards look polished.",
-      "Crates stamped VOC are stacked three-high on the quay.",
-      "A clerk argues with a captain about a quarter-percent tariff. Neither will yield.",
-    ],
-    pirate: [
-      "The tavern is already loud, and the sun hasn't set yet.",
-      "A man with more scars than teeth offers to sell you a map. It's clearly fake.",
-      "Someone is playing a fiddle badly. Someone else is enjoying it even worse.",
-      "Two pirates arm-wrestle over a disputed bet. A small crowd takes sides.",
-    ],
-  },
-
-  // ── WEATHER (Priority 0) — Faction-agnostic filler ────────────────
-  weather: [
-    "A warm breeze carries the smell of salt and tar.",
-    "Storm clouds gather on the horizon. The old sailors are watching.",
-    "The heat is oppressive. Even the dogs have found shade.",
-    "A light rain falls, turning the dock planks slippery.",
-    "The sunset paints the harbour gold. For a moment, even the pirates stop to look.",
-  ],
-
-  // ── HIDDEN PORT HINTS (Priority 1) ────────────────────────────────
-  // Shown when player is close to (but hasn't met) unlock conditions.
-  // Never reveal exact requirements — be vague and atmospheric.
-  //
-  // Roatan:      fame >= 50 OR pirate rep >= 65
-  // Dry Tortugas: infamy >= 25 AND pirate rep >= 65
-  // Las Aves:    map_fragment_lasAves (from Wrecker's Map event, fame >= 50)
-  // Libertalia:  fame >= 200 AND map_fragment_libertalia (from Dying Sailor event, fame >= 100)
-  hiddenPorts: {
-    roatan: "Old sailors speak of a hidden cove in the Bay Islands. 'You need a name worth knowing — or friends among the Brotherhood — to find it,' they say.",
-    dryTortugas: "A drunk pirate mumbles about islands at the tip of Florida. 'You need to be one of us to find the channel,' he slurs.",
-    lasAves: "A wrecker nurses his drink alone. He looks like a man with charts to sell — for the right price.",
-    libertalia: "A dying sailor's tale keeps surfacing in tavern talk — a free republic, somewhere far south, where pirates live like kings.",
-  },
-
-  // ── MARKET (Priority 1) ───────────────────────────────────────────
-  // Template variables: {good} = lowercase, {Good} = capitalised
-  // NOTE: Generator must skip "slaves" — no market gossip for slaves.
-  // NOTE: If you want to add harvest-specific lines later, tag them as
-  //       organic:true and filter in the generator. Organic goods:
-  //       sugar, coffee, cocoa, tobacco, timber, cloth, rum.
-  market: {
-    surplus: [
-      "Warehouses overflow with {good}. A buyer's market if ever there was one.",
-      "{Good} is cheap here — the docks are stacked with it.",
-      "A recent convoy flooded the market with {good}. Prices have dropped sharply.",
-      "Merchants are practically giving {good} away. Supply far outstrips demand.",
-    ],
-    shortage: [
-      "There's a shortage of {good}. Merchants are paying premium for anyone with a hold full.",
-      "{Good} is scarce. 'Haven't seen a shipment in weeks,' a merchant complains.",
-      "Everyone's looking for {good}. If you've got some, you'll name your price.",
-      "The last {good} shipment was lost at sea. Prices are climbing fast.",
-    ],
-  },
-};
 
 
 // ── Parametric Mission Generator Config ────────────────────────
@@ -849,48 +747,7 @@ const SMUGGLE_GOODS_BY_TIER = {
   4: ["rum", "tobacco", "slaves"],
 };
 
-const MISSION_NAME_PARTS = {
-  cargo:      ["spice shipment","merchant convoy","supply fleet","noble passenger","silver bullion","colonial goods","textile cargo","grain stores"],
-  contraband: ["rum","stolen charts","black powder","foreign silk","untaxed tobacco","opium","illegal firearms","forbidden books"],
-  regionAdj:  ["southern","northern","treacherous","disputed","windward","leeward","inner","outer"],
-  factionAdj: {
-    english: ["English","Crown","His Majesty's","Royal"],
-    spanish: ["Spanish","Colonial","Crown","Viceroyalty"],
-    french:  ["French","Republican","Gallic","Louis'"],
-    dutch:   ["Dutch","Company","Merchant","West India"],
-    pirate:  ["Brotherhood","Free","Unaligned","Brethren"],
-  },
-};
 
-const ENEMY_SHIP_NAMES = {
-  // Procedural Adjectives (With historical elements integrated)
-  adjectives: [
-    "Black", "Scarlet", "Iron", "Crimson", "Silent", 
-    "Cursed", "Broken", "Savage", "Dread", "Wicked",
-    "Royal", "Gilded", "Vengeful", "Phantom", "Raging", 
-    "Shrouded", "Bleak", "Valiant", "Dauntless", "Defiant", 
-    "Bloodied", "Rogue", "Haunted", "Grim", "Fearless","Resolute",
-"Bold","Swift","Steadfast","Proud","Victorious","Relentless",
-"Dark","Restless","Dire","Fierce","Weathered","Stormbound","Windward",
-"Golden","Providence","Endeavour","Enterprise","Constant","Prosperous",
-    // --- Historical Elements (Yields "Adventure Galley", "Happy Delivery", etc.) ---
-    "Adventure", "Bachelor's", "Portsmouth", "Whydah", "Queen Anne's", "Happy"
-  ],
-
-  // Procedural Nouns (With historical elements integrated)
-  nouns: [
-    "Serpent", "Tide", "Fortune", "Drake", "Widow", 
-    "Storm", "Revenge", "Horizon", "Ghost", "Fury",
-    "Corsair", "Galleon", "Spectre", "Vanguard", "Marauder", 
-    "Leviathan", "Rover", "Hellhound", "Voyager", "Monarch", 
-    "Nightmare", "Kraken", "Banshee", "Gauntlet", "Wraith",
-    "Shark","Whale","Albatross","Privateer","Sentinel","Guardian",
-"Defender","Avenger","Providence","Endeavour","Resolution","Victory",
-"Liberty","Concord","Prosperity","Success","Friendship","Treasure",
-    // --- Historical Elements (Yields "Bachelor's Delight", "Royal Sovereign", etc.) ---
-    "Galley", "Delight", "Sovereign", "Delivery", "Adventure"
-  ]
-};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  RANDOM_EVENTS: Events that can occur at sea or in port.
@@ -1395,44 +1252,7 @@ const ENEMY_SHIP_NAMES = {
 ];
 
 
-  const ENCOUNTER_FLAVOUR = {
-    patrol: (enemy, rep) => rep < 20
-      ? `A ${enemy.name} opens fire without warning.`
-      : `A ${enemy.name} hails you and demands you heave to for inspection.`,
 
-    navy_patrol: (enemy, rep) =>
-     `A patrol from the ${enemy.faction} faction demands to inspect your cargo.`,
-
-    hostile_port_entry: (enemy) =>
-      `The harbour battery opens fire. You sailed into hostile waters.`,
-
-    smuggling_caught: () =>
-      `"Heave to for inspection!" The patrol has spotted your cargo hold.`,
-
-    cargo_inspection_refused: () =>
-      `The patrol vessel moves to enforce compliance. You have seconds to decide.`,
-
-    distressed_merchant_help: (enemy, rep) =>
-    `Pirates are attacking a merchant! You move to defend them.`,
-
-    distressed_merchant_plunder: (enemy, rep) =>
-      `The merchant's crew looks at you with desperate hope. You raise the black flag instead.`,
-
-    bounty_target: (enemy) =>
-      `You've cornered ${enemy.name}. There is nowhere left to run.`,
-
-    named_rival: (enemy) =>
-      `${enemy.name}'s ship emerges from the fog. This was no accident.`,
-
-    mission_combat: (enemy) =>
-      `Your target is in sight: ${enemy.name}. The mission requires engagement.`,
-
-    escort_defend: (enemy, rep) =>
-      `Pirates are raiding the convoy! Protect the merchant ship at all costs.`,
-
-    random: (enemy) =>
-      `${enemy.name} moves to intercept. They haven't fired yet.`,
-  };
 
   const SURRENDER_CONSEQUENCE = {
     patrol:                   { loseCargoPercent: 30, moralePenalty: 10 },
@@ -1446,32 +1266,25 @@ const ENEMY_SHIP_NAMES = {
 
   // Expose all constants globally
   return {
+    FACTIONS,
     PORTS,
     SHIPS,
-    FACTIONS,
-    CREW_FIRST_NAMES,
-    CREW_LAST_NAMES,
-    CREW_ROLES,
-    BIO_OPENINGS,
+    EQUIPMENT,
     RESOURCES,
     GOODS_AVAILABILITY,
-    PORT_GOSSIP_TEMPLATES,
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
     PLUNDER_TARGET,
-PLUNDER_GOLD_RATIO,
-FACTION_PLUNDER_GOODS,
+    PLUNDER_GOLD_RATIO,
+    FACTION_PLUNDER_GOODS,
     MISSION_REP_IMPACTS,
-TRADE_MISSION_PROFIT_MARGINS,
-SMUGGLE_PROFIT_MARGINS,
- TRADE_GOODS_BY_TIER,
- SMUGGLE_GOODS_BY_TIER,
-    MISSION_NAME_PARTS,
-    ENEMY_SHIP_NAMES,
-    UPGRADES,
+    TRADE_MISSION_PROFIT_MARGINS,
+    SMUGGLE_PROFIT_MARGINS,
+    TRADE_GOODS_BY_TIER,
+    SMUGGLE_GOODS_BY_TIER,
+    PATROL_FINE_RATE,
     RANDOM_EVENTS,
     STARTS,
-    ENCOUNTER_FLAVOUR,
     SURRENDER_CONSEQUENCE,
   };
 })();

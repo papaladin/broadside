@@ -1345,5 +1345,131 @@ window.TESTS.push({
     u.assert(bio.includes("battle and mutiny"), "Combo line should appear");
   }
 },
+{
+      name: "L.SV.01 encodeSave returns a non‑empty string",
+      run: (u) => {
+        const state = makeState();
+        u.assert(typeof L.encodeSave(state) === "string" && L.encodeSave(state).length > 0);
+      }
+    },
+    {
+      name: "L.SV.02 decodeSave round‑trips state",
+      run: (u) => {
+        const original = makeState({ gold: 1234, day: 5 });
+        const encoded = L.encodeSave(original);
+        const { state, tampered, error } = L.decodeSave(encoded);
+        u.assert(error === null);
+        u.assert(tampered === false);
+        u.assertEqual(state.gold, 1234);
+        u.assertEqual(state.day, 5);
+      }
+    },
+    {
+      name: "L.SV.03 decodeSave detects tampering",
+      run: (u) => {
+        const state = makeState();
+        const encoded = L.encodeSave(state);
+        const tampered = encoded.slice(0, -5) + (encoded[encoded.length-5] === 'A' ? 'B' : 'A') + encoded.slice(-4);
+        const { tampered: flag, error } = L.decodeSave(tampered);
+        u.assert(flag === true || error !== null, "Tampered file should be detected or rejected");
+      }
+    },
+    {
+      name: "L.SV.04 decodeSave rejects garbage",
+      run: (u) => {
+        u.assert(L.decodeSave("this is not base64!!!").error !== null);
+      }
+    },
+    {
+      name: "L.SV.05 decodeSave handles empty string",
+      run: (u) => {
+        u.assert(L.decodeSave("").error !== null);
+      }
+    },
+    {
+      name: "L.SV.06 simpleHash is deterministic",
+      run: (u) => {
+        u.assertEqual(L.simpleHash("hello"), L.simpleHash("hello"));
+      }
+    },
+    {
+      name: "L.SV.07 simpleHash gives different values for different strings",
+      run: (u) => {
+        u.assert(L.simpleHash("hello") !== L.simpleHash("world"));
+      }
+    },
+    {
+      name: "L.TUT.01 default state is enabled, all seen false",
+      run: (u) => {
+        const ts = L.getDefaultTutorialState();
+        u.assert(ts.enabled === true);
+        u.assert(Object.values(ts.seen).every(v => v === false));
+      }
+    },
+    {
+      name: "L.TUT.02 loadTutorialState returns default when empty",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        u.assert(L.loadTutorialState().enabled === true);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "L.TUT.03 markTutorialSeen sets seen and keeps enabled (no disableAll)",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        L.markTutorialSeen("port", false);
+        const ts = L.loadTutorialState();
+        u.assert(ts.seen.port === true);
+        u.assert(ts.enabled === true);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "L.TUT.04 markTutorialSeen with disableAll disables globally",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        L.markTutorialSeen("journal", true);
+        const ts = L.loadTutorialState();
+        u.assert(ts.enabled === false);
+        u.assert(ts.seen.journal === true);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "L.TUT.05 shouldShowTutorial respects enabled",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        L.saveTutorialState({ enabled: false, seen: {} });
+        u.assert(L.shouldShowTutorial("battle") === false);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "L.TUT.06 shouldShowTutorial respects seen",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        L.saveTutorialState({ enabled: true, seen: { map: true } });
+        u.assert(L.shouldShowTutorial("map") === false);
+        u.assert(L.shouldShowTutorial("port") === true);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "L.TUT.07 re‑enabling resets all seen flags",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        const ts = L.getDefaultTutorialState();
+        ts.seen.port = true;
+        L.saveTutorialState(ts);
+        const ts2 = L.loadTutorialState();
+        ts2.enabled = true;
+        ts2.seen = { ...L.getDefaultTutorialState().seen };
+        L.saveTutorialState(ts2);
+        u.assert(L.shouldShowTutorial("port") === true);
+        u.assert(L.shouldShowTutorial("map") === true);
+        u.restoreLocalStorage();
+      }
+    }
   ]
 });

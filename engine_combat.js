@@ -14,10 +14,10 @@
   };
 
   // ── Heat helper ──────────────────────────────────────────────
-  const addHeat = (state, faction, amount = 3) => {
+  const addHeat = (state, faction, heatAmount) => {
     if (faction === "pirate") return state;  // pirates don't track heat
     const alerts = { ...(state.factionAlerts || {}) };
-    alerts[faction] = Math.min(10, (alerts[faction] || 0) + amount);
+    alerts[faction] = Math.min(10, (alerts[faction] || 0) + heatAmount);
     return { ...state, factionAlerts: alerts };
   };
 
@@ -130,22 +130,18 @@ const applyVictoryAftermath = (currentState, battleState) => {
   return s;
 };
 
-const handlePatrolVictory = (currentState, battleState) => {
+const handlePatrolVictory = (currentState, battleState, heatAmount) => {
   if (battleState.encounterType !== "mission_combat" || battleState.phase !== "victory") return null;
   const missionType = currentState.activeMission?.type;
   if (missionType !== "patrol" || !currentState.activeMission) return null;
 
-  return addHeat(
-    {
-      ...currentState,
-      battleState: null,
-      activeMission: { ...currentState.activeMission, enemyDefeated: true },
-      screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
-      log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
-    },
-    battleState.enemy.faction,
-    3
-  );
+  return {
+    ...currentState,
+    battleState: null,
+    activeMission: { ...currentState.activeMission, enemyDefeated: true },
+    screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+    log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
+  };
 };
 
 const handleFledMission = (currentState, battleState) => {
@@ -281,6 +277,18 @@ const handleFledMission = (currentState, battleState) => {
           };
         }
 
+        // Hidden Compartment: 50% chance to avoid contraband detection
+        const avoidChance = L.getEquipmentEffect(state, "contrabandAvoidChance") || 0;
+        if (avoidChance > 0 && Math.random() < avoidChance) {
+          return {
+            ...state,
+            encounterContext: null,
+            screen: L.returnScreen(state),
+            log: [...state.log, "The patrol searches your hold but finds nothing. The hidden compartment does its job."],
+          };
+        }
+
+        // ── Contraband found — existing seizure logic ────────────
         let seizedValue = 0;
         if (hasTobacco) seizedValue += (items.tobacco || 0) * (D.RESOURCES.tobacco?.basePrice || 90);
         if (hasSlaves)  seizedValue += (items.slaves  || 0) * (D.RESOURCES.slaves?.basePrice  || 220);
@@ -475,6 +483,16 @@ const handleFledMission = (currentState, battleState) => {
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
+        // War Pennants heat multiplier (computed early for patrol victories)
+        const isWarPennantMission = (
+          state.activeMission?.type === "combat" ||
+          state.activeMission?.type === "patrol" ||
+          state.activeMission?.type === "assault"
+        ) && !state.activeMission?.starter;
+        const heatMult = isWarPennantMission
+          ? L.getEquipmentEffect(state, "combatHeatMult")
+          : 1;
+        const heatAmount = Math.round(3 * heatMult);
 
         const isNavyFight = battleState.encounterType === "navy_patrol"
                         || battleState.encounterType === "navy_patrol_combat";
@@ -493,7 +511,7 @@ const handleFledMission = (currentState, battleState) => {
         let currentState = applyVictoryAftermath(state, battleState);
 
         // Patrol victory
-        const patrolResult = handlePatrolVictory(currentState, battleState);
+        const patrolResult = handlePatrolVictory(currentState, battleState,heatAmount);
         if (patrolResult) return patrolResult;
 
         // Fled mission
@@ -516,7 +534,7 @@ const handleFledMission = (currentState, battleState) => {
           ],
         };
 
-        return addHeat(finalState, battleState.enemy.faction, 3);
+        return addHeat(finalState, battleState.enemy.faction, heatAmount);
       }
 
       case A.TAKE_PLUNDER: {
@@ -621,7 +639,13 @@ const handleFledMission = (currentState, battleState) => {
         }
 
         if (choice.outcome.fame) newState.fame += choice.outcome.fame;
-        if (choice.outcome.hullDamage) newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
+        if (choice.outcome.hullDamage) {
+          if (event.id === "storm" && L.getEquipmentEffect(newState, "stormHullImmune")) {
+            newState.log = [...(newState.log || state.log), "The storm batters your ship, but the reinforced rigging holds."];
+          } else {
+            newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
+          }
+        }
         if (choice.outcome.crewLoss) {
           const lost = choice.outcome.crewLoss;
           const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lost);
@@ -635,14 +659,21 @@ const handleFledMission = (currentState, battleState) => {
           newState.log = [...(newState.log || state.log), `${choice.outcome.loseCargoPercent}% of your cargo was lost.`];
         }
         if (choice.outcome.daysLost) {
-          const lost = choice.outcome.daysLost;
-          newState.day += lost;
-          newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
-          newState.sailingDaysLeft = (state.sailingDaysLeft || 0) + lost;
-          newState.gold = Math.max(0, newState.gold - L.payCrewWages(state) * lost);
-          let rep = { ...state.reputation };
-          for (let i = 0; i < lost; i++) rep = L.decayReputation({ reputation: rep });
-          newState.reputation = rep;
+          const isCalmWind = event?.id === "calm_winds";
+          const hasCalmImmune = L.getEquipmentEffect(newState, "calmImmune");
+
+          if (isCalmWind && hasCalmImmune) {
+            newState.log = [...(newState.log || state.log), "The wind dies completely, but your seasoned hull drifts onward without delay."];
+          } else {
+            const lost = choice.outcome.daysLost;
+            newState.day += lost;
+            newState.sailingDaysTotal = (state.sailingDaysTotal || 0) + lost;
+            newState.sailingDaysLeft = (state.sailingDaysLeft || 0) + lost;
+            newState.gold = Math.max(0, newState.gold - L.payCrewWages(state) * lost);
+            let rep = { ...state.reputation };
+            for (let i = 0; i < lost; i++) rep = L.decayReputation({ reputation: rep });
+            newState.reputation = rep;
+          }
         }
         if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
         // ── Storm scar: all survivors tagged ───────────────────────

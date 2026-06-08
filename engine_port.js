@@ -3,7 +3,7 @@
 
 (() => {
   const { A, autoSave, createBattleState } = window.E;
-  const { PORTS, SHIPS, FACTIONS, UPGRADES, STARTS } = window.D;
+  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS } = window.D;
   const D = window.D;   // for convenience
   const L = window.L;
   const G = window.G;
@@ -63,15 +63,13 @@ const pickArrivalMessage = (portName) => {
 };
 
 // ── Desertion check ─────────────────────────────────────────
-const processDesertion = (nextState, state) => {
-  if (!nextState.crew?.roster) return;
-
-  const destFaction = PORTS[nextState.currentPort]?.faction;
+const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
+  const destFaction = PORTS[currentPort]?.faction;
   const deserters = [];
   const settlers = [];
   const newRoster = [];
 
-  for (const member of nextState.crew.roster) {
+  for (const member of crewRoster) {
     if (L.hasTag(member, "loyal")) {
       newRoster.push(member);
       continue;
@@ -79,7 +77,7 @@ const processDesertion = (nextState, state) => {
 
     if (L.hasTag(member, "upset")) {
       let desertChance = 0.30;
-      if (nextState.crew.morale > 60) desertChance = 0.10;
+      if (crewMorale > 60) desertChance = 0.10;
       if (L.hasTag(member, "mutineer")) desertChance *= 2;
       if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
       if (destFaction && member.faction === destFaction) desertChance += 0.20;
@@ -95,6 +93,8 @@ const processDesertion = (nextState, state) => {
     }
   }
 
+  const logLines = [];
+
   if (deserters.length > 0) {
     let deserterMsg = "";
     if (deserters.length === 1)
@@ -104,11 +104,11 @@ const processDesertion = (nextState, state) => {
     else
       deserterMsg = `${deserters.length} crew members have left the crew.`;
 
-    const repFaction = FACTIONS[state.crew.roster.find(m =>
+    const repFaction = FACTIONS[crewRoster.find(m =>
       `${m.firstName} ${m.lastName}` === deserters[0]
     )?.faction]?.label || "their former faction";
     deserterMsg += ` They could not forgive the attack on ${repFaction} ships.`;
-    nextState.log = [...nextState.log, window.E.logEntry(state, deserterMsg)];
+    logLines.push(window.E.logEntry(state, deserterMsg));
   }
 
   if (settlers.length > 0) {
@@ -118,21 +118,19 @@ const processDesertion = (nextState, state) => {
       "👥 Your upset crew appear to have calmed down. For now.",
     ];
     const settledMsg = settledTemplates[Math.floor(Math.random() * settledTemplates.length)];
-    nextState.log = [...nextState.log, window.E.logEntry(state, settledMsg)];
+    logLines.push(window.E.logEntry(state, settledMsg));
   }
 
-  if (deserters.length > 0 || settlers.length > 0) {
-    nextState.crew = { ...nextState.crew, roster: newRoster };
-  }
+  return { roster: newRoster, logLines };
 };
 
 // ── Positive traits (seasoned → veteran → loyal) ────────────
-const processPositiveTraits = (nextState, state) => {
+const processPositiveTraits = (crewRoster, state) => {
   const newSeasoned = [];
   const newVeterans = [];
   const newLoyal = [];
 
-  nextState.crew.roster = nextState.crew.roster.map(member => {
+  const newRoster = crewRoster.map(member => {
     const days = member.daysAboard || 0;
     const tags = member.tags || [];
     let updated = member;
@@ -183,8 +181,9 @@ const processPositiveTraits = (nextState, state) => {
   else if (newLoyal.length > 1)
     promoLines.push(`${newLoyal.length} crew members have sworn their loyalty.`);
 
-  if (promoLines.length > 0)
-    nextState.log = [...nextState.log, ...promoLines.map(l => window.E.logEntry(state, l))];
+  const logLines = promoLines.map(l => window.E.logEntry(state, l));
+
+  return { roster: newRoster, logLines };
 };
 
 
@@ -221,7 +220,7 @@ const processPositiveTraits = (nextState, state) => {
           name: shipData.name,
           hull: shipData.maxHull,
           cannons: shipData.cannons,
-          upgrades: [],
+          equipment: { hull: [], armament: [], rigging: [], special: [] },
         };
         newState.hold = {
           capacity: shipData.holdCapacity,
@@ -284,7 +283,7 @@ const processPositiveTraits = (nextState, state) => {
         };
       }
 
-      // --- ENTER PORT ---
+// ------------ ENTER PORT ------------------------------
       case A.ENTER_PORT: {
         if (!state.destination) {
           return { ...state, screen: "port", log: [...state.log, "You return to port."] };
@@ -332,32 +331,49 @@ const processPositiveTraits = (nextState, state) => {
         };
 
         // Run post‑arrival logic
-        processDesertion(nextState, state);
-        processPositiveTraits(nextState, state);
+        const desertionResult = processDesertion(
+          nextState.crew.roster,
+          nextState.crew.morale,
+          nextState.currentPort,
+          state
+        );
+        nextState.crew = { ...nextState.crew, roster: desertionResult.roster };
+        if (desertionResult.logLines.length > 0) {
+          nextState.log = [...nextState.log, ...desertionResult.logLines];
+        }
+
+        const traitResult = processPositiveTraits(nextState.crew.roster, state);
+        nextState.crew = { ...nextState.crew, roster: traitResult.roster };
+        if (traitResult.logLines.length > 0) {
+          nextState.log = [...nextState.log, ...traitResult.logLines];
+        }
 
         nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
         autoSave(nextState);
         return nextState;
       }
 
-      // --- PORT ACTIONS ---
-      case A.REPAIR: {
-        const blocked = checkServicesBlocked(state);
-        if (blocked) return blocked;
-        const shipStats = L.getShipStats(state);
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
-        const cost = Math.floor(baseCost * perk.repairMult);
-        if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
-        const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
-        return {
-          ...state,
-          gold: state.gold - cost,
-          ship: { ...state.ship, hull: shipStats.maxHull },
-          log: [...state.log, `Repaired ship for ${cost}g${discountNote}.`]
-        };
-      }
+// --------------------- PORT ACTIONS --------------------------------
+        case A.REPAIR: {
+          const blocked = checkServicesBlocked(state);
+          if (blocked) return blocked;
+          const shipStats = L.getShipStats(state);
+          const rep = state.reputation[state.currentPort] ?? 50;
+          const perk = L.getRepPerk(rep);
+          const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
+          const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
+          const combinedMult = perk.repairMult * (1 + eqRepairPct);
+          const cost = Math.floor(baseCost * combinedMult);
+          if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
+          const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
+          const eqPenaltyNote = eqRepairPct > 0 ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)` : "";
+          return {
+            ...state,
+            gold: state.gold - cost,
+            ship: { ...state.ship, hull: shipStats.maxHull },
+            log: [...state.log, `Repaired ship for ${cost}g${discountNote}${eqPenaltyNote}.`]
+          };
+        }
 
       case A.BUY_SHIP: {
         const blocked = checkServicesBlocked(state);
@@ -371,26 +387,103 @@ const processPositiveTraits = (nextState, state) => {
         return {
           ...state,
           gold: state.gold - ship.cost,
-          ship: { type: action.shipType, name: ship.name, hull: ship.maxHull, cannons: ship.cannons, upgrades: [] },
+          ship: {
+            type: action.shipType,
+            name: ship.name,
+            hull: ship.maxHull,
+            cannons: ship.cannons,
+            equipment: { hull: [], armament: [], rigging: [], special: [] },  // NEW
+          },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
           hold: { ...state.hold },
-          log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`]
+          log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`],
         };
       }
 
-      case A.BUY_UPGRADE: {
+      case A.BUY_EQUIPMENT: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
-        const upgrade = D.UPGRADES[action.upgradeKey];
-        if (!upgrade) return state;
-        const req = L.meetsRequirement(state, upgrade);
-        if (!req.allowed) return { ...state, log: [...state.log, `Cannot install: ${req.reason}.`] };
-        if (state.gold < upgrade.cost || state.ship.upgrades.includes(action.upgradeKey) || !SHIPS[state.ship.type].upgradeable.includes(action.upgradeKey)) return { ...state };
+        const item = D.EQUIPMENT[action.equipmentKey];
+        if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
+        const validation = L.canInstallEquipment(state, action.equipmentKey);
+        if (!validation.ok) return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
+        const totalCost = item.cost + item.installFee;
+        if (state.gold < totalCost) return { ...state, log: [...state.log, "Not enough gold."] };
+
+        const newShip = {
+          ...state.ship,
+          equipment: {
+            ...state.ship.equipment,
+            [item.slot]: [...(state.ship.equipment[item.slot] || []), action.equipmentKey],
+          },
+        };
+        // Cap hull at new effective max after equipment change
+        const newStats = L.getShipStats({ ...state, ship: newShip });
+        newShip.hull = Math.min(state.ship.hull, newStats.maxHull);
+
         return {
           ...state,
-          gold: state.gold - upgrade.cost,
-          ship: { ...state.ship, upgrades: [...state.ship.upgrades, action.upgradeKey] },
-          log: [...state.log, `Installed ${upgrade.name} for ${upgrade.cost}g.`]
+          gold: state.gold - totalCost,
+          ship: newShip,
+          log: [...state.log, `Installed ${item.name} for ${totalCost}g.`],
+        };
+      }
+
+      case A.INSTALL_EQUIPMENT: {
+        const blocked = checkServicesBlocked(state);
+        if (blocked) return blocked;
+        const item = D.EQUIPMENT[action.equipmentKey];
+        if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
+        if (!(state.equipmentInventory || []).includes(action.equipmentKey))
+          return { ...state, log: [...state.log, "Equipment not in inventory."] };
+        const validation = L.canInstallEquipment(state, action.equipmentKey);
+        if (!validation.ok) return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
+        if (state.gold < item.installFee) return { ...state, log: [...state.log, "Not enough gold for installation fee."] };
+
+        const newShip = {
+          ...state.ship,
+          equipment: {
+            ...state.ship.equipment,
+            [item.slot]: [...(state.ship.equipment[item.slot] || []), action.equipmentKey],
+          },
+        };
+        const newStats = L.getShipStats({ ...state, ship: newShip });
+        newShip.hull = Math.min(state.ship.hull, newStats.maxHull);
+
+        return {
+          ...state,
+          gold: state.gold - item.installFee,
+          ship: newShip,
+          equipmentInventory: (state.equipmentInventory || []).filter(k => k !== action.equipmentKey),
+          log: [...state.log, `Installed ${item.name} from equipment locker. -${item.installFee}g.`],
+        };
+      }
+
+      case A.REMOVE_EQUIPMENT: {
+        const blocked = checkServicesBlocked(state);
+        if (blocked) return blocked;
+        const item = D.EQUIPMENT[action.equipmentKey];
+        if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
+        if (!item.removable)
+          return { ...state, log: [...state.log, `${item.name} is structural and cannot be removed.`] };
+        const slot = item.slot;
+        const equipped = state.ship.equipment?.[slot] || [];
+        if (!equipped.includes(action.equipmentKey))
+          return { ...state, log: [...state.log, "Equipment not installed."] };
+        if (state.gold < item.installFee)
+          return { ...state, log: [...state.log, "Not enough gold for removal fee."] };
+        return {
+          ...state,
+          gold: state.gold - item.installFee,
+          ship: {
+            ...state.ship,
+            equipment: {
+              ...state.ship.equipment,
+              [slot]: equipped.filter(k => k !== action.equipmentKey),
+            },
+          },
+          equipmentInventory: [...(state.equipmentInventory || []), action.equipmentKey],
+          log: [...state.log, `Removed ${item.name}. Stored in equipment locker. -${item.installFee}g.`],
         };
       }
 
@@ -515,7 +608,17 @@ const processPositiveTraits = (nextState, state) => {
                     : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
         }
 
-        const newRep = L.applyReputationImpact(state, mission.repImpact);
+        // Apply Ornate Figurehead bonus to positive rep gains
+        const repImpact = { ...mission.repImpact };
+        const repBonus = L.getEquipmentEffect(state, "repGainBonus") || 0;
+        if (repBonus > 0) {
+          for (const faction in repImpact) {
+            if (repImpact[faction] > 0) {
+              repImpact[faction] += repBonus;
+            }
+          }
+        }
+        const newRep = L.applyReputationImpact(state, repImpact);
         const infamyGain = mission.infamyGain || 0;
         const oldInfamy = state.infamy ?? 0;
         const newInfamy = Math.min(999, oldInfamy + infamyGain);
@@ -526,9 +629,20 @@ const processPositiveTraits = (nextState, state) => {
         const moraleGain = Math.round(3 * alignment);
         const newMorale = Math.min(100, state.crew.morale + moraleGain);
 
+        // War Pennants fame bonus
+        let finalFame = mission.fame || 0;
+        const isWarPennantMission = (
+          mission.type === "combat" ||
+          mission.type === "patrol" ||
+          mission.type === "assault"
+        ) && !mission.starter;
+        if (isWarPennantMission) {
+          finalFame += L.getEquipmentEffect(state, "missionCombatFameBonus");
+        }
+
         const newLog = [
           ...state.log,
-          window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${mission.fame} fame.`)
+          window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${finalFame} fame.`)
         ];
         if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
         if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
@@ -537,7 +651,7 @@ const processPositiveTraits = (nextState, state) => {
         const nextState = {
           ...state,
           gold: state.gold + finalGold,
-          fame: state.fame + mission.fame,
+          fame: state.fame + finalFame,
           infamy: newInfamy,
           reputation: newRep,
           activeMission: null,
@@ -680,75 +794,6 @@ const processPositiveTraits = (nextState, state) => {
   };
 }
 
-      case A.ENTER_MARKET:
-        return { ...state, screen: "market" };
-
-      case A.LEAVE_MARKET:
-        return { ...state, screen: "port" };
-
-      // --- SAVE / LOAD ---
-      case A.SAVE_GAME:
-        localStorage.setItem("piratesSave", JSON.stringify(state));
-        return { ...state};
-
-      case A.LOAD_GAME: {
-        try {
-          const raw = localStorage.getItem("piratesSave");
-          if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
-          const parsed = JSON.parse(raw);
-          const loaded = window.E.migrateState(parsed);
-          const currentPort = loaded.currentPort || "portRoyal";
-          return {
-            ...loaded,
-            screen: "port",
-            battleState: null,
-            activeEvent: null,
-            encounterContext: null,
-            portMarket: G.generatePortMarket(currentPort),
-            missions: G.generateMissions(currentPort, loaded),
-          };
-        } catch (e) {
-          return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
-        }
-      }
-
-      case A.EXPORT_SAVE: {
-        const encoded = L.encodeSave(state);
-        const scenario = state.scenarioId || "unknown";
-        const day = state.day || 0;
-        const filename = `broadside-${scenario}-day${day}.broadside`;
-
-        // Trigger download (side effect inside reducer – acceptable as per project conventions)
-        const blob = new Blob([encoded], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-        return state; // no state change
-      }
-
-      case A.IMPORT_SAVE: {
-        const { state: loaded, tampered, error } = L.decodeSave(action.fileContent);
-        if (error) {
-          return { ...state, log: [...state.log, `⚠ ${error}`] };
-        }
-        const migrated = window.E.migrateState(loaded);
-        if (tampered) {
-          migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
-        }
-        // Reset transient state like we do in LOAD_GAME
-        return {
-          ...migrated,
-          screen: "port",
-          battleState: null,
-          activeEvent: null,
-          encounterContext: null,
-          portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"),
-          missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated),
-        };
-      }
 
       default:
         return state;

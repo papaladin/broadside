@@ -385,6 +385,14 @@ const LogList = ({ entries, maxEntries = 20 }) => {
     );
   };
 
+  const BackButton = ({ dispatch, screen = "port", label = "← Back to Port" }) => (
+  React.createElement(Btn, {
+    v: "ghost",
+    onClick: () => dispatch({ type: window.E.A.NAVIGATE, screen }),
+    style: { alignSelf: "flex-start", marginBottom: 10 }
+  }, label)
+);
+
   // Expose everything globally
   return {
     T,
@@ -404,5 +412,6 @@ const LogList = ({ entries, maxEntries = 20 }) => {
     FactionPill,
     RepPill,
     ShipSprite,
+    BackButton,
   };
 })();

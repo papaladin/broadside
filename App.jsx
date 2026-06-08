@@ -92,7 +92,7 @@ const App = () => {
   }
 
   const TOOLTIPS = {
-  gold: "Your gold. Spent on repairs, crew wages, provisions, and upgrades.",
+  gold: "Your gold. Spent on repairs, crew wages, provisions, and equipments.",
   food: "Food in hold. Crew consumes food daily at sea. Runs out → morale drops.",
   water: "Water in hold. Consumed daily at sea alongside food.",
   hold: "Cargo hold: used / capacity. Over 50% full slows your ship.",
@@ -100,7 +100,7 @@ const App = () => {
   crew: "Crew aboard / maximum. More crew = higher wages and faster combat.",
   hull: "Hull integrity / maximum. Reaches 0 → defeat.",
   morale: "Crew morale. Below 50 slows travel. Below 30 increases wages. At 0 crew desert.",
-  fame: "Fame — your permanent reputation. Gates ships, upgrades, and missions.",
+  fame: "Fame — your permanent reputation. Gates ships, equipments, and missions.",
   infamy: "Infamy — your criminal notoriety. Reaches 50 → bribe option blocked.",
   heat: "Faction Alert Level. High heat means more patrols. Each point decays every 2 days.",  
 };
