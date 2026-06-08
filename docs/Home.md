@@ -9,12 +9,11 @@
    Guide | Description | Audience |
  |-------|-------------|----------|
  | [Player Guide](player_guide) | How to play, mechanics, tips, and strategies. | Players |
- | [Developer Guide](developer_guide) | Architecture, setup, and contribution rules. | Developers |
  | [Roadmap](roadmap) | Planned features, priorities, and release timeline. | Everyone |
 
 ---
 
-### 🛠️ **Level 2: Technical Specifications** *(Under Developer Guide)*
+### 🛠️ **Level 2: Technical Specifications** 
 #### **Architecture & Design**
 - [Architecture](architecture) — High-level system design, data flow, and module roles.
 

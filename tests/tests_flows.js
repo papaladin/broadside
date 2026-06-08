@@ -427,5 +427,75 @@ window.TESTS.push({
         u.restoreLocalStorage();
       }
     },
+    {
+      name: "EQ.I.01 Buy equipment, see stat change",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        let s = makeState({
+          screen: "port", gold: 5000, fame: 50,
+          currentPort: "portRoyal",
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          }
+        });
+        const beforeCannons = L.getShipStats(s).cannons;
+        s = E.reducer(s, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
+        u.assertEqual(L.getShipStats(s).cannons, beforeCannons + 4);
+        u.assert(s.gold < 5000);
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "EQ.I.02 Remove equipment to inventory, reinstall on new ship",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        let s = makeState({
+          screen: "port", gold: 5000, fame: 100,
+          currentPort: "portRoyal",
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
+          },
+          equipmentInventory: []
+        });
+        // Remove
+        s = E.reducer(s, { type: E.A.REMOVE_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(!s.ship.equipment.armament.includes("extra_cannons"));
+        u.assert(s.equipmentInventory.includes("extra_cannons"));
+        // Buy new ship (frigate) — after removing removable, BUY_SHIP should succeed
+        s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "frigate" });
+        u.assertEqual(s.ship.type, "frigate");
+        // Install from inventory onto new ship
+        s = E.reducer(s, { type: E.A.INSTALL_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
+        u.assert(!s.equipmentInventory.includes("extra_cannons"));
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "EQ.I.03 Ship purchase loses structural equipment",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock();
+        let s = makeState({
+          screen: "port", gold: 30000, fame: 100,
+          currentPort: "portRoyal",
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } // structural
+          },
+          equipmentInventory: []
+        });
+        s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "frigate" });
+        u.assertEqual(s.ship.type, "frigate");
+        u.assert(!s.ship.equipment.hull.includes("reinforced_hull"), "Structural equipment gone");
+        u.assert(!s.equipmentInventory.includes("reinforced_hull"), "Not in inventory");
+        u.restoreLocalStorage();
+      }
+    },
   ]
 });

@@ -1,20 +1,20 @@
-# specs_engine.md — Engine Architecture Specification
+# specs_engine.md -- Engine Architecture Specification
 
-**Broadside Game Engine**  
-*Last Updated: May 28, 2026*  
-*Refactored: 4-Way Split (Core + Port + Voyage + Combat)*
+**Broadside Game Engine**
+*Last Updated: June 8, 2026*
+*Architecture: 4-Way Split (Core + Port + Voyage + Combat)*
 
 ---
 
-## 📌 **Overview**
+## 1. Overview
 
-This document specifies the **architecture, responsibilities, and interactions** of the refactored `engine/` module, which has been split into **4 files** for improved maintainability:
+The engine is split into **4 files** for maintainability:
 
 ```
-engine_core.js   # Shared infrastructure (constants, initial state, reducer dispatcher)
-engine_port.js    # Port domain (market, missions, crew, shipyard, repair)
-engine_voyage.js  # Voyage domain (sailing, wind, provisions, hidden ports)
-engine_combat.js   # Combat domain (encounters, battles, plunder, events)
+engine_core.js    # Shared infrastructure (constants, initial state, reducer dispatcher, debug/save actions)
+engine_port.js    # Port domain (start, navigation, market, missions, crew, shipyard, equipment, repair)
+engine_voyage.js  # Voyage domain (sailing, wind, provisions, hidden ports, events, patrols)
+engine_combat.js  # Combat domain (encounters, battles, plunder, event resolution)
 ```
 
 **Core Principles:**
@@ -24,344 +24,10 @@ engine_combat.js   # Combat domain (encounters, battles, plunder, events)
 - **No Circular Dependencies**: `engine_core.js` loads first; domain files register their reducers afterward.
 - **Global Namespace**: All files attach to `window.E` for cross-file access.
 
----
-
-## 🏗️ **Architecture Diagram**
-
-```mermaid
-graph TD
-    subgraph Core[engine_core.js]
-        A[Action Constants A]
-        B[initialState]
-        C[migrateState]
-        D[autoSave]
-        E[createBattleState]
-        F[reducer dispatcher]
-        G[debug reducer]
-    end
-    
-    subgraph Port[engine_port.js]
-        P1[Port Reducer]
-        P2[checkServicesBlocked]
-        P3[validateTrade]
-    end
-    
-    subgraph Voyage[engine_voyage.js]
-        V1[Voyage Reducer]
-        V2[advanceWind]
-        V3[advanceCrew]
-        V4[advanceProvisions]
-        V5[maybeSmugglePatrol]
-        V6[maybeRandomEvent]
-        V7[checkRandomPatrol]
-        V8[advanceHiddenPorts]
-    end
-    
-    subgraph Combat[engine_combat.js]
-        C1[Combat Reducer]
-        C2[pickMerchantFaction]
-    end
-    
-    Core --> |loads first| Port
-    Core --> Voyage
-    Core --> Combat
-    Port --> |registers| F
-    Voyage --> |registers| F
-    Combat --> |registers| F
-```
-
----
-
-## 📁 **File Structure & Responsibilities**
-
----
-
-### **1. `engine_core.js**` *(~250 lines)*
-
-**Purpose**: Shared infrastructure, global constants, and reducer dispatcher.
-
-#### **Contents**
-
-
-| Category               | Items                                           | Description                                                  |
-| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| **Action Constants**   | `A.*` (44 total)                                | All action type strings (e.g., `NAVIGATE`, `BATTLE_ACTION`). |
-| **Initial State**      | `initialState`                                  | Default game state (ship, crew, hold, reputation, etc.).     |
-| **Shared Helpers**     | `autoSave`, `migrateState`, `createBattleState` | Utilities used across domains.                               |
-| **Reducer Dispatcher** | `window.E._reducers`, `window.E.reducer`        | Chains all domain reducers.                                  |
-| **Debug Reducer**      | 10 debug cases                                  | Development-only actions (e.g., `DEBUG_ADD_GOLD`).           |
-
-
-#### **Key Code**
-
-```javascript
-// Action constants (all 44)
-window.E.A = {
-  NAVIGATE: "NAVIGATE",
-  SAIL_TO: "SAIL_TO",
-  // ... all other actions
-};
-
-// Initial state
-window.E.initialState = { version: 1, screen: "start", ... };
-
-// Shared helpers
-window.E.autoSave = (state) => { ... };
-window.E.migrateState = (loaded) => { ... };
-window.E.createBattleState = (state, enemy, ...) => { ... };
-
-// Reducer dispatcher
-window.E._reducers = [];
-window.E.reducer = (state, action) => {
-  return window.E._reducers.reduce((s, r) => r(s, action), state);
-};
-
-// Debug reducer (registered first)
-window.E._reducers.push((state, action) => {
-  switch (action.type) {
-    case window.E.A.DEBUG_ADD_GOLD: { ... }
-    // ... all debug cases
-  }
-});
-```
-
-#### **Dependencies**
-
-- `window.D` (data constants)
-- `window.L` (logic helpers)
-- `window.G` (generators)
-
-#### **Exports**
-
-- `window.E.A` (action constants)
-- `window.E.initialState`
-- `window.E.reducer` (main reducer)
-- `window.E.autoSave`
-- `window.E.migrateState`
-- `window.E.createBattleState`
-- `window.E._reducers` (reducer registry)
-
----
-
-### **2. `engine_port.js**` *(~450 lines)*
-
-**Purpose**: Port-related logic (market, missions, crew, shipyard, repairs, start/load).
-
-#### **Contents**
-
-
-| Category          | Items    | Description                             |
-| ----------------- | -------- | --------------------------------------- |
-| **Reducer Cases** | 23 cases | Port actions and state transitions.     |
-| **Helpers**       | 2        | `checkServicesBlocked`, `validateTrade` |
-
-
-#### **Reducer Cases**
-
-
-| Case               | Description                                                        |
-| ------------------ | ------------------------------------------------------------------ |
-| `START_GAME`       | Initializes game state from a scenario.                            |
-| `SAVE_GAME`        | Saves current state to `localStorage`.                             |
-| `LOAD_GAME`        | Loads state from `localStorage` and regenerates market/missions.   |
-| `NAVIGATE`         | Changes the current screen.                                        |
-| `SAIL_TO`          | Sets destination and starts sailing.                               |
-| `ENTER_PORT`       | Handles port entry (normal, hostile, or assault mission).          |
-| `REPAIR`           | Repairs ship hull (cost based on reputation).                      |
-| `BUY_SHIP`         | Purchases a new ship (truncates crew if needed).                   |
-| `BUY_UPGRADE`      | Installs a ship upgrade.                                           |
-| `HIRE_CREW`        | Adds crew members to the roster.                                   |
-| `RAISE_MORALE`     | Spends gold to increase crew morale.                               |
-| `REFRESH_MISSIONS` | Regenerates available missions in the current port.                |
-| `TAKE_MISSION`     | Accepts a mission (combat missions trigger intercept immediately). |
-| `COMPLETE_MISSION` | Completes a mission, awards gold/fame/rep, removes required goods. |
-| `ABANDON_MISSION`  | Abandons a mission (reputation penalty).                           |
-| `CONFIRM_TRADE`    | Executes a market trade (buys/sells goods).                        |
-| `ENTER_MARKET`     | Switches to the market screen.                                     |
-| `LEAVE_MARKET`     | Returns to the port screen.                                        |
-
-
-#### **Helpers**
-
-
-| Helper                 | Description                                                | Used By            |
-| ---------------------- | ---------------------------------------------------------- | ------------------ |
-| `checkServicesBlocked` | Checks if port services are blocked due to low reputation. | Port reducer cases |
-| `validateTrade`        | Validates a trade action (gold, hold space).               | `CONFIRM_TRADE`    |
-
-
-#### **Key Code**
-
-```javascript
-// Helpers
-const checkServicesBlocked = (state) => { ... };
-const validateTrade = (state, buys, sells) => { ... };
-
-// Register port reducer
-window.E._reducers.push((state, action) => {
-  switch (action.type) {
-    case A.START_GAME: { ... }
-    case A.REPAIR: { ... }
-    // ... all port cases
-    default: return state;
-  }
-});
-
-// Expose helpers globally
-window.E.checkServicesBlocked = checkServicesBlocked;
-window.E.validateTrade = validateTrade;
-```
-
-#### **Dependencies**
-
-- `window.E.A` (from `engine_core.js`)
-- `window.D` (PORTS, SHIPS, FACTIONS, UPGRADES, STARTS)
-- `window.L` (logic helpers)
-- `window.G` (generators)
-
----
-
-### **3. `engine_voyage.js**` *(~250 lines)*
-
-**Purpose**: Sailing and navigation logic (wind, provisions, day advancement, hidden ports).
-
-#### **Contents**
-
-
-| Category          | Items   | Description                      |
-| ----------------- | ------- | -------------------------------- |
-| **Reducer Cases** | 4 cases | Sailing and day-related actions. |
-| **Helpers**       | 8       | Voyage-specific utilities.       |
-
-
-#### **Reducer Cases**
-
-
-| Case            | Description                                                                                                                |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `ADVANCE_DAY`   | Progresses one day of sailing: updates wind, crew, provisions, checks for events/patrols/missions, discovers hidden ports. |
-| `DISCOVER_PORT` | Manually discovers a hidden port.                                                                                          |
-| `SAIL_TO`       | *Moved to `engine_port.js`* (see note below).                                                                              |
-| `SET_WIND`      | *Moved to `engine_port.js`* (see note below).                                                                              |
-
-
-**Note**: In the current implementation, `SAIL_TO` and `SET_WIND` are in `engine_port.js`. This is a **design choice** — they could logically belong in either `port` or `voyage`. For consistency, they are currently in `port` because they are triggered from the port screen.
-
-#### **Helpers**
-
-
-| Helper                  | Description                                          | Used By       |
-| ----------------------- | ---------------------------------------------------- | ------------- |
-| `advanceWind`           | Randomly adjusts wind angle/speed.                   | `ADVANCE_DAY` |
-| `advanceCrew`           | Increments crew days aboard, reduces morale if low.  | `ADVANCE_DAY` |
-| `advanceProvisions`     | Consumes food/water based on crew count.             | `ADVANCE_DAY` |
-| `maybeSmugglePatrol`    | Triggers a patrol intercept for smuggle missions.    | `ADVANCE_DAY` |
-| `maybeMissionEncounter` | Triggers escort/patrol mission encounters.           | `ADVANCE_DAY` |
-| `maybeRandomEvent`      | Triggers random events (storms, shipwrecks, etc.).   | `ADVANCE_DAY` |
-| `checkRandomPatrol`     | Triggers navy patrol intercepts.                     | `ADVANCE_DAY` |
-| `advanceHiddenPorts`    | Checks and unlocks hidden ports based on conditions. | `ADVANCE_DAY` |
-
-
-#### **Key Code**
-
-```javascript
-// Helpers
-const advanceWind = (wind) => { ... };
-const advanceCrew = (crew) => { ... };
-const maybeSmugglePatrol = (state, ...) => { ... };
-// ... etc
-
-// Register voyage reducer
-window.E._reducers.push((state, action) => {
-  switch (action.type) {
-    case A.ADVANCE_DAY: { ... }
-    case A.DISCOVER_PORT: { ... }
-    default: return state;
-  }
-});
-```
-
-#### **Dependencies**
-
-- `window.E.A` (from `engine_core.js`)
-- `window.D` (PORTS, FACTIONS)
-- `window.L` (logic helpers)
-- `window.G` (generators)
-
----
-
-### **4. `engine_combat.js**` *(~500 lines)*
-
-**Purpose**: Encounters, battles, plunder, and event resolution.
-
-#### **Contents**
-
-
-| Category          | Items    | Description                   |
-| ----------------- | -------- | ----------------------------- |
-| **Reducer Cases** | 12 cases | Combat and encounter actions. |
-| **Helpers**       | 1        | `pickMerchantFaction`         |
-
-
-#### **Reducer Cases**
-
-
-| Case                  | Description                                                                    |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `INTERCEPT_FIGHT`     | Engages an enemy in combat.                                                    |
-| `INTERCEPT_FLEE`      | Attempts to flee from an encounter (speed check).                              |
-| `INTERCEPT_PARLEY`    | Attempts to negotiate with an enemy (reputation check).                        |
-| `INTERCEPT_BRIBE`     | Pays to avoid an encounter (reputation penalty).                               |
-| `INTERCEPT_SURRENDER` | Surrenders to an enemy (gold/crew/cargo penalties).                            |
-| `BATTLE_ACTION`       | Resolves a player action in combat (broadside, precision, grapple, evade).     |
-| `DISMISS_BATTLE`      | Ends combat: handles victory/defeat, plunder, or return to sailing/port.       |
-| `TAKE_PLUNDER`        | Collect plunder after victory. Player manually picks cargo via PlunderScreen. Gold awarded at `PLUNDER_GOLD_RATIO` (20%) |
-| `RESOLVE_EVENT`       | Resolves a random event choice (applies outcomes like gold, damage, morale).   |
-| `PATROL_INSPECT`      | Handles navy inspection of cargo (fines/seizures for contraband).              |
-| `ATTACK_PIRATE`       | Initiates combat with a pirate (from event).                                   |
-| `ATTACK_MERCHANT`     | Initiates combat with a merchant (from event).                                 |
-
-
-#### **Helpers**
-
-
-| Helper                | Description                            | Used By           |
-| --------------------- | -------------------------------------- | ----------------- |
-| `pickMerchantFaction` | Randomly selects a non-pirate faction. | `ATTACK_MERCHANT` |
-
-
-#### **Key Code**
-
-```javascript
-// Helper
-const pickMerchantFaction = () => { ... };
-
-// Register combat reducer
-window.E._reducers.push((state, action) => {
-  switch (action.type) {
-    case A.INTERCEPT_FIGHT: { ... }
-    case A.BATTLE_ACTION: { ... }
-    // ... all combat cases
-    default: return state;
-  }
-});
-```
-
-#### **Dependencies**
-
-- `window.E.A` (from `engine_core.js`)
-- `window.D` (PORTS, FACTIONS, SURRENDER_CONSEQUENCE)
-- `window.L` (logic helpers)
-- `window.G` (generators)
-
----
-
-## 🔗 **Load Order & Dependencies**
-
-### **Load Order (Critical!)**
+### Load Order (Critical!)
 
 ```html
-<!-- Core MUST load first -->
+<!-- engine_core.js MUST load first -->
 <script src="engine_core.js"></script>
 <!-- Domain files can load in any order after core -->
 <script src="engine_port.js"></script>
@@ -369,85 +35,350 @@ window.E._reducers.push((state, action) => {
 <script src="engine_combat.js"></script>
 ```
 
-### **Why Order Matters**
+### Reducer Chaining Mechanism
 
-1. `**engine_core.js**` must load first because:
-  - It defines `window.E.A` (action constants) used by all domain files.
-  - It initializes `window.E._reducers` (reducer registry).
-  - It exposes `window.E.initialState` and other shared helpers.
-2. **Domain files** can load in any order because:
-  - They only **read** from `window.E` (constants, helpers).
-  - They **register** their reducers by pushing to `window.E._reducers`.
+```js
+// In engine_core.js:
+window.E._reducers = [];
+window.E.reducer = (state, action) =>
+  window.E._reducers.reduce((s, r) => r(s, action), state);
 
----
+// In each domain file:
+window.E._reducers.push((state, action) => {
+  switch (action.type) {
+    case A.SOMETHING: { ... }
+    default: return state;
+  }
+});
+```
 
-## 🔄 **Reducer Chaining Mechanism**
-
-### **How It Works**
-
-1. **Core Initialization**:
-  ```javascript
-   // In engine_core.js
-   window.E._reducers = [];  // Reducer registry
-   window.E.reducer = (state, action) => {
-     return window.E._reducers.reduce((s, r) => r(s, action), state);
-   };
-  ```
-2. **Domain Registration**:
-  ```javascript
-   // In each domain file (engine_port.js, etc.)
-   window.E._reducers.push((state, action) => {
-     switch (action.type) {
-       case A.SOMETHING: { ... }
-       default: return state;
-     }
-   });
-  ```
-3. **Dispatch Flow**:
-  - When `window.E.reducer(state, action)` is called:
-  1. The **debug reducer** (registered first in `engine_core.js`) runs.
-  2. Then **each domain reducer** runs in registration order.
-  3. Each reducer either handles the action or returns `state` unchanged.
-
-### **Example Flow**
+When `window.E.reducer(state, action)` is called, every registered reducer runs in order. Each either handles the action or returns state unchanged.
 
 ```
 Action: A.ADVANCE_DAY
-├── Debug reducer: No match → returns state unchanged
-├── Port reducer: No match → returns state unchanged
-├── Voyage reducer: Matches A.ADVANCE_DAY → updates state
-└── Combat reducer: No match → returns state unchanged
-
-Result: Voyage reducer handles the action, state is updated.
++-- Debug/save reducer: No match -> returns state unchanged
++-- Port reducer: No match -> returns state unchanged
++-- Voyage reducer: Matches A.ADVANCE_DAY -> updates state
++-- Combat reducer: No match -> returns state unchanged
 ```
 
 ---
 
-## 📊 **File Statistics**
+## 2. engine_core.js -- Shared Infrastructure
 
+**Purpose**: Action constants, initial state, reducer dispatcher, shared helpers, debug actions, save/load actions.
 
-| File               | Lines     | Reducer Cases | Helpers | Purpose               |
-| ------------------ | --------- | ------------- | ------- | --------------------- |
-| `engine_core.js`   | ~250      | 10 (debug)    | 3       | Shared infrastructure |
-| `engine_port.js`   | ~450      | 23            | 2       | Port logic            |
-| `engine_voyage.js` | ~250      | 4             | 8       | Sailing logic         |
-| `engine_combat.js` | ~500      | 12            | 1       | Combat logic          |
-| **Total**          | **~1450** | **44**        | **14**  | All engine logic      |
+### Exports
 
+| Export | Description |
+|---|---|
+| `window.E.A` | Action type constants (48 total) |
+| `window.E.initialState` | Default game state |
+| `window.E.reducer` | Master reducer (chains all domain reducers) |
+| `window.E._reducers` | Reducer registry array |
+| `window.E.autoSave` | Auto-save helper |
+| `window.E.migrateState` | State migration for save compatibility |
+| `window.E.createBattleState` | Battle state factory |
 
-**Note**: The total is slightly less than the original `engine.js` (~1500 lines) because:
+### Action Constants (window.E.A)
 
-- Removed duplicate `window.E` initialization.
-- Removed redundant comments/boilerplate.
+All 48 action type strings:
+
+| Category | Actions |
+|---|---|
+| **Navigation** | `NAVIGATE`, `SAIL_TO`, `ENTER_PORT`, `DISCOVER_PORT` |
+| **Port Services** | `REPAIR`, `BUY_SHIP`, `BUY_EQUIPMENT`, `INSTALL_EQUIPMENT`, `REMOVE_EQUIPMENT`, `HIRE_CREW`, `RAISE_MORALE` |
+| **Missions** | `TAKE_MISSION`, `COMPLETE_MISSION`, `ABANDON_MISSION`, `REFRESH_MISSIONS` |
+| **Trade** | `CONFIRM_TRADE` |
+| **Voyage** | `ADVANCE_DAY` |
+| **Encounters** | `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_SURRENDER`, `INTERCEPT_BRIBE`, `INTERCEPT_PARLEY`, `INTERCEPT_INSPECT` |
+| **Combat** | `BATTLE_ACTION`, `DISMISS_BATTLE`, `TAKE_PLUNDER` |
+| **Events** | `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT` |
+| **Save/Load** | `START_GAME`, `SAVE_GAME`, `LOAD_GAME`, `EXPORT_SAVE`, `IMPORT_SAVE` |
+| **Debug** | `DEBUG_ADD_GOLD`, `DEBUG_SET_FAME`, `DEBUG_SET_INFAMY`, `DEBUG_SET_SHIP`, `DEBUG_SET_PORT_REP`, `DEBUG_FILL_HOLD`, `DEBUG_REPAIR`, `DEBUG_SET_MORALE`, `DEBUG_UNLOCK_HIDDEN_PORTS`, `DEBUG_MAX_CREW`, `DEBUG_COMPLETE_MISSION`, `DEBUG_SET_HEAT`, `DEBUG_AGE_CREW` |
+
+### Initial State (window.E.initialState)
+
+```js
+{
+  version: 1,
+  screen: "title",
+  day: 1,
+  startDate: { day: 1, month: 6, year: 1695 },
+  log: [],
+  gold: 0,
+  fame: 0,
+  infamy: 0,
+  scenarioId: null,
+  factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+  currentPort: "portRoyal",
+  previousPort: null,
+  destination: null,
+  discoveredPorts: [...],   // all non-hidden port keys
+  mapFragments: [],
+  equipmentInventory: [],   // locker: removed equipment stored here
+  sailingDaysLeft: 0,
+  sailingDaysTotal: 0,
+  wind: { angle: 0, speed: 10 },
+  ship: {
+    type: "sloop",
+    name: "Sea Dog",
+    hull: 100,
+    cannons: 10,
+    equipment: { hull: [], armament: [], rigging: [], special: [] }
+  },
+  crew: {
+    roster: [],
+    max: 50,
+    morale: 80
+  },
+  hold: {
+    items: { food: 10, water: 10, rum: 0, sugar: 0, timber: 0, cloth: 0, 
+             spices: 0, silk: 0, coffee: 0, cocoa: 0, weapons: 0, 
+             tobacco: 0, silver: 0, slaves: 0 }
+    // NOTE: no 'capacity' field -- use L.getHoldCapacity(state)
+  },
+  portMarket: null,
+  portGossip: [],
+  missions: [],
+  activeMission: null,
+  reputation: { /* all port keys: 50 */ },
+  battleState: null,
+  activeEvent: null,
+  encounterContext: null
+}
+```
+
+### Shared Helpers
+
+| Helper | Signature | Purpose |
+|---|---|---|
+| `autoSave` | `(state) -> void` | Saves state to localStorage if screen is port-related |
+| `migrateState` | `(loaded) -> state` | Adds missing fields for save compatibility with older versions |
+| `createBattleState` | `(state, enemy, encounterType, canPlunder) -> battleState` | Factory for battle state objects |
+
+### Debug Reducer (registered first)
+
+Handles all `DEBUG_*` actions. Only available when `?debug=1` URL param is set.
+
+| Action | Payload | Effect |
+|---|---|---|
+| `DEBUG_ADD_GOLD` | `{ amount }` | Adds gold |
+| `DEBUG_SET_FAME` | `{ value }` | Sets fame to value |
+| `DEBUG_SET_INFAMY` | `{ value }` | Sets infamy to value |
+| `DEBUG_SET_SHIP` | `{ shipType }` | Switches ship type (resets equipment, adjusts crew/hull) |
+| `DEBUG_SET_PORT_REP` | `{ value }` | Sets current port reputation to value |
+| `DEBUG_FILL_HOLD` | -- | Fills hold with food and water |
+| `DEBUG_REPAIR` | -- | Full hull repair |
+| `DEBUG_SET_MORALE` | `{ value }` | Sets crew morale to value |
+| `DEBUG_UNLOCK_HIDDEN_PORTS` | -- | Adds all hidden ports to discoveredPorts |
+| `DEBUG_MAX_CREW` | -- | Fills crew roster to ship max |
+| `DEBUG_COMPLETE_MISSION` | -- | Force-completes active mission |
+| `DEBUG_SET_HEAT` | `{ faction, value }` | Sets faction alert level |
+| `DEBUG_AGE_CREW` | `{ days }` | Adds days to all crew daysAboard |
+
+### Save/Load Reducer (registered in core)
+
+| Action | Effect |
+|---|---|
+| `SAVE_GAME` | `localStorage.setItem("piratesSave", JSON.stringify(state))` |
+| `LOAD_GAME` | `JSON.parse` + `migrateState()` + regenerate market/missions |
+| `EXPORT_SAVE` | `L.encodeSave(state)` -> triggers browser download as JSON file |
+| `IMPORT_SAVE` | File input -> `L.decodeSave(json)` -> `migrateState` -> restore |
 
 ---
 
-## 🎯 **Domain Responsibilities**
+## 3. engine_port.js -- Port Domain Reducer
 
-### `**engine_core.js**` *(Shared)*
+**Purpose**: All port-related state transitions (start, navigation, market, missions, crew, shipyard, equipment, repair).
 
-- **Global constants**: All `A.*` action types.
-- **Initial state**: Default game state.
-- **Shared helpers**: `autoSave`, `migrateState`, `createBattleState`.
-- **Reducer dispatcher**: Chains all domain reducers.
-- **Debug actions**: Development
+### Reducer Cases
+
+| Action | Payload | Description |
+|---|---|---|
+| `START_GAME` | `{ scenarioId }` | Initialises state from STARTS[scenarioId]. Generates crew roster, market, missions, gossip. Sets reputation adjustments. |
+| `NAVIGATE` | `{ screen }` | Changes `state.screen`. No side effects. |
+| `SAIL_TO` | `{ destination }` | Sets destination, calculates travel days, switches to sailing screen. |
+| `ENTER_PORT` | -- | Handles port arrival: generates market/missions/gossip, processes desertion, processes positive traits (seasoned/veteran/loyal), applies heat decay, checks hostile port entry. |
+| `REPAIR` | -- | Repairs hull. Cost based on damage amount and reputation discount (via `L.getRepairCost`). |
+| `BUY_SHIP` | `{ shipType }` | Purchases new ship. Resets equipment to empty. Truncates crew if new maxCrew < current. Awards trade-in value for old ship. |
+| `BUY_EQUIPMENT` | `{ equipKey }` | Purchases equipment from shop (adds to equipmentInventory/locker). Deducts cost. |
+| `INSTALL_EQUIPMENT` | `{ equipKey }` | Installs from locker to ship slot. Validates via `L.canInstallEquipment`. Deducts installFee. |
+| `REMOVE_EQUIPMENT` | `{ equipKey, slot }` | Removes from ship slot to locker. Only if `removable: true`. |
+| `HIRE_CREW` | `{ count }` | Generates and adds crew members. Cost: 50g per hire. Capped at ship maxCrew. |
+| `RAISE_MORALE` | -- | Spends gold to boost morale. Cost: 5g per crew member. +5 morale. |
+| `REFRESH_MISSIONS` | -- | Regenerates mission board for current port. |
+| `TAKE_MISSION` | `{ missionIndex }` | Accepts mission. Combat/patrol missions may trigger immediate intercept. |
+| `COMPLETE_MISSION` | -- | Awards gold, fame, reputation. Removes required goods from hold (trade/smuggle). Applies infamy for smuggle missions. |
+| `ABANDON_MISSION` | -- | Clears active mission. Reputation penalty. |
+| `CONFIRM_TRADE` | `{ buys, sells }` | Executes market trade. Validates via `validateTrade`. Updates gold, hold, market quantities. |
+
+### Helpers
+
+| Helper | Purpose |
+|---|---|
+| `checkServicesBlocked(state)` | Returns true if port services blocked due to low reputation (At War tier) |
+| `validateTrade(state, buys, sells)` | Validates gold sufficiency, hold space, market quantities |
+| `processDesertion(state)` | On port entry: upset/low-morale crew may desert. Seasoned crew have halved desertion. Loyal crew immune. |
+| `processPositiveTraits(state)` | On port entry: awards `seasoned` (50d), `veteran` (100d), `loyal` (200d + conditions) tags |
+| `pickArrivalMessage(state)` | Selects a random arrival log message template from D.ARRIVAL_MESSAGES |
+
+---
+
+## 4. engine_voyage.js -- Voyage Domain Reducer
+
+**Purpose**: Sailing and navigation logic (day advancement, wind, provisions, crew, events, patrols, hidden ports).
+
+### Reducer Cases
+
+| Action | Payload | Description |
+|---|---|---|
+| `ADVANCE_DAY` | -- | The core sailing loop. Executes in order: advance wind, advance crew (days + morale), consume provisions, pay wages, check smuggle patrol, check mission encounter, check random event, check random patrol, advance hidden port discovery, decrement sailingDaysLeft, check arrival. |
+| `DISCOVER_PORT` | `{ portKey }` | Manually adds a port to `discoveredPorts`. |
+
+### ADVANCE_DAY Pipeline (execution order)
+
+```
+1. advanceWind()          -- drift wind angle +/- random, drift speed
+2. advanceCrew()          -- increment daysAboard for all crew, morale decay if low
+3. advanceProvisions()    -- consume food/water based on crew count (1 per 10 crew per day)
+4. Pay wages              -- 2g per crew per day (x1.5 if morale < 30)
+5. maybeSmugglePatrol()   -- if smuggle mission active, chance of intercept
+6. maybeMissionEncounter()-- if escort/patrol mission, chance of encounter on specific days
+7. maybeRandomEvent()     -- ~10% chance per day, picks from D.RANDOM_EVENTS
+8. checkRandomPatrol()    -- patrol chance based on infamy + heat + rep dampening
+9. advanceHiddenPorts()   -- check L.canSeePort for each undiscovered hidden port
+10. Decrement sailingDaysLeft
+11. Check arrival         -- if sailingDaysLeft <= 0, set screen to 'arriving'
+```
+
+Steps 5-8 are mutually exclusive per day: if one triggers an intercept/event, the remaining checks are skipped.
+
+### Helpers
+
+| Helper | Purpose |
+|---|---|
+| `advanceWind(wind)` | Randomly drifts wind angle (+/- 15 deg) and speed (+/- 3) |
+| `advanceCrew(crew)` | Increments `daysAboard` for all crew. Reduces morale if < 30. |
+| `advanceProvisions(state)` | Consumes food/water: 1 unit per 10 crew per day. Morale penalty if out. |
+| `maybeSmugglePatrol(state)` | If active smuggle mission: intercept chance based on risk level (low 70%, med 80%, high 90%) |
+| `maybeMissionEncounter(state)` | For escort/patrol missions: triggers encounter at specific sailing day thresholds |
+| `maybeRandomEvent(state)` | ~10% chance. Filters D.RANDOM_EVENTS by condition(state). Picks random eligible event. |
+| `checkRandomPatrol(state)` | Patrol chance: `min(0.01 + infamy/400 + maxHeat*0.03, 0.40)`, dampened by high rep |
+| `advanceHiddenPorts(state)` | Checks `L.canSeePort` for each hidden port not yet in discoveredPorts. Auto-discovers if conditions met. |
+
+---
+## 5. engine_combat.js -- Combat Domain Reducer
+
+**Purpose**: Encounters, battles, plunder, and event resolution.
+
+### Reducer Cases
+
+| Action | Description |
+|---|---|
+| `INTERCEPT_FIGHT` | Creates `battleState` from `encounterContext`. Adds heat (+3) for navy_patrol fights. Switches to battle screen. |
+| `INTERCEPT_FLEE` | Speed check: `playerSpeed + L.roll(6) vs enemySpeed + L.roll(6)`. Success = resume sailing. Failure = forced into battle. Adds heat (+2) for navy_patrol flee. |
+| `INTERCEPT_PARLEY` | Reputation check: `L.roll(100) <= min(80, rep + 20)`. Success = pass through (+3 rep). Failure = forced into battle. |
+| `INTERCEPT_BRIBE` | Pays `bribeCost` (from encounterContext). -2 rep at current port. Returns to sailing. |
+| `INTERCEPT_SURRENDER` | Applies `SURRENDER_CONSEQUENCE[ctx.type]` -- cargo loss, gold loss, morale penalty, days lost. Returns to sailing. |
+| `INTERCEPT_INSPECT` | **Navy patrol inspection.** Checks hold for contraband (tobacco, slaves, smuggle-mission rum). Hidden Compartment equipment gives 50% avoid chance. On find: seizes contraband, fine = `PATROL_FINE_RATE * value`, +2 infamy, -5 faction rep, -10 morale. |
+| `BATTLE_ACTION` | Resolves one combat round via `L.resolveCombatAction(state, playerAction, npcAction)`. Four player actions: `broadside`, `precision`, `grapple`, `evade`. NPC action via `L.getNPCAction`. Phase checks: enemy hull <= 0 = victory, player hull <= 0 = defeat, evade success = fled, grapple success = instant victory. Tracks named crew losses. Updates convoy hull for escort missions. |
+| `DISMISS_BATTLE` | Handles post-combat state transitions. **Victory**: faction upset tagging for matching-faction crew, battle scar if >= 10 crew died, heat gain, morale boost (+5 to +10). **Defeat**: wash ashore at previous port, lose all cargo, cancel mission, morale -10. **Fled**: morale -5, cancel mission if it was mission combat. War Pennants equipment multiplies heat gain. |
+| `TAKE_PLUNDER` | Player picks cargo items from defeated enemy (PlunderScreen). Gold awarded at `PLUNDER_GOLD_RATIO` (20%). Remaining cargo added to hold (capped by capacity). |
+| `RESOLVE_EVENT` | Applies all event outcome fields: `gold`, `fame`, `hullDamage`, `crewLoss`, `daysLost`, `moraleBonus`, `moralePenalty`, `repImpact`, `mapFragment`, `addCrew`, `generateCargo`, `loseCargoPercent`, `battle` (triggers combat). Special handling: mutiny (negotiate = gold / crush = crew loss + mutineer tags), storm scar tagging, calm wind immunity check, storm hull immunity check. |
+| `ATTACK_PIRATE` | Generates pirate enemy (fame-tier scaled), builds encounter context as `distressed_merchant_help`. Switches to intercept. |
+| `ATTACK_MERCHANT` | Generates weaker merchant enemy (1 tier lower), builds encounter as `distressed_merchant_plunder`. Adds +2 heat to merchant faction. Switches to intercept. |
+
+### Helpers
+
+| Helper | Purpose |
+|---|---|
+| `pickMerchantFaction()` | Randomly selects a non-pirate faction for merchant encounters |
+| `addHeat(state, faction, amount)` | Adds heat to factionAlerts[faction], capped at 10 |
+
+### Battle State Shape
+
+Created by `E.createBattleState()`. Shape:
+
+```js
+{
+  phase: "active" | "victory" | "defeat" | "fled",
+  round: number,
+  player: { hull, maxHull, cannons, crew, speed },
+  enemy: { name, hull, maxHull, cannons, crew, speed, faction },
+  log: [],           // battle log entries
+  canPlunder: boolean,
+  enemyCargo: {},    // generated by G.generateEnemyCargo
+  enemyGold: number,
+  encounterType: string,  // "patrol", "mission_combat", "random", etc.
+  crewLost: []       // names of crew who died this battle
+}
+```
+
+---
+
+## 6. File Statistics
+
+| File | Reducer Cases | Helpers | Purpose |
+|---|---|---|---|
+| `engine_core.js` | 17 (debug 13 + save/load 4) | 3 | Shared infrastructure |
+| `engine_port.js` | 16 | 5 | Port logic |
+| `engine_voyage.js` | 2 | 8+ | Sailing logic |
+| `engine_combat.js` | 12 | 2 | Combat logic |
+| **Total** | **47** | **18+** | All engine logic |
+
+---
+
+## 7. Dependencies
+
+All engine files depend on:
+
+| Dependency | Used for |
+|---|---|
+| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, RANDOM_EVENTS, STARTS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE |
+| `window.L` | All pure game math (combat, reputation, travel, fame, equipment, crew tags, encounter context, hold capacity) |
+| `window.G` | Generators (missions, markets, crew, enemies, cargo, gossip, bios) |
+| `window.E.A` | Action constants (from engine_core.js -- must load first) |
+
+---
+
+## 8. Domain Responsibility Summary
+
+### engine_core.js (Shared)
+
+- Global constants: All `A.*` action types
+- Initial state: Default game state
+- Shared helpers: `autoSave`, `migrateState`, `createBattleState`
+- Reducer dispatcher: Chains all domain reducers
+- Debug actions: Development-only state manipulation
+- Save/load actions: localStorage + file export/import
+
+### engine_port.js (Port)
+
+- Game start and scenario initialisation
+- Screen navigation
+- Ship purchase and equipment management (buy, install, remove)
+- Crew hiring and morale management
+- Mission lifecycle (take, complete, abandon, refresh)
+- Market trading (buy/sell goods)
+- Hull repair
+- Port entry processing (desertion, positive traits, gossip, market regeneration)
+
+### engine_voyage.js (Voyage)
+
+- Day-by-day sailing simulation
+- Wind drift and travel time
+- Provision consumption and wage payment
+- Event triggering (random events, patrols, mission encounters)
+- Hidden port discovery
+- Arrival detection
+
+### engine_combat.js (Combat)
+
+- Pre-battle intercept actions (fight, flee, parley, bribe, surrender, inspect)
+- Turn-based combat rounds
+- Victory/defeat/fled state transitions
+- Plunder collection
+- Random event resolution
+- Faction heat management
+- Crew upset tagging and scar assignment

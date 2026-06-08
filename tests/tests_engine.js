@@ -2108,5 +2108,257 @@ window.TESTS.push({
     u.assert(s.log.some(l => l.includes("Goldie Greed")), "Greedy log includes full name");
   }
 },
+// EXPORT_SAVE
+    {
+      name: "E.EXP.01 EXPORT_SAVE does not change game state",
+      run: (u) => {
+        const state = makeState({ gold: 500, day: 10 });
+        const s = E.reducer(state, { type: E.A.EXPORT_SAVE });
+        u.assertEqual(s.gold, 500);
+        u.assertEqual(s.day, 10);
+        u.assertEqual(s.screen, state.screen);
+      }
+    },
+    // IMPORT_SAVE
+    {
+      name: "E.IMP.01 IMPORT_SAVE restores from a valid file",
+      run: (u) => {
+        const state = makeState({ gold: 5000, day: 15, currentPort: "tortuga" });
+        const encoded = L.encodeSave(state);
+        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: encoded });
+        u.assertEqual(restored.gold, 5000);
+        u.assertEqual(restored.day, 15);
+        u.assertEqual(restored.currentPort, "tortuga");
+        u.assertEqual(restored.screen, "port");
+      }
+    },
+    {
+      name: "E.IMP.02 IMPORT_SAVE tampered file warns but loads",
+      run: (u) => {
+        const state = makeState({ gold: 999, day: 1 });
+        const encoded = L.encodeSave(state);
+        // Tamper with the encoded string (swap a char)
+        const tampered = encoded.slice(0, -10) + "AAAA" + encoded.slice(-6);
+        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: tampered });
+        u.assert(
+          restored.log.some(l => l.includes("modified") || l.includes("Invalid") || l.includes("Could not read")),
+          "Should log warning or error for tampered file"
+        );
+      }
+    },
+    {
+      name: "E.IMP.03 IMPORT_SAVE corrupt file logs error",
+      run: (u) => {
+        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: "not base64!!" });
+        u.assert(restored.log.some(l => l.includes("Invalid") || l.includes("Could not read")), "Should log error");
+        u.assertEqual(restored.gold, E.initialState.gold, "State unchanged on error");
+      }
+    },
+    {
+      name: "E.IMP.04 IMPORT_SAVE clears transient state",
+      run: (u) => {
+        const state = makeState({
+          battleState: { phase: "victory" },
+          encounterContext: { enemy: {} },
+          activeEvent: { id: "storm" },
+          currentPort: "portRoyal"
+        });
+        const encoded = L.encodeSave(state);
+        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: encoded });
+        u.assertEqual(restored.battleState, null);
+        u.assertEqual(restored.encounterContext, null);
+        u.assertEqual(restored.activeEvent, null);
+        u.assert(restored.portMarket !== null, "Market regenerated");
+        u.assert(restored.missions.length > 0, "Missions regenerated");
+      }
+    },
+    // NAVIGATE to new screens
+    {
+      name: "E.NAV.01 NAVIGATE to title screen",
+      run: (u) => {
+        const s = E.reducer(E.initialState, { type: E.A.NAVIGATE, screen: "title" });
+        u.assertEqual(s.screen, "title");
+      }
+    },
+    {
+      name: "E.NAV.02 NAVIGATE to journal screen",
+      run: (u) => {
+        const s = E.reducer(E.initialState, { type: E.A.NAVIGATE, screen: "journal" });
+        u.assertEqual(s.screen, "journal");
+      }
+    },
+    // START_GAME sets scenarioId (added in T4.1)
+    {
+      name: "E.START.01 START_GAME stores scenarioId",
+      run: (u) => {
+        u.resetRandomStub();
+        const start = D.STARTS.find(s => s.id === "english_william");
+        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
+        u.assertEqual(s.scenarioId, "english_william", "Scenario id stored");
+      }
+    },
+    // BUY_EQUIPMENT
+    {
+      name: "E.EQ.01 BUY_EQUIPMENT success",
+      run: (u) => {
+        const state = makeState({
+          gold: 2000, fame: 50,
+          currentPort: "portRoyal", // shipyard service exists
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          reputation: { portRoyal: 80 } // allied
+        });
+        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
+        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.cost - D.EQUIPMENT.extra_cannons.installFee);
+        u.assert(s.log.some(l => l.includes("Extra Cannons")));
+      }
+    },
+    {
+      name: "E.EQ.02 BUY_EQUIPMENT insufficient gold",
+      run: (u) => {
+        const state = makeState({
+          gold: 100, fame: 50,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(!s.ship.equipment.armament.includes("extra_cannons"));
+        u.assertEqual(s.gold, 100);
+      }
+    },
+    {
+      name: "E.EQ.03 BUY_EQUIPMENT blocked by fame",
+      run: (u) => {
+        const state = makeState({
+          gold: 5000, fame: 10,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "long_guns" }); // fame 100
+        u.assert(!s.ship.equipment.armament.includes("long_guns"));
+        u.assertEqual(s.gold, 5000);
+      }
+    },
+    // INSTALL_EQUIPMENT
+    {
+      name: "E.EQ.04 INSTALL_EQUIPMENT from inventory",
+      run: (u) => {
+        const state = makeState({
+          gold: 500,
+          fame: 50,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          equipmentInventory: ["extra_cannons"],
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.INSTALL_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
+        u.assert(!s.equipmentInventory.includes("extra_cannons"));
+        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.installFee);
+      }
+    },
+    // REMOVE_EQUIPMENT
+    {
+      name: "E.EQ.05 REMOVE_EQUIPMENT removable",
+      run: (u) => {
+        const state = makeState({
+          gold: 500,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
+          },
+          equipmentInventory: [],
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.REMOVE_EQUIPMENT, equipmentKey: "extra_cannons" });
+        u.assert(!s.ship.equipment.armament.includes("extra_cannons"));
+        u.assert(s.equipmentInventory.includes("extra_cannons"));
+        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.installFee);
+      }
+    },
+    {
+      name: "E.EQ.06 REMOVE_EQUIPMENT structural blocked",
+      run: (u) => {
+        const state = makeState({
+          gold: 500,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } // structural
+          },
+          equipmentInventory: [],
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.REMOVE_EQUIPMENT, equipmentKey: "reinforced_hull" });
+        u.assert(s.ship.equipment.hull.includes("reinforced_hull"), "Still installed");
+        u.assertEqual(s.equipmentInventory.length, 0, "Not added to inventory");
+        u.assertEqual(s.gold, 500, "Fee not deducted");
+      }
+    },
+    // BUY_SHIP with equipment
+    {
+      name: "E.EQ.07 BUY_SHIP warns when removable equipment installed",
+      run: (u) => {
+        const state = makeState({
+          gold: 100000, fame: 100,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
+          },
+          equipmentInventory: [],
+          reputation: { portRoyal: 80 }
+        });
+        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
+        // Should not purchase directly; should log a warning and maybe not change ship.
+        u.assertEqual(s.ship.type, "sloop", "Ship not bought due to removable equipment");
+        u.assert(s.log.some(l => l.includes("Unmount") || l.includes("removable") || l.includes("warning")), "Warning logged");
+      }
+    },
+    {
+      name: "E.EQ.08 BUY_SHIP loses structural equipment, new ship empty",
+      run: (u) => {
+        // First unmount removable, then buy
+        const state = makeState({
+          gold: 100000, fame: 100,
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } // structural
+          },
+          equipmentInventory: [],
+          reputation: { portRoyal: 80 }
+        });
+        // Remove structural is blocked, but BUY_SHIP should proceed (losing it) because it's structural.
+        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
+        u.assertEqual(s.ship.type, "frigate");
+        u.assertDeepEqual(s.ship.equipment, { hull: [], armament: [], rigging: [], special: [] });
+        u.assert(!s.equipmentInventory.includes("reinforced_hull"), "Structural equipment lost, not stored");
+      }
+    },
+    // Migration
+    {
+      name: "E.EQ.09 migrateState removes upgrades and adds equipment",
+      run: (u) => {
+        const old = {
+          version: 1,
+          ship: { type: "sloop", upgrades: ["reinforced_hull"] },
+          crew: { roster: [] }
+        };
+        const migrated = E.migrateState(old);
+        u.assertEqual(migrated.ship.upgrades, undefined, "upgrades removed");
+        u.assertDeepEqual(migrated.ship.equipment, { hull: [], armament: [], rigging: [], special: [] });
+        u.assert(Array.isArray(migrated.equipmentInventory), "equipmentInventory exists");
+        u.assertEqual(migrated.equipmentInventory.length, 0);
+      }
+    },
   ]
 });

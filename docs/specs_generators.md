@@ -1,692 +1,375 @@
-# **Broadside: specs_generators.md**
+# specs_generators.md -- Generators Module Specification
 
-*Runtime content generators. Functions that use `Math.random` to produce game content dynamically.*  
-*No pure game logic here—that lives in `logic.js`.*
+**Broadside Runtime Content Generators**
+*Last Updated: June 8, 2026*
 
 ---
 
-## **📌 Overview**
+## 1. Overview
 
 - **File**: `generators.js`
 - **Exposed as**: `window.G`
 - **Dependencies**:
-  - `window.D` (data constants: `PORTS`, `SHIPS`, `FACTIONS`, `RESOURCES`, `GOODS_AVAILABILITY`, `MISSION_*`, `ENEMY_SHIP_NAMES`, `CREW_*`, etc.).
-  - `window.L` (pure logic helpers, e.g., `getFameInfo`, `getRepPerk`).
-- **Purpose**:
-  - Generates **runtime content** (e.g., crew members, missions, enemies, markets).
-  - Uses **randomness** (`Math.random`) for variety.
-  - **No side effects**: All functions are pure (given the same input and RNG seed, they produce the same output).
+  - `window.D` (data constants: PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, MISSION_*, ENEMY_SHIP_NAMES, CREW_*, BIO_OPENINGS, BIO_COMBOS, PORT_GOSSIP_TEMPLATES, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO)
+  - `window.L` (pure logic helpers: getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag)
+- **Purpose**: Generates **runtime content** (crew, missions, enemies, markets, cargo, biographies, gossip). Uses `Math.random()` for variety.
+- **No side effects**: Functions are pure given the same RNG seed.
 
 ---
 
----
+## 2. Internal Helper Functions
 
-## **🔧 Helper Functions**
+These are private to generators.js -- not exported on `window.G`.
 
-Internal utilities used by other generators.
-
----
-
-### **1. `randBetween(min, max)**`
-
-- **Purpose**: Returns a random float between `min` (inclusive) and `max` (exclusive).
-- **Input**:
-  - `min` (number): Minimum value.
-  - `max` (number): Maximum value.
-- **Output**: `number` (random float in `[min, max)`).
-- **Notes**: Uses `Math.random() * (max - min) + min`.
+| Function | Signature | Purpose |
+|---|---|---|
+| `randBetween` | `(min, max) -> float` | Random float in [min, max) |
+| `randInt` | `(min, max) -> int` | Random integer in [min, max] inclusive |
+| `pickRandom` | `(arr) -> element` | Random element from array |
+| `pickWeighted` | `(items, weights) -> element` | Weighted random selection |
+| `shuffleArray` | `(arr) -> arr` | Fisher-Yates shuffle (returns new array) |
+| `isExtremePrice` | `(good, buyPrice) -> object|null` | Returns `{type: 'surplus'|'shortage', deviation}` if price deviates >30% from base, else null |
 
 ---
 
-### **2. `randInt(min, max)**`
+## 3. Crew Generators
 
-- **Purpose**: Returns a random integer between `min` (inclusive) and `max` (inclusive).
-- **Input**:
-  - `min` (number): Minimum value.
-  - `max` (number): Maximum value.
-- **Output**: `number` (random integer in `[min, max]`).
-- **Notes**: Uses `Math.floor(randBetween(min, max + 1))`.
+### pickWeightedRole()
 
----
+- **Purpose**: Randomly selects a crew role based on D.CREW_ROLES weights.
+- **Output**: `string` (role key)
+- **Weights**: deckhand 60, gunner 20, carpenter 10, cook 5, navigator 5
+- **Fallback**: `"deckhand"` if no role selected
 
-### **3. `pickRandom(arr)**`
-
-- **Purpose**: Returns a random element from an array.
-- **Input**:
-  - `arr` (array): Array of elements.
-- **Output**: `any` (random element from `arr`).
-- **Notes**: Uses `Math.floor(Math.random() * arr.length)`.
-
----
-
-### **4. `pickWeighted(items, weights)**`
-
-- **Purpose**: Returns a random element from `items`, weighted by `weights`.
-- **Input**:
-  - `items` (array): Array of elements.
-  - `weights` (array): Array of weights (same length as `items`).
-- **Output**: `any` (random element from `items`, weighted by `weights`).
-- **Notes**:
-  - Calculates total weight: `weights.reduce((a, b) => a + b, 0)`.
-  - Rolls a random value in `[0, totalWeight)`.
-  - Iterates through `items` to find the matching weight bucket.
-
----
-
----
-
-## **👥 Crew Generators**
-
-Functions for generating crew members and rosters.
-
----
-
-### **1. `pickWeightedRole()**`
-
-- **Purpose**: Randomly selects a crew role based on weighted probabilities.
-- **Input**: None.
-- **Output**: `string` (role key, e.g., `"deckhand"`, `"gunner"`, `"cook"`).
-- **Notes**:
-  - Uses `window.D.CREW_ROLES` (e.g., `{ role: "deckhand", weight: 60 }`).
-  - Total weight: Sum of all role weights.
-  - Falls back to `"deckhand"` if no role is selected.
-
----
-
-### **2. `generateCrewMember(faction, existingNames = [])**`
+### generateCrewMember(faction, existingNames = [])
 
 - **Purpose**: Generates a single crew member with a unique name.
 - **Input**:
-  - `faction` (string): Faction key (e.g., `"english"`, `"pirate"`).
-  - `existingNames` (array): Array of existing full names to avoid duplicates.
-- **Output**: `object` with:
-  - `id` (string): Unique ID (timestamp + random string).
-  - `firstName` (string): Random first name from `CREW_FIRST_NAMES[faction]`.
-  - `lastName` (string): Random last name from `CREW_LAST_NAMES[faction]`.
-  - `role` (string): Random role from `pickWeightedRole()`.
-  - `faction` (string): Crew member's faction.
-  - `daysAboard` (number): Always `0` (new crew).
-- **Notes**:
-  - If `faction` is not in `CREW_FIRST_NAMES` or `CREW_LAST_NAMES`, falls back to `"pirate"`.
-  - Attempts to generate a unique name (up to 50 tries).
-  - Example: `{ id: "abc123", firstName: "William", lastName: "Smith", role: "gunner", faction: "english", daysAboard: 0 }`.
-
----
-
-### **3. `generateRoster(count, faction = "pirate")**`
-
-- **Purpose**: Generates a roster of `count` crew members.
-- **Input**:
-  - `count` (number): Number of crew members to generate.
-  - `faction` (string): Faction key (default: `"pirate"`).
-- **Output**: `array` of crew member objects (from `generateCrewMember`).
-- **Notes**:
-  - Tracks `existingNames` to avoid duplicates.
-  - Example: `[{ id: "abc123", ... }, { id: "def456", ... }]`.
-
----
-
----
-
-## **🏪 Market Generators**
-
-Functions for generating port markets.
-
----
-
-### **1. `generatePortMarket(portKey)**`
-
-- **Purpose**: Generates a market for a specific port, including goods, prices, and availability.
-- **Input**:
-  - `portKey` (string): Key of the port (e.g., `"portRoyal"`).
-- **Output**: `object` with:
-  - `portKey` (string): The port key.
-  - `goods` (object): Key-value pairs of goods and their market data.
-    - Keys: Good names (e.g., `"food"`, `"rum"`, `"sugar"`).
-    - Values: `object` with:
-      - `basePrice` (number): Base price of the good.
-      - `buyFromPort` (number): Price to buy from the port (player pays this).
-      - `sellToPort` (number): Price to sell to the port (player receives this).
-      - `available` (number): Quantity available in the market.
-- **Notes**:
-  - **Column Order**: Uses `colOrder` to map `GOODS_AVAILABILITY` columns to good keys:
-    ```js
-    const colOrder = [
-      "food", "water", "rum", "sugar", "timber", "cloth", "spices", "silk",
-      "coffee", "cocoa", "weapons", "tobacco", "silver", "slaves"
-    ];
-    ```
-  - **Availability**:
-    - Uses `GOODS_AVAILABILITY[portKey]` to get availability tiers (e.g., `"always"`, `"frequently"`).
-    - **Tier Chances**:
-      - `always`: `1.0` (100%).
-      - `frequently`: `0.66` (~66%).
-      - `sometimes`: `0.33` (~33%).
-      - `rarely`: `0.10` (10%).
-      - `never`: `0.0` (0%).
-    - Skips goods that fail their appearance roll.
-  - **Pricing**:
-    - For goods with `variance === 0` (e.g., food, water):
-      - `buyFromPort = sellToPort = basePrice`.
-    - For other goods:
-      - Rolls a random market price: `basePrice ± (basePrice * variance)`.
-      - `buyFromPort = Math.round(marketPrice * 1.10)` (10% markup).
-      - `sellToPort = Math.round(marketPrice * 0.90)` (10% discount).
-  - **Quantity**:
-    - For `food` and `water`: `available = 999` (unlimited).
-    - For other goods:
-      - Uses `tierQtyRanges`:
-        ```js
-        const tierQtyRanges = {
-          always:     { min: 40, max: 80 },
-          frequently: { min: 20, max: 40 },
-          sometimes:  { min: 8,  max: 20 },
-          rarely:     { min: 2,  max: 8 },
-          never:      null,
-        };
-        ```
-      - Rolls `randInt(range.min, range.max)` for the tier.
-
----
-
----
-
-## **⚔️ Mission Generators**
-
-Functions for generating missions (trade, smuggle, combat, etc.).
-
----
-
-### **1. `opposingFaction(factionKey)**`
-
-- **Purpose**: Returns a random rival faction for the given faction.
-- **Input**:
-  - `factionKey` (string): Faction key (e.g., `"english"`).
-- **Output**: `string` (rival faction key, e.g., `"spanish"`).
-- **Notes**:
-  - Uses `FACTIONS[factionKey].rivalFactions` to get rivals.
-  - Falls back to `"pirate"` if no rivals exist.
-
----
-
-### **2. `generateEnemyName(faction)**`
-
-- **Purpose**: Generates a random enemy ship name.
-- **Input**:
-  - `faction` (string): Faction key (unused in current implementation).
-- **Output**: `string` (e.g., `"The Black Serpent"`).
-- **Notes**:
-  - Uses `ENEMY_SHIP_NAMES.adjectives` and `ENEMY_SHIP_NAMES.nouns`.
-  - Format: `"The [adjective] [noun]"` (e.g., `"The Cursed Drake"`).
-
----
-
-### **3. `generateEnemy(risk, fame, faction)**`
-
-- **Purpose**: Generates a random enemy ship with stats based on risk and player fame.
-- **Input**:
-  - `risk` (string): Risk level (`"low"`, `"medium"`, `"high"`, `"assault"`).
-  - `fame` (number): Player's fame (used to determine tier).
-  - `faction` (string): Faction key (used to determine opposing faction).
-- **Output**: `object` with:
-  - `name` (string): Enemy ship name (from `generateEnemyName`).
-  - `faction` (string): Opposing faction (from `opposingFaction`).
-  - `hull` (number): Enemy hull HP.
-  - `cannons` (number): Enemy cannons.
-  - `crew` (number): Enemy crew count.
-- **Notes**:
-  - **Tier**: Uses `L.getFameInfo(fame).tier` to get the player's tier (0-4).
-  - **Risk Factors**:
-    ```js
-    const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
-    ```
-  - **Stat Ranges**: Uses `MISSION_ENEMY_RANGES`:
-    ```js
-    const ranges = {
-      hull:    { 0: [20, 45],  1: [40, 75],  2: [65, 110], 3: [95, 155],  4: [135, 210] },
-      cannons: { 0: [2, 6],    1: [5, 10],   2: [8, 16],   3: [13, 22],   4: [18, 30] },
-      crew:    { 0: [8, 18],   1: [15, 35],  2: [25, 55],  3: [40, 80],   4: [60, 110] },
-    };
-    ```
-  - **Stat Calculation**:
-    - For each stat (hull, cannons, crew):
-      - Gets the range for the player's tier.
-      - Calculates `span = max - min`.
-      - For `"assault"` risk: `effectiveMax = min + span * 1.6`.
-      - Adds noise: `randBetween(0, span * 0.15)`.
-      - Final stat: `Math.round(Math.min(effectiveMax, Math.max(min, min + span * rf + noise)))`.
-    - Example: For `risk = "high"`, `fame = 100` (tier 2), `faction = "english"`:
-      - Hull: `[65, 110]` → `65 + (110-65)*1.0 + noise` → ~`90-110`.
-      - Cannons: `[8, 16]` → ~`12-16`.
-      - Crew: `[25, 55]` → ~`40-55`.
-
----
-
-### **4. `generateEnemyForAssault(targetPortKey, fame)**`
-
-- **Purpose**: Generates an enemy for an assault mission (defending the target port).
-- **Input**:
-  - `targetPortKey` (string): Key of the port being assaulted.
-  - `fame` (number): Player's fame.
-- **Output**: `object` (enemy object, same as `generateEnemy`).
-- **Notes**:
-  - Uses the **defending port's faction** (from `PORTS[targetPortKey].faction`).
-  - Calls `generateEnemy("assault", fame, faction)`.
-
----
-
-### **5. `generateGold(type, risk, fame)**`
-
-- **Purpose**: Generates a random gold reward for a mission.
-- **Input**:
-  - `type` (string): Mission type (e.g., `"escort"`, `"assault"`).
-  - `risk` (string): Risk level (`"low"`, `"medium"`, `"high"`).
-  - `fame` (number): Player's fame.
-- **Output**: `number` (gold reward, rounded to nearest 25).
-- **Notes**:
-  - **Tier**: Uses `L.getFameInfo(fame).tier`.
-  - **Effective Risk**: For `"assault"` missions, uses `"assault"` risk regardless of input.
-  - **Gold Ranges**: Uses `MISSION_GOLD_RANGES`:
-    → **See [specs_data.md §8](specs_data) for current gold range tables.**
-  - **Calculation**:
-    - Gets the range for the tier and effective risk.
-    - Rolls a random value in the range.
-    - Rounds to nearest 25: `Math.round(raw / 25) * 25`.
-
----
-
-### **6. `generateRepImpact(type, commissioningFaction, risk, defendingFaction)**`
-
-- **Purpose**: Generates a reputation impact object for a mission.
-- **Input**:
-  - `type` (string): Mission type (`"escort"`, `"patrol"`, `"combat"`, `"smuggle"`, `"assault"`).
-  - `commissioningFaction` (string): Faction offering the mission.
-  - `risk` (string): Risk level (`"low"`, `"medium"`, `"high"`).
-  - `defendingFaction` (string): Faction of the target (for assault missions).
-- **Output**: `object` with faction-reputation deltas (e.g., `{ english: +2, spanish: -3 }`).
-- **Notes**:
-  - **Smuggle Missions**:
-    - `+2` with `"pirate"`.
-    - `-3` with `defendingFaction` (if provided).
-  - **Other Missions**:
-    - Uses `MISSION_REP_IMPACTS`:
-      ```js
-      const MISSION_REP_IMPACTS = {
-        escort:  { low: 2, medium: 3, high: 4 },
-        patrol:  { low: 2, medium: 3, high: 4 },
-        combat:  { low: 3, medium: 4, high: 5 },
-        smuggle: { any: 2 },
-        assault: { any: 5 },
-      };
-      ```
-    - Positive delta: `impacts[type]?.[risk] ?? impacts[type]?.any ?? 2`.
-    - For `"patrol"` or `"combat"`, also adds a negative delta for the opposing faction:
-      - `impact[opposingFaction(commissioningFaction)] = -(positiveDelta - 1)`.
-    - For `"assault"`, adds `-8` with `defendingFaction`.
-
----
-
-### **7. `generateMissionText(type, faction, targetPortKey, risk, enemy)**`
-
-- **Purpose**: Generates the name and description for a mission.
-- **Input**:
-  - `type` (string): Mission type.
-  - `faction` (string): Commissioning faction.
-  - `targetPortKey` (string): Target port key (if applicable).
-  - `risk` (string): Risk level.
-  - `enemy` (object): Enemy object (for combat missions).
-- **Output**: `object` with:
-  - `name` (string): Mission name.
-  - `desc` (string): Mission description.
-- **Notes**:
-  - Uses `MISSION_NAME_PARTS` for dynamic text:
-    ```js
-    const MISSION_NAME_PARTS = {
-      cargo: ["spice shipment", "merchant convoy", ...],
-      contraband: ["rum", "stolen charts", ...],
-      regionAdj: ["southern", "northern", ...],
-      factionAdj: {
-        english: ["English", "Crown", ...],
-        spanish: ["Spanish", "Colonial", ...],
-        // ...
-      },
-    };
-    ```
-  - **Templates**:
-    - **Escort**: `"Escort the [cargo] to [portName]"`.
-    - **Patrol**: `"Patrol the [regionAdj] waters"`.
-    - **Combat**: `"Hunt down [enemy.name]"`.
-    - **Smuggle**: `"Smuggle contraband to [portName]"`.
-    - **Assault**: `"Assault [portName]"`.
-  - **Descriptions**:
-    - Dynamic based on type, faction, and target port.
-
----
-
-### **8. `pickTargetPort(currentPortKey, type, state, faction)**`
-
-- **Purpose**: Picks a random target port for a mission, respecting faction politics.
-- **Input**:
-  - `currentPortKey` (string): Current port key.
-  - `type` (string): Mission type.
-  - `state` (object): Game state (for hold capacity, etc.).
-  - `faction` (string): Commissioning faction.
-- **Output**: `string | null` (target port key or `null` if no valid port exists).
-- **Notes**:
-  - **Combat missions: returns `null` (enemy is at sea, no destination). Patrol missions: returns a rival-faction port as target.
-  - **Assault Missions**:
-    - Only ports with a **different faction** than the commissioning faction.
-  - **Smuggle Missions**:
-    - Excludes **pirate ports** (you smuggle *to* colonial powers, not pirate havens).
-  - **Trade/Escort Missions**:
-    - Excludes ports of **rival factions** (from `FACTIONS[faction].rivalFactions`).
-  - **Fallback**: Returns `null` if no eligible ports exist.
-
----
-
----
-
-## **📦 Trade Mission Generator**
-
-### **1. `generateTradeMission(portKey, state, faction, risk)**`
-
-- **Purpose**: Generates a trade mission (deliver goods to a port).
-- **Input**:
-  - `portKey` (string): Current port key.
-  - `state` (object): Game state.
-  - `faction` (string): Commissioning faction.
-  - `risk` (string): Risk level (`"low"`, `"medium"`, `"high"`).
-- **Output**: `object | null` (mission object or `null` if generation fails).
-- **Mission Object Structure**:
+  - `faction` (string): Faction key for name pool selection
+  - `existingNames` (array): Full names to avoid duplicates
+- **Output**:
   ```js
   {
-    type: "trade",
-    name: string,               // e.g., "Deliver Sugar to Bridgetown"
-    description: string,        // Mission details
-    faction: string,           // Commissioning faction
-    targetPort: string,        // Destination port key
-    risk: string,               // Risk level
-    gold: number,               // Reward gold
-    fame: number,              // Fame reward
-    infamyGain: 0,              // No infamy for trade missions
-    repImpact: object,          // Reputation changes
-    enemy: null,               // No enemy for trade missions
-    requiredGood: string,      // Good to deliver (e.g., "sugar")
-    requiredQty: number,       // Quantity to deliver
+    id: string,         // Unique ID (timestamp + random)
+    firstName: string,
+    lastName: string,
+    role: string,
+    faction: string,
+    daysAboard: 0,
+    tags: []            // May include hidden trait (5% chance)
   }
   ```
-- **Notes**:
-  - **Eligible Goods**:
-    - Uses `TRADE_GOODS_BY_TIER` based on `L.getFameInfo(state.fame).tier`:
-      ```js
-      const TRADE_GOODS_BY_TIER = {
-        0: ["rum", "sugar", "timber", "cloth"],
-        1: ["rum", "sugar", "timber", "cloth", "coffee", "cocoa"],
-        2: ["coffee", "cocoa", "cloth", "weapons", "spices"],
-        3: ["spices", "silk", "weapons", "cocoa"],
-        4: ["spices", "silk", "weapons", "cocoa"],
-      };
-      ```
-    - Randomly picks one good from the tier's list.
-  - **Quantity**:
-    - Based on hold capacity: `holdCapacity * holdPct`, where:
-      ```js
-      const holdPct = { low: 0.10, medium: 0.25, high: 0.50 }[risk] || 0.10;
-      ```
-    - Minimum: `3`.
-  - **Gold Reward**:
-    - Uses `TRADE_MISSION_PROFIT_MARGINS`:
-      ```js
-      const TRADE_MISSION_PROFIT_MARGINS = {
-        low: 0.60,
-        medium: 0.80,
-        high: 1.10,
-      };
-      ```
-    - Formula: `Math.round(expectedCost * (1 + margin) / 25) * 25`, where:
-      - `expectedCost = RESOURCES[good].basePrice * requiredQty`.
-  - **Target Port**:
-    - Uses `pickTargetPort(portKey, "trade", state, faction)`.
-  - **Fame Reward**:
-    - `1` for `"low"`/`"medium"`, `2` for `"high"`.
-  - **Reputation Impact**:
-    - Uses `MISSION_REP_IMPACTS.escort[risk]` (default: `2`).
+- **Hidden Traits** (5% total chance at generation):
+  - 2% `hidden_drunkard`
+  - 1% `hidden_coward`
+  - 1% `hidden_greedy`
+  - 1% `hidden_troublemaker`
+- **Name uniqueness**: Retries up to 50 times if name collision or firstName === lastName
+- **Fallback faction**: `"pirate"` if faction not in CREW_FIRST_NAMES
+
+### generateRoster(count, faction)
+
+- **Purpose**: Generates `count` crew members with unique names.
+- **Output**: Array of crew member objects
 
 ---
 
----
+## 4. Crew Biography Generator
 
-## **🕵️ Smuggle Mission Generator**
+### generateCrewBio(member, state)
 
-### **1. `generateSmuggleMission(portKey, state, risk)**`
+- **Purpose**: Builds a multi-sentence narrative biography for a crew member based on their accumulated state (days aboard, tags, scars, traits, faction).
+- **Output**: `string` (1-4 sentences joined)
 
-- **Purpose**: Generates a smuggle mission (deliver illegal goods to a port).
-- **Input**:
-  - `portKey` (string): Current port key.
-  - `state` (object): Game state.
-  - `risk` (string): Risk level (`"low"`, `"medium"`, `"high"`).
-- **Output**: `object | null` (mission object or `null` if generation fails).
-- **Mission Object Structure**:
-  ```js
-  {
-    type: "smuggle",
-    name: string,               // e.g., "Smuggle Tobacco to Havana"
-    description: string,        // Mission details
-    faction: "pirate",         // Always pirate for smuggle missions
-    targetPort: string,        // Destination port key
-    risk: string,               // Risk level
-    gold: number,               // Reward gold
-    fame: number,              // Fame reward
-    infamyGain: 1,             // +1 infamy on completion
-    repImpact: object,          // Reputation changes
-    enemy: object,             // Random enemy (for intercepts)
-    requiredGood: string,      // Good to smuggle (e.g., "tobacco")
-    requiredQty: number,       // Quantity to smuggle
-    interceptChance: number,    // Chance of patrol intercept (0-1)
-    isContraband: boolean,     // true if good is illegal (except rum)
-  }
-  ```
-- **Notes**:
-  - **Eligible Goods**:
-    - Uses `SMUGGLE_GOODS_BY_TIER` based on `L.getFameInfo(state.fame).tier`:
-      ```js
-      const SMUGGLE_GOODS_BY_TIER = {
-        0: ["rum", "tobacco"],
-        1: ["rum", "tobacco"],
-        2: ["rum", "tobacco", "slaves"],
-        3: ["rum", "tobacco", "slaves"],
-        4: ["rum", "tobacco", "slaves"],
-      };
-      ```
-    - **Slaves Gating**:
-      - Only appears if `risk !== "low"` **and** `state.infamy >= 25`.
-    - **Infamy Weighting**:
-      - If `infamy >= 50` and `Math.random() < 0.50`, forces `good = "slaves"`.
-  - **Quantity**:
-    - Based on hold capacity: `holdCapacity * holdPct * infamyQtyMult`, where:
-      - `holdPct = { low: 0.08, medium: 0.18, high: 0.35 }[risk] || 0.08`.
-      - `infamyQtyMult = 1.5` if `good === "slaves"` and `infamy >= 50` and `risk === "high"`, else `1.0`.
-    - Minimum: `2`.
-  - **Gold Reward**:
-    - Uses `SMUGGLE_PROFIT_MARGINS`:
-      ```js
-      const SMUGGLE_PROFIT_MARGINS = {
-        low: 0.80,
-        medium: 1.20,
-        high: 1.80,
-      };
-      ```
-    - Formula: `Math.round(expectedCost * (1 + margin) / 25) * 25`.
-  - **Intercept Chance**:
-    - `{ low: 0.70, medium: 0.80, high: 0.90 }[risk] || 0.70`.
-  - **Target Port**:
-    - Uses `pickTargetPort(portKey, "smuggle", state, "pirate")` (excludes pirate ports).
-  - **Fame Reward**:
-    - `1` for `"low"`/`"medium"`, `2` for `"high"`.
-  - **Infamy Gain**:
-    - Always `+1` on completion.
-  - **Reputation Impact**:
-    - `+2` with `"pirate"`.
-    - `-3` with the target port's faction.
-  - **Enemy**:
-    - Generates a random enemy using `generateEnemy(risk, state.fame, "pirate")`.
-  - **Description**:
-    - Includes risk label (e.g., `"perilous work"`), intercept warning, and source hint (from `RESOURCES[good].sourceHint`).
+#### Generation Pipeline
 
----
+```
+1. Select opening bracket based on daysAboard:
+   - newHand:  0-15 days
+   - settling: 16-49 days
+   - seasoned: 50-99 days
+   - veteran:  100-199 days
+   - oldSalt:  200+ days
 
----
+2. Pick random template from BIO_OPENINGS[bracket]
+   Template vars: {fn}, {days}, {role}, {factionLabel}
 
-## **🎯 Main Mission Generator**
+3. Check tag combinations against BIO_COMBOS (15 defined combos)
+   e.g., mutineer + scar_battle, revealed_drunkard + revealed_greedy
+   If matched: use combo sentence and suppress generic scar/trait lines
 
-### **1. `generateMissions(portKey, state)**`
+4. Add generic scar sentences (if not suppressed)
+   Each scar type has 3-4 variant templates
 
-- **Purpose**: Generates a list of missions for the current port.
-- **Input**:
-  - `portKey` (string): Current port key.
-  - `state` (object): Game state.
-- **Output**: `array` of mission objects (2-3 missions).
-- **Notes**:
-  - **Reputation Check**:
-    - Uses `L.getRepPerk(reputation[portKey])` to check if services are blocked.
-    - Returns `[]` if at war (`servicesBlocked: true`).
-  - **Eligible Factions**:
-    - Starts with the port's faction.
-    - Adds all factions **not** rivals of the port's faction.
-  - **Mission Count**:
-    - `2` or `3` missions (50% chance for each).
-  - **Mission Type Weights**:
-    - Uses `typeWeightsFor(faction)`:
-      ```js
-      const typeWeightsFor = (faction) => {
-        const isPirate = faction === "pirate";
-        return {
-          escort:  3,
-          patrol:  isPirate ? 0 : 2,
-          combat:  2,
-          smuggle: 1,
-          trade:   isPirate ? 0 : 3,
-          assault: 1,
-        };
-      };
-      ```
-    - Pirate ports **cannot** generate `"patrol"` or `"trade"` missions.
-  - **Risk Weights**:
-    - Uses `riskWeightsFor(fame)`:
-      ```js
-      const riskWeightsFor = (fame) => {
-        const tier = L.getFameInfo(fame).tier;
-        const table = [
-          { low:5, medium:4, high:1, assault:0 }, // Tier 0
-          { low:4, medium:4, high:2, assault:0 }, // Tier 1
-          { low:3, medium:4, high:3, assault:0 }, // Tier 2
-          { low:2, medium:3, high:4, assault:1 }, // Tier 3
-          { low:1, medium:3, high:4, assault:2 }, // Tier 4
-        ];
-        return table[tier];
-      };
-      ```
-    - Higher tiers have higher chances for `"high"` and `"assault"` risks.
-  - **Mission Generation**:
-    - For each mission:
-      - Randomly picks a faction from `eligibleFactions`.
-      - Randomly picks a type based on `typeWeights`.
-      - For `"smuggle"`, forces `missionFaction = "pirate"`.
-      - Randomly picks a risk based on `riskWeights`.
-      - Generates the mission:
-        - **Trade**: Uses `generateTradeMission`.
-        - **Smuggle**: Uses `generateSmuggleMission`.
-        - **Other Types (escort, patrol, combat, assault)**:
-          - Picks a target port using `pickTargetPort`.
-          - Generates an enemy (if `"combat"` or `"assault"`).
-          - Generates gold using `generateGold`.
-          - Generates reputation impact using `generateRepImpact`.
-          - Generates name/description using `generateMissionText`.
-  - **Fallback Mission**:
-    - If no missions were generated, creates a fallback `"escort"` mission with:
-      - `gold`: `generateGold("escort", "low", state.fame)`.
-      - `fame`: `1`.
-      - `repImpact`: `{ [port.faction]: 2 }`.
+5. Add generic trait sentences (if not suppressed)
+   Each revealed trait has 2-3 variant templates
 
----
+6. Add standalone mutineer line (if tagged and not suppressed)
 
----
+7. Join all sentences into final biography string
+```
 
-## **📦 Exposed Functions**
+#### Suppression Logic
 
-All generators are exposed globally via `window.G`:
+When a combo is matched, it **suppresses** the individual scar/trait lines that make up the combo. This prevents redundancy like:
 
-```js
-window.G = {
-  // Crew
-  generateCrewMember,
-  generateRoster,
-
-  // Market
-  generatePortMarket,
-
-  // Missions
-  generateMissions,
-  generateEnemy,
-  generateEnemyName,
-  generateMissionText,
-  generateGold,
-  generateRepImpact,
-  pickTargetPort,
-  opposingFaction,
-  generateTradeMission,
-  generateSmuggleMission,
-};
+```
+BAD:  "Juan bears the scars of battle. Juan was branded a mutineer. Juan survived a bloody mutiny and wears its scars."
+GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both individual lines)
 ```
 
 ---
 
----
+## 5. Market Generator
 
-## **🔗 Dependencies**
+### generatePortMarket(portKey)
 
-- `**window.D**`: Data constants for:
-  - Ports, ships, factions, upgrades.
-  - Resources, goods availability, mission configs.
-  - Crew names, enemy ship names, mission text parts.
-- `**window.L**`: Pure logic helpers for:
-  - `getFameInfo`, `getRepPerk`, `meetsRequirement`.
-- `**Math.random()**`: For all randomness (names, stats, prices, etc.).
-
----
-
----
-
-## **📝 Notes for Refactoring**
-
-1. **Pure Functions**:
-  - All functions in `generators.js` are **pure** (no side effects, no state mutation). This makes them easy to test and reuse.
-2. **Randomness**:
-  - Heavy reliance on `Math.random()`. For testing, consider:
-    - Injecting a RNG function (e.g., `rng = Math.random`).
-    - Using a seedable RNG for reproducibility.
-3. **Data-Driven**:
-  - Most logic is driven by `window.D` constants. Changes to `data.js` may require updates here (e.g., new mission types, goods, or factions).
-4. **Mission Generation**:
-  - The `generateMissions` function is **complex** (handles multiple mission types, weights, and validations). Consider breaking it into smaller helpers (e.g., `generateEscortMission`, `generatePatrolMission`).
-5. **Error Handling**:
-  - No explicit error handling (e.g., invalid `portKey` or `faction`). Add validation if needed for robustness.
-6. **Performance**:
-  - No performance bottlenecks identified. Functions are called infrequently (e.g., when entering a port or refreshing missions).
-7. **Testing**:
-  - Critical functions to test:
-    - `generatePortMarket` (prices, availability, quantities).
-    - `generateEnemy` (stats based on risk/fame).
-    - `generateMissions` (mission variety, validity).
-    - `generateTradeMission`/`generateSmuggleMission` (cargo requirements, rewards).
-8. **Extensibility**:
-  - Adding new mission types (e.g., `"rescue"`, `"exploration"`) would require:
-    - Updates to `typeWeightsFor`.
-    - New generator functions (e.g., `generateRescueMission`).
-    - Updates to `generateMissions` to handle the new type.
-9. **Balancing**:
-  - Mission rewards, enemy stats, and intercept chances are **hardcoded**. Adjust these for game balance.
-10. **Smuggle Missions**:
-  - The `isContraband` flag is `false` for `"rum"` (since it’s not always illegal). Ensure this aligns with game design.
+- **Purpose**: Generates market data for a specific port visit.
+- **Input**: `portKey` (string)
+- **Output**:
+  ```js
+  {
+    portKey: string,
+    goods: {
+      [goodKey]: {
+        basePrice: number,     // Base price of the good
+        buyFromPort: number,   // Price player pays (basePrice * 1.10)
+        sellToPort: number,    // Price player receives (basePrice * 0.90)
+        available: number      // Quantity in market
+      }
+    }
+  }
+  ```
+- **Logic**:
+  1. Read `GOODS_AVAILABILITY[portKey]` tier array
+  2. For each good: roll appearance chance based on tier (always=100%, frequently=66%, sometimes=33%, rarely=10%, never=0%)
+  3. If appeared: calculate price = `basePrice * (1 +/- variance * random)`, quantity from tier range
+  4. **Exception**: food/water always available with qty 999 and fixed zero-variance price
 
 ---
+
+## 6. Plunder & Cargo Generator
+
+### generateEnemyCargo(state, enemy, risk)
+
+- **Purpose**: Generates cargo and gold for a defeated enemy ship.
+- **Input**:
+  - `state` -- for fame tier lookup
+  - `enemy` -- for faction (determines cargo type distribution)
+  - `risk` -- `'low'` | `'medium'` | `'high'` (determines total value)
+- **Output**: `{ gold: number, cargo: { [goodKey]: qty } }`
+- **Logic**:
+  1. Look up total plunder value from `PLUNDER_TARGET[fameTier][risk]`
+  2. Split: `gold = totalValue * PLUNDER_GOLD_RATIO` (20%), `cargoValue = totalValue * 0.80`
+  3. Pick 2-4 goods from `FACTION_PLUNDER_GOODS[enemy.faction]` using weighted random
+  4. Distribute `cargoValue` proportionally across picked goods (qty = value / basePrice)
+  5. Add small amounts of food/water (2-5 each)
+
+---
+
+## 7. Mission Generation Helpers
+
+### opposingFaction(factionKey)
+
+- **Purpose**: Picks a random rival faction from `FACTIONS[faction].rivalFactions`.
+- **Output**: `string` (faction key)
+
+### generateEnemyName(faction)
+
+- **Purpose**: Creates a ship name like "The Black Serpent".
+- **Source**: `ENEMY_SHIP_NAMES.adjectives` + `ENEMY_SHIP_NAMES.nouns`
+
+### generateEnemy(risk, fame, faction)
+
+- **Purpose**: Creates enemy ship stats scaled by risk and fame tier.
+- **Output**: `{ name, hull, maxHull, cannons, crew, speed, faction }`
+- **Scaling**: Base from `MISSION_ENEMY_RANGES[fameTier]`, multiplied by risk factor (low=0.8, medium=1.0, high=1.3)
+
+### generateGold(type, risk, fame)
+
+- **Purpose**: Generates mission gold reward.
+- **Source**: `MISSION_GOLD_RANGES[fameTier][risk]`, rounded to nearest 25
+
+### generateRepImpact(type, commissioningFaction, risk, defendingFaction)
+
+- **Purpose**: Calculates reputation changes for mission completion.
+- **Source**: `MISSION_REP_IMPACTS[type][risk]`
+- **Returns**: `{ [factionKey]: delta }` -- positive for commissioning faction, negative for defending
+
+### pickTargetPort(currentPort, type, state, faction)
+
+- **Purpose**: Selects a valid destination port for the mission.
+- **Constraints**:
+  - Different from current port
+  - Respects faction politics (trade missions go to friendly ports)
+  - Hidden ports excluded
+  - Early-game restriction: fame < 10 limits to nearby starter ports
+
+---
+
+## 8. Trade Mission Generator
+
+### generateTradeMission(portKey, state, faction, risk)
+
+- **Purpose**: Creates a trade delivery mission.
+- **Flow**:
+  1. Pick good from `TRADE_GOODS_BY_TIER[fameTier]`
+  2. Calculate quantity as % of hold capacity (low=15%, med=25%, high=40%)
+  3. Calculate gold reward: `qty * basePrice * TRADE_MISSION_PROFIT_MARGINS[risk]` + base mission gold
+  4. Pick target port (must have good `frequently` or `always` available)
+- **Player must** source the goods themselves (buy from market) and deliver to target port
+
+---
+
+## 9. Smuggle Mission Generator
+
+### generateSmuggleMission(portKey, state, risk)
+
+- **Purpose**: Creates a contraband delivery mission.
+- **Flow**:
+  1. Pick good from `SMUGGLE_GOODS_BY_TIER[fameTier]`
+  2. **Slaves gated**: only appear if `state.infamy >= 25`
+  3. Calculate gold reward: `qty * basePrice * SMUGGLE_PROFIT_MARGINS[risk]`
+  4. Set intercept chance by risk: low=70%, medium=80%, high=90%
+  5. Pick target port
+- **Intercept**: During sailing, `maybeSmugglePatrol()` rolls against intercept chance each day
+- **Infamy**: Completing a smuggle mission adds `mission.infamyGain`
+
+---
+
+## 10. Main Mission Generator
+
+### generateMissions(portKey, state)
+
+- **Purpose**: Main entry point. Generates 2-3 missions for the mission board at a port.
+- **Output**: Array of mission objects
+
+#### Pipeline
+
+```
+1. getEligibleFactions(portKey, state)
+   -> port faction + non-rival factions with rep >= 10
+
+2. For each mission slot (2-3):
+   a. pickMissionType(faction) using typeWeightsFor(faction)
+   b. pickMissionRisk(fame) using riskWeightsFor(fame)
+   c. generateOneMission(type, risk, portKey, state, faction)
+   d. If generation fails: generateFallbackMission (escort, low risk)
+```
+
+#### Type Weights by Faction
+
+| Type | Non-Pirate | Pirate |
+|---|---|---|
+| escort | 3 | 3 |
+| patrol | 2 | 0 |
+| combat | 2 | 2 |
+| trade | 3 | 0 |
+| smuggle | 1 | 1 |
+| assault | 1 | 1 |
+
+#### Risk Weights by Fame
+
+| Fame Tier | Low | Medium | High |
+|---|---|---|---|
+| 0 (Unknown) | 70% | 25% | 5% |
+| 1 (Recognised) | 40% | 40% | 20% |
+| 2 (Notorious) | 25% | 40% | 35% |
+| 3 (Legendary) | 15% | 35% | 50% |
+| 4 (Immortal) | 10% | 30% | 60% |
+
+#### Mission Object Shape
+
+```js
+{
+  type: string,           // escort | patrol | combat | trade | smuggle | assault
+  risk: string,           // low | medium | high
+  name: string,           // Generated mission name
+  desc: string,           // Mission description text
+  faction: string,        // Commissioning faction
+  targetPort: string,     // Destination port key
+  gold: number,           // Gold reward
+  fame: number,           // Fame reward
+  repImpact: {},          // { factionKey: delta }
+  enemy: object | null,   // Enemy stats (combat/patrol/assault)
+  // Trade/smuggle specific:
+  requiredGood: string,   // Good key to deliver
+  requiredQty: number,    // Quantity to deliver
+  infamyGain: number,     // Infamy on completion (smuggle only)
+  interceptChance: number // Patrol intercept chance (smuggle only)
+}
+```
+
+---
+
+## 11. Port Gossip Generators
+
+### generatePortGossip(state, portKey)
+
+- **Purpose**: Main entry point. Generates 2-4 gossip lines for the port's WORD ON THE DOCKS panel.
+- **Output**: Array of strings
+- **Size distribution**: 25% small (2 lines), 50% medium (3 lines), 25% large (4 lines)
+
+#### Priority System
+
+```
+P3 (highest): heat, contraband
+  -> Faction alert > 0: pick from heat templates
+  -> Carrying illegal goods: pick from contraband templates
+
+P2: reputation, fame, infamy
+  -> Rep tier at current port: pick relevant rep template
+  -> Notable fame (>50) or infamy (>10): pick fame/infamy template
+
+P1: market, hiddenPorts
+  -> Extreme market prices: via generateLocalMarketGossip()
+  -> 5% chance: hidden port hint via generateHiddenPortHint()
+
+P0 (filler): ambiance, weather
+  -> Always available: faction-flavoured port descriptions
+  -> Always available: weather/atmosphere lines
+```
+
+Templates are filled from `D.PORT_GOSSIP_TEMPLATES[category]` using `pickRandom`.
+
+### generateLocalMarketGossip(state)
+
+- **Purpose**: Finds the most extreme price deviation in the current market and generates a hint.
+- **Logic**: Iterates `state.portMarket.goods`, calls `isExtremePrice()` for each. Picks the most extreme. Returns template string with good name and surplus/shortage description.
+- **Output**: `string | null`
+
+### generateHiddenPortHint(state)
+
+- **Purpose**: 5% chance per port visit. Generates a vague hint about an undiscovered hidden port.
+- **Logic**: Filters hidden ports not in `discoveredPorts`. Picks random. Returns hint string from templates.
+- **Output**: `string | null`
+
+---
+
+## 12. Exposed Functions Summary
+
+### Exported on window.G
+
+| Category | Functions |
+|---|---|
+| **Crew** | `generateCrewMember`, `generateRoster`, `generateCrewBio` |
+| **Market** | `generatePortMarket` |
+| **Plunder** | `generateEnemyCargo` |
+| **Missions** | `generateMissions` |
+| **Gossip** | `generatePortGossip`, `generateLocalMarketGossip`, `generateHiddenPortHint` |
+| **Enemies** | `generateEnemy`, `generateEnemyName` |
+
+### NOT exported (internal only)
+
+`randBetween`, `randInt`, `pickRandom`, `pickWeighted`, `shuffleArray`, `isExtremePrice`, `pickWeightedRole`, `opposingFaction`, `generateGold`, `generateRepImpact`, `generateMissionText`, `pickTargetPort`, `generateTradeMission`, `generateSmuggleMission`, `generateOneMission`, `generateFallbackMission`, `getEligibleFactions`, `typeWeightsFor`, `riskWeightsFor`, `pickMissionType`, `pickMissionRisk`
+
+---
+
+## Dependencies
+
+| Reads | Used for |
+|---|---|
+| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, CREW_*, BIO_*, PORT_GOSSIP_TEMPLATES, MISSION_*, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO, ENEMY_SHIP_NAMES, ENCOUNTER_FLAVOUR |
+| `window.L` | getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getEquipmentEffect |
+
+**May NOT call**: Engine (`window.E`), UI (`window.UI`)

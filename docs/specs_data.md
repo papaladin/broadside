@@ -1,39 +1,79 @@
-# specs_data.js — Data Constants Specification
-
+# specs_data.md -- Data Constants Specification
 
 ---
 
-## 📌 **Overview**
+## Overview
 
-This document specifies the **structure, purpose, and constraints** of all constants defined in `data.js`. This file contains **pure data** (no logic, no functions) and is exposed globally as `window.D` for access by `logic.js`, `generators.js`, and `engine.js`.
+This document specifies the **structure, purpose, and constraints** of all constants defined across two files:
+
+| File | Namespace | Contents |
+|---|---|---|
+| `data.js` | `window.D` | Game constants (ports, ships, factions, equipment, resources, missions, events, starts) |
+| `data_text.js` | extends `window.D` | Text constants (crew names, bio templates, gossip templates, encounter flavour, mission name parts, enemy ship names) |
+
+`data_text.js` loads after `data.js` and extends the same `window.D` namespace using `Object.assign`.
 
 **Core Principles:**
 
 - All data is **static** and **immutable** at runtime.
-- No functions or side effects.
+- No logic functions or side effects (exception: event `condition` callbacks in RANDOM_EVENTS).
 - Exported as a single object: `window.D = { PORTS, SHIPS, FACTIONS, ... }`.
 
 ---
 
-## 🗺️ **1. PORTS**
+## 1. FACTIONS
+
+**Purpose**: Defines political factions, their colours, and rivalries.
+
+### Structure
+
+```javascript
+FACTIONS: {
+  [factionKey: string]: {
+    label: string,        // Display name (e.g., "English")
+    color: string,        // Hex colour for UI
+    rivalFactions: string[] // Faction keys that are rivals
+  }
+}
+```
+
+### Faction List
+
+| Key | Label | Colour | Rival Factions |
+|---|---|---|---|
+| `english` | English | `#ff0000` | `spanish`, `french` |
+| `spanish` | Spanish | `#ffcc00` | `english`, `dutch` |
+| `french` | French | `#0066ff` | `english` |
+| `dutch` | Dutch | `#ff6600` | `spanish` |
+| `pirate` | Pirate | `#800080` | `english`, `spanish`, `french`, `dutch` |
+
+### Rivalry Rules
+
+- **Hostile Port Entry**: If a player enters a port owned by a rival faction with `reputation < 10`, they trigger a hostile encounter.
+- **Mission Availability**: Missions from rival factions are **blocked** at low reputation.
+- **Reputation Decay**: Reputation with rival factions decays faster.
+
+---
+
+## 2. PORTS
 
 **Purpose**: Defines all ports in the Caribbean map, including coordinates, factions, services, and unlock conditions.
 
-### **Structure**
+### Structure
 
 ```javascript
 PORTS: {
   [portKey: string]: {
     name: string,               // Display name (e.g., "Port Royal")
-    faction: string,            // Key in FACTIONS (e.g., "english", "pirate")
+    faction: string,            // Key in FACTIONS (e.g., "english")
     x: number,                  // X-coordinate for map rendering (0-760)
     y: number,                  // Y-coordinate for map rendering (0-460)
     services: string[],         // Available services (e.g., ["tavern", "shipyard"])
-    desc: string,               // Flavor text for UI tooltips
-    minHull?: number,          // Minimum hull required to enter (e.g., 101 for remote ports)
-    hidden?: boolean,          // If true, port is hidden until unlocked
-    unlockCondition?: {        // Conditions to unlock hidden ports
-      type: "any" | "all",     // "any" = OR, "all" = AND
+    desc: string,               // Flavour text for UI tooltips
+    minHull?: number,           // Minimum hull required to reach (101 for remote ports)
+    hidden?: boolean,           // If true, port is hidden until unlocked
+    unlockCondition?: {         // Conditions to unlock hidden ports
+      type: "any" | "all",
       conditions: [
         { type: "fame" | "infamy" | "reputation" | "item", value: number | string, faction?: string }
       ]
@@ -42,591 +82,353 @@ PORTS: {
 }
 ```
 
-### **Port Categories**
+### Port Categories
 
+| Category | Count | Description | Example Ports |
+|---|---|---|---|
+| **Standard** | 16 | Visible and reachable from the start | `portRoyal`, `tortuga`, `havana` |
+| **Remote** | 5 | Visible but require `minHull >= 101` (brigantine+) | `campeche`, `veracruz`, `bermuda` |
+| **Hidden** | 4 | Not rendered until `unlockCondition` is satisfied | `roatan`, `dryTortugas`, `lasAves`, `libertalia` |
 
-| Category     | Description                                                                                           | Example Ports          |
-| ------------ | ----------------------------------------------------------------------------------------------------- | ---------------------- |
-| **Standard** | Visible and reachable from the start.                                                                 | `portRoyal`, `tortuga` |
-| **Remote**   | Visible on map but require sufficient ship range (`minHull`). Greyed out in MapScreen if unreachable. | `campeche`, `veracruz` |
-| **Hidden**   | Not rendered on MapScreen until `unlockCondition` is satisfied.                                       | `roatan`, `libertalia` |
+### Services
 
+- `tavern`: Morale recovery, crew hiring.
+- `shipyard`: Ship purchases, equipment install/remove.
+- `crew`: Crew hiring.
+- `missions`: Mission board access.
 
-### **Services**
+### Unlock Conditions
 
-Available services for ports (array of strings):
-
-- `tavern`: Allows morale recovery, crew hiring.
-- `shipyard`: Allows ship purchases/upgrades.
-- `crew`: Allows crew hiring.
-- `missions`: Allows mission board access.
-
-### **Unlock Conditions**
-
-Hidden ports use `unlockCondition` to determine visibility:
-
-- `**type: "any"**`: Port unlocks if **any** condition is met.
-- `**type: "all"**`: Port unlocks if **all** conditions are met.
-- `**type: "item"**`: Port unlocks if the player has a specific item in their hold.
-
-**Condition Types:**
-
-
-| Type         | Fields                             | Example                                                |
-| ------------ | ---------------------------------- | ------------------------------------------------------ |
-| `fame`       | `value: number`                    | `{ type: "fame", value: 50 }`                          |
-| `infamy`     | `value: number`                    | `{ type: "infamy", value: 25 }`                        |
-| `reputation` | `faction: string`, `value: number` | `{ type: "reputation", faction: "pirate", value: 65 }` |
-| `item`       | `value: string`                    | `{ type: "item", value: "map_fragment_lasAves" }`      |
-
-
-### **Port List**
-
-
-| Key          | Name       | Faction | Coordinates | Services                         | Hidden? | Unlock Condition                            |
-| ------------ | ---------- | ------- | ----------- | -------------------------------- | ------- | ------------------------------------------- |
-| `tortuga`    | Tortuga    | pirate  | (490, 245)  | tavern, shipyard, crew, missions | ❌       | -                                           |
-| `portRoyal`  | Port Royal | english | (405, 280)  | tavern, shipyard, crew, missions | ❌       | -                                           |
-| `havana`     | Havana     | spanish | (310, 190)  | tavern, shipyard, crew, missions | ❌       | -                                           |
-| `nassau`     | Nassau     | pirate  | (405, 152)  | tavern, crew, missions           | ❌       | -                                           |
-| `campeche`   | Campeche   | spanish | (148, 248)  | tavern, shipyard, missions       | ❌       | `minHull: 101`                              |
-| `roatan`     | Roatán     | pirate  | (220, 308)  | tavern, crew, missions           | ✅       | `fame >= 50` OR `pirate rep >= 65`          |
-| `libertalia` | Libertalia | pirate  | (718, 445)  | tavern, shipyard, crew, missions | ✅       | `fame >= 200` AND `map_fragment_libertalia` |
-
+| Port | Unlock Condition |
+|---|---|
+| **Roatan** | Fame >= 50 **OR** Pirate reputation >= 65 |
+| **Dry Tortugas** | Infamy >= 25 **AND** Pirate reputation >= 65 |
+| **Las Aves** | Item: `map_fragment_lasAves` (from "The Wrecker's Map" event, costs 5,000g) |
+| **Libertalia** | Fame >= 200 **AND** Item: `map_fragment_libertalia` (from "A Dying Sailor's Secret" event) |
 
 ---
 
-## ⛵ **2. SHIPS**
+## 3. SHIPS
 
-**Purpose**: Defines all player and enemy ship types, including stats, costs, and upgrade slots.
+**Purpose**: Defines all player and enemy ship types, including stats, costs, and equipment slot counts.
 
-### **Structure**
+### Structure
 
 ```javascript
 SHIPS: {
   [shipType: string]: {
-    name: string,             // Display name (e.g., "Sloop")
-    maxHull: number,          // Maximum hull HP
-    maxCrew: number,          // Maximum crew capacity
-    cannons: number,          // Number of cannons
-    speed: number,            // Sailing speed (higher = faster)
-    cost: number,             // Gold cost to purchase
-    requiredFame: number,     // Minimum fame to purchase
-    maxDays: number,          // Maximum days at sea (range)
-    holdCapacity: number,     // Cargo hold capacity
-    upgradeable: string[],    // Array of upgrade keys from UPGRADES
-    desc: string              // Flavor text
+    name: string,
+    maxHull: number,
+    maxCrew: number,
+    cannons: number,
+    speed: number,
+    cost: number,
+    requiredFame: number,
+    maxDays: number,
+    holdCapacity: number,
+    slots: {               // Equipment slot counts per type
+      hull: number,
+      armament: number,
+      rigging: number,
+      special: number
+    },
+    desc: string
   }
 }
 ```
 
-### **Ship Tiers**
+### Ship Tiers
 
+| Tier | Ship | Hull | Crew | Cannons | Speed | Cost | Fame | Days | Hold | Hull Slots | Arm Slots | Rig Slots | Spc Slots |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | Dinghy | 30 | 5 | 2 | 6 | 200 | 0 | 5 | 20 | 0 | 0 | 0 | 0 |
+| 0 | Cutter | 60 | 20 | 6 | 20 | 1,500 | 0 | 8 | 80 | 1 | 0 | 0 | 0 |
+| 1 | Sloop | 100 | 40 | 10 | 18 | 30,000 | 20 | 10 | 200 | 1 | 1 | 1 | 0 |
+| 2 | Schooner | 110 | 55 | 8 | 19 | 70,000 | 50 | 12 | 240 | 1 | 0 | 1 | 1 |
+| 2 | Merchantman | 180 | 60 | 5 | 10 | 60,000 | 50 | 14 | 600 | 1 | 0 | 0 | 1 |
+| 2 | Brigantine | 150 | 80 | 15 | 14 | 150,000 | 50 | 14 | 448 | 1 | 1 | 1 | 1 |
+| 3 | Corvette | 180 | 90 | 18 | 15 | 250,000 | 100 | 16 | 500 | 1 | 1 | 1 | 1 |
+| 3 | Frigate | 220 | 120 | 24 | 12 | 500,000 | 100 | 18 | 720 | 1 | 1 | 1 | 2 |
+| 3 | Fluyt | 180 | 70 | 6 | 9 | 200,000 | 100 | 24 | 1,100 | 1 | 0 | 1 | 1 |
+| 4 | Galleon | 300 | 150 | 30 | 7 | 1,000,000 | 150 | 22 | 1,320 | 2 | 2 | 1 | 2 |
+| 4 | Ship of the Line | 420 | 280 | 50 | 5 | 2,000,000 | 150 | 28 | 1,600 | 2 | 2 | 1 | 2 |
 
-| Tier | Ship Type        | maxHull | maxCrew | Cannons | Speed | Cost    | requiredFame | maxDays | holdCapacity | Upgradeable Slots                                                 |
-| ---- | ---------------- | ------- | ------- | ------- | ----- | ------- | ------------ | ------- | ------------ | ----------------------------------------------------------------- |
-| 0    | Dinghy           | 30      | 5       | 2       | 6     | 200     | 0            | 5       | 20           | []                                                                |
-| 0    | Cutter           | 60      | 20      | 6       | 20    | 1500    | 0            | 8       | 80           | ["reinforced_hull"]                                               |
-| 1    | Sloop            | 100     | 40      | 10      | 18    | 30000   | 20           | 10      | 200          | ["reinforced_hull", "extra_cannons"]                              |
-| 2    | Schooner         | 110     | 55      | 8       | 19    | 70000   | 50           | 12      | 240          | ["reinforced_hull", "figurehead"]                                 |
-| 2    | Merchantman      | 180     | 60      | 5       | 10    | 60000   | 50           | 14      | 600          | ["reinforced_hull"]                                               |
-| 2    | Brigantine       | 150     | 80      | 15      | 14    | 150000  | 50           | 14      | 448          | ["reinforced_hull", "extra_cannons", "figurehead"]                |
-| 3    | Corvette         | 180     | 90      | 18      | 15    | 250000  | 100          | 16      | 500          | ["reinforced_hull", "extra_cannons", "copper_hull"]               |
-| 3    | Frigate          | 220     | 120     | 24      | 12    | 500000  | 100          | 18      | 720          | ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"] |
-| 3    | Fluyt            | 180     | 70      | 6       | 9     | 200000  | 100          | 24      | 1100         | ["reinforced_hull", "expanded_hold"]                              |
-| 4    | Galleon          | 300     | 150     | 30      | 7     | 1000000 | 150          | 22      | 1320         | ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"] |
-| 4    | Ship of the Line | 420     | 280     | 50      | 5     | 2000000 | 150          | 28      | 1600         | ["reinforced_hull", "extra_cannons", "figurehead", "copper_hull"] |
+### Ship Progression Notes
 
-
-### **Ship Progression Notes**
-
-- **Dinghy → Cutter → Sloop**: Early-game progression for new players.
+- **Dinghy -> Cutter -> Sloop**: Early-game progression for new players.
 - **Merchantman/Fluyt**: High hold capacity, low combat stats (trade-focused).
 - **Corvette/Frigate**: Naval warships (combat-focused).
-- **Galleon/Ship of the Line**: Endgame ships (high cost, high stats).
+- **Galleon/Ship of the Line**: Endgame ships (high cost, high stats, most equipment slots).
+- When buying a new ship, all installed equipment is **lost** (reset to empty). Removable equipment should be uninstalled to the locker first.
 
 ---
+## 4. EQUIPMENT
 
-## 🏳️ **3. FACTIONS**
+**Purpose**: Defines all installable ship equipment, their costs, slot types, and stat effects. Replaces the former `UPGRADES` system.
 
-**Purpose**: Defines political factions, their colors, and rivalries.
-
-### **Structure**
-
-```javascript
-FACTIONS: {
-  [factionKey: string]: {
-    label: string,       // Display name (e.g., "English")
-    color: string,       // Hex color for UI (e.g., "#ff0000")
-    rivalFactions: string[] // Array of faction keys that are rivals
-  }
-}
-```
-
-### **Faction List**
-
-
-| Key       | Label   | Color     | Rival Factions                          |
-| --------- | ------- | --------- | --------------------------------------- |
-| `english` | English | `#ff0000` | `spanish`, `french`                     |
-| `spanish` | Spanish | `#ffcc00` | `english`, `dutch`                      |
-| `french`  | French  | `#0066ff` | `english`                               |
-| `dutch`   | Dutch   | `#ff6600` | `spanish`                               |
-| `pirate`  | Pirate  | `#800080` | `english`, `spanish`, `french`, `dutch` |
-
-
-### **Rivalry Rules**
-
-- **Hostile Port Entry**: If a player enters a port owned by a rival faction with `reputation < 10`, they trigger a hostile encounter.
-- **Mission Availability**: Missions from rival factions are **blocked** (see `G.generateMissions`).
-- **Reputation Decay**: Reputation with rival factions decays faster.
-
----
-
-## 🔧 **4. UPGRADES**
-
-**Purpose**: Defines ship upgrades, their costs, and stat bonuses.
-
-### **Structure**
+### Structure
 
 ```javascript
-UPGRADES: {
-  [upgradeKey: string]: {
-    name: string,         // Display name (e.g., "Reinforced Hull")
-    desc: string,         // Description
-    cost: number,         // Gold cost
-    requiredFame?: number,// Minimum fame to purchase
-    effects: {             // Stat bonuses (applied in L.getShipStats)
-      hullBonus?: number,  // Multiplicative hull HP bonus (e.g., 0.2 = +20%)
-      cannonBonus?: number,// Additive cannon bonus (e.g., 2 = +2 cannons)
-      moraleBonus?: number,// Additive morale bonus (e.g., 5 = +5%)
-      speedBonus?: number  // Additive speed bonus (e.g., 1 = +1 speed)
+EQUIPMENT: {
+  [equipKey: string]: {
+    name: string,           // Display name (e.g., "Reinforced Hull")
+    desc: string,           // Positive effect description
+    downsideDesc?: string,  // Negative effect description (shown in UI)
+    slot: string,           // "hull" | "armament" | "rigging" | "special"
+    removable: boolean,     // Can be uninstalled to locker?
+    requiredFame?: number,  // Minimum fame to purchase
+    requiredHull?: number,  // Minimum base hull to install
+    cost: number,           // Gold cost to purchase
+    installFee: number,     // Gold cost to install at shipyard
+    effects: {              // Stat modifiers (applied in L.getShipStats)
+      hullBonus?: number,   // Multiplicative hull HP bonus (0.2 = +20%)
+      cannonBonus?: number, // Additive cannon bonus
+      speedBonus?: number,  // Additive speed bonus
+      holdPct?: number,     // Multiplicative hold bonus (0.25 = +25%)
+      moraleBonus?: number, // Additive morale bonus
+      hullPenalty?: number, // Multiplicative hull penalty
+      speedPenalty?: number // Additive speed penalty
     }
   }
 }
 ```
 
-### **Upgrade List**
+### Hull Slot Equipment
 
+| Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
+|---|---|---|---|---|---|---|---|
+| `reinforced_hull` | Reinforced Hull | 500 | 100 | `hullBonus: 0.2` (+20% hull) | Yes | -- | -- |
+| `ironclad_plates` | Ironclad Plates | 2,000 | 400 | `hullBonus: 0.4, speedPenalty: -2` | Yes | 100 | 150 |
+| `copper_plating` | Copper Plating | 1,200 | 250 | `speedBonus: 1` (+1 speed) | Yes | 50 | -- |
+| `tar_sealed_hull` | Tar-Sealed Hull | 300 | 50 | `hullBonus: 0.1` (+10% hull) | No | -- | -- |
 
-| Key                  | Name               | Cost | requiredFame | Effects                           |
-| -------------------- | ------------------ | ---- | ------------ | --------------------------------- |
-| `reinforced_hull`    | Reinforced Hull    | 500  | -            | `{ hullBonus: 0.2 }` (+20% hull)  |
-| `extra_cannons`      | Extra Cannons      | 800  | 50           | `{ cannonBonus: 2 }` (+2 cannons) |
-| `figurehead`         | Ornate Figurehead  | 300  | -            | `{ moraleBonus: 5 }` (+5 morale)  |
-| `copper_hull`        | Copper-Plated Hull | 1200 | 100          | `{ speedBonus: 1 }` (+1 speed)    |
-| `navigational_tools` | Navigational Tools | 600  | 50           | `{ speedBonus: 1 }` (+1 speed)    |
+### Armament Slot Equipment
 
+| Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
+|---|---|---|---|---|---|---|---|
+| `extra_cannons` | Extra Cannons | 800 | 150 | `cannonBonus: 2` (+2 cannons) | Yes | 50 | -- |
+| `grapeshot_supply` | Grapeshot Supply | 400 | 75 | `cannonBonus: 1` (+1 cannon) | No | -- | -- |
+| `long_guns` | Long Guns | 1,500 | 300 | `cannonBonus: 4, speedPenalty: -1` | Yes | 100 | 100 |
 
-### **Upgrade Slots**
+### Rigging Slot Equipment
 
-- Ships have **fixed upgrade slots** (see `SHIPS[shipType].upgradeable`).
-- **No slot conflicts**: Upgrades are additive (e.g., `reinforced_hull` + `copper_hull` = +20% hull +1 speed).
+| Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
+|---|---|---|---|---|---|---|---|
+| `extra_sails` | Extra Sails | 600 | 100 | `speedBonus: 1` | Yes | -- | -- |
+| `storm_rigging` | Storm Rigging | 400 | 75 | `speedBonus: 1` (storm resistance) | No | -- | -- |
+| `lateen_rig` | Lateen Rig | 900 | 150 | `speedBonus: 2, hullPenalty: -0.05` | Yes | 50 | -- |
+| `war_pennants` | War Pennants | 200 | 25 | (cosmetic/heat visual) | No | -- | -- |
 
----
+### Special Slot Equipment
 
-## 👥 **5. Crew Data**
+| Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
+|---|---|---|---|---|---|---|---|
+| `expanded_hold` | Expanded Hold | 800 | 150 | `holdPct: 0.25` (+25% hold) | Yes | -- | -- |
+| `hidden_compartment` | Hidden Compartment | 600 | 100 | (hides contraband from inspection) | Yes | -- | -- |
+| `surgeons_bay` | Surgeon's Bay | 1,000 | 200 | (reduces crew loss in combat) | Yes | 50 | 100 |
+| `officer_quarters` | Officer's Quarters | 1,200 | 250 | `moraleBonus: 5` | Yes | 50 | 100 |
+| `ornate_figurehead` | Ornate Figurehead | 300 | 50 | `moraleBonus: 3` | No | -- | -- |
+| `navigation_tools` | Navigation Tools | 600 | 100 | `speedBonus: 1` (-1 travel day) | Yes | 50 | -- |
 
-**Purpose**: Defines crew name pools and role weights for random generation.
+### Equipment Rules
 
-### **Structure**
-
-```javascript
-// First names by faction
-CREW_FIRST_NAMES: {
-  [factionKey: string]: string[]  // Array of first names
-}
-
-// Last names by faction
-CREW_LAST_NAMES: {
-  [factionKey: string]: string[]  // Array of last names
-}
-
-// Crew roles with weights
-CREW_ROLES: {
-  role: string,   // e.g., "deckhand"
-  weight: number // Relative probability (e.g., 60 = 60% chance)
-}[]
-```
-
-### **Factions**
-
-Crew names are generated based on the **port’s faction** (or `pirate` for pirate ports).
-
-### **Roles**
-
-
-| Role      | Weight | Description                      |
-| --------- | ------ | -------------------------------- |
-| deckhand  | 60     | Basic crew member.               |
-| gunner    | 20     | Bonus to cannon damage.          |
-| cook      | 5      | Reduces provision consumption.   |
-| carpenter | 10     | Bonus to hull repair efficiency. |
-| navigator | 5      | Reduces travel days.             |
-
+- Ships have **fixed slot counts** (see `SHIPS[type].slots`). A ship with `slots: { hull: 1 }` can install exactly 1 hull equipment.
+- **No slot conflicts**: Multiple items in the same slot (on ships with 2+ slots) stack additively.
+- **Removable** equipment can be uninstalled to the **locker** (`state.equipmentInventory`) at no cost.
+- **Non-removable** equipment is permanently installed (destroyed if ship is sold).
+- **Buying a new ship clears all equipment** -- uninstall removable items to locker first.
+- Equipment can be installed from the locker (no purchase cost, only `installFee`).
 
 ---
 
-## 💰 **6. RESOURCES (Goods & Economy)**
+## 5. RESOURCES
 
 **Purpose**: Defines all tradeable goods, their base prices, variance, legality, and units.
 
-### **Structure**
+### Good List
 
-```javascript
-RESOURCES: {
-  [goodKey: string]: {
-    name: string,         // Display name (e.g., "Food")
-    basePrice: number,   // Base price (gold)
-    variance: number,    // Price variance multiplier (0 = fixed, 0.2 = ±20%)
-    illegal: boolean,     // If true, buying/selling adds infamy
-    infamyOnBuy: number, // Infamy gained per unit purchased (0 if legal)
-    unit: string,         // Unit of measurement (e.g., "ration", "cask")
-    smuggleHint?: string, // Hint for smuggling missions
-    sourceHint?: string   // Hint for where to find the good
-  }
-}
-```
+| Key | Name | Base Price | Variance | Illegal | Infamy/Buy | Unit |
+|---|---|---|---|---|---|---|
+| `food` | Food | 3 | 0% | No | 0 | ration |
+| `water` | Water | 2 | 0% | No | 0 | barrel |
+| `rum` | Rum | 30 | +/-20% | No | 0 | cask |
+| `sugar` | Sugar | 40 | +/-25% | No | 0 | sack |
+| `timber` | Timber | 25 | +/-15% | No | 0 | plank |
+| `cloth` | Cloth | 55 | +/-20% | No | 0 | bale |
+| `spices` | Spices | 120 | +/-45% | No | 0 | chest |
+| `silk` | Silk | 160 | +/-30% | No | 0 | bolt |
+| `coffee` | Coffee | 70 | +/-25% | No | 0 | bag |
+| `cocoa` | Cocoa | 90 | +/-30% | No | 0 | crate |
+| `weapons` | Weapons | 80 | +/-35% | No | 0 | crate |
+| `tobacco` | Tobacco | 90 | +/-30% | **Yes** | 0 | bale |
+| `silver` | Silver | 250 | +/-35% | No | 0 | chest |
+| `slaves` | Slaves | 220 | +/-60% | **Yes** | **+1** | person |
 
-### **Good List**
+### Price Calculation
 
+- **Market Price**: `basePrice +/- (basePrice * variance * random)`
+- **Buy Price**: `marketPrice * 1.10` (10% markup)
+- **Sell Price**: `marketPrice * 0.90` (10% discount)
 
-| Key       | Name    | basePrice | variance | illegal | infamyOnBuy | unit   | Notes                       |
-| --------- | ------- | --------- | -------- | ------- | ----------- | ------ | --------------------------- |
-| `food`    | Food    | 3         | 0        | ❌       | 0           | ration | Always available in ports.  |
-| `water`   | Water   | 2         | 0        | ❌       | 0           | barrel | Always available in ports.  |
-| `rum`     | Rum     | 30        | 0.20     | ❌       | 0           | cask   | Common in pirate ports.     |
-| `sugar`   | Sugar   | 40        | 0.25     | ❌       | 0           | sack   | &nbsp;                      |
-| `timber`  | Timber  | 25        | 0.15     | ❌       | 0           | plank  | &nbsp;                      |
-| `cloth`   | Cloth   | 55        | 0.20     | ❌       | 0           | bale   | &nbsp;                      |
-| `spices`  | Spices  | 120       | 0.45     | ❌       | 0           | chest  | High variance.              |
-| `silk`    | Silk    | 160       | 0.30     | ❌       | 0           | bolt   | &nbsp;                      |
-| `coffee`  | Coffee  | 70        | 0.25     | ❌       | 0           | bag    | &nbsp;                      |
-| `cocoa`   | Cocoa   | 90        | 0.30     | ❌       | 0           | crate  | &nbsp;                      |
-| `weapons` | Weapons | 80        | 0.35     | ❌       | 0           | crate  | &nbsp;                      |
-| `tobacco` | Tobacco | 90        | 0.30     | ✅       | 0           | bale   | **Contraband**.             |
-| `silver`  | Silver  | 250       | 0.35     | ❌       | 0           | chest  | &nbsp;                      |
-| `slaves`  | Slaves  | 220       | 0.60     | ✅       | **1**       | person | **Contraband** (+1 infamy). |
+### Contraband Rules
 
-
-### **Price Calculation**
-
-- **Market Price**: `basePrice ± (basePrice × variance × random)`
-- **Buy Price**: `marketPrice × 1.10` (10% markup)
-- **Sell Price**: `marketPrice × 0.90` (10% discount)
-
-### **Contraband Rules**
-
-- `**illegal: true**`: Buying/selling in **lawful ports** (non-pirate) triggers:
-  - **Patrol Risk**: Higher chance of navy interception at sea.
-  - **Port Inspection**: 15% chance of inspection when entering a lawful port.
-- **Infamy**: `slaves` add **+1 infamy per unit purchased** (other contraband does not).
+- `illegal: true`: Carrying these goods triggers patrol inspection risk at sea and when entering lawful ports.
+- **Slaves** add **+1 infamy per unit purchased**.
+- Patrol inspection can seize contraband and impose fines (see `PATROL_FINE_RATE`).
+- Hidden Compartment equipment can protect contraband from inspection.
 
 ---
 
-## 📦 **7. GOODS_AVAILABILITY**
+## 6. GOODS_AVAILABILITY
 
 **Purpose**: Defines which goods are available in each port, and their rarity tiers.
 
-### **Structure**
+### Availability Tiers
 
-```javascript
-GOODS_AVAILABILITY: {
-  [portKey: string]: [
-    // Array of availability tiers for each good, in column order:
-    // [food, water, rum, sugar, timber, cloth, spices, silk, coffee, cocoa, weapons, tobacco, silver, slaves]
-    "always" | "frequently" | "sometimes" | "rarely" | "never"
-  ]
-}
-```
-
-### **Availability Tiers**
-
-
-| Tier         | Probability | Quantity Range (if rolled) |
-| ------------ | ----------- | -------------------------- |
-| `always`     | 100%        | 40–80                      |
-| `frequently` | 66%         | 20–40                      |
-| `sometimes`  | 33%         | 8–20                       |
-| `rarely`     | 10%         | 2–8                        |
-| `never`      | 0%          | -                          |
-
+| Tier | Probability | Quantity Range |
+|---|---|---|
+| `always` | 100% | 40-80 |
+| `frequently` | 66% | 20-40 |
+| `sometimes` | 33% | 8-20 |
+| `rarely` | 10% | 2-8 |
+| `never` | 0% | -- |
 
 **Exception**: `food` and `water` always have `available: 999` (unlimited).
 
-### **Example: Port Royal (English)**
+### Faction Trends
 
-```javascript
-portRoyal: [
-  "always",    // food
-  "always",    // water
-  "frequently", // rum
-  "sometimes", // sugar
-  "frequently", // timber
-  "frequently", // cloth
-  "sometimes", // spices
-  "rarely",    // silk
-  "sometimes", // coffee
-  "rarely",    // cocoa
-  "sometimes", // weapons
-  "sometimes", // tobacco
-  "rarely",    // silver
-  "rarely"     // slaves
-]
-```
-
-### **Faction Trends**
-
-
-| Faction | Common Goods                  | Rare Goods     |
-| ------- | ----------------------------- | -------------- |
-| English | cloth, sugar, weapons         | silk, cocoa    |
-| Spanish | silver, cocoa, spices         | rum, timber    |
-| French  | sugar, cocoa, rum             | coffee, cloth  |
-| Dutch   | spices, silk, coffee          | cocoa, weapons |
-| Pirate  | rum, weapons, tobacco, slaves | silver, spices |
-
+| Faction | Common Goods | Rare Goods |
+|---|---|---|
+| English | cloth, sugar, weapons | silk, cocoa |
+| Spanish | silver, cocoa, spices | rum, timber |
+| French | sugar, cocoa, rum | coffee, cloth |
+| Dutch | spices, silk, coffee | cocoa, weapons |
+| Pirate | rum, weapons, tobacco, slaves | silver, spices |
 
 ---
 
-## 🎯 **8. Mission Configuration**
+## 7. Mission Configuration
 
 **Purpose**: Defines parametric mission generation rules.
 
-### **Mission Gold Ranges**
+### Mission Gold Ranges (MISSION_GOLD_RANGES)
 
-```javascript
-MISSION_GOLD_RANGES: {
-  [fameTier: 0-4]: {
-    low: [min, max],      // Low-risk mission gold range
-    medium: [min, max],   // Medium-risk mission gold range
-    high: [min, max],      // High-risk mission gold range
-    assault: [min, max]    // Assault mission gold range
-  }
-}
-```
+| Fame Tier | Low Risk | Medium Risk | High Risk | Assault Risk |
+|---|---|---|---|---|
+| 0 (Unknown) | 80-100 | 100-125 | 125-150 | 150-200 |
+| 1 (Recognised) | 400-1,500 | 1,500-5,000 | 5,000-7,000 | 7,000-10,000 |
+| 2 (Notorious) | 2,000-7,000 | 7,000-10,000 | 10,000-18,000 | 18,000-22,000 |
+| 3 (Legendary) | 6,000-15,000 | 15,000-30,000 | 30,000-50,000 | 50,000-75,000 |
+| 4 (Immortal) | 15,200-25,000 | 25,000-50,000 | 50,000-80,000 | 80,000-100,000 |
 
+**Fame Tiers**: 0 (< 50), 1 (50-99), 2 (100-199), 3 (200-349), 4 (350+)
 
-| Fame Tier | Low Risk    | Medium Risk | High Risk   | Assault Risk |
-| --------- | ----------- | ----------- | ----------- | ------------ |
-| 0         | 80–100      | 100–125     | 125–150     | 150–200      |
-| 1         | 400–1500    | 1500–5000   | 5000–7000   | 7000–10000   |
-| 2         | 2000–7000   | 7000–10000  | 10000–18000 | 18000–22000  |
-| 3         | 6000–15000  | 15000–30000 | 30000–50000 | 50000–75000  |
-| 4         | 15200–25000 | 25000–50000 | 50000–80000 | 80000–100000 |
+### Mission Enemy Ranges (MISSION_ENEMY_RANGES)
 
+| Fame Tier | Hull | Cannons | Crew |
+|---|---|---|---|
+| 0 | 20-45 | 2-6 | 8-18 |
+| 1 | 40-75 | 5-10 | 15-35 |
+| 2 | 65-110 | 8-16 | 25-55 |
+| 3 | 95-155 | 13-22 | 40-80 |
+| 4 | 135-210 | 18-30 | 60-110 |
 
-**Fame Tiers:**
+### Mission Reputation Impacts (MISSION_REP_IMPACTS)
 
-- Tier 0: `fame < 50` (Unknown/Recognised)
-- Tier 1: `50 ≤ fame < 100` (Recognised/Notorious)
-- Tier 2: `100 ≤ fame < 200` (Notorious/Legendary)
-- Tier 3: `200 ≤ fame < 350` (Legendary)
-- Tier 4: `fame ≥ 350` (Immortal)
+| Type | Low | Medium | High |
+|---|---|---|---|
+| escort | +2 | +3 | +4 |
+| patrol | +2 | +3 | +4 |
+| combat | +3 | +4 | +5 |
+| trade | +2 | +3 | +4 |
+| smuggle | +2 (any) | -- | -- |
+| assault | +5 (any) | -- | -- |
 
-### **Mission Enemy Ranges**
+### Trade Goods by Tier (TRADE_GOODS_BY_TIER)
 
-```javascript
-MISSION_ENEMY_RANGES: {
-  hull:    { [fameTier]: [min, max] },  // Enemy hull HP
-  cannons: { [fameTier]: [min, max] },  // Enemy cannons
-  crew:    { [fameTier]: [min, max] }   // Enemy crew count
-}
-```
+| Tier | Eligible Goods |
+|---|---|
+| 0 | rum, sugar, timber, cloth |
+| 1 | rum, sugar, timber, cloth, coffee, cocoa |
+| 2 | coffee, cocoa, cloth, weapons, spices |
+| 3-4 | spices, silk, weapons, cocoa |
 
+### Smuggle Goods by Tier (SMUGGLE_GOODS_BY_TIER)
 
-| Fame Tier | Hull Range | Cannons Range | Crew Range |
-| --------- | ---------- | ------------- | ---------- |
-| 0         | 20–45      | 2–6           | 8–18       |
-| 1         | 40–75      | 5–10          | 15–35      |
-| 2         | 65–110     | 8–16          | 25–55      |
-| 3         | 95–155     | 13–22         | 40–80      |
-| 4         | 135–210    | 18–30         | 60–110     |
-
-
-### **Mission Reputation Impacts**
-
-```javascript
-MISSION_REP_IMPACTS: {
-  escort:  { low: 2, medium: 3, high: 4 },   // +rep for escort missions
-  patrol:  { low: 2, medium: 3, high: 4 },   // +rep for patrol missions
-  combat:  { low: 3, medium: 4, high: 5 },   // +rep for combat missions
-  trade:   { low: 2, medium: 3, high: 4 },   // +rep for trade missions
-  smuggle: { any: 2 },                       // +rep for smuggle missions (always +2)
-  assault: { any: 5 }                        // +rep for assault missions (always +5)
-}
-```
-
-### **Trade Mission Goods by Tier**
-
-```javascript
-TRADE_GOODS_BY_TIER: {
-  [fameTier: 0-4]: [goodKey1, goodKey2, ...]  // Eligible goods for trade missions
-}
-```
-
-
-| Fame Tier | Eligible Goods                           |
-| --------- | ---------------------------------------- |
-| 0         | rum, sugar, timber, cloth                |
-| 1         | rum, sugar, timber, cloth, coffee, cocoa |
-| 2         | coffee, cocoa, cloth, weapons, spices    |
-| 3         | spices, silk, weapons, cocoa             |
-| 4         | spices, silk, weapons, cocoa             |
-
-
-### **Smuggle Mission Goods by Tier**
-
-```javascript
-SMUGGLE_GOODS_BY_TIER: {
-  [fameTier: 0-4]: [goodKey1, goodKey2, ...]  // Eligible contraband goods
-}
-```
-
-
-| Fame Tier | Eligible Goods       |
-| --------- | -------------------- |
-| 0         | rum, tobacco         |
-| 1         | rum, tobacco         |
-| 2         | rum, tobacco, slaves |
-| 3         | rum, tobacco, slaves |
-| 4         | rum, tobacco, slaves |
-
+| Tier | Eligible Goods |
+|---|---|
+| 0-1 | rum, tobacco |
+| 2-4 | rum, tobacco, slaves |
 
 **Note**: `slaves` only appear if `infamy >= 25`.
 
-### **Mission Profit Margins**
+### Profit Margins
 
-```javascript
-TRADE_MISSION_PROFIT_MARGINS: {
-  low: 0.60,    // +60% profit margin
-  medium: 0.80, // +80% profit margin
-  high: 1.10    // +110% profit margin
-}
-
-SMUGGLE_PROFIT_MARGINS: {
-  low: 0.80,    // +80% profit margin
-  medium: 1.20, // +120% profit margin
-  high: 1.80    // +180% profit margin
-}
-```
-
-### **Mission Name Parts**
-
-```javascript
-MISSION_NAME_PARTS: {
-  cargo: ["spice shipment", "merchant convoy", ...],       // For trade missions
-  contraband: ["rum", "stolen charts", ...],            // For smuggle missions
-  regionAdj: ["southern", "northern", ...],             // Regional descriptors
-  factionAdj: {                                          // Faction-specific adjectives
-    english: ["English", "Crown", ...],
-    spanish: ["Spanish", "Colonial", ...],
-    // ...
-  }
-}
-```
+| Risk | Trade Margin | Smuggle Margin |
+|---|---|---|
+| Low | +60% | +80% |
+| Medium | +80% | +120% |
+| High | +110% | +180% |
 
 ---
 
-## 🏴☠️ **9. Plunder Configuration** *(New for T2.4)*
+## 8. Plunder Configuration
 
-**Purpose**: Defines rules for generating enemy cargo and gold rewards after grapple victories.
+**Purpose**: Defines rules for generating enemy cargo and gold rewards after victories.
 
-### **Plunder Target Values**
-
-```javascript
-PLUNDER_TARGET: {
-  [fameTier: 0-4]: {
-    low: number,     // Target cargo value for low-risk enemies
-    medium: number,  // Target cargo value for medium-risk enemies
-    high: number     // Target cargo value for high-risk enemies
-  }
-}
-```
-
+### Plunder Target Values (PLUNDER_TARGET)
 
 | Fame Tier | Low Risk | Medium Risk | High Risk |
-| --------- | -------- | ----------- | --------- |
-| 0         | 27       | 34          | 41        |
-| 1         | 285      | 975         | 1800      |
-| 2         | 1350     | 2550        | 4200      |
-| 3         | 3150     | 6750        | 12000     |
-| 4         | 6030     | 11250       | 19500     |
+|---|---|---|---|
+| 0 | 27 | 34 | 41 |
+| 1 | 285 | 975 | 1,800 |
+| 2 | 1,350 | 2,550 | 4,200 |
+| 3 | 3,150 | 6,750 | 12,000 |
+| 4 | 6,030 | 11,250 | 19,500 |
 
+### Plunder Gold Ratio
 
-### **Plunder Gold Ratio**
+`PLUNDER_GOLD_RATIO: 0.20` -- 20% of total plunder value is gold, 80% is cargo.
 
-```javascript
-PLUNDER_GOLD_RATIO: 0.20  // 20% of total plunder value is gold, 80% is cargo
-```
+### Faction Plunder Goods (FACTION_PLUNDER_GOODS)
 
-### **Faction Plunder Goods**
-
-```javascript
-FACTION_PLUNDER_GOODS: {
-  [factionKey: string]: {
-    good: string,   // Good key (e.g., "silver")
-    weight: number  // Relative probability (e.g., 60 = 60% chance)
-  }[]
-}
-```
-
-
-| Faction | Primary Goods (Weight)     | Secondary Goods (Weight)    |
-| ------- | -------------------------- | --------------------------- |
-| Spanish | silver (60%), cocoa (30%)  | spices (10%)                |
-| Pirate  | rum (50%), weapons (30%)   | tobacco (20%), slaves (10%) |
-| English | cloth (50%), weapons (30%) | sugar (20%)                 |
-| Dutch   | spices (40%), silk (30%)   | coffee (20%), cocoa (10%)   |
-| French  | sugar (40%), cocoa (30%)   | rum (20%), coffee (10%)     |
-
+| Faction | Primary Goods (Weight) | Secondary Goods (Weight) |
+|---|---|---|
+| Spanish | silver (60%), cocoa (30%) | spices (10%) |
+| Pirate | rum (50%), weapons (30%) | tobacco (20%), slaves (10%) |
+| English | cloth (50%), weapons (30%) | sugar (20%) |
+| Dutch | spices (40%), silk (30%) | coffee (20%), cocoa (10%) |
+| French | sugar (40%), cocoa (30%) | rum (20%), coffee (10%) |
 
 ---
+## 9. RANDOM_EVENTS
 
-## 🎲 **10. Enemy Ship Names**
+**Purpose**: Defines random events that occur at sea during `ADVANCE_DAY`.
 
-**Purpose**: Generates random names for enemy ships.
-
-### **Structure**
-
-```javascript
-ENEMY_SHIP_NAMES: {
-  adjectives: ["Black", "Scarlet", "Iron", ...],  // e.g., "Black"
-  nouns:      ["Serpent", "Tide", "Fortune", ...] // e.g., "Serpent"
-}
-```
-
-**Example Output**: "The Black Serpent", "The Iron Tide".
-
----
-
-## 🌊 **11. RANDOM_EVENTS**
-
-**Purpose**: Defines random events that can occur at sea or in port.
-
-### **Structure**
+### Structure
 
 ```javascript
 RANDOM_EVENTS: [
   {
-    id: string,               // Unique identifier (e.g., "storm")
-    type: string,             // "hazard" | "choice" | "reward" | "crew" | "faction"
-    title: string,            // Event title (e.g., "Violent Storm!")
-    desc: string,             // Event description
-    condition?: (state) => boolean, // Function to check if event can fire
-    choices: [                // Array of player choices
+    id: string,                // Unique identifier (e.g., "storm")
+    type: string,              // "hazard" | "choice" | "reward" | "crew" | "discovery"
+    title: string,             // Event title
+    desc: string,              // Event description
+    condition?: (state) => boolean,  // Optional gate
+    choices: [
       {
-        label: string,         // Choice label (e.g., "Brace for impact")
-        outcome: {            // Outcome object (applied to state)
-          log?: string,        // Log message
-          gold?: number,       // Gold change (positive/negative)
-          fame?: number,       // Fame change
-          hullDamage?: number, // Hull damage
-          crewLoss?: number,   // Crew lost
-          daysLost?: number,   // Days added to voyage
-          moraleBonus?: number,// Morale change
-          repImpact?: { [faction: string]: number }, // Reputation changes
-          battle?: { enemy: object } // Triggers a battle
+        label: string,         // Choice button text
+        outcome: {
+          log?: string,
+          gold?: number,
+          fame?: number,
+          hullDamage?: number,
+          crewLoss?: number,
+          daysLost?: number,
+          moraleBonus?: number,
+          moralePenalty?: number,
+          mapFragment?: string,
+          action?: string       // e.g., "ATTACK_PIRATE", "ATTACK_MERCHANT"
         }
       }
     ]
@@ -634,107 +436,217 @@ RANDOM_EVENTS: [
 ]
 ```
 
-### **Event Types**
+### Event List
 
+| ID | Type | Title | Condition | Key Outcomes |
+|---|---|---|---|---|
+| `storm` | hazard | Violent Storm! | Always | Hull damage 10-20, crew loss 1-3, days lost 1-2 |
+| `calm_winds` | hazard | Doldrums | Always | Days lost 1-3, morale -5 |
+| `distressed_merchant` | choice | Merchant in Distress | Always | Help (fight pirates), plunder (attack merchant), or ignore |
+| `drifting_wreck` | choice | Drifting Wreck | Always | Search (gold/cargo/survivor/trap) or sail on |
+| `drifting_sailors` | choice | Marooned Sailors | Always | Rescue (gain crew, possible hidden trait) or sail on |
+| `treasure_map` | reward | Treasure Map Found! | Always | Gold reward 50-200 |
+| `whale_sighting` | reward | Whale Sighting | Always | Morale +5 |
+| `mutiny` | crew | Mutiny! | `morale < 20` | Crush (lose crew, gain mutineer tags) or negotiate (lose gold) |
+| `deserters` | crew | Deserters | `morale < 40` | Lose 1-3 crew |
+| `mysterious_chart` | discovery | A Dying Sailor's Secret | `fame >= 150` | Gain `map_fragment_libertalia` |
+| `wreckers_chart` | discovery | The Wrecker's Map | `gold >= 5000` | Pay 5,000g for `map_fragment_lasAves` or decline |
 
-| Type    | Description                                            | Example Events                   |
-| ------- | ------------------------------------------------------ | -------------------------------- |
-| hazard  | Negative event with no choices (automatic resolution). | `storm`, `calm_winds`            |
-| choice  | Player must choose an outcome.                         | `merchant_distress`, `shipwreck` |
-| reward  | Positive event with choices.                           | `treasure_map`, `whale_sighting` |
-| crew    | Event related to crew morale/management.               | `mutiny`, `deserters`            |
-| faction | Event related to faction reputation.                   | (Future use)                     |
+### Event Triggers
 
-
-### **Event List**
-
-
-| ID                  | Type   | Title                | Condition          |
-| ------------------- | ------ | -------------------- | ------------------ |
-| `storm`             | hazard | Violent Storm!       | Always             |
-| `calm_winds`        | hazard | Doldrums             | Always             |
-| `merchant_distress` | choice | Merchant in Distress | Always             |
-| `shipwreck`         | choice | Shipwreck Spotted    | Always             |
-| `treasure_map`      | reward | Treasure Map Found!  | Always             |
-| `whale_sighting`    | reward | Whale Sighting       | Always             |
-| `mutiny`            | crew   | Mutiny!              | `crew.morale < 20` |
-| `deserters`         | crew   | Deserters            | `crew.morale < 40` |
-
-
-### **Event Triggers**
-
-- **At Sea**: Events fire during `ADVANCE_DAY` with a **10% chance per day** (see `L.triggerRandomEvent`).
-- **In Port**: Some events (e.g., `navy_patrol`) fire when entering a port.
-- **Conditional**: Events with `condition` only fire if the state meets the criteria (e.g., `mutiny` requires `morale < 20`).
+- **At Sea**: ~10% chance per day during `ADVANCE_DAY` (see `engine_voyage.js`).
+- **Conditional**: Events with `condition` only fire if the state meets the criteria.
+- Events are resolved by `RESOLVE_EVENT` in `engine_combat.js`, which reads `outcome` fields and applies them to state.
 
 ---
 
-## 📊 **12. Constants Summary**
+## 10. STARTS
 
-### **Global Constants**
+**Purpose**: Defines starting scenarios with unique characters, factions, ships, and opening conditions.
 
+### Scenario List
 
-| Constant           | Value | Purpose                                |
-| ------------------ | ----- | -------------------------------------- |
-| `PATROL_FINE_RATE` | 0.50  | Fine = 50% of seized contraband value. |
+| Key | Name | Faction | Ship | Gold | Crew | Start Port | Focus |
+|---|---|---|---|---|---|---|---|
+| `english_william` | The Forged Commission | English | Dinghy | 190 | 4 | Port Royal | Bluffing as a legitimate captain |
+| `spanish_elena` | The Governor's Errand | Spanish | Dinghy | 205 | 4 | Havana | Delivering mysterious cargo |
+| `french_luc` | The Cartographer's Debt | French | Dinghy | 190 | 4 | Petit-Goave | Completing a dead man's work |
+| `dutch_pieter` | The Company's Ledger | Dutch | Dinghy | 205 | 4 | Santo Domingo | Meeting a quota under pressure |
+| `pirate_rosa` | The Survivor | Pirate | Dinghy | 190 | 4 | Santiago de Cuba | Rebuilding after a shipwreck |
+| `debug` | Developer Mode | English | Sloop | 5,000 | 15 | Port Royal | Testing (Fame 100, all ports Friendly) |
 
-
----
-
-## 🔗 **Dependencies**
-
-This file is **imported by**:
-
-- `logic.js`: Uses `PORTS`, `SHIPS`, `FACTIONS`, `RESOURCES`, `GOODS_AVAILABILITY`, etc.
-- `generators.js`: Uses `MISSION_*`, `FACTION_PLUNDER_GOODS`, `ENEMY_SHIP_NAMES`, etc.
-- `engine.js`: Uses `RANDOM_EVENTS`, `UPGRADES`, etc.
-- `screens_*.jsx`: Uses `PORTS`, `SHIPS`, `FACTIONS` for UI rendering.
-
----
-
-## 📝 **Changelog**
-
-
-| Date       | Change                                                                | Author |
-| ---------- | --------------------------------------------------------------------- | ------ |
-| 2026-05-28 | Added `PLUNDER_TARGET`, `PLUNDER_GOLD_RATIO`, `FACTION_PLUNDER_GOODS` | G P    |
-| 2026-05-28 | Updated ship costs and stats for balance                              | G P    |
-| 2026-05-28 | Added `minHull` to remote ports                                       | G P    |
-
-
----
-
-## 🎯 **Usage Notes**
-
-1. **No Logic**: This file contains **only data**. All logic (e.g., mission generation, port visibility) lives in `logic.js` or `generators.js`.
-2. **Immutability**: Do not modify `window.D` at runtime. Treat it as read-only.
-3. **Validation**: All data should be validated in tests (see `tests/`).
-4. **New Data**: When adding new constants, document them in this spec.
-
----
-
-## 🧪 **Test Coverage**
-
-Ensure all data is tested for:
-
-- **Validity**: All required fields are present.
-- **Consistency**: References (e.g., `faction` in `PORTS` must exist in `FACTIONS`).
-- **Balance**: Ship/upgrade costs are reasonable for progression.
-
-Example test cases:
+### Structure
 
 ```javascript
-// Test that all port factions exist in FACTIONS
-Object.values(D.PORTS).forEach(port => {
-  assert(D.FACTIONS[port.faction], `Port ${port.name} references unknown faction ${port.faction}`);
-});
-
-// Test that all ship upgradeable slots exist in UPGRADES
-Object.values(D.SHIPS).forEach(ship => {
-  ship.upgradeable.forEach(upgradeKey => {
-    assert(D.UPGRADES[upgradeKey], `Ship ${ship.name} references unknown upgrade ${upgradeKey}`);
-  });
-});
+STARTS: {
+  [scenarioKey: string]: {
+    id: string,
+    name: string,           // Scenario display name
+    desc: string,           // Opening narrative
+    faction: string,        // Starting faction
+    ship: string,           // Ship type key (e.g., "dinghy")
+    gold: number,
+    crewCount: number,
+    startPort: string,      // Port key (e.g., "portRoyal")
+    fame: number,           // Starting fame (0 for normal, 100 for debug)
+    infamy: number,
+    repAdjust: { [portKey]: number },  // Rep offsets from default 50
+    starterMission: { ... },  // Pre-built first mission
+    log: string[]           // Opening log entries
+  }
+}
 ```
 
+Each scenario includes a **starter mission** that introduces the core loop (sail to a port, complete an objective, return).
+
 ---
+
+## 11. SURRENDER_CONSEQUENCE
+
+**Purpose**: Defines consequences when the player surrenders during different encounter types.
+
+```javascript
+SURRENDER_CONSEQUENCE: {
+  [encounterType: string]: {
+    goldLoss: number | string,   // Fixed amount or percentage
+    cargoLoss: boolean,
+    crewLoss: number,
+    infamyGain: number,
+    log: string
+  }
+}
+```
+
+| Encounter Type | Gold Loss | Cargo Loss | Crew Loss | Infamy |
+|---|---|---|---|---|
+| `patrol` | 50% | Contraband only | 0 | 0 |
+| `hostile_port_entry` | 30% | All | 0 | 0 |
+| `random` | 50% | All | 0 | 0 |
+
+---
+
+## 12. Text Constants (data_text.js)
+
+`data_text.js` extends `window.D` with all text-heavy constants. Separated from `data.js` for maintainability.
+
+### CREW_FIRST_NAMES / CREW_LAST_NAMES
+
+Faction-specific name pools for crew generation.
+
+```javascript
+CREW_FIRST_NAMES: { english: [...], spanish: [...], french: [...], dutch: [...], pirate: [...] }
+CREW_LAST_NAMES: { english: [...], spanish: [...], french: [...], dutch: [...], pirate: [...] }
+```
+
+Each faction has 20-30 first names and 15-25 last names. Pirate names draw from a mixed international pool.
+
+### CREW_ROLES
+
+| Role | Weight | Notes |
+|---|---|---|
+| deckhand | 60 | Basic crew member |
+| gunner | 20 | **Cosmetic only** (no gameplay effect) |
+| carpenter | 10 | **Cosmetic only** |
+| cook | 5 | **Cosmetic only** |
+| navigator | 5 | **Cosmetic only** |
+
+> **Important**: Crew roles are purely cosmetic in the current version. All crew members function identically in combat, sailing, and morale calculations.
+
+### BIO_OPENINGS
+
+Templates for generating crew biographies. Organised by experience bracket:
+
+| Bracket | Days Threshold | Example Template |
+|---|---|---|
+| newHand | 0-15 days | "{name} signed on as {role} just days ago." |
+| settling | 16-49 days | "{name} is finding {his/her} place among the crew." |
+| seasoned | 50-99 days | "{name} has become a reliable presence on deck." |
+| veteran | 100-199 days | "{name} is one of the most experienced hands aboard." |
+| oldSalt | 200+ days | "{name} has been with you since the early days." |
+
+Each bracket has 5-8 template variants. Bio generation (`G.generateCrewBio`) combines an opening template with combination sentences for scars/traits, using suppression logic to avoid redundancy.
+
+### PORT_GOSSIP_TEMPLATES
+
+Priority-based gossip generation system. Templates are categorised by type and assigned priorities:
+
+| Priority | Categories | Trigger |
+|---|---|---|
+| P3 (highest) | heat, contraband | Faction alert > 0, carrying illegal goods |
+| P2 | reputation, fame, infamy | Rep tier changes, notable fame/infamy |
+| P1 | market, hiddenPorts | Extreme prices, hints for undiscovered ports |
+| P0 (lowest) | ambiance, weather | Always available as filler |
+
+Gossip size distribution: 25% large (P3), 50% medium (P2/P1), 25% small (P0).
+
+### MISSION_NAME_PARTS
+
+```javascript
+MISSION_NAME_PARTS: {
+  cargo: ["spice shipment", "merchant convoy", ...],
+  contraband: ["rum", "stolen charts", ...],
+  regionAdj: ["southern", "northern", ...],
+  factionAdj: {
+    english: ["English", "Crown", ...],
+    spanish: ["Spanish", "Colonial", ...],
+    // ...
+  }
+}
+```
+
+### ENEMY_SHIP_NAMES
+
+```javascript
+ENEMY_SHIP_NAMES: {
+  adjectives: ["Black", "Scarlet", "Iron", ...],
+  nouns: ["Serpent", "Tide", "Fortune", ...]
+}
+```
+
+**Example Output**: "The Black Serpent", "The Iron Tide".
+
+### ENCOUNTER_FLAVOUR
+
+Function map returning flavour text arrays by encounter type:
+
+```javascript
+ENCOUNTER_FLAVOUR: {
+  patrol: (enemy) => [...],      // Navy patrol descriptions
+  navy_patrol: (enemy) => [...],  // Faction-specific patrol text
+  mission_combat: (enemy) => [...],
+  random: (enemy) => [...],
+  // etc.
+}
+```
+
+Each type returns an array of 3-6 variants. `pickRandom()` selects one at generation time.
+
+---
+
+## 13. Constants Summary
+
+| Constant | Value | Purpose |
+|---|---|---|
+| `PATROL_FINE_RATE` | 0.50 | Fine = 50% of seized contraband value |
+
+---
+
+## 14. Dependencies & Usage Notes
+
+### Imported by
+
+| Consumer | Uses |
+|---|---|
+| `logic.js` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES |
+| `generators.js` | MISSION_*, FACTION_PLUNDER_GOODS, ENEMY_SHIP_NAMES, CREW_*, BIO_*, PORT_GOSSIP_TEMPLATES |
+| `engine_*.js` | RANDOM_EVENTS, EQUIPMENT, STARTS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE |
+| `screens_*.jsx` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES (for UI rendering) |
+
+### Usage Rules
+
+1. **No Logic**: These files contain **only data**. All logic lives in `logic.js` or `generators.js`.
+2. **Immutability**: Do not modify `window.D` at runtime. Treat it as read-only.
+3. **Validation**: All data should be verified by tests (see `tests/tests_logic.js`).
+4. **New Data**: When adding new constants, document them in this spec.
+5. **Text Split**: Text-heavy constants (names, templates, flavour) go in `data_text.js`. Numeric/structural constants go in `data.js`.
+

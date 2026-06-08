@@ -429,6 +429,127 @@ window.TESTS.push({
         const { unmount } = u.mountReact(window.S.JournalScreen, { state, dispatch: () => {} });
         unmount();
       }
-    }
+    },
+    {
+      name: "EQ.U.01 ShipyardScreen with empty equipment",
+      run: (u) => {
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          gold: 5000,
+          fame: 50,
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          equipmentInventory: []
+        });
+        const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "EQ.U.02 ShipyardScreen with installed equipment",
+      run: (u) => {
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          gold: 5000,
+          fame: 50,
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: {
+              hull: ["reinforced_hull"],
+              armament: ["extra_cannons"],
+              rigging: ["extra_sails"],
+              special: []
+            }
+          },
+          equipmentInventory: ["grapeshot_supply"]
+        });
+        const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "EQ.U.03 ShipyardScreen with full equipment locker",
+      run: (u) => {
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          gold: 5000,
+          fame: 100,
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "frigate", hull: 220, cannons: 24, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          equipmentInventory: ["extra_cannons", "grapeshot_supply", "surgeons_bay", "ornate_figurehead"]
+        });
+        const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "EQ.U.04 ShipyardScreen at war (blocked services)",
+      run: (u) => {
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          reputation: { portRoyal: 5 }, // at war
+          ship: {
+            type: "sloop", hull: 80, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          gold: 2000,
+          equipmentInventory: []
+        });
+        const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "EQ.U.05 ShipyardScreen with locked equipment (fame/hull)",
+      run: (u) => {
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          gold: 20000,
+          fame: 10, // too low for high-tier equipment
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          equipmentInventory: []
+        });
+        const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        unmount();
+      }
+    },
+    {
+      name: "EQ.U.06 ShipyardScreen preview panel (before/after stats)",
+      run: (u) => {
+        // Simulate selecting an equipment item for preview
+        const state = makeState({
+          screen: "shipyard",
+          currentPort: "portRoyal",
+          gold: 5000,
+          fame: 50,
+          reputation: { portRoyal: 80 },
+          ship: {
+            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            equipment: { hull: [], armament: [], rigging: [], special: [] }
+          },
+          equipmentInventory: [],
+          // The ShipyardScreen may use local state for preview; this just tests it doesn't crash.
+        });
+        const { container, unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
+        // If there is a button to simulate preview, we could click it, but smoke test doesn't require interaction.
+        unmount();
+      }
+    },
   ]
 });

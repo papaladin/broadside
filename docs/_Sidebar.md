@@ -1,6 +1,5 @@
 - [Home](Home)
 - 🎮 **[Player Guide](player_guide)**
-- 🛠️ **[Developer Guide](developer_guide)**
 - 📖 **Documentation**
   - [Architecture](architecture)
   - [Engine Specs](specs_engine)
