@@ -497,5 +497,70 @@ window.TESTS.push({
         u.restoreLocalStorage();
       }
     },
+    {
+      name: "NAV.I.01 Start voyage, advance 2 days, change course, arrive",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
+        let s = makeState({ screen: "map", currentPort: "portRoyal", wind: { angle: 0, speed: 15 }, crew: { roster: fillRoster(10), max: 50, morale: 80 }, hold: { items: { food: 10, water: 10 } } });
+        s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
+        u.assertEqual(s.screen, "sailing");
+        u.assertEqual(s.route.destinationPort, "tortuga");
+        // Advance 2 days
+        s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+        s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+        const progressBefore = s.route.progressDays;
+        // Change course to havana
+        s = E.reducer(s, { type: E.A.NAVIGATE, screen: "map" });
+        s = E.reducer(s, { type: E.A.SAIL_TO, port: "havana" });
+        u.assertEqual(s.route.destinationPort, "havana");
+        u.assertEqual(s.route.progressDays, 0, "New leg started");
+        u.assert(s.route.enduranceSpent > 0, "Endurance spent preserved");
+        // Sail to arrival
+        while (s.sailingDaysLeft > 0) s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+        s = E.reducer(s, { type: E.A.ENTER_PORT });
+        u.assertEqual(s.currentPort, "havana");
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "NAV.I.02 Open map from sea, back out, continue original destination",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
+        let s = makeState({ screen: "map", currentPort: "portRoyal", wind: { angle: 0, speed: 15 }, crew: { roster: fillRoster(10), max: 50, morale: 80 }, hold: { items: { food: 10, water: 10 } } });
+        s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
+        s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+        const destBefore = s.route.destinationPort;
+        // Open map (simulate by navigating, but then navigate back without selecting a port)
+        s = E.reducer(s, { type: E.A.NAVIGATE, screen: "map" });
+        s = E.reducer(s, { type: E.A.NAVIGATE, screen: "sailing" }); // back out
+        u.assertEqual(s.route.destinationPort, destBefore, "Destination unchanged");
+        u.assertEqual(s.route.progressDays, 1, "Progress not reset");
+        u.restoreLocalStorage();
+      }
+    },
+    {
+      name: "NAV.I.03 Discover hidden port mid-sea, reroute to it",
+      run: (u) => {
+        u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
+        let s = makeState({
+          screen: "map", currentPort: "tortuga", wind: { angle: 0, speed: 15 },
+          ship: { type: "brigantine", hull: 150, cannons: 14, upgrades: [] },
+          crew: { roster: fillRoster(20), max: 80, morale: 80 },
+          hold: { items: { food: 20, water: 20 } },
+          discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+          reputation: { tortuga: 70, dryTortugas: 50 },
+        });
+        // Start sailing toward havana
+        s = E.reducer(s, { type: E.A.SAIL_TO, port: "havana" });
+        s = E.reducer(s, { type: E.A.ADVANCE_DAY });
+        // Simulate discovery of dryTortugas (a hidden port) – add to discoveredPorts
+        s = { ...s, discoveredPorts: [...s.discoveredPorts, "dryTortugas"] };
+        // Now open map and reroute to dryTortugas
+        s = E.reducer(s, { type: E.A.NAVIGATE, screen: "map" });
+        s = E.reducer(s, { type: E.A.SAIL_TO, port: "dryTortugas" });
+        u.assertEqual(s.route.destinationPort, "dryTortugas");
+        u.restoreLocalStorage();
+      }
+    },
   ]
 });

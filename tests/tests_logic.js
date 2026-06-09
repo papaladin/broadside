@@ -1667,6 +1667,151 @@ window.TESTS.push({
         u.assert(adjusted <= baseDays);
       }
     },
+    {
+      name: "NAV.L.01 getSeaPosition at 0% progress",
+      run: (u) => {
+        const route = {
+          originPos: { x: 0, y: 0 },
+          destinationPos: { x: 100, y: 0 },
+          progressDays: 0,
+          totalDays: 10,
+        };
+        const pos = L.getSeaPosition(route);
+        u.assertDeepEqual(pos, { x: 0, y: 0 }, "Should be at origin");
+      }
+    },
+    {
+      name: "NAV.L.02 getSeaPosition at 50% progress",
+      run: (u) => {
+        const route = {
+          originPos: { x: 0, y: 0 },
+          destinationPos: { x: 100, y: 0 },
+          progressDays: 5,
+          totalDays: 10,
+        };
+        const pos = L.getSeaPosition(route);
+        u.assert(pos.x === 50 && pos.y === 0, "Midpoint should be (50,0)");
+      }
+    },
+    {
+      name: "NAV.L.03 getSeaPosition at 100% progress",
+      run: (u) => {
+        const route = {
+          originPos: { x: 0, y: 0 },
+          destinationPos: { x: 100, y: 0 },
+          progressDays: 10,
+          totalDays: 10,
+        };
+        const pos = L.getSeaPosition(route);
+        u.assertDeepEqual(pos, { x: 100, y: 0 }, "Should be at destination");
+      }
+    },
+    {
+      name: "NAV.L.04 getSeaPosition handles zero totalDays",
+      run: (u) => {
+        const route = {
+          originPos: { x: 10, y: 20 },
+          destinationPos: { x: 100, y: 0 },
+          progressDays: 0,
+          totalDays: 0,
+        };
+        const pos = L.getSeaPosition(route);
+        u.assertDeepEqual(pos, { x: 10, y: 20 }, "Should return origin");
+      }
+    },
+    {
+      name: "NAV.L.05 getSeaPosition missing route returns originPos",
+      run: (u) => {
+        const pos = L.getSeaPosition(null);
+        u.assertDeepEqual(pos, { x: 0, y: 0 });
+      }
+    },
+    {
+      name: "NAV.L.06 travelDaysFromPosition returns finite number",
+      run: (u) => {
+        const state = makeState({
+          ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] },
+          wind: { angle: 0, speed: 10 },
+          crew: { morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+        });
+        const days = L.travelDaysFromPosition({ x: 200, y: 200 }, "tortuga", state);
+        u.assert(typeof days === "number" && days > 0, "Should return positive days");
+      }
+    },
+    {
+      name: "NAV.L.07 travelDaysFromPosition returns Infinity for invalid port",
+      run: (u) => {
+        const state = makeState();
+        const days = L.travelDaysFromPosition({ x: 0, y: 0 }, "atlantis", state);
+        u.assertEqual(days, Infinity);
+      }
+    },
+    {
+      name: "NAV.L.08 canReachFromPosition respects endurance",
+      run: (u) => {
+        const state = makeState({
+          ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] },
+          discoveredPorts: Object.keys(D.PORTS),
+          wind: { angle: 0, speed: 10 },
+          crew: { morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+        });
+        const pos = { x: 400, y: 300 }; // near Tortuga roughly
+        // Very short endurance should block most
+        u.assert(L.canReachFromPosition(pos, "tortuga", state, 1) === false);
+        // Large endurance should allow
+        u.assert(L.canReachFromPosition(pos, "tortuga", state, 100) === true);
+      }
+    },
+    {
+      name: "NAV.L.09 canReachFromPosition respects hidden port discovery",
+      run: (u) => {
+        const state = makeState({
+          ship: { type: "galleon", hull: 300, cannons: 30, upgrades: [] },
+          discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
+          wind: { angle: 0, speed: 10 },
+          crew: { morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+        });
+        u.assert(L.canReachFromPosition({ x: 700, y: 400 }, "libertalia", state, 50) === false, "Undiscovered hidden port unreachable");
+        const discoveredState = { ...state, discoveredPorts: [...state.discoveredPorts, "libertalia"] };
+        u.assert(L.canReachFromPosition({ x: 700, y: 400 }, "libertalia", discoveredState, 50) === true, "Discovered hidden port reachable");
+      }
+    },
+    {
+      name: "NAV.L.10 getReachablePortsFromSea returns alternates, excludes current destination",
+      run: (u) => {
+        const state = makeState({
+          ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] },
+          discoveredPorts: Object.keys(D.PORTS),
+          wind: { angle: 0, speed: 10 },
+          crew: { morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 2,
+            totalDays: 6,
+            seaPosition: L.getSeaPosition({ originPos: D.PORTS.portRoyal, destinationPos: D.PORTS.tortuga, progressDays: 2, totalDays: 6 }),
+            enduranceBudget: 10,
+            enduranceSpent: 2,
+          }
+        });
+        const ports = L.getReachablePortsFromSea(state);
+        u.assert(ports.length > 0, "Should have reachable alternates from mid-sea");
+        u.assert(!ports.includes("tortuga"), "Should exclude current destination");
+      }
+    },
+    {
+      name: "NAV.L.11 getReachablePortsFromSea returns empty if no route",
+      run: (u) => {
+        const state = makeState();
+        u.assertDeepEqual(L.getReachablePortsFromSea(state), []);
+      }
+    },
   ]
 });
 

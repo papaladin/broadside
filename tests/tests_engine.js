@@ -2354,5 +2354,169 @@ window.TESTS.push({
         u.assert(Array.isArray(migrated.equipmentInventory), "equipmentInventory exists");
       }
     },
+    {
+      name: "E.NAV.01 SAIL_TO from port initializes route",
+      run: (u) => {
+        const state = makeState({ currentPort: "portRoyal", screen: "map" });
+        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "tortuga" });
+        u.assert(s.route !== null, "Route should be created");
+        u.assertEqual(s.route.originPort, "portRoyal");
+        u.assertEqual(s.route.destinationPort, "tortuga");
+        u.assertEqual(s.route.progressDays, 0);
+        u.assert(s.route.totalDays > 0);
+        u.assert(s.route.enduranceBudget > 0);
+        u.assertDeepEqual(s.route.seaPosition, D.PORTS.portRoyal);
+      }
+    },
+    {
+      name: "E.NAV.02 ADVANCE_DAY updates route progress and seaPosition",
+      run: (u) => {
+        u.resetRandomStub();
+        const state = makeState({
+          screen: "sailing",
+          destination: "tortuga",
+          sailingDaysLeft: 3,
+          sailingDaysTotal: 3,
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 0,
+            totalDays: 3,
+            seaPosition: D.PORTS.portRoyal,
+            enduranceBudget: 10,
+            enduranceSpent: 0,
+          },
+          wind: { angle: 0, speed: 15 },
+          crew: { roster: fillRoster(10), max: 50, morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+          gold: 1000,
+          reputation: { portRoyal: 50, tortuga: 50 },
+        });
+        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+        u.assertEqual(s.route.progressDays, 1);
+        u.assertEqual(s.route.enduranceSpent, 1);
+        // seaPosition should have moved toward destination
+        u.assert(s.route.seaPosition.x !== state.route.seaPosition.x || s.route.seaPosition.y !== state.route.seaPosition.y);
+      }
+    },
+    {
+      name: "E.NAV.03 Reroute from sea changes destination and recalculates days",
+      run: (u) => {
+        u.resetRandomStub();
+        const state = makeState({
+          screen: "map",
+          destination: "tortuga",
+          sailingDaysLeft: 4,
+          sailingDaysTotal: 6,
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 2,
+            totalDays: 6,
+            seaPosition: { x: 450, y: 200 }, // somewhere mid-sea
+            enduranceBudget: 10,
+            enduranceSpent: 2,
+          },
+          wind: { angle: 0, speed: 15 },
+          crew: { roster: fillRoster(10), max: 50, morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+          reputation: { portRoyal: 50, havana: 50 },
+        });
+        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
+        u.assertEqual(s.route.destinationPort, "havana");
+        u.assertEqual(s.route.progressDays, 0);
+        u.assert(s.route.totalDays > 0);
+        u.assertEqual(s.route.enduranceSpent, 2, "Endurance spent preserved");
+        u.assert(s.log.some(l => l.includes("Changing course")), "Log mentions course change");
+      }
+    },
+    {
+      name: "E.NAV.04 Reroute to same destination is no-op",
+      run: (u) => {
+        const state = makeState({
+          screen: "map",
+          destination: "tortuga",
+          sailingDaysLeft: 4,
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 2,
+            totalDays: 6,
+            seaPosition: { x: 450, y: 200 },
+            enduranceBudget: 10,
+            enduranceSpent: 2,
+          },
+        });
+        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "tortuga" });
+        u.assertEqual(s.route.destinationPort, "tortuga");
+        u.assertEqual(s.route.progressDays, 2, "Progress unchanged");
+      }
+    },
+    {
+      name: "E.NAV.05 Reroute blocked when no endurance remaining",
+      run: (u) => {
+        u.resetRandomStub();
+        const state = makeState({
+          screen: "map",
+          destination: "tortuga",
+          sailingDaysLeft: 2,
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 2,
+            totalDays: 6,
+            seaPosition: { x: 300, y: 200 },
+            enduranceBudget: 5,
+            enduranceSpent: 5, // no remaining
+          },
+          wind: { angle: 0, speed: 15 },
+          crew: { roster: fillRoster(10), max: 50, morale: 80 },
+          hold: { items: { food: 10, water: 10 } },
+        });
+        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
+        u.assertEqual(s.route.destinationPort, "tortuga", "Destination unchanged");
+        u.assert(s.log.some(l => l.includes("Cannot reach")), "Block message logged");
+      }
+    },
+    {
+      name: "E.NAV.06 Current route still completes after conditions worsen",
+      run: (u) => {
+        u.resetRandomStub();
+        const state = makeState({
+          screen: "sailing",
+          destination: "tortuga",
+          sailingDaysLeft: 1,
+          sailingDaysTotal: 3,
+          route: {
+            originPort: "portRoyal",
+            destinationPort: "tortuga",
+            originPos: D.PORTS.portRoyal,
+            destinationPos: D.PORTS.tortuga,
+            progressDays: 2,
+            totalDays: 3,
+            seaPosition: { x: 450, y: 200 },
+            enduranceBudget: 10,
+            enduranceSpent: 2,
+          },
+          wind: { angle: 0, speed: 15 },
+          crew: { roster: fillRoster(30), max: 50, morale: 20 }, // low morale would normally add days
+          hold: { items: { food: 10, water: 10 } },
+          gold: 1000,
+          reputation: { portRoyal: 50, tortuga: 50 },
+        });
+        // Advance day — arrival should still happen despite low morale
+        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
+        u.assertEqual(s.sailingDaysLeft, 0, "Arrived despite worsened conditions");
+        u.assertEqual(s.route.progressDays, 3);
+      }
+    },
   ]
 });

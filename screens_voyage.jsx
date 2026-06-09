@@ -64,13 +64,7 @@ function MapScreen({ state, dispatch }) {
             </pattern>
           </defs>
           <rect width={W} height={H} fill="url(#seaGrid)" />
-          <g opacity="0.9">
-            {/* landmass paths unchanged */}
-            <path d="M 0 110 Q 18 175 38 258 L 92 252 L 148 248 Q 185 240 210 212 Q 224 195 222 182 Q 220 205 206 238 Q 192 270 178 300 Q 166 330 162 366 Q 170 395 214 418 Q 270 438 355 430 Q 398 423 440 415 Q 478 406 515 410 Q 540 396 558 390 Q 575 386 590 388 Q 620 392 672 415 Q 690 425 700 440 Q 715 452 760 458 L 760 460 L 0 460 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 325 0 Q 332 34 338 72 Q 344 108 342 138 Q 340 154 332 160 Q 322 165 312 160 Q 304 148 304 122 Q 308 90 314 54 Q 320 24 325 0 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 278 205 Q 292 188 310 190 Q 360 180 405 190 Q 435 200 445 218 Q 440 236 415 238 Q 370 248 328 244 Q 292 230 278 205 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-            <path d="M 458 262 Q 460 256 466 252 Q 470 240 476 228 Q 482 240 488 248 Q 494 252 518 242 Q 548 228 572 245 Q 578 262 576 278 Q 568 284 545 268 Q 515 282 488 280 Q 468 278 460 270 Q 452 268 458 262 Z" fill="#0d1e2e" stroke="#1a2e42" strokeWidth="0.8" />
-          </g>
+          <image href="map.svg" x="0" y="0" width="760" height="460" />
           {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
           {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
             const isCur = key === state.currentPort;
