@@ -1,60 +1,38 @@
-// ═══════════════════════════════════════════════════════════════════
-//  App.jsx — ROOT COMPONENT
-//  Initializes the game state, manages the screen router, and renders the HUD.
-//  Imports: window.D (data), window.L (logic), window.E (engine), window.UI (UI primitives), window.S (screens)
-// ═══════════════════════════════════════════════════════════════════
+// App.jsx — ROOT COMPONENT
 
-// ═══════════════════════════════════════════════════════════════════
-//  ERROR BOUNDARY — Catches render errors, prevents white screen
-// ═══════════════════════════════════════════════════════════════════
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    console.error("Broadside render error:", error, info);
-  }
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("Broadside render error:", error, info); }
   render() {
     if (this.state.hasError) {
+      const { T } = window.UI;
       return (
-        <div style={{
-          height: "100vh", display: "flex", flexDirection: "column",
+        <div style={{ height: "100vh", display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          background: "#0a141e", color: "#e0e0e0",
-          fontFamily: "'Courier New', monospace", gap: 16, padding: 20,
-        }}>
-          <div style={{ color: "#ffd700", fontSize: 18 }}>⚠ Something went wrong</div>
-          <div style={{ color: "#a0a0a0", fontSize: 12, maxWidth: 400, textAlign: "center" }}>
+          background: T.bg, color: T.text, fontFamily: T.font, gap: 16, padding: 20 }}>
+          <div style={{ color: T.gold, fontSize: 18 }}>⚠ Something went wrong</div>
+          <div style={{ color: T.textDim, fontSize: 13, maxWidth: 400, textAlign: "center" }}>
             {this.state.error?.message || "An unexpected error occurred."}
           </div>
           <div style={{ display: "flex", gap: 12 }}>
-            <button
-              onClick={() => window.location.reload()}
-              style={{ background: "#121c28", border: "1px solid #ffd700", color: "#ffd700",
-                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 3 }}>
+            <button onClick={() => window.location.reload()}
+              style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 2 }}>
               Reload Page
             </button>
-            <button
-              onClick={() => {
+            <button onClick={() => {
                 this.setState({ hasError: false, error: null });
                 if (window.L?.hasSave?.()) {
-                  setTimeout(() => {
-                    document.dispatchEvent(new CustomEvent("broadside:loadSave"));
-                  }, 50);
+                  setTimeout(() => { document.dispatchEvent(new CustomEvent("broadside:loadSave")); }, 50);
                 }
               }}
-              style={{ background: "#121c28", border: "1px solid #2a3a4a", color: "#e0e0e0",
-                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 3 }}>
+              style={{ background: T.panel, border: `1px solid ${T.border}`, color: T.text,
+                padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 2 }}>
               Try Load Last Save
             </button>
           </div>
-          <div style={{ color: "#606060", fontSize: 10 }}>
-            Open the browser console for details.
-          </div>
+          <div style={{ color: T.textFaint, fontSize: 11 }}>Open the browser console for details.</div>
         </div>
       );
     }
@@ -63,25 +41,21 @@ class ErrorBoundary extends React.Component {
 }
 
 const App = () => {
-  // 1. Core state
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T } = window.UI;
+  const { T, Bar, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater } = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const { screen } = state;
 
-  // 2. Auto-save flash state
   const [savedFlash, setSavedFlash] = React.useState(false);
   React.useEffect(() => {
     setSavedFlash(true);
     const t = setTimeout(() => setSavedFlash(false), 1500);
     return () => clearTimeout(t);
-  }, [ state.currentPort, state.missions.length]);
+  }, [state.currentPort, state.missions.length]);
 
-  // Debug mode
   const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
   const [debugOpen, setDebugOpen] = React.useState(false);
 
-  // Console shortcut (debug only)
   if (isDebug) {
     window.__b = {
       gold:   (n) => dispatch({ type: window.E.A.DEBUG_ADD_GOLD, amount: n }),
@@ -92,308 +66,222 @@ const App = () => {
   }
 
   const TOOLTIPS = {
-  gold: "Your gold. Spent on repairs, crew wages, provisions, and equipments.",
-  food: "Food in hold. Crew consumes food daily at sea. Runs out → morale drops.",
-  water: "Water in hold. Consumed daily at sea alongside food.",
-  hold: "Cargo hold: used / capacity. Over 50% full slows your ship.",
-  day: "Days elapsed since campaign start.",
-  crew: "Crew aboard / maximum. More crew = higher wages and faster combat.",
-  hull: "Hull integrity / maximum. Reaches 0 → defeat.",
-  morale: "Crew morale. Below 50 slows travel. Below 30 increases wages. At 0 crew desert.",
-  fame: "Fame — your permanent reputation. Gates ships, equipments, and missions.",
-  infamy: "Infamy — your criminal notoriety. Reaches 50 → bribe option blocked.",
-  heat: "Faction Alert Level. High heat means more patrols. Each point decays every 2 days.",  
-};
+    gold: "Your gold. Spent on repairs, crew wages, provisions, and equipment.",
+    day: "Days elapsed since campaign start.",
+    crew: "Crew aboard / maximum. More crew = higher wages and faster combat.",
+    hull: "Hull integrity / maximum. Reaches 0 = defeat.",
+    morale: "Crew morale. Below 50 slows travel. Below 30 increases wages. At 0 crew desert.",
+    fame: "Fame — your permanent reputation. Gates ships, equipment, and missions.",
+    infamy: "Infamy — your criminal notoriety. Reaches 50 = bribe blocked.",
+    hold: "Cargo hold: used / capacity. Over 50% full slows your ship.",
+    food: "Food in hold. Crew consumes food daily at sea. Runs out = morale drops.",
+    water: "Water in hold. Consumed daily at sea alongside food.",
+    heat: "Faction Alert Level. High heat means more patrols. Decays every 2 days.",
+  };
 
-  // --- HUD Component ---
   const HUD = () => {
     if (screen === "start" || screen === "title") return null;
     const currentPort = PORTS[state.currentPort];
-    const effectiveShipStats = L.getShipStats(state);
-    const effectiveMorale = L.getEffectiveMorale(state);
-    const [showDetails, setShowDetails] = React.useState(true);
+    const stats = L.getShipStats(state);
+    const morale = L.getEffectiveMorale(state);
+    const holdUsed = Object.values(state.hold?.items || {}).reduce((s, q) => s + q, 0);
+    const holdCap = L.getHoldCapacity(state);
+    const food = state.hold?.items?.food ?? 0;
+    const water = state.hold?.items?.water ?? 0;
+    const alerts = state.factionAlerts || {};
+    const topHeat = Object.entries(alerts).reduce((best, [f, lv]) =>
+      lv > best.level ? { faction: f, level: lv } : best, { faction: null, level: 0 });
+
+    // Calendar date
     const start = state.startDate || { day: 1, month: 6, year: 1695 };
-    const calendarDate = new Date(
-      start.year,
-      start.month - 1,                // JS months are 0‑based
-      start.day + state.day - 1       // Day 1 of the game = the start date
-    ).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    const Cell = ({ label, tip, children }) => (
+      <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
+        padding: "4px 6px 5px", minWidth: 0 }}>
+        <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
+          color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
+        {children}
+      </div>
+    );
+    const Val = ({ children, color, small }) => (
+      <div style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
+    );
 
     return (
-      <div style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "space-between",
-        alignItems: "center",
-        background: T.panel + "cc",
-        padding: 8,
-        borderBottom: `1px solid ${T.border}`,
-        fontSize: 11,
-        fontFamily: T.font,
-        backdropFilter: "blur(4px)",
-        gap: 6,
-      }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          <span title={TOOLTIPS.gold} style={{ color: T.gold }}>💰 {state.gold}</span>
-          <span title={TOOLTIPS.day} style={{ color: T.textDim }}>
-  📅 Day {state.day} — {calendarDate}
-</span>
-          <button
-            onClick={() => setShowDetails(v => !v)}
-            style={{
-              background: "none", border: "none", color: T.textDim,
-              fontSize: 12, cursor: "pointer", padding: "4px 6px",
-              fontFamily: T.font, minWidth: 30,
-            }}
-            title="Toggle details"
-          >
-            {showDetails ? "📊" : "📊"}
-          </button>
-          {showDetails && (
-            <>
-              <span title={TOOLTIPS.crew} style={{ color: T.textDim }}>👥 {state.crew.roster.length}/{state.crew.max}</span>
-              <span title={TOOLTIPS.hull} style={{ color: T.textDim }}>❤️ {state.ship.hull}/{effectiveShipStats.maxHull}</span>
-              <span title={TOOLTIPS.morale} style={{ color: T.textDim }}>😊 {effectiveMorale}%</span>
-              <span title={TOOLTIPS.fame} style={{ color: T.gold }}>★ {state.fame}</span>
-              <span title={TOOLTIPS.infamy} style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint }}>☠ {state.infamy ?? 0}</span>
-              {(() => {
-                const alerts = state.factionAlerts || {};
-                const highest = Object.entries(alerts).reduce((best, [faction, level]) => {
-                  if (level > best.level) return { faction, level };
-                  return best;
-                }, { faction: null, level: 0 });
+      <div style={{ position: "sticky", top: 0, zIndex: 100,
+        background: "linear-gradient(180deg, #1e1812, #161210)",
+        borderBottom: `1px solid ${T.border}`, padding: "5px 8px",
+        fontFamily: T.font, boxShadow: "0 6px 18px rgba(0,0,0,0.4)" }}>
 
-                if (highest.level > 0) {
-                  const fac = FACTIONS[highest.faction];
-                  return (
-                    <span
-                      title={TOOLTIPS.heat}
-                      style={{
-                        color: fac?.color || T.textDim,
-                        fontSize: 11,
-                        marginLeft: 6,
-                      }}
-                    >
-                      ⚠ {fac?.label?.charAt(0) || "?"}{highest.level}
-                    </span>
-                  );
-                }
-                return null;
-              })()}
-              {savedFlash && (
-                <span style={{ color: T.greenBr, marginLeft: 10, fontSize: 10,
-                  transition: "opacity 0.3s", opacity: savedFlash ? 1 : 0 }}>
-                  ✓ saved
-                </span>
-              )}
-                <span title={TOOLTIPS.hold} style={{ color: T.textDim }}>📦 {Object.values(state.hold?.items || {}).reduce((sum, qty) => sum + qty, 0)}/{L.getHoldCapacity(state)}</span>
-                <span title={TOOLTIPS.food} style={{ color: (state.hold?.items?.food ?? 0) <= 0 ? T.red : T.textDim }}>🍖 {state.hold?.items?.food ?? 0}</span>
-              <span title={TOOLTIPS.water} style={{ color: (state.hold?.items?.water ?? 0) <= 0 ? T.red : T.textDim }}>💧 {state.hold?.items?.water ?? 0}</span>
-            </>
+        <div style={{ display: "grid",
+          gridTemplateColumns: topHeat.level > 0
+            ? (isDebug ? "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr auto" : "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr")
+            : (isDebug ? "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr auto" : "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr"),
+          gap: 4 }}>
+
+          <Cell label="Gold" tip={TOOLTIPS.gold}>
+            <Val color={T.gold}>{state.gold.toLocaleString()}g</Val>
+          </Cell>
+          <Cell label="Day" tip={TOOLTIPS.day}>
+            <Val>{state.day}</Val>
+            <div style={{ fontSize: 9, color: T.textDim, marginTop: 2 }}>{calendarDate}</div>
+          </Cell>
+          <Cell label={<span><IconCrew size={9} color={T.textDim} /> Crew</span>} tip={TOOLTIPS.crew}>
+            <Val small>{state.crew.roster.length}/{state.crew.max}</Val>
+            <Bar value={state.crew.roster.length} max={state.crew.max} color={T.blueBr} h={4} />
+          </Cell>
+          <Cell label={<span><IconShield size={9} color={T.textDim} /> Hull</span>} tip={TOOLTIPS.hull}>
+            <Val small>{state.ship.hull}/{stats.maxHull}</Val>
+            <Bar value={state.ship.hull} max={stats.maxHull} color={T.greenBr} h={4} />
+          </Cell>
+          <Cell label={<span><IconHeart size={9} color={T.textDim} /> Morale</span>} tip={TOOLTIPS.morale}>
+            <Val small>{morale}%</Val>
+            <Bar value={morale} max={100} color={T.yellowBr} h={4} />
+          </Cell>
+          <Cell label={<span><IconStar size={9} color={T.textDim} /> Fame</span>} tip={TOOLTIPS.fame}>
+            <Val small>{state.fame}</Val>
+            <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div>
+          </Cell>
+          <Cell label={<span><IconSkull size={9} color={T.textDim} /> Infamy</span>} tip={TOOLTIPS.infamy}>
+            <Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint}>{state.infamy ?? 0}</Val>
+            <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
+          </Cell>
+          <Cell label={<span><IconCrate size={9} color={T.textDim} /> Hold</span>} tip={TOOLTIPS.hold}>
+            <Val small>{holdUsed}/{holdCap}</Val>
+            <Bar value={holdUsed} max={holdCap} color={T.blueBr} h={4} />
+          </Cell>
+          <Cell label={<span><IconFood size={9} color={T.textDim} /> Food</span>} tip={TOOLTIPS.food}>
+            <Val small color={food <= 0 ? T.redBr : T.text}>{food}</Val>
+          </Cell>
+          <Cell label={<span><IconWater size={9} color={T.textDim} /> Water</span>} tip={TOOLTIPS.water}>
+            <Val small color={water <= 0 ? T.redBr : T.text}>{water}</Val>
+          </Cell>
+          {topHeat.level > 0 && (
+            <Cell label="Heat" tip={TOOLTIPS.heat}>
+              <Val small color={FACTIONS[topHeat.faction]?.color || T.textDim}>
+                {FACTIONS[topHeat.faction]?.label?.substring(0,3) || "?"} {topHeat.level}
+              </Val>
+            </Cell>
           )}
           {isDebug && (
-            <button onClick={() => setDebugOpen(v => !v)}
-              style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
-                       padding: "2px 6px", borderRadius: 3, cursor: "pointer",
-                       fontSize: 11, fontFamily: T.font, marginLeft: 10 }}>
-              ⚙
-            </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button onClick={() => setDebugOpen(v => !v)}
+                style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                  padding: "2px 6px", borderRadius: 2, cursor: "pointer",
+                  fontSize: 10, fontFamily: T.fontMono, width: "100%", height: "100%" }}>
+                ⚙
+              </button>
+            </div>
           )}
         </div>
-        <div>
-          {currentPort && (
-            <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim }}>
-              {currentPort.name}
-            </span>
-          )}
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginTop: 3, fontSize: 10, color: T.textDim, paddingLeft: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {currentPort && (
+              <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
+                {currentPort.name}
+              </span>
+            )}
+            {savedFlash && (
+              <span style={{ color: T.greenBr, fontSize: 9, transition: "opacity 0.3s" }}>✓ saved</span>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  // --- Screen Router ---
   const renderScreen = () => {
     const { S } = window;
     switch (state.screen) {
-      case "title":     return <S.TitleScreen dispatch={dispatch} />;
-      case "start":     return <S.ScenarioScreen dispatch={dispatch} />;
-      case "port":       return <S.PortScreen state={state} dispatch={dispatch} />;
-      case "map":        return <S.MapScreen state={state} dispatch={dispatch} />;
-      case "sailing":    return <S.SailingScreen state={state} dispatch={dispatch} />;
-      case "shipyard":   return <S.ShipyardScreen state={state} dispatch={dispatch} />;
-      case "crew":       return <S.CrewScreen state={state} dispatch={dispatch} />;
-      case "status":     return <S.StatusScreen state={state} dispatch={dispatch} />;
-      case "event":      return <S.EventScreen state={state} dispatch={dispatch} />;
-      case "intercept":  return <S.InterceptScreen state={state} dispatch={dispatch} />;
-      case "battle":     return <S.BattleScreen state={state} dispatch={dispatch} />;
+      case "title": return <S.TitleScreen dispatch={dispatch} />;
+      case "start": return <S.ScenarioScreen dispatch={dispatch} />;
+      case "port": return <S.PortScreen state={state} dispatch={dispatch} />;
+      case "map": return <S.MapScreen state={state} dispatch={dispatch} />;
+      case "sailing": return <S.SailingScreen state={state} dispatch={dispatch} />;
+      case "shipyard": return <S.ShipyardScreen state={state} dispatch={dispatch} />;
+      case "crew": return <S.CrewScreen state={state} dispatch={dispatch} />;
+      case "status": return <S.StatusScreen state={state} dispatch={dispatch} />;
+      case "event": return <S.EventScreen state={state} dispatch={dispatch} />;
+      case "intercept": return <S.InterceptScreen state={state} dispatch={dispatch} />;
+      case "battle": return <S.BattleScreen state={state} dispatch={dispatch} />;
       case "plunder": return <S.PlunderScreen state={state} dispatch={dispatch} />;
-      case "market":     return <S.MarketScreen state={state} dispatch={dispatch} />;
-      case "journal":    return <S.JournalScreen state={state} dispatch={dispatch} />;
-
+      case "market": return <S.MarketScreen state={state} dispatch={dispatch} />;
+      case "journal": return <S.JournalScreen state={state} dispatch={dispatch} />;
       default: return <div style={{ color: T.text, padding: 20 }}>Unknown screen: {state.screen}</div>;
     }
   };
 
-  // --- Main Render ---
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: T.bg,
-      color: T.text,
-      fontFamily: T.font,
-      display: "flex",
-      flexDirection: "column",
-    }}>
+    <div style={{ minHeight: "100vh", background: T.bg, color: T.text,
+      fontFamily: T.font, display: "flex", flexDirection: "column" }}>
       <HUD />
       <div style={{ flex: 1, overflow: "auto", paddingBottom: 20, minWidth: 0 }}>
         {renderScreen()}
       </div>
-      {isDebug && debugOpen && (
-        <DebugPanel state={state} dispatch={dispatch} />
-      )}
+      {isDebug && debugOpen && <DebugPanel state={state} dispatch={dispatch} />}
     </div>
   );
 };
 
-// --- Debug Panel Component ---
 const DebugPanel = ({ state, dispatch }) => {
   const { T } = window.UI;
   const A = window.E.A;
   const { FACTIONS } = window.D;
   const btnStyle = {
     background: T.panel, border: `1px solid ${T.border}`, color: T.textDim,
-    padding: "3px 6px", borderRadius: 3, cursor: "pointer", fontSize: 10,
-    fontFamily: T.font,
+    padding: "3px 6px", borderRadius: 2, cursor: "pointer", fontSize: 10, fontFamily: T.fontMono,
   };
-
   return (
-    <div style={{
-      position: "fixed", top: 40, right: 10, zIndex: 999,
+    <div style={{ position: "fixed", top: 40, right: 10, zIndex: 999,
       background: T.panel, border: `1px solid ${T.gold}`,
-      padding: 12, borderRadius: 4, fontSize: 11,
-      width: 250, fontFamily: T.font,
-    }}>
+      padding: 12, borderRadius: 2, fontSize: 11, width: 250, fontFamily: T.fontMono }}>
       <div style={{ color: T.gold, marginBottom: 8 }}>⚙ DEBUG PANEL</div>
-
       <div style={{ color: T.textDim, marginBottom: 4 }}>Gold</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[1000, 10000, 10000, 1000000].map(n => (
-          <button key={n} onClick={() => dispatch({ type: A.DEBUG_ADD_GOLD, amount: n })}
-            style={{ ...btnStyle }}>+{n}</button>
-        ))}
+        {[1000, 10000, 100000, 1000000].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_ADD_GOLD, amount: n })} style={btnStyle}>+{n >= 1000 ? (n/1000)+'k' : n}</button>))}
       </div>
-
       <div style={{ color: T.textDim, marginBottom: 4 }}>Fame</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[50, 100, 200, 350].map(n => (
-          <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_FAME, fame: n })}
-            style={{ ...btnStyle }}>★{n}</button>
-        ))}
+        {[50, 100, 200, 350].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_FAME, fame: n })} style={btnStyle}>★{n}</button>))}
       </div>
-
       <div style={{ color: T.textDim, marginBottom: 4 }}>Infamy</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[0, 25, 50, 100].map(n => (
-          <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_INFAMY, infamy: n })}
-            style={{ ...btnStyle }}>☠{n}</button>
-        ))}
+        {[0, 25, 50, 100].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_INFAMY, infamy: n })} style={btnStyle}>☠{n}</button>))}
       </div>
-
       <div style={{ color: T.textDim, marginBottom: 4 }}>Ship</div>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-        {["dinghy","sloop","brigantine","frigate","galleon"].map(t => (
-          <button key={t} onClick={() => dispatch({ type: A.DEBUG_SET_SHIP, shipType: t })}
-            style={{ ...btnStyle, color: state.ship.type === t ? T.gold : T.textDim }}>
-            {t}
-          </button>
-        ))}
+        {["dinghy","sloop","brigantine","frigate","galleon"].map(t => (<button key={t} onClick={() => dispatch({ type: A.DEBUG_SET_SHIP, shipType: t })} style={{ ...btnStyle, color: state.ship.type === t ? T.gold : T.textDim }}>{t}</button>))}
       </div>
-
       <div style={{ color: T.textDim, marginBottom: 4 }}>Rep (current port)</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[5, 10, 50, 65, 85].map(n => (
-          <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_PORT_REP,
-            port: state.currentPort, amount: n })}
-            style={{ ...btnStyle }}>{n}</button>
-        ))}
+        {[5, 10, 50, 65, 85].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_PORT_REP, port: state.currentPort, amount: n })} style={btnStyle}>{n}</button>))}
       </div>
-
-      {/* Heat (faction alerts) */}
-<div style={{ color: T.textDim, marginBottom: 4 }}>Heat (per faction)</div>
-{["english","spanish","french","dutch"].map(faction => {
-  const fac = FACTIONS[faction];
-  return (
-    <div key={faction} style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
-      <span style={{ color: fac?.color || T.textDim, fontSize: 10, width: 50 }}>{fac?.label || faction}</span>
-      {[5, 10].map(n => (
-        <button key={n}
-          onClick={() => dispatch({ type: A.DEBUG_SET_HEAT, faction, amount: n })}
-          style={{ ...btnStyle }}>
-          {n}
-        </button>
-      ))}
-    </div>
-  );
-})}
-
-      <button onClick={() => dispatch({ type: A.DEBUG_FILL_HOLD })}
-        style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
-        Fill hold (mixed goods)
-      </button>
-
-      <button onClick={() => dispatch({ type: A.DEBUG_REPAIR })}
-        style={{ ...btnStyle, width: "100%" }}>
-        Full repair + provisions
-      </button>
-
-      {/* Morale */}
-<div style={{ color: T.textDim, marginBottom: 4 }}>Morale</div>
-<div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-  {[10, 50, 80, 100].map(n => (
-    <button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_MORALE, morale: n })}
-      style={{ ...btnStyle }}>😊{n}</button>
-  ))}
-</div>
-
-{/* Hidden ports */}
-<button onClick={() => dispatch({ type: A.DEBUG_UNLOCK_HIDDEN_PORTS })}
-  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
-  🗺 Unlock all hidden ports
-</button>
-
-{/* Max crew */}
-<button onClick={() => dispatch({ type: A.DEBUG_MAX_CREW })}
-  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
-  👥 Fill crew to max
-</button>
-
-{/* Complete mission */}
-<button onClick={() => dispatch({ type: A.DEBUG_COMPLETE_MISSION })}
-  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
-  ✅ Complete active mission
-</button>
-
-{/* Crew Ageing */}
-<button onClick={() => dispatch({ type: A.DEBUG_AGE_CREW })}
-  style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>
-  📅 +50 days aboard (all crew)
-</button>
-
+      <div style={{ color: T.textDim, marginBottom: 4 }}>Heat (per faction)</div>
+      {["english","spanish","french","dutch"].map(faction => {
+        const fac = FACTIONS[faction];
+        return (
+          <div key={faction} style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
+            <span style={{ color: fac?.color || T.textDim, fontSize: 10, width: 50 }}>{fac?.label || faction}</span>
+            {[5, 10].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_HEAT, faction, amount: n })} style={btnStyle}>{n}</button>))}
+          </div>);
+      })}
+      <button onClick={() => dispatch({ type: A.DEBUG_FILL_HOLD })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>Fill hold</button>
+      <button onClick={() => dispatch({ type: A.DEBUG_REPAIR })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>Full repair + provisions</button>
+      <div style={{ color: T.textDim, marginBottom: 4, marginTop: 8 }}>Morale</div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+        {[10, 50, 80, 100].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_MORALE, morale: n })} style={btnStyle}>😊{n}</button>))}
+      </div>
+      <button onClick={() => dispatch({ type: A.DEBUG_UNLOCK_HIDDEN_PORTS })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>🗺 Unlock hidden ports</button>
+      <button onClick={() => dispatch({ type: A.DEBUG_MAX_CREW })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>👥 Fill crew to max</button>
+      <button onClick={() => dispatch({ type: A.DEBUG_COMPLETE_MISSION })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>✅ Complete mission</button>
+      <button onClick={() => dispatch({ type: A.DEBUG_AGE_CREW })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>📅 +50 days aboard</button>
     </div>
   );
 };
 
-// --- Initialize and Mount the App ---
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
-);
+root.render(<ErrorBoundary><App /></ErrorBoundary>);

@@ -340,7 +340,7 @@ window.TESTS.push({
         u.assertEqual(s.gold, E.initialState.gold);
       }
     },
-    {
+{
       name: "F.05 BUY_SHIP to a smaller ship caps crew and clears upgrades",
       type: "reducer",
       run: (u) => {
@@ -349,7 +349,7 @@ window.TESTS.push({
         u.assertEqual(s.ship.type, "sloop");
         u.assert(s.crew.max === D.SHIPS.sloop.maxCrew, "Crew max reduced");
         u.assert(s.crew.roster.length <= s.crew.max, "Crew capped");
-        u.assert(s.ship.upgrades.length === 0, "Upgrades cleared");
+        u.assert(Object.values(s.ship.equipment).flat().length === 0, "Equipment cleared");
       }
     },
     {
