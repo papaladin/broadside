@@ -241,7 +241,7 @@
           newMorale = Math.max(0, newMorale - 1);
         }
 
-        // Faction alert decay (every 2 days, same timing as reputation)
+        // Faction alert decay
         let newAlerts = { ...(state.factionAlerts || {}) };
         if (state.day % 2 === 0) {
           Object.keys(newAlerts).forEach(faction => {
@@ -253,44 +253,58 @@
         if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
         if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
-        // Smuggle patrol
-        const smuggleResult = maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (smuggleResult) return smuggleResult;
+        // ── Route progression ──────────────────────────────────────
+        let newRoute = state.route;
+        if (newRoute) {
+          const progressedDays = newRoute.progressDays + 1;
+          const seaPos = L.getSeaPosition({ ...newRoute, progressDays: progressedDays });
+          newRoute = {
+            ...newRoute,
+            progressDays: progressedDays,
+            seaPosition: seaPos,
+            enduranceSpent: newRoute.enduranceSpent + 1,
+          };
+        }
 
-        // Random event
-        const eventResult = maybeRandomEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (eventResult) return eventResult;
-
-        // Random patrol
-        const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (patrolResult) return patrolResult;
-
-        // Escort / Patrol mission encounter
-        const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (missionEncResult) return missionEncResult;
-
-        // Drunkard event
-        const drunkardResult = maybeDrunkardEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (drunkardResult) return drunkardResult;
-
-        // Hidden port discovery
-        const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
-        if (discoveryLog.length) newLog.push(...discoveryLog);
-
-        // Normal sailing day
-        return {
+        // Base state with all day‑advance changes applied
+        const baseState = {
           ...state,
           wind: newWind,
           day: state.day + 1,
           sailingDaysLeft: newDays,
           gold: newGold,
           reputation: newRep,
-          crew: newCrew,
+          crew: { ...newCrew, morale: newMorale },
           hold: { ...state.hold, items: prov.items },
-          discoveredPorts,
           factionAlerts: newAlerts,
           log: newLog,
+          route: newRoute,
         };
+
+        // Each interception checker is called with the original `state` (it still
+        // needs that for mission state etc.). Its result is merged on top of
+        // `baseState`, so the updated route is never lost.
+        const smuggleResult = maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (smuggleResult) return { ...baseState, ...smuggleResult };
+
+        const eventResult = maybeRandomEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (eventResult) return { ...baseState, ...eventResult };
+
+        const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (patrolResult) return { ...baseState, ...patrolResult };
+
+        const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (missionEncResult) return { ...baseState, ...missionEncResult };
+
+        const drunkardResult = maybeDrunkardEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+        if (drunkardResult) return { ...baseState, ...drunkardResult };
+
+        // Hidden port discovery
+        const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
+        if (discoveryLog.length) baseState.log.push(...discoveryLog);
+        baseState.discoveredPorts = discoveredPorts;
+
+        return baseState;
       }
 
       // --- DISCOVER PORT ---

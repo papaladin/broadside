@@ -210,57 +210,108 @@ const getLogTabCategory = (text) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  TRAVEL FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const travelDays = (fromPort, toPort, state) => {
-    const from = PORTS[fromPort];
-    const to = PORTS[toPort];
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const distance = Math.hypot(dx, dy);
 
-    const ship = getShipStats(state);
-    let days = Math.ceil(distance / (ship.speed * 4));
-
-    // Morale modifier
-    if (state.crew.morale < 50) days += 1;
-    if (state.crew.morale < 30) days += 1;
-
-    // Wind modifier
-    const angleToPort = Math.atan2(dy, dx) * 180 / Math.PI;
-    const windAngleDiff = Math.abs(angleToPort - state.wind.angle) % 360;
-    if (windAngleDiff < 45 || windAngleDiff > 315) days -= 1; // Favorable wind
-    else if (windAngleDiff > 135 && windAngleDiff < 225) days += 1; // Opposing wind
-
-    let baseDays = Math.max(1, days);
-
-    // Navigation Tools: reduce long voyages by 1 day
-    if (baseDays > 4) {
-      const reduction = getEquipmentEffect(state, "longVoyageDayReduction") || 0;
-      baseDays = Math.max(1, baseDays - reduction);
-    }
-
-    const loadPct = getHoldLoadPct(state.hold?.items, state.hold?.capacity);
-    const mult = getHoldSpeedMultiplier(loadPct);
-    return Math.max(1, Math.round(baseDays * mult)); // Minimum 1 day
+const getSeaPosition = (route) => {
+  if (!route || route.totalDays === 0) return route?.originPos || { x: 0, y: 0 };
+  const progress = route.progressDays / route.totalDays;
+  return {
+    x: Math.round(route.originPos.x + (route.destinationPos.x - route.originPos.x) * progress),
+    y: Math.round(route.originPos.y + (route.destinationPos.y - route.originPos.y) * progress),
   };
+};
 
-const canReach = (state, portKey) => {
-  if (portKey === state.currentPort) return false;
-  const port = PORTS[portKey];
+
+// ── Private helper: calculate travel days between any two coordinate points ──
+const travelDaysBetween = (posA, posB, state) => {
+  const dx = posB.x - posA.x;
+  const dy = posB.y - posA.y;
+  const distance = Math.hypot(dx, dy);
+
+  const ship = getShipStats(state);
+  let days = Math.ceil(distance / (ship.speed * 4));
+
+  // Morale modifier
+  if (state.crew.morale < 50) days += 1;
+  if (state.crew.morale < 30) days += 1;
+
+  // Wind modifier
+  const angleToPort = Math.atan2(dy, dx) * 180 / Math.PI;
+  const windAngleDiff = Math.abs(angleToPort - state.wind.angle) % 360;
+  if (windAngleDiff < 45 || windAngleDiff > 315) days -= 1;      // Favourable wind
+  else if (windAngleDiff > 135 && windAngleDiff < 225) days += 1; // Opposing wind
+
+  let baseDays = Math.max(1, days);
+
+  // Navigation Tools: reduce long voyages by 1 day (equipment effect)
+  if (baseDays > 4) {
+    const reduction = getEquipmentEffect(state, "longVoyageDayReduction") || 0;
+    baseDays = Math.max(1, baseDays - reduction);
+  }
+
+  const loadPct = getHoldLoadPct(state.hold?.items, getHoldCapacity(state));
+  const mult = getHoldSpeedMultiplier(loadPct);
+  return Math.max(1, Math.round(baseDays * mult));
+};
+
+// ── Public: port‑to‑port travel (legacy interface) ─────────────────────────
+const travelDays = (fromPort, toPort, state) => {
+  const from = D.PORTS[fromPort];
+  const to = D.PORTS[toPort];
+  if (!from || !to) return Infinity;
+  return travelDaysBetween(from, to, state);
+};
+
+// ── Public: arbitrary sea‑position to port ─────────────────────────────────
+const travelDaysFromPosition = (originPos, portKey, state) => {
+  const port = D.PORTS[portKey];
+  if (!port) return Infinity;
+  return travelDaysBetween(originPos, port, state);
+};
+
+// ── General reachability check (used by both land and sea versions) ───────
+const canReachFrom = (origin, portKey, state, maxDays) => {
+  const port = D.PORTS[portKey];
   if (!port) return false;
-
-  // --- Layer 3: hidden port guard (only affects ports with hidden: true) ---
+  // Hidden port guard
   if (port.hidden && !state.discoveredPorts?.includes(portKey)) return false;
-
-  // --- Layer 2: ship size guard (minHull) ---
+  // Hull size guard
   if (port.minHull) {
-    const baseHull = SHIPS[state.ship?.type]?.maxHull ?? 0;
+    const baseHull = D.SHIPS[state.ship?.type]?.maxHull ?? 0;
     if (baseHull < port.minHull) return false;
   }
 
-  // --- Layer 1: range guard ---
-  const days = travelDays(state.currentPort, portKey, state);
-  const shipMaxDays = SHIPS[state.ship?.type]?.maxDays ?? 10;
-  return days <= shipMaxDays;
+  let days;
+  if (typeof origin === "string") {
+    days = travelDays(origin, portKey, state);
+  } else {
+    days = travelDaysFromPosition(origin, portKey, state);
+  }
+  return days <= maxDays;
+};
+
+// ── Public: legacy canReach (from current port, using ship's maxDays) ─────
+const canReach = (state, portKey) => {
+  if (portKey === state.currentPort) return false;
+  const shipMaxDays = D.SHIPS[state.ship?.type]?.maxDays ?? 10;
+  return canReachFrom(state.currentPort, portKey, state, shipMaxDays);
+};
+
+// ── Public: reachability from sea position ─────────────────────────────────
+const canReachFromPosition = (originPos, portKey, state, remainingEndurance) => {
+  return canReachFrom(originPos, portKey, state, remainingEndurance);
+};
+
+// ── Legacy helper: returns reachable ports from sea (for UI button disable) ─
+const getReachablePortsFromSea = (state) => {
+  const route = state.route;
+  if (!route) return [];
+  const seaPos = getSeaPosition(route);
+  const remaining = (route.enduranceBudget || 0) - (route.enduranceSpent || 0);
+  return Object.keys(D.PORTS).filter(portKey => {
+    if (portKey === route.destinationPort) return false;
+    if (D.PORTS[portKey]?.hidden && !state.discoveredPorts?.includes(portKey)) return false;
+    return canReachFromPosition(seaPos, portKey, state, remaining);
+  });
 };
 
 const getUnreachableReason = (state, portKey) => {
@@ -912,6 +963,11 @@ const applyLoseContraband = (holdItems) => {
     travelDays,
     canReach,
     getUnreachableReason,
+      // New navigation helpers
+  getSeaPosition,
+  travelDaysFromPosition,
+  canReachFromPosition,
+  getReachablePortsFromSea,
 
     // Reputation
     decayReputation,

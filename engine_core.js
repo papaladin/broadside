@@ -149,6 +149,7 @@ window.E = window.E || {};
       pirate: 0,
     },
     currentPort: "portRoyal",
+    route: null,
     scenarioId: null,
     previousPort: null,
     destination: null,
@@ -207,12 +208,6 @@ window.E = window.E || {};
   // ── Debug reducer ──────────────────────────────────────────────
 window.E._reducers.push((state, action) => {
   switch (action.type) {
-
-
-
-
-
-
 
     case window.E.A.DEBUG_ADD_GOLD:
       return { ...state, gold: state.gold + action.amount };
