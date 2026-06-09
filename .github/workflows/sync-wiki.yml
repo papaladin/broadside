@@ -29,7 +29,6 @@ jobs:
 
           # Player & developer guides
           cp docs/player_guide.md wiki/player_guide.md
-          cp docs/developer_guide.md wiki/developer_guide.md
 
           # Architecture & specs (now in docs/)
           cp docs/architecture.md wiki/architecture.md

@@ -60,7 +60,7 @@ const makeState = (overrides = {}) => {
       type: "sloop",
       name: "Test Vessel",
       hull: 100,
-      upgrades: [],
+      equipment: { hull: [], armament: [], rigging: [], special: [] },
     },
     crew: {
       roster: fillRoster(10),

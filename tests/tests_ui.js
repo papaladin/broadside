@@ -20,7 +20,7 @@ window.TESTS.push({
       run: (u) => {
         const state = makeState({
           screen: "port", currentPort: "portRoyal",
-          ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, upgrades: [] },
+          ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           crew: { roster: fillRoster(30), max: 50, morale: 80 },
           missions: [], activeMission: null,
           log: ["Test log entry"]
@@ -55,7 +55,7 @@ window.TESTS.push({
       run: (u) => {
         const state = makeState({
           screen: "shipyard", currentPort: "portRoyal",
-          ship: { type: "sloop", hull: 80, upgrades: [] },
+          ship: { type: "sloop", hull: 80, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           gold: 2000
         });
         const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
@@ -67,7 +67,7 @@ window.TESTS.push({
       run: (u) => {
         const state = makeState({
           screen: "crew", crew: { roster: fillRoster(20), max: 50, morale: 80 },
-          gold: 1000, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] }
+          gold: 1000, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } }
         });
         const { unmount } = u.mountReact(window.S.CrewScreen, { state, dispatch: () => {} });
         unmount();
@@ -106,7 +106,7 @@ window.TESTS.push({
       run: (u) => {
         const state = makeState({
           screen: "battle",
-          ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, upgrades: [] },
+          ship: { type: "sloop", name: "Sea Dog", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           crew: { roster: fillRoster(30), morale: 80 },
           battleState: {
             phase: "player_turn", playerHull: 80, playerCrew: 25,
@@ -132,7 +132,7 @@ window.TESTS.push({
       run: (u) => {
         const state = makeState({
           screen: "shipyard", currentPort: "portRoyal",
-          ship: { type: "sloop", hull: 80, upgrades: [] },
+          ship: { type: "sloop", hull: 80, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           gold: 2000, fame: 10
         });
         const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
@@ -146,7 +146,7 @@ window.TESTS.push({
           screen: "shipyard",
           currentPort: "portRoyal",
           reputation: { portRoyal: 5 },
-          ship: { type: "sloop", hull: 80, upgrades: [] },
+          ship: { type: "sloop", hull: 80, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           gold: 2000
         });
         const { unmount } = u.mountReact(window.S.ShipyardScreen, { state, dispatch: () => {} });
@@ -344,7 +344,7 @@ window.TESTS.push({
       name: "F.05 BUY_SHIP to a smaller ship caps crew and clears upgrades",
       type: "reducer",
       run: (u) => {
-        const state = { ...E.initialState, gold: 50000, ship: { type: "galleon", hull: 300, cannons: 30, upgrades: ["reinforced_hull"] }, crew: { roster: fillRoster(150), max: 150, morale: 80 } };
+        const state = { ...E.initialState, gold: 50000, ship: { type: "galleon", hull: 300, cannons: 30, equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } }, crew: { roster: fillRoster(150), max: 150, morale: 80 } };
         const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "sloop" });
         u.assertEqual(s.ship.type, "sloop");
         u.assert(s.crew.max === D.SHIPS.sloop.maxCrew, "Crew max reduced");
@@ -387,7 +387,7 @@ window.TESTS.push({
       name: "F.09 resolveCombatAction handles missing battleState gracefully",
       type: "unit",
       run: (u) => {
-        const state = { ship: { type: "sloop", upgrades: [] }, crew: { roster: fillRoster(30), morale: 80 } };
+        const state = { ship: { type: "sloop", equipment: { hull: [], armament: [], rigging: [], special: [] } }, crew: { roster: fillRoster(30), morale: 80 } };
         try {
           L.resolveCombatAction(state, "broadside");
           u.assert(true);
@@ -440,7 +440,7 @@ window.TESTS.push({
           fame: 50,
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           },
           equipmentInventory: []
@@ -459,7 +459,7 @@ window.TESTS.push({
           fame: 50,
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: {
               hull: ["reinforced_hull"],
               armament: ["extra_cannons"],
@@ -483,7 +483,7 @@ window.TESTS.push({
           fame: 100,
           reputation: { portRoyal: 80 },
           ship: {
-            type: "frigate", hull: 220, cannons: 24, upgrades: [],
+            type: "frigate", hull: 220, cannons: 24, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           },
           equipmentInventory: ["extra_cannons", "grapeshot_supply", "surgeons_bay", "ornate_figurehead"]
@@ -500,7 +500,7 @@ window.TESTS.push({
           currentPort: "portRoyal",
           reputation: { portRoyal: 5 }, // at war
           ship: {
-            type: "sloop", hull: 80, upgrades: [],
+            type: "sloop", hull: 80, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           },
           gold: 2000,
@@ -520,7 +520,7 @@ window.TESTS.push({
           fame: 10, // too low for high-tier equipment
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           },
           equipmentInventory: []
@@ -540,7 +540,7 @@ window.TESTS.push({
           fame: 50,
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           },
           equipmentInventory: [],

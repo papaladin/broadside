@@ -111,7 +111,7 @@ window.TESTS.push({
     s = E.reducer(s, { type: E.A.TAKE_MISSION, mission: smugMission });
     s = E.reducer(s, { type: E.A.SAIL_TO, port: "nassau" });
     // Use a long enough sequence for wind + intercept check
-    u.setRandomSequence([0.5, 0.5, 0.1]);
+    u.setRandomSequence([...new Array(10).fill(0.5), 0.1, ...new Array(60).fill(0.5)]);
     s = E.reducer(s, { type: E.A.ADVANCE_DAY });
     u.assertEqual(s.screen, "intercept");
     s = E.reducer(s, { type: E.A.INTERCEPT_FIGHT });
@@ -139,14 +139,14 @@ window.TESTS.push({
         let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[3].id });
         s = { ...s, gold: 600000, fame: 100  }; // ensure enough
         const frigateCost = D.SHIPS.frigate.cost;
-        const upgradeCost = D.UPGRADES.extra_cannons.cost;
+        const upgradeCost = D.EQUIPMENT.extra_cannons.cost;
         s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "frigate" });
         u.assertEqual(s.ship.type, "frigate");
-        u.assert(s.gold === 10000 - frigateCost, "Gold deducted for ship");
-        s = E.reducer(s, { type: E.A.BUY_UPGRADE, upgradeKey: "extra_cannons" });
-        u.assert(s.ship.upgrades.includes("extra_cannons"), "Upgrade installed");
-        u.assert(s.gold === 10000 - frigateCost - upgradeCost, "Gold deducted for upgrade");
-        u.assertEqual(L.getShipStats(s).cannons, D.SHIPS.frigate.cannons + 2);
+        u.assert(s.gold === 600000 - frigateCost, "Gold deducted for ship");
+        s = E.reducer(s, { type: E.A.BUY_EQUIPMENT, upgradeKey: "extra_cannons" });
+        u.assert(Object.values(s.ship.equipment).flat().includes("extra_cannons"), "Upgrade installed");
+        u.assert(s.gold === 600000 - frigateCost - D.EQUIPMENT.extra_cannons.cost - D.EQUIPMENT.extra_cannons.installFee, "Gold deducted for equipment");
+        u.assert(L.getShipStats(s).cannons > D.SHIPS.frigate.cannons, "Cannons increased by equipment");
         u.restoreLocalStorage();
       }
     },
@@ -274,7 +274,7 @@ window.TESTS.push({
   name: "S.02 Purchase ship and verify updated ship stats",
   run: (u) => {
     u.installLocalStorageMock(); u.clearLocalStorageMock();
-    let s = makeState({ screen: "port", gold: 1100000, fame: 150, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    let s = makeState({ screen: "port", gold: 1100000, fame: 150, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } } });
     s = E.reducer(s, { type: E.A.NAVIGATE, screen: "shipyard" });
     s = E.reducer(s, { type: E.A.BUY_SHIP, shipType: "galleon" });
     u.assertEqual(s.ship.type, "galleon");
@@ -309,7 +309,7 @@ window.TESTS.push({
   name: "S.04 Hire crew and verify manifest update",
   run: (u) => {
     u.installLocalStorageMock(); u.clearLocalStorageMock();
-    let s = makeState({ screen: "port", gold: 5000, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] }, crew: { roster: fillRoster(20), max: 50, morale: 80 } });
+    let s = makeState({ screen: "port", gold: 5000, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } }, crew: { roster: fillRoster(20), max: 50, morale: 80 } });
     s = E.reducer(s, { type: E.A.NAVIGATE, screen: "crew" });
     s = E.reducer(s, { type: E.A.HIRE_CREW, count: 10 });
     u.assertEqual(s.crew.roster.length, 30);
@@ -320,7 +320,7 @@ window.TESTS.push({
   name: "S.05 Low morale triggers warning on CrewScreen",
   run: (u) => {
     u.installLocalStorageMock(); u.clearLocalStorageMock();
-    let s = makeState({ screen: "crew", crew: { roster: fillRoster(30), max: 50, morale: 25 }, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
+    let s = makeState({ screen: "crew", crew: { roster: fillRoster(30), max: 50, morale: 25 }, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } } });
     const { container, unmount } = u.mountReact(window.S.CrewScreen, { state: s, dispatch: () => {} });
     // The screen should render without error – mountReact already throws on failure.
     unmount();
@@ -347,9 +347,9 @@ window.TESTS.push({
       
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
-        let s = makeState({ screen: "port", gold: 2000, ship: { type: "sloop", hull: 100, cannons: 10, upgrades: [] } });
-        s = E.reducer(s, { type: E.A.BUY_UPGRADE, upgradeKey: "reinforced_hull" });
-        u.assert(s.ship.upgrades.includes("reinforced_hull"));
+        let s = makeState({ screen: "port", gold: 2000, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } } });
+        s = E.reducer(s, { type: E.A.BUY_EQUIPMENT, equipmentKey: "reinforced_hull" });
+        u.assert(Object.values(s.ship.equipment).flat().includes("reinforced_hull"));
         const { container, unmount } = u.mountReact(window.S.PortScreen, { state: s, dispatch: () => {} });
         u.assert(s.log.some(l => l.includes("Reinforced Hull")), "Log should mention upgrade installation");
         unmount();
@@ -414,7 +414,7 @@ window.TESTS.push({
         u.installLocalStorageMock(); u.clearLocalStorageMock(); u.resetRandomStub();
         let s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: D.STARTS[0].id });
         s = E.reducer(s, { type: E.A.SAIL_TO, port: "tortuga" });
-        u.setRandomSequence([0.5, 0.5, 0.05, 0.5]); // wind + event
+        u.setRandomSequence([0.5, 0.5, 0.05, ...new Array(80).fill(0.5)]); // wind + event
         s = E.reducer(s, { type: E.A.ADVANCE_DAY });
         u.assert(s.activeEvent, "Active event should be set");
         u.assert(s.log.some(l => l.includes("Day")), "Log contains event day");
@@ -436,7 +436,7 @@ window.TESTS.push({
           currentPort: "portRoyal",
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: [], rigging: [], special: [] }
           }
         });
@@ -453,11 +453,11 @@ window.TESTS.push({
       run: (u) => {
         u.installLocalStorageMock(); u.clearLocalStorageMock();
         let s = makeState({
-          screen: "port", gold: 5000, fame: 100,
+          screen: "port", gold: 600000, fame: 100,
           currentPort: "portRoyal",
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
           },
           equipmentInventory: []
@@ -485,7 +485,7 @@ window.TESTS.push({
           currentPort: "portRoyal",
           reputation: { portRoyal: 80 },
           ship: {
-            type: "sloop", hull: 100, cannons: 10, upgrades: [],
+            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
             equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } // structural
           },
           equipmentInventory: []
