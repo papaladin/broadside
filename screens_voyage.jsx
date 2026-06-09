@@ -11,7 +11,6 @@ window.S = window.S || {};
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
-  // ── MAP SCREEN ───────────────────────────────────────────────────────
 function MapScreen({ state, dispatch }) {
   const [hov, setHov] = useState(null);
   const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("map"));
@@ -59,10 +58,24 @@ function MapScreen({ state, dispatch }) {
       <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, minHeight: 400 }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep, minHeight: 400 }}>
           <defs>
-            <pattern id="seaGrid" width="50" height="25" patternUnits="userSpaceOnUse">
-              <path d="M0 12 Q12 7 25 12 Q38 17 50 12" stroke="#080f1a" strokeWidth="0.8" fill="none" />
+            {/* Sea gradient — radial highlight at top‑right */}
+            <radialGradient id="seaGlow" cx="72%" cy="18%" r="50%">
+              <stop offset="0%" stopColor="rgba(90,138,170,0.08)" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+            <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#102030" />
+              <stop offset="100%" stopColor="#0a141e" />
+            </linearGradient>
+
+            {/* Grid lines — subtle gold, every 95px X / 92px Y */}
+            <pattern id="seaGrid" width="95" height="92" patternUnits="userSpaceOnUse">
+              <path d="M 95 0 L 95 92 M 0 92 L 95 92" stroke="rgba(201,170,110,0.07)" strokeWidth="1" fill="none" />
             </pattern>
           </defs>
+          {/* Background: gradient with glow, then grid overlay */}
+          <rect width={W} height={H} fill="url(#seaGrad)" />
+          <rect width={W} height={H} fill="url(#seaGlow)" />
           <rect width={W} height={H} fill="url(#seaGrid)" />
           <image href="map.svg" x="0" y="0" width="760" height="460" />
           {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}

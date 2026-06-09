@@ -8,9 +8,9 @@ window.UI = (() => {
   const L = window.L;
 
 const T = {
-    bg: "#14110d",
-    bgDeep: "#0e0b08",
-    bgAlt: "#1a1610",
+    bg: "#0a1622",      // deep navy (replaces #14110d)
+bgDeep: "#060e14",  // very dark navy for shadows/gradients (replaces #0e0b08)
+bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     panel: "#221d16",
     panelAlt: "#1a1510",
     border: "#5a4a32",
