@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton  } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip  } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -48,10 +48,15 @@ window.S = window.S || {};
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
-          <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
+
+          <Tooltip text="Begin a new adventure. Choose your captain and ship.">
+            <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
+          </Tooltip>
 
           {hasSave && (
-            <Btn v="ghost" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
+            <Tooltip text="Continue your most recent voyage from where you left off.">
+              <Btn v="ghost" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
+            </Tooltip>
           )}
 
           <input
@@ -61,8 +66,9 @@ window.S = window.S || {};
             style={{ display: "none" }}
             onChange={handleImport}
           />
-          <Btn v="ghost" onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
-
+          <Tooltip text="Load an adventure from a saved file.">
+            <Btn v="ghost" onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
+          </Tooltip>
           <label style={{ color: T.textDim, fontSize: 10, marginTop: 16, textAlign: "center", cursor: "pointer" }}>
             <input type="checkbox" checked={tutorialEnabled} onChange={e => toggleTutorial(e.target.checked)} style={{ marginRight: 6 }} />
             Show tutorial hints
@@ -93,6 +99,10 @@ window.S = window.S || {};
         <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
+
+        <p style={{ color: T.textDim, fontSize: 12, fontStyle: "italic", marginBottom: 20, textAlign: "center" }}>
+          Every story begins with a choice. What kind of captain will you be?
+        </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(90vw, 280px), 1fr))", gap: T.spacing.md, maxWidth: 640, width: "100%", marginBottom: 20 }}>
           {visibleStarts.map(s => (
             <div key={s.id}
@@ -227,56 +237,83 @@ window.S = window.S || {};
 
           {/* Action buttons */}
           <div style={panelStyle()}>
-            <SectionTitle>ACTIONS</SectionTitle>
-            <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap", marginBottom: 8 }}>
-              <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
-              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
-              <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}>📦 Market</Btn>
-            </div>
-            {!perk.servicesBlocked && (
-              <>
-                <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap", marginBottom: 8 }}>
-                  {port.services.includes("shipyard") && (
-                    <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
-                  )}
-                  {port.services.includes("crew") && (
-                    <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>
-                  )}
-                </div>
-                {port.services.includes("shipyard") && state.ship.hull < L.getShipStats(state).maxHull && (
-                  <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
-                    Quick Repair ({repCost}g)
-                  </Btn>
-                )}
-              </>
-            )}
-            <div style={{ marginTop: 8 }}>
-              <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
-            </div>
-            {L.hasSave() && (
-              <Btn v="ghost" sm onClick={() => dispatch({ type: A.LOAD_GAME })} style={{ marginTop: 4 }}>
-                💾 Load Game
-              </Btn>
-            )}
-            <div style={{ marginTop: 8 }}>
-              <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}>📤 Export Save</Btn>
-              <Btn v="ghost" sm onClick={() => importRef.current?.click()}>📥 Import Save</Btn>
-            </div>
-            <input
-              type="file"
-              accept=".broadside"
-              ref={importRef}
-              style={{ display: "none" }}
-              onChange={handleImport}
-            />
-            <div style={{ marginTop: 8 }}>
-              <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}>📖 Journal</Btn>
-            </div>
-          </div>
+  <SectionTitle>ACTIONS</SectionTitle>
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+    <Tooltip text="Open your chart and choose your next destination.">
+      <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
+    </Tooltip>
+    <Tooltip text="Review your standing with the factions of the Caribbean.">
+      <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
+    </Tooltip>
+    <Tooltip text="Buy, sell, and trade goods in the port market.">
+      <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}>📦 Market</Btn>
+    </Tooltip>
+    <Tooltip text="Read the log of your voyages, battles, and discoveries.">
+      <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}>📖 Journal</Btn>
+    </Tooltip>
+  </div>
+  {!perk.servicesBlocked && (
+    <>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {port.services.includes("shipyard") && (
+          <Tooltip text="Repair, upgrade, or purchase a new vessel.">
+            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
+          </Tooltip>
+        )}
+        {port.services.includes("crew") && (
+          <Tooltip text="Hire new hands or boost morale with a round of drinks.">
+            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</Btn>
+          </Tooltip>
+        )}
+      </div>
+      {port.services.includes("shipyard") && state.ship.hull < L.getShipStats(state).maxHull && (
+        <Tooltip text="Patch up your hull before the next voyage.">
+          <Btn v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
+            Quick Repair ({repCost}g)
+          </Btn>
+        </Tooltip>
+      )}
+    </>
+  )}
+  <div style={{ marginTop: 8 }}>
+    <Tooltip text="Record your progress against the perils of the sea.">
+      <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
+    </Tooltip>
+  </div>
+  {L.hasSave() && (
+    <Tooltip text="Return to a previous record of your journey.">
+      <Btn v="ghost" sm onClick={() => dispatch({ type: A.LOAD_GAME })} style={{ marginTop: 4 }}>
+        💾 Load Game
+      </Btn>
+    </Tooltip>
+  )}
+  <div style={{ marginTop: 8 }}>
+    <Tooltip text="Save your adventure to a file for safekeeping.">
+      <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}>📤 Export Save</Btn>
+    </Tooltip>
+    <Tooltip text="Load an adventure from a file.">
+      <Btn v="ghost" sm onClick={() => importRef.current?.click()}>📥 Import Save</Btn>
+    </Tooltip>
+  </div>
+  <input
+    type="file"
+    accept=".broadside"
+    ref={importRef}
+    style={{ display: "none" }}
+    onChange={handleImport}
+  />
+  <div style={{ marginTop: 8 }}>
+    
+  </div>
+</div>
 
           {/* Mission board */}
           <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1 })}>
-            <SectionTitle action={<Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>}>
+            <SectionTitle action={
+              <Tooltip text="Check for new missions posted at this port.">
+                <Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>
+              </Tooltip>
+            }>
               MISSION BOARD
             </SectionTitle>
             {perk.tier !== "neutral" && (
@@ -366,7 +403,9 @@ window.S = window.S || {};
                       <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
                       <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
                       <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
+                      <Tooltip text="Take this mission as your active objective.">
                       <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
+                    </Tooltip>
                     </div>
                   </div>
                 ))}
@@ -406,12 +445,16 @@ window.S = window.S || {};
                 })()}
                 <div style={{ display: "flex", gap: T.spacing.sm }}>
                   {canFinish && (
-                    <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
-                      disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
-                      Complete Mission
-                    </Btn>
+                    <Tooltip text="Complete the mission and claim your reward.">
+                      <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
+                        disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
+                        Complete Mission
+                      </Btn>
+                    </Tooltip>
                   )}
+                  <Tooltip text="Abandon your current mission. You will lose reputation with the issuing faction.">
                   <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
+                </Tooltip>
                 </div>
                 {!canFinish && (
                   <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
@@ -446,7 +489,9 @@ window.S = window.S || {};
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => { if (!acc[p.faction]) acc[p.faction] = []; acc[p.faction].push({ key, ...p }); return acc; }, {});
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
+        <Tooltip text="Return to the harbour.">
         <BackButton dispatch={dispatch} />
+        </Tooltip>
         {showTutorial && (
           <TutorialPopup
             title="Your Standing"
@@ -467,6 +512,9 @@ window.S = window.S || {};
         )}
         <div style={panelStyle()}>
           <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
+          <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 8 }}>
+            The Caribbean keeps a ledger. Your name is written in it—for better or worse.
+          </p>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ color: T.gold, fontSize: T.heading1FontSize }}>★ {state.fame}</div>
@@ -595,8 +643,9 @@ window.S = window.S || {};
 
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
-        <BackButton dispatch={dispatch} />
-
+        <Tooltip text="Return to the harbour.">
+          <BackButton dispatch={dispatch} />
+        </Tooltip>
         {showTutorial && (
           <TutorialPopup
             title="Your Captain's Journal"
@@ -616,7 +665,9 @@ window.S = window.S || {};
         )}
 
         <SectionTitle>📖 CAPTAIN'S JOURNAL</SectionTitle>
-
+        <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 8 }}>
+        Every storm, every battle, every whispered secret—recorded here for posterity.
+      </p>
         {/* Filter tabs */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
           {tabs.map(tab => (

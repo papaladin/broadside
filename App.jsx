@@ -42,7 +42,7 @@ class ErrorBoundary extends React.Component {
 
 const App = () => {
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold } = window.UI;
+  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold , Tooltip} = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const { screen } = state;
 

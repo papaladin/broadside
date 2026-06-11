@@ -107,6 +107,8 @@ const generateCrewBio = (member, state) => {
   const days = member.daysAboard || 0;
   const tags = member.tags || [];
   const firstName = member.firstName;
+  const lastName = member.lastName;
+
   const lines = [];
 
   // ── Opening (days aboard, random variant) ──────────────────
@@ -121,7 +123,7 @@ const generateCrewBio = (member, state) => {
   const pool = window.D.BIO_OPENINGS[bracket] || window.D.BIO_OPENINGS.newHand;
   const template = pool[Math.floor(Math.random() * pool.length)];
   lines.push(template
-    .replace(/\{fn\}/g, firstName)
+    .replace(/\{fn\}/g, firstName + " " + lastName)
     .replace(/\{days\}/g, String(days))
     .replace(/\{role\}/g, member.role)
     .replace(/\{factionLabel\}/g, factionLabel)

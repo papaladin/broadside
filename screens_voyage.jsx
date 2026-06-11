@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT} = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState, TutorialPopup, BackButton } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, EmptyState, TutorialPopup, BackButton, Tooltip } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -228,10 +228,29 @@ function MapScreen({ state, dispatch }) {
           {/* Controls come first so they're never hidden on narrow screens */}
           <div style={panelStyle()}>
             <div style={{ display: "flex", gap: T.spacing.sm, marginBottom: 8 }}>
-              <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>▶ Advance Day</Btn>
-              <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>⚓ Enter Port</Btn>
+              <Tooltip text="Order the crew to sail one day further. Provisions will be consumed.">
+                <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}>▶ Advance Day</Btn>
+              </Tooltip>
+            <Tooltip text="Drop anchor and go ashore. Trade, rest, or recruit here.">
+            <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}>⚓ Enter Port</Btn>
+          </Tooltip>
             </div>
-            <div style={{ color: T.textDim, fontSize: 10 }}>
+            {/* Change Course — only available while still sailing */}
+            {!arrived && (
+              <div style={{ marginTop: 8 }}>
+                <Tooltip text="Plot a new heading from your current position, if your ship can reach it.">
+                  <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={!canChangeCourse}>
+                    🧭 Change Course
+                  </Btn>
+                </Tooltip>
+                {!canChangeCourse && (
+                  <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4 }}>
+                    No alternate port is reachable from your current position under present conditions.
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ color: T.textDim, fontSize: 10, marginTop: 8 }}>
               Wind {state.wind.speed}kt at {state.wind.angle}°
               {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
               {speedMult > 1 && (
@@ -241,22 +260,7 @@ function MapScreen({ state, dispatch }) {
               )}
             </div>
 
-            {/* Change Course — only available while still sailing */}
-            {!arrived && (
-              <div style={{ marginTop: 8 }}>
-                <Btn
-                  onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}
-                  disabled={!canChangeCourse}
-                >
-                  🧭 Change Course
-                </Btn>
-                {!canChangeCourse && (
-                  <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4 }}>
-                    No alternate port is reachable from your current position under present conditions.
-                  </div>
-                )}
-              </div>
-            )}
+            
           </div>
 
           {/* Provisions panel */}

@@ -362,10 +362,60 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
     }, label)
   );
 
+const Tooltip = ({ text, children }) => {
+  const [tooltip, setTooltip] = React.useState(null);
+  const triggerRef = React.useRef(null);
+
+  const handleMouseEnter = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const tooltipWidth = 280;
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    // Keep within horizontal viewport
+    if (left < 4) left = 4;
+    if (left + tooltipWidth > window.innerWidth - 4) left = window.innerWidth - tooltipWidth - 4;
+    const top = rect.top - 8; // tooltip will appear above the trigger
+    setTooltip({ text, left, top });
+  };
+
+  const handleMouseLeave = () => setTooltip(null);
+
+  return React.createElement('div', {
+    ref: triggerRef,
+    onMouseEnter: handleMouseEnter,
+    onMouseLeave: handleMouseLeave,
+    style: { display: "inline-block" }
+  },
+    children,
+    tooltip && React.createElement('div', {
+      style: {
+        position: "fixed",
+        left: tooltip.left,
+        bottom: `calc(100vh - ${tooltip.top}px)`,
+        maxWidth: 280,
+        background: T.panel,
+        border: `1px solid ${T.border}`,
+        borderRadius: 2,
+        padding: "4px 8px",
+        fontSize: 10,
+        color: T.textDim,
+        zIndex: 1000,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+        whiteSpace: "normal",
+        overflow: "hidden",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+        pointerEvents: "none",
+      }
+    }, tooltip.text)
+  );
+};
+
   return {
     T, panelStyle, Btn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton,
-    IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold,
+    IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold, Tooltip,
   };
 })();

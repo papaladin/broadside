@@ -87,7 +87,7 @@
 - **Effort**: ⚡
 
 ---
-### **2.3 Add Tooltips for Buttons**
+### **2.3 Add Tooltips for Buttons** --> DONE (mostly)
 - **What**: Add tooltips to buttons to explain actions in-character.
 - **Why**: Helps players understand mechanics while staying immersive.
 - **How**:
@@ -212,7 +212,7 @@
 - **Effort**: ⚡⚡
 
 ---
-### **2.8 Visual Atmosphere: Parchment/Ocean Textures**
+### **2.8 Visual Atmosphere: Parchment/Ocean Textures** --> parked / fil rouge
 - **What**: Add subtle textures to panels for a pirate aesthetic.
 - **Why**: Breaks up flat colors and enhances the theme.
 - **How**:
@@ -234,7 +234,7 @@
 - **Effort**: ⚡⚡
 
 ---
-### **2.9 Animate Wind/Waves/Ship Movement**
+### **2.9 Animate Wind/Waves/Ship Movement** --> parked
 - **What**: Add subtle animations to the map and sailing screens.
 - **Why**: Brings the world to life and improves immersion.
 - **How**:
