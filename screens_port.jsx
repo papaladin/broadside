@@ -50,12 +50,12 @@ window.S = window.S || {};
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
 
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
-            <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
+            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
           </Tooltip>
 
           {hasSave && (
             <Tooltip text="Continue your most recent voyage from where you left off.">
-              <Btn v="ghost" onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
+              <Btn v="ghost"  style={{ width: "100%" }} onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
             </Tooltip>
           )}
 
@@ -67,7 +67,7 @@ window.S = window.S || {};
             onChange={handleImport}
           />
           <Tooltip text="Load an adventure from a saved file.">
-            <Btn v="ghost" onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
+            <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
           </Tooltip>
           <label style={{ color: T.textDim, fontSize: 10, marginTop: 16, textAlign: "center", cursor: "pointer" }}>
             <input type="checkbox" checked={tutorialEnabled} onChange={e => toggleTutorial(e.target.checked)} style={{ marginRight: 6 }} />

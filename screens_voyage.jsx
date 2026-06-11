@@ -16,13 +16,19 @@ function MapScreen({ state, dispatch }) {
   const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("map"));
   const W = 760, H = 460;
 
-  // At-sea detection
+  // ── Zoom / Pan state ───────────────────────────────────────
+  const mapRef = React.useRef(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = React.useRef({ x: 0, y: 0, mouseX: 0, mouseY: 0 });
+  const lastPinchDist = React.useRef(0);
+
+  // At-sea detection (unchanged)
   const atSea = state.route && state.route.totalDays > 0 && state.sailingDaysLeft > 0;
   const seaPos = atSea ? L.getSeaPosition(state.route) : null;
   const remainingEndurance = atSea ? state.route.enduranceBudget - state.route.enduranceSpent : 0;
   const playerPos = atSea ? seaPos : (state.currentPort ? PORTS[state.currentPort] : null);
 
-  // Helper for unreachable reason when at sea
   const getAtSeaUnreachableReason = (portKey, days) => {
     const port = PORTS[portKey];
     if (!port) return null;
@@ -35,18 +41,83 @@ function MapScreen({ state, dispatch }) {
     return null;
   };
 
+  // ── Wheel zoom (desktop) ────────────────────────────────────
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const rect = mapRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const direction = e.deltaY > 0 ? -1 : 1;
+    const factor = 1.15;
+    const newScale = Math.max(1, Math.min(3, transform.scale * (direction > 0 ? factor : 1 / factor)));
+    const scaleChange = newScale / transform.scale;
+    setTransform(prev => ({
+      scale: newScale,
+      x: mouseX - (mouseX - prev.x) * scaleChange,
+      y: mouseY - (mouseY - prev.y) * scaleChange,
+    }));
+  };
+
+  // ── Pan (mouse) ─────────────────────────────────────────────
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragStart.current = { x: transform.x, y: transform.y, mouseX: e.clientX, mouseY: e.clientY };
+    e.preventDefault();
+  };
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.current.mouseX;
+    const dy = e.clientY - dragStart.current.mouseY;
+    setTransform(prev => ({ ...prev, x: dragStart.current.x + dx, y: dragStart.current.y + dy }));
+  };
+  const handleMouseUp = () => setIsDragging(false);
+
+  // ── Touch pan / pinch ───────────────────────────────────────
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragStart.current = { x: transform.x, y: transform.y, mouseX: e.touches[0].clientX, mouseY: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      lastPinchDist.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+  };
+  const handleTouchMove = (e) => {
+    if (isDragging && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - dragStart.current.mouseX;
+      const dy = e.touches[0].clientY - dragStart.current.mouseY;
+      setTransform(prev => ({ ...prev, x: dragStart.current.x + dx, y: dragStart.current.y + dy }));
+    } else if (e.touches.length === 2 && lastPinchDist.current > 0) {
+      const newDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = newDist / lastPinchDist.current;
+      const newScale = Math.max(1, Math.min(3, transform.scale * factor));
+      const scaleChange = newScale / transform.scale;
+      // pinch center
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const rect = mapRef.current.getBoundingClientRect();
+      const mx = cx - rect.left, my = cy - rect.top;
+      setTransform(prev => ({
+        scale: newScale,
+        x: mx - (mx - prev.x) * scaleChange,
+        y: my - (my - prev.y) * scaleChange,
+      }));
+      lastPinchDist.current = newDist;
+    }
+  };
+  const handleTouchEnd = () => { setIsDragging(false); lastPinchDist.current = 0; };
+
   return (
     <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: 10, flex: 1, overflow: "hidden", minHeight: "100%" }}>
       <BackButton dispatch={dispatch} />
-      {/* Tutorial Popup */}
       {showTutorial && (
-        <TutorialPopup
-          title="The Caribbean"
-          onDismiss={(disableAll) => {
-            markTutorialSeen("map", disableAll);
-            setShowTutorial(false);
-          }}
-        >
+        <TutorialPopup title="The Caribbean" onDismiss={(disableAll) => { markTutorialSeen("map", disableAll); setShowTutorial(false); }}>
           <p>Click any port to set sail. Hover to see:</p>
           <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
             <li>How many days the voyage will take</li>
@@ -56,98 +127,106 @@ function MapScreen({ state, dispatch }) {
         </TutorialPopup>
       )}
 
-      <div style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, minHeight: 400 }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep, minHeight: 400 }}>
+      <div
+        ref={mapRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", flex: 1, aspectRatio: "760 / 460", minHeight: 0, width: "100%", position: "relative", cursor: isDragging ? "grabbing" : "grab" }}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
           <defs>
-            {/* Sea gradient — radial highlight at top‑right */}
             <radialGradient id="seaGlow" cx="72%" cy="18%" r="50%">
-              <stop offset="0%" stopColor="rgba(90,138,170,0.08)" />
-              <stop offset="100%" stopColor="transparent" />
+              <stop offset="0%" stopColor="rgba(90,138,170,0.08)" /><stop offset="100%" stopColor="transparent" />
             </radialGradient>
             <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#102030" />
-              <stop offset="100%" stopColor="#0a141e" />
+              <stop offset="0%" stopColor="#102030" /><stop offset="100%" stopColor="#0a141e" />
             </linearGradient>
-
-            {/* Grid lines — subtle gold, every 95px X / 92px Y */}
             <pattern id="seaGrid" width="95" height="92" patternUnits="userSpaceOnUse">
               <path d="M 95 0 L 95 92 M 0 92 L 95 92" stroke="rgba(201,170,110,0.07)" strokeWidth="1" fill="none" />
             </pattern>
           </defs>
-          {/* Background: gradient with glow, then grid overlay */}
-          <rect width={W} height={H} fill="url(#seaGrad)" />
-          <rect width={W} height={H} fill="url(#seaGlow)" />
-          <rect width={W} height={H} fill="url(#seaGrid)" />
-          <image href="map.svg" x="0" y="0" width="760" height="460" />
-          {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
-          {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
-            const isHov = hov === key;
-            const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
-            const rep = state.reputation[key] ?? 20;
 
-            let days, reachable;
-            if (atSea) {
-              days = L.travelDaysFromPosition(seaPos, key, state);
-              reachable = L.canReachFromPosition(seaPos, key, state, remainingEndurance) && key !== state.route.destinationPort;
-            } else {
-              days = L.travelDays(state.currentPort, key, state);
-              reachable = L.canReach(state, key) && key !== state.currentPort;
-            }
+          {/* ════ ALL ZOOMABLE MAP CONTENT ════ */}
+          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+            <rect width={W} height={H} fill="url(#seaGrad)" />
+            <rect width={W} height={H} fill="url(#seaGlow)" />
+            <rect width={W} height={H} fill="url(#seaGrid)" />
+            <image href="map.svg" x="0" y="0" width="760" height="460" />
 
-            return (
-              <g key={key}
-                 onClick={() => reachable && dispatch({ type: A.SAIL_TO, port: key })}
-                 onMouseEnter={() => setHov(key)}
-                 onMouseLeave={() => setHov(null)}
-                 style={{ cursor: reachable ? "pointer" : "default" }}>
-                {isHov && <circle cx={p.x} cy={p.y} r={22} fill={fColor} opacity="0.10" />}
-                <circle cx={p.x} cy={p.y} r={7}
-                  fill={reachable ? fColor : T.textFaint}
-                  stroke={T.bgDeep} strokeWidth="2"
-                  opacity={reachable ? 1 : 0.4} />
-                <text x={p.x} y={p.y + 18} textAnchor="middle" fontSize="8" fill={isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text>
-                {isHov && (
-                  reachable ? (
-                    <>
-                      <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
-                      <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
-                    </>
-                  ) : (
+            {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
+
+            {/* Ports */}
+            {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
+              const isHov = hov === key;
+              const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
+              const rep = state.reputation[key] ?? 20;
+              let days, reachable;
+              if (atSea) {
+                days = L.travelDaysFromPosition(seaPos, key, state);
+                reachable = L.canReachFromPosition(seaPos, key, state, remainingEndurance) && key !== state.route.destinationPort;
+              } else {
+                days = L.travelDays(state.currentPort, key, state);
+                reachable = L.canReach(state, key) && key !== state.currentPort;
+              }
+              return (
+                <g key={key} onClick={() => reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: reachable ? "pointer" : "default" }}>
+                  <circle cx={p.x} cy={p.y} r={24} fill="transparent" />
+                  {isHov && <circle cx={p.x} cy={p.y} r={22} fill={fColor} opacity="0.10" />}
+                  <circle cx={p.x} cy={p.y} r={7} fill={reachable ? fColor : T.textFaint} stroke={T.bgDeep} strokeWidth="2" opacity={reachable ? 1 : 0.4} />
+                  <text x={p.x} y={p.y + 18} textAnchor="middle" fontSize="8" fill={isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text>
+                  {isHov && (reachable ? (<>
+                    <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
+                    <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
+                  </>) : (
                     <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>
                       {atSea ? getAtSeaUnreachableReason(key, days) : (L.getUnreachableReason(state, key) || `Out of range — ${days} day${days !== 1 ? "s" : ""}`)}
                     </text>
-                  )
-                )}
-                {isHov && (() => {
-                  const alertLevel = state.factionAlerts?.[p.faction] || 0;
-                  if (alertLevel > 0) {
-                    return (<text x={p.x} y={p.y + 48} textAnchor="middle" fontSize="7" fill={T.redBr} fontFamily={T.font}>⚠ Heat {alertLevel}</text>);
-                  }
-                  return null;
-                })()}
+                  ))}
+                  {isHov && (() => { const alertLevel = state.factionAlerts?.[p.faction] || 0; if (alertLevel > 0) return (<text x={p.x} y={p.y + 48} textAnchor="middle" fontSize="7" fill={T.redBr} fontFamily={T.font}>⚠ Heat {alertLevel}</text>); return null; })()}
+                </g>
+              );
+            })}
+
+            {/* Ship marker */}
+            {playerPos && (
+              <g transform={`translate(${playerPos.x}, ${playerPos.y})`}>
+                <g transform="translate(-14, -14)"><ShipSprite type={state.ship.type} size={28} /></g>
               </g>
-            );
-          })}
-          {/* Ship marker at player position — centered */}
-          {playerPos && (
-            <g transform={`translate(${playerPos.x}, ${playerPos.y})`}>
-              <g transform="translate(-14, -14)">
-                <ShipSprite type={state.ship.type} size={28} />
-              </g>
-            </g>
-          )}
+            )}
+          </g>
+
+          {/* ════ FIXED WIND COMPASS (not zoomable) ════ */}
           <g transform="translate(724, 36)">
-            <circle cx={0} cy={0} r={22} fill="T.bgDeep" stroke={T.border} strokeWidth="1" />
+            <circle cx={0} cy={0} r={22} fill={T.bgDeep} stroke={T.border} strokeWidth="1" />
             {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{d}</text>)}
             <g transform={`rotate(${state.wind.angle})`}><line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" /><polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} /></g>
             <text x={0} y={32} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
           </g>
         </svg>
+
       </div>
+
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {Object.entries(FACTIONS).map(([k, f]) => <div key={k} style={{ display: "flex", gap: 5, alignItems: "center" }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color }} /><span style={{ color: T.textDim, fontSize: 11 }}>{f.label}</span></div>)}
-        <span style={{ color: T.textFaint, fontSize: 10, marginLeft: "auto" }}>Click a port to sail there · Hover to see distance & standing</span>
-      </div>
+  {/* Zoom controls */}
+  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <Btn sm onClick={() => setTransform(p => ({ ...p, scale: Math.max(1, p.scale / 1.2) }))}>−</Btn>
+    <Btn sm onClick={() => setTransform(p => ({ ...p, scale: Math.min(3, p.scale * 1.2) }))}>+</Btn>
+  </div>
+  {/* Faction legend */}
+  {Object.entries(FACTIONS).map(([k, f]) => (
+    <div key={k} style={{ display: "flex", gap: 5, alignItems: "center" }}>
+      <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color }} />
+      <span style={{ color: T.textDim, fontSize: 11 }}>{f.label}</span>
+    </div>
+  ))}
+  <span style={{ color: T.textFaint, fontSize: 10, marginLeft: "auto" }}>Click a port to sail there · Hover to see distance & standing</span>
+</div>
     </div>
   );
 }
@@ -194,7 +273,7 @@ function MapScreen({ state, dispatch }) {
           </TutorialPopup>
         )}
 
-        <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", minHeight: 400 }}>
+        <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", aspectRatio: "760 / 460"}}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
             <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
             <rect width={W} height={H} fill="url(#sailWaves)" />
