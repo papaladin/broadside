@@ -41,13 +41,13 @@ window.S = window.S || {};
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: 20,
+        minHeight: "100vh", padding: T.spacing.xl,
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
         <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: 280 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
           <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
 
           {hasSave && (
@@ -87,13 +87,13 @@ window.S = window.S || {};
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: 20,
+        minHeight: "100vh", padding: T.spacing.xl,
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
         <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(90vw, 280px), 1fr))", gap: 12, maxWidth: 640, width: "100%", marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(90vw, 280px), 1fr))", gap: T.spacing.md, maxWidth: 640, width: "100%", marginBottom: 20 }}>
           {visibleStarts.map(s => (
             <div key={s.id}
               onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
@@ -107,17 +107,17 @@ window.S = window.S || {};
               <div style={{ color: FACTIONS[s.faction]?.color ?? T.gold, fontSize: 10, letterSpacing: "0.08em", marginBottom: 4 }}>
                 {FACTIONS[s.faction]?.label?.toUpperCase()} · {s.ship?.toUpperCase()}
               </div>
-              <div style={{ color: T.gold, fontSize: 14, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
+              <div style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
               <div style={{ color: T.textDim, fontSize: 10, fontStyle: "italic", marginBottom: 8 }}>{s.tagline}</div>
               <p style={{ color: T.text, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.story}</p>
               {s.starterMission && (
-                <div style={{ background: "#081a10", border: `1px solid ${T.greenBr}`, borderRadius: 3, padding: 6, marginBottom: 8 }}>
+                  <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, padding: 6, marginBottom: 8 })}>
                   <div style={{ color: T.greenBr, fontSize: 9, marginBottom: 2 }}>OPENING QUEST</div>
                   <div style={{ color: T.text, fontSize: 10, fontWeight: "bold" }}>{s.starterMission.name}</div>
                   <div style={{ color: T.textDim, fontSize: 9 }}>{s.starterMission.description}</div>
                 </div>
               )}
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
+              <div style={{ display: "flex", gap: T.spacing.md, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
                 <span>💰 {s.gold}g</span>
                 <span>👥 {s.crewCount} crew</span>
                 <span>🍖 8 food · 💧 8 water</span>
@@ -161,8 +161,8 @@ window.S = window.S || {};
       <div style={{
         display: "flex",
         flexDirection: isNarrow ? "column" : "row",
-        gap: 12,
-        padding: 14,
+        gap: T.spacing.md,
+        padding: T.spacing.lg,
         overflowY: "auto",
         flex: 1,
         alignItems: "stretch",
@@ -192,7 +192,7 @@ window.S = window.S || {};
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: T.spacing.md,
           minWidth: 280,
           overflowY: "auto",
         }}>
@@ -200,7 +200,7 @@ window.S = window.S || {};
           <div style={panelStyle()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
-                <div style={{ color: T.gold, fontSize: 17, fontWeight: "bold" }}>{port.name}</div>
+                <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold" }}>{port.name}</div>
                 <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
                   {FACTIONS[port.faction]?.label.toUpperCase()} PORT
                 </div>
@@ -228,14 +228,14 @@ window.S = window.S || {};
           {/* Action buttons */}
           <div style={panelStyle()}>
             <SectionTitle>ACTIONS</SectionTitle>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap", marginBottom: 8 }}>
               <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</Btn>
               <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
               <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}>📦 Market</Btn>
             </div>
             {!perk.servicesBlocked && (
               <>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap", marginBottom: 8 }}>
                   {port.services.includes("shipyard") && (
                     <Btn v="ghost" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</Btn>
                   )}
@@ -373,7 +373,7 @@ window.S = window.S || {};
               </div>
             )}
             {state.activeMission && (
-              <div style={panelStyle({ background: "#081a10", borderColor: T.greenBr, marginTop: 6 })}>
+              <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, marginTop: 6 })}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
                   <div style={{ display: "flex", gap: 4 }}>
@@ -385,7 +385,7 @@ window.S = window.S || {};
                 {state.activeMission.description}
               </div>
                 <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
-                <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 8 }}>
                   <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
                   <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
                 </div>
@@ -404,7 +404,7 @@ window.S = window.S || {};
                     </div>
                   );
                 })()}
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: T.spacing.sm }}>
                   {canFinish && (
                     <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
                       disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
@@ -445,7 +445,7 @@ window.S = window.S || {};
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("status"));
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => { if (!acc[p.faction]) acc[p.faction] = []; acc[p.faction].push({ key, ...p }); return acc; }, {});
     return (
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+      <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
         {showTutorial && (
           <TutorialPopup
@@ -469,11 +469,11 @@ window.S = window.S || {};
           <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div style={{ color: T.gold, fontSize: 18 }}>★ {state.fame}</div>
+              <div style={{ color: T.gold, fontSize: T.heading1FontSize }}>★ {state.fame}</div>
               <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameInfo(state.fame).label}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 18 }}>☠ {state.infamy ?? 0}</div>
+              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: T.heading1FontSize }}>☠ {state.infamy ?? 0}</div>
               <div style={{ color: T.textDim, fontSize: 12 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
               {(state.infamy ?? 0) >= 10 && (
                 <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4, maxWidth: 200 }}>
@@ -490,7 +490,7 @@ window.S = window.S || {};
           <SectionTitle>🤝 FACTION RELATIONS</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
             {Object.entries(FACTIONS).map(([factionKey, fac]) => (
-              <div key={factionKey} style={{ background: T.panelAlt, padding: 8, borderRadius: 3, borderLeft: `3px solid ${fac.color}` }}>
+                <div key={factionKey} style={panelStyle({ background: T.panelAlt, padding: T.spacing.sm, borderLeft: `3px solid ${fac.color}` })}>
                 <div style={{ color: fac.color, fontSize: 12, fontWeight: "bold", marginBottom: 4 }}>{fac.label}</div>
                 <div style={{ color: T.textDim, fontSize: 10 }}>{fac.rivalFactions?.length ? `Rivals: ${fac.rivalFactions.map(r => FACTIONS[r]?.label ?? r).join(", ")}` : "No known rivals"}</div>
               </div>
@@ -521,14 +521,14 @@ window.S = window.S || {};
             <div style={{ color: T.textDim, fontSize: 11 }}>No factions are actively hunting you.</div>
           )}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: T.spacing.md }}>
           {Object.entries(portsByFaction).map(([faction, ports]) => {
             const fac = FACTIONS[faction];
             const avgRep = Math.round(ports.reduce((s, p) => s + (state.reputation[p.key] ?? 20), 0) / ports.length);
             return (
               <div key={faction} style={panelStyle({ borderColor: fac.color + "60" })}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ color: fac.color, fontSize: 13, fontWeight: "bold" }}>{fac.label}</span>
+                  <span style={{ color: fac.color, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{fac.label}</span>
                   <RepPill rep={avgRep} />
                 </div>
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 2 }}>
@@ -594,7 +594,7 @@ window.S = window.S || {};
     ];
 
     return (
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+      <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
 
         {showTutorial && (

@@ -14,7 +14,7 @@ window.S = window.S || {};
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
     if (perk.servicesBlocked) {
       return (
-        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
           <BackButton dispatch={dispatch} />
           <EmptyState message="⚔ You are at war with this port. No crew services available." />
         </div>
@@ -25,7 +25,7 @@ window.S = window.S || {};
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("crew"));
 
     return (
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+      <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
         
         {showTutorial && (
@@ -46,11 +46,11 @@ window.S = window.S || {};
           </TutorialPopup>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: T.spacing.md }}>
           {/* ── ROSTER PANEL ──────────────────────────────── */}
           <div style={panelStyle()}>
             <SectionTitle>ROSTER</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: T.spacing.sm, marginBottom: 10 }}>
               <StatBlock label="Aboard" value={`${state.crew.roster.length}/${state.crew.max}`} />
               <StatBlock label="Berths Free" value={open} />
               <StatBlock label="Morale" value={`${state.crew.morale}%`} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} />
@@ -88,7 +88,7 @@ window.S = window.S || {};
           <div style={panelStyle()}>
             <SectionTitle>HIRE</SectionTitle>
             <p style={{ color: T.textDim, fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
               {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < 1 || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
             </div>
             {open === 0 && <EmptyState message="Ship is at full capacity." />}
@@ -118,7 +118,7 @@ window.S = window.S || {};
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ color: T.gold, fontSize: 13, fontWeight: "bold" }}>
+                      <span style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
                         {selectedMember.firstName} {selectedMember.lastName}
                       </span>
                       <Btn sm v="ghost" onClick={() => setSelectedMember(null)}>✕</Btn>
@@ -130,7 +130,7 @@ window.S = window.S || {};
                       {memberIcons.length > 0 && (
                         <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
                           {memberIcons.map(([tag, { icon, label }]) => (
-                            <span key={tag} title={label} style={{ fontSize: 16 }}>{icon}</span>
+                            <span key={tag} title={label} style={{ fontSize: T.heading2FontSize }}>{icon}</span>
                           ))}
                         </div>
                       )}
@@ -191,7 +191,7 @@ window.S = window.S || {};
                   style={{
                     width: 34, height: 34, borderRadius: 3,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 15, cursor: "pointer",
+                    fontSize: T.heading2FontSize, cursor: "pointer",
                     background: selectedMember?.id === member.id ? T.panelAlt : T.panel,
                     border: `2px solid ${selectedMember?.id === member.id ? T.gold : T.border}`,
                     position: "relative",

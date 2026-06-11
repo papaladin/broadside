@@ -299,59 +299,59 @@ const SHIPS = {
   },
 
   cutter: {
-    name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 20, cost: 1000, requiredFame: 0, maxDays: 8, holdCapacity: 80,
+    name: "Cutter", maxHull: 60, maxCrew: 20, cannons: 6, speed: 12, cost: 1000, requiredFame: 0, maxDays: 8, holdCapacity: 80,
     slots: { hull: 1, armament: 0, rigging: 1, special: 0 },
     desc: "Small, fast, and agile. Excellent for scouting and smuggling."
   },
 
   // Tier 1
   sloop: {
-    name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 18, cost: 15000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
+    name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 11, cost: 15000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
     slots: { hull: 1, armament: 1, rigging: 1, special: 0 },
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
 
   // Tier 2
   schooner: {
-    name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 8, speed: 19, cost: 70000, requiredFame: 50, maxDays: 12, holdCapacity: 240,
+    name: "Schooner", maxHull: 110, maxCrew: 55, cannons: 12, speed: 11, cost: 70000, requiredFame: 50, maxDays: 12, holdCapacity: 240,
     slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "Favored by smugglers and pirates for its speed and shallow draft."
   },
 
   merchantman: {
-    name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 10, cost: 60000, requiredFame: 50, maxDays: 14, holdCapacity: 700,
+    name: "Merchantman", maxHull: 180, maxCrew: 60, cannons: 5, speed: 8, cost: 60000, requiredFame: 50, maxDays: 14, holdCapacity: 700,
     slots: { hull: 1, armament: 0, rigging: 1, special: 2 },
     desc: "Built for trade, not combat. Large cargo hold, but weak in a fight."
   },
 
   brigantine: {
-    name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 14, cost: 150000, requiredFame: 50, maxDays: 14, holdCapacity: 448,
+    name: "Brigantine", maxHull: 150, maxCrew: 80, cannons: 15, speed: 10, cost: 150000, requiredFame: 50, maxDays: 14, holdCapacity: 448,
     slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "Balanced ship with good speed and firepower."
   },
 
   // Tier 3
   corvette: {
-    name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 15, cost: 250000, requiredFame: 100, maxDays: 16, holdCapacity: 500,
+    name: "Corvette", maxHull: 180, maxCrew: 90, cannons: 18, speed: 11, cost: 250000, requiredFame: 100, maxDays: 16, holdCapacity: 500,
     slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "A swift naval warship designed to hunt pirates and escort convoys."
   },
 
   frigate: {
-    name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 12, cost: 500000, requiredFame: 100, maxDays: 18, holdCapacity: 720,
+    name: "Frigate", maxHull: 220, maxCrew: 120, cannons: 24, speed: 9, cost: 500000, requiredFame: 100, maxDays: 18, holdCapacity: 720,
     slots: { hull: 1, armament: 1, rigging: 1, special: 1 },
     desc: "A powerful warship with heavy guns and solid endurance."
   },
 
   fluyt: {
-    name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 9, cost: 200000, requiredFame: 100, maxDays: 24, holdCapacity: 1500,
+    name: "Fluyt", maxHull: 180, maxCrew: 70, cannons: 6, speed: 7, cost: 200000, requiredFame: 100, maxDays: 24, holdCapacity: 1500,
     slots: { hull: 1, armament: 0, rigging: 1, special: 3 },
     desc: "A Dutch cargo vessel optimized for long-distance trade and massive profits."
   },
 
   // Tier 4
   galleon: {
-    name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 7, cost: 1000000, requiredFame: 150, maxDays: 22, holdCapacity: 1000,
+    name: "Galleon", maxHull: 300, maxCrew: 150, cannons: 30, speed: 6, cost: 1000000, requiredFame: 150, maxDays: 22, holdCapacity: 1000,
     slots: { hull: 1, armament: 1, rigging: 1, special: 2 },
     desc: "The king of the seas. Slow but nearly unstoppable in combat."
   },

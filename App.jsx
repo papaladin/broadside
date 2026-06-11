@@ -11,11 +11,11 @@ class ErrorBoundary extends React.Component {
         <div style={{ height: "100vh", display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           background: T.bg, color: T.text, fontFamily: T.font, gap: 16, padding: 20 }}>
-          <div style={{ color: T.gold, fontSize: 18 }}>⚠ Something went wrong</div>
-          <div style={{ color: T.textDim, fontSize: 13, maxWidth: 400, textAlign: "center" }}>
+          <div style={{ color: T.gold, fontSize: T.heading1FontSize }}>⚠ Something went wrong</div>
+          <div style={{ color: T.textDim, fontSize: T.heading3FontSize, maxWidth: 400, textAlign: "center" }}>
             {this.state.error?.message || "An unexpected error occurred."}
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", gap: T.spacing.md }}>
             <button onClick={() => window.location.reload()}
               style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
                 padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", borderRadius: 2 }}>
@@ -42,7 +42,7 @@ class ErrorBoundary extends React.Component {
 
 const App = () => {
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T, Bar, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater } = window.UI;
+  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold } = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const { screen } = state;
 
@@ -121,8 +121,8 @@ const App = () => {
             : (isDebug ? "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr auto" : "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr"),
           gap: 4 }}>
 
-          <Cell label="Gold" tip={TOOLTIPS.gold}>
-            <Val color={T.gold}>{state.gold.toLocaleString()}g</Val>
+          <Cell label={<span><IconGold size={9} color={T.textDim} /> Gold</span>} tip={TOOLTIPS.gold}>
+          <Val color={T.gold}>{state.gold.toLocaleString()}g</Val>
           </Cell>
           <Cell label="Day" tip={TOOLTIPS.day}>
             <Val>{state.day}</Val>
@@ -144,7 +144,7 @@ const App = () => {
             <Val small>{state.fame}</Val>
             <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div>
           </Cell>
-          <Cell label={<span><IconSkull size={9} color={T.textDim} /> Infamy</span>} tip={TOOLTIPS.infamy}>
+          <Cell label={<span style={{ color: T.textDim }}>☠ Infamy</span>} tip={TOOLTIPS.infamy}>
             <Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint}>{state.infamy ?? 0}</Val>
             <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
           </Cell>
@@ -179,7 +179,7 @@ const App = () => {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
           marginTop: 3, fontSize: 10, color: T.textDim, paddingLeft: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
             {currentPort && (
               <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
                 {currentPort.name}
@@ -228,7 +228,7 @@ const App = () => {
 };
 
 const DebugPanel = ({ state, dispatch }) => {
-  const { T } = window.UI;
+  const { T, panelStyle } = window.UI;
   const A = window.E.A;
   const { FACTIONS } = window.D;
   const btnStyle = {
@@ -236,9 +236,13 @@ const DebugPanel = ({ state, dispatch }) => {
     padding: "3px 6px", borderRadius: 2, cursor: "pointer", fontSize: 10, fontFamily: T.fontMono,
   };
   return (
-    <div style={{ position: "fixed", top: 40, right: 10, zIndex: 999,
-      background: T.panel, border: `1px solid ${T.gold}`,
-      padding: 12, borderRadius: 2, fontSize: 11, width: 250, fontFamily: T.fontMono }}>
+      <div style={{
+        position: "fixed", top: 40, right: 10, zIndex: 999,
+        width: 250, fontSize: 11, fontFamily: T.fontMono,
+        maxHeight: "calc(100vh - 60px)",   // ← new
+        overflowY: "auto",                 // ← new
+        ...panelStyle({ variant: "gold" })
+      }}>
       <div style={{ color: T.gold, marginBottom: 8 }}>⚙ DEBUG PANEL</div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Gold</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>

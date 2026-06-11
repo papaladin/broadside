@@ -29,7 +29,7 @@ function StatDelta({ label, before, after }) {
     const arrow = diff > 0 ? " ↑" : diff < 0 ? " ↓" : " =";
     const color = diff > 0 ? T.greenBr : diff < 0 ? T.redBr : T.textDim;
     return (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 3, gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 3, gap: T.spacing.md }}>
             <span style={{ color: T.textDim, minWidth: 70, flexShrink: 0 }}>{label}</span>
             <span style={{ color, textAlign: "right", whiteSpace: "nowrap" }}>
                 {before} → {after}{arrow}
@@ -46,7 +46,7 @@ function ShipyardScreen({ state, dispatch }) {
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
     if (perk.servicesBlocked) {
         return (
-            <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1 }}>
+            <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
                 <BackButton dispatch={dispatch} />
                 <EmptyState message="⚔ You are at war with this port. No shipyard services available." />
             </div>
@@ -126,7 +126,7 @@ function ShipyardScreen({ state, dispatch }) {
                         </span>
                         <Btn sm v="ghost" onClick={() => setSelectedEquip(null)} style={{ flexShrink: 0 }}>✕</Btn>
                     </div>
-                    <div style={{ color: T.text, fontSize: 13, fontWeight: "bold", marginBottom: 4 }}>{item.name}</div>
+                    <div style={{ color: T.text, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 4 }}>{item.name}</div>
                     <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
                         {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
                     </div>
@@ -342,7 +342,7 @@ function ShipyardScreen({ state, dispatch }) {
                 <div style={{
                     display: "grid",
                     gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                    gap: 8,
+                    gap: T.spacing.sm,
                     maxHeight: isNarrow ? "none" : 420,
                     overflowY: isNarrow ? "visible" : "auto",
                     paddingRight: isNarrow ? 0 : 4,
@@ -387,7 +387,7 @@ function ShipyardScreen({ state, dispatch }) {
             <div style={{
                 display: "grid",
                 gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 8,
+                gap: T.spacing.sm,
                 maxHeight: isNarrow ? "none" : 500,
                 overflowY: isNarrow ? "visible" : "auto",
                 paddingRight: isNarrow ? 0 : 4,
@@ -443,7 +443,7 @@ function ShipyardScreen({ state, dispatch }) {
             <div style={{
                 display: "grid",
                 gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 8,
+                gap: T.spacing.sm,
                 maxHeight: isNarrow ? "none" : 420,
                 overflowY: isNarrow ? "visible" : "auto",
                 paddingRight: isNarrow ? 0 : 4,
@@ -511,7 +511,7 @@ function ShipyardScreen({ state, dispatch }) {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     return (
-        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", flex: 1 }}>
             <BackButton dispatch={dispatch} />
 
             {/* Tutorial */}
@@ -539,7 +539,7 @@ function ShipyardScreen({ state, dispatch }) {
             <div style={{
                 display: "flex",
                 flexDirection: isNarrow ? "column" : "row",
-                gap: 12,
+                gap: T.spacing.md,
                 alignItems: "stretch",
             }}>
                 {renderLeftPanel()}

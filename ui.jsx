@@ -9,8 +9,8 @@ window.UI = (() => {
 
 const T = {
     bg: "#0a1622",      // deep navy (replaces #14110d)
-bgDeep: "#060e14",  // very dark navy for shadows/gradients (replaces #0e0b08)
-bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
+    bgDeep: "#060e14",  // very dark navy for shadows/gradients (replaces #0e0b08)
+    bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     panel: "#221d16",
     panelAlt: "#1a1510",
     border: "#5a4a32",
@@ -44,21 +44,41 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     fontMono: "'Courier New', monospace",
     fontSize: 'max(11px, min(1.2vw, 14px))',
     btnMinHeight: 44,
-    narrativeFontSize: 13,
+    narrativefontSize: 12, // body text, flavour, mission descriptions
     narrativeLineHeight: 1.55,
-    metadataFontSize: 11,
-    captionFontSize: 10,
+    metadataFontSize: 11, // costs, dates, faction labels
+    captionFontSize: 10, // fine print, gossip details, small hints
+    heading1FontSize: 18,    // screen titles, port name, victory/defeat text
+    heading2FontSize: 16,    // section headings, encounter title, battle round
+    heading3FontSize: 14,    // enemy name, active mission title, crew member name
+    spacing: {
+      xs: 4,
+      sm: 8,
+      md: 12,
+      lg: 16,
+      xl: 20,
+    },
 };
 
-  const panelStyle = (overrides = {}) => ({
+const panelStyle = (overrides = {}) => {
+  const variant = overrides.variant || "default";
+  const variantStyles = {
+    default: { border: `1px solid ${T.border}` },
+    danger:  { border: `1px solid ${T.redBr}` },
+    gold:    { border: `1px solid ${T.gold}` },
+    subtle:  { border: `1px solid ${T.borderFaint}` },
+  };
+  const { variant: _, ...rest } = overrides;
+  return {
     background: T.panel,
-    border: `1px solid ${T.border}`,
     borderRadius: 2,
-    padding: 12,
+    padding: T.spacing.md,
     color: T.text,
     boxSizing: 'border-box',
-    ...overrides
-  });
+    ...variantStyles[variant],
+    ...rest,
+  };
+};
 
   const IconStar = ({ size = 14, color = "currentColor" }) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
@@ -99,19 +119,37 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     </svg>
   );
 
-  const IconCrate = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
-      <rect x="2.5" y="4.5" width="11" height="8" rx="0.5" stroke={color} strokeWidth="1.1" fill="none" />
-      <path d="M2.5 7.5h11M8 4.5v8" stroke={color} strokeWidth="0.8" fill="none" />
-    </svg>
-  );
+const IconCrate = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    {/* Left barrel */}
+    <ellipse cx="6" cy="5" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" fill="none" />
+    <line x1="2.5" y1="5" x2="2.5" y2="12" stroke={color} strokeWidth="1.1" />
+    <line x1="9.5" y1="5" x2="9.5" y2="12" stroke={color} strokeWidth="1.1" />
+    <ellipse cx="6" cy="12" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" fill="none" />
+    {/* Right barrel (slightly offset and behind) */}
+    <ellipse cx="10" cy="6" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" fill="none" opacity="0.8" />
+    <line x1="6.5" y1="6" x2="6.5" y2="13" stroke={color} strokeWidth="1.1" opacity="0.8" />
+    <line x1="13.5" y1="6" x2="13.5" y2="13" stroke={color} strokeWidth="1.1" opacity="0.8" />
+    <ellipse cx="10" cy="13" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" fill="none" opacity="0.8" />
+  </svg>
+);
 
-  const IconFood = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
-      <path d="M4 3v4.5c0 1.4 1.1 2.5 2.5 2.5h.5v4M10 3v2M12 3v2M11 5v2c0 1-1 2-2 2v4"
-        stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
-    </svg>
-  );
+ const IconFood = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    {/* Handle */}
+    <line x1="8" y1="2" x2="8" y2="14" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    {/* Left tine */}
+    <line x1="6" y1="2" x2="6" y2="6" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    {/* Centre tine */}
+    <line x1="8" y1="2" x2="8" y2="7" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    {/* Right tine */}
+    <line x1="10" y1="2" x2="10" y2="6" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    {/* Crossbar connecting tines */}
+    <line x1="6" y1="5" x2="10" y2="5" stroke={color} strokeWidth="1.0" strokeLinecap="round" />
+  </svg>
+);
 
   const IconWater = ({ size = 14, color = "currentColor" }) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
@@ -119,6 +157,20 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
         stroke={color} strokeWidth="1.2" fill="none" strokeLinejoin="round" />
     </svg>
   );
+
+const IconGold = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M 3 6 C 3 3 17 3 17 6 C 17 9 3 9 3 6 Z"
+          stroke={color} strokeWidth="1.3" fill="none" />
+    <path d="M 3 9 C 3 12 17 12 17 9"
+          stroke={color} strokeWidth="1.3" fill="none" />
+    <path d="M 3 12 C 3 15 17 15 17 12"
+          stroke={color} strokeWidth="1.3" fill="none" />
+    <path d="M 3 6 L 3 12 M 17 6 L 17 12"
+          stroke={color} strokeWidth="1.3" fill="none" />
+  </svg>
+);
 
   const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {} }) => {
     const variants = {
@@ -164,14 +216,14 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
   const StatBlock = ({ label, value, color }) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <span style={{ color: T.textDim, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
-      <span style={{ color: color || T.text, fontSize: 13, fontWeight: "bold" }}>{value}</span>
+      <span style={{ color: color || T.text, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{value}</span>
     </div>
   );
 
   const SectionTitle = ({ children, action }) => (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
       marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${T.borderFaint}`,
-      color: T.gold, fontSize: 13, fontWeight: "bold", letterSpacing: "0.08em" }}>
+      color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", letterSpacing: "0.08em" }}>
       {children}{action}
     </div>
   );
@@ -187,7 +239,9 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
   const NarrativePanel = ({ title, icon, variant = "neutral", children, style = {} }) => {
     const variants = {
       neutral:  { border: T.border,  titleColor: T.gold,    bg: T.panel },
-      gossip:   { border: T.gold,    titleColor: T.gold,    bg: T.bgDeep },
+      gossip:   { border: T.gold,    titleColor: T.gold,    bg: T.bgDeep, bgStyle: { backgroundImage: `radial-gradient(ellipse at 30% 20%, rgba(180,160,120,0.06) 0%, transparent 60%),
+      linear-gradient(180deg, rgba(30,24,18,0.4) 0%, transparent 30%, transparent 70%, rgba(30,24,18,0.4) 100%)`,
+      },},
       danger:   { border: T.redBr,   titleColor: T.redBr,   bg: T.panel },
       crew:     { border: T.blueBr,  titleColor: T.blueBr,  bg: T.panel },
       discovery:{ border: T.greenBr, titleColor: T.greenBr, bg: T.panel },
@@ -195,8 +249,17 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     };
     const v = variants[variant] || variants.neutral;
     return (
-      <div style={{ background: v.bg, border: `1px solid ${v.border}`,
-        borderRadius: 2, padding: 12, marginBottom: 10, color: T.text, boxSizing: 'border-box', ...style }}>
+      <div style={{
+  background: v.bg,
+  border: `1px solid ${v.border}`,
+  borderRadius: 2,
+  padding: 12,
+  marginBottom: 10,
+  color: T.text,
+  boxSizing: 'border-box',
+  ...(v.bgStyle || {}),
+  ...style,
+}}>
         {title && <div style={{ color: v.titleColor, fontSize: 12, fontWeight: 'bold',
           letterSpacing: '0.08em', marginBottom: 8 }}>
           {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{title}
@@ -220,7 +283,7 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     }, React.createElement('div', {
       style: { ...panelStyle({ maxWidth: 460, width: "90%" }), borderColor: T.gold }
     },
-      React.createElement('div', { style: { color: T.gold, fontSize: 15, fontWeight: "bold", marginBottom: 10 } }, "📖 " + title),
+      React.createElement('div', { style: { color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 10 } }, "📖 " + title),
       React.createElement('div', { style: { color: T.text, fontSize: 12, lineHeight: 1.6, marginBottom: 16 } }, children),
       React.createElement('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
         React.createElement('label', { style: { color: T.textDim, fontSize: 11, cursor: "pointer" } },
@@ -265,7 +328,7 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
   );
 
   const EmptyState = ({ message, style = {} }) => (
-    <div style={{ textAlign: "center", color: T.textFaint, fontSize: 11, padding: 20, ...style }}>{message}</div>
+    <div style={{ textAlign: "center", color: T.textFaint, fontSize: 11, padding: T.spacing.xl, ...style }}>{message}</div>
   );
 
   const FactionPill = ({ faction }) => {
@@ -303,6 +366,6 @@ bgAlt: "#0d1824",   // subtle lighter navy for separation (replaces #1a1610)
     T, panelStyle, Btn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton,
-    IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater,
+    IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold,
   };
 })();

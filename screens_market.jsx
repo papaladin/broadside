@@ -17,7 +17,7 @@ window.S = window.S || {};
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("market"));
 
     if (!market) return (
-      <div style={{ padding: 14 }}>
+      <div style={{ padding: T.spacing.lg }}>
         <BackButton dispatch={dispatch} />
         <EmptyState message="No market data available for this port." />
       </div>
@@ -75,7 +75,7 @@ window.S = window.S || {};
     });
 
     return (
-      <div style={{ padding: 14, overflowY: "auto", flex: 1 }}>
+      <div style={{ padding: T.spacing.lg, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
         {showTutorial && (
           <TutorialPopup
@@ -193,7 +193,7 @@ window.S = window.S || {};
             <div>
               <div style={{
                 margin: "12px 0 6px",
-                display: "flex", alignItems: "center", gap: 8,
+                display: "flex", alignItems: "center", gap: T.spacing.sm,
               }}>
                 <div style={{ flex: 1, height: 1, background: T.red + "40" }} />
                 <span style={{ color: T.red, fontSize: 10, letterSpacing: "0.1em" }}>
@@ -217,7 +217,7 @@ window.S = window.S || {};
                 const maxSell = inHold + pBuy;
 
                 return (
-                  <div key={good} style={panelStyle({ background: T.panelAlt, borderColor: T.red + "40" })}>
+                  <div key={good} style={panelStyle({ variant: "danger", background: T.panelAlt })}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, flexWrap:"wrap" }}>
                       <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
                         {res.name}
