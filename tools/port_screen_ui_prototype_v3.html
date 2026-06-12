@@ -1,0 +1,567 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Broadside — Port Screen UI Prototype v3</title>
+  <style>
+    :root {
+      --bg: #14100d;
+      --bg2: #1b1713;
+      --panel: #26211b;
+      --panel2: #2f281f;
+      --line: #6f5d42;
+      --line-soft: #4c4030;
+      --gold: #c9aa6e;
+      --gold-soft: #96784a;
+      --gold-tint: rgba(201,170,110,0.12);
+      --paper: #e6dcc5;
+      --paper-dim: #cbbda4;
+      --danger: #94473a;
+      --sea: #244a63;
+      --sea-soft: #327097;
+      --shadow: rgba(0,0,0,0.45);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background:
+        radial-gradient(circle at top, rgba(201,170,110,0.08), transparent 30%),
+        radial-gradient(circle at 12% 20%, rgba(50,112,151,0.07), transparent 28%),
+        linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      letter-spacing: 0.12px;
+    }
+
+    .wrap {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* ===== ultra compact HUD ===== */
+    .hud {
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, #211a14, #1a1410),
+        linear-gradient(90deg, transparent, rgba(50,112,151,0.05), transparent);
+      box-shadow: 0 8px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+      padding: 8px 10px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0,1fr));
+      gap: 6px;
+    }
+    .hud-cell {
+      border: 1px solid var(--line-soft);
+      background: rgba(255,255,255,0.02);
+      padding: 5px 7px 6px;
+      min-height: 46px;
+    }
+    .hud-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--paper-dim);
+      letter-spacing: 0.9px;
+      margin-bottom: 2px;
+    }
+    .hud-value {
+      font-size: 16px;
+      line-height: 1;
+      color: var(--paper);
+      font-weight: 700;
+    }
+    .hud-sub {
+      margin-top: 2px;
+      color: var(--paper-dim);
+      font-size: 10px;
+      line-height: 1.1;
+    }
+    .bar {
+      margin-top: 4px;
+      height: 6px;
+      border: 1px solid var(--line-soft);
+      background: #181411;
+      overflow: hidden;
+    }
+    .fill-gold { height:100%; background: linear-gradient(90deg, var(--gold-soft), var(--gold)); }
+    .fill-green { height:100%; background: linear-gradient(90deg, #4f6240, #79945e); }
+    .fill-red { height:100%; background: linear-gradient(90deg, #6a3028, #a95446); }
+    .fill-sea { height:100%; background: linear-gradient(90deg, var(--sea), var(--sea-soft)); }
+
+    .divider {
+      height: 14px;
+      margin: 10px 0 14px;
+      opacity: 0.92;
+    }
+
+    /* ===== framing ===== */
+    .panel, .hero {
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, var(--panel2), var(--panel)),
+        radial-gradient(circle at top right, rgba(50,112,151,0.05), transparent 35%);
+      box-shadow: 0 12px 28px var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .panel::before, .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(135deg, rgba(255,255,255,0.03), transparent 38%);
+    }
+
+    .panel { padding: 14px; }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .section-title {
+      margin: 0;
+      color: var(--gold);
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: 0.3px;
+    }
+    .small-note {
+      color: var(--paper-dim);
+      font-size: 12px;
+      font-style: italic;
+      text-align: right;
+    }
+
+    /* ===== hero ===== */
+    .hero {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1.18fr 0.92fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      margin: 0;
+      color: var(--gold);
+      font-size: 38px;
+      line-height: 0.95;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--paper-dim);
+      line-height: 1.55;
+      font-size: 15px;
+      max-width: 62ch;
+    }
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      padding: 5px 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.75px;
+      background: rgba(0,0,0,0.16);
+    }
+    .pill.gold { border-color: #8c7246; color: var(--gold); }
+    .pill.red { border-color: #8f4439; color: #efb8ae; }
+    .pill.blue { border-color: #486a82; color: #bfd7e7; }
+    .hero-side {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: stretch;
+    }
+    .port-illustration {
+      border: 1px solid var(--line-soft);
+      background: linear-gradient(180deg, #224b68 0%, #1e3c50 44%, #423222 44%, #2f2419 100%);
+      min-height: 180px;
+      overflow: hidden;
+    }
+
+    .gossip-inline {
+      margin-top: 14px;
+      border-top: 1px solid var(--line-soft);
+      padding-top: 12px;
+    }
+    .gossip-line {
+      padding: 9px 12px;
+      border-left: 3px solid var(--gold-soft);
+      background: rgba(255,255,255,0.02);
+      margin-bottom: 8px;
+      color: var(--paper);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .gossip-line.trade { border-left-color: var(--sea-soft); }
+    .gossip-line.warn  { border-left-color: var(--danger); }
+
+    /* ===== main layout ===== */
+    .main {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+    }
+    .btn {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #3a3024, #2a221a);
+      padding: 12px 12px;
+      min-height: 58px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .btn .b-title {
+      display: block;
+      color: var(--paper);
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .btn .b-sub {
+      display: block;
+      color: var(--paper-dim);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .btn.gold  { border-color: #8d7346; background: linear-gradient(180deg, #4a3926, #32271c); }
+    .btn.red   { border-color: #7b3d31; background: linear-gradient(180deg, #48241f, #311a16); }
+    .btn.blue  { border-color: #4a6d87; background: linear-gradient(180deg, #243948, #1d2d38); }
+    .btn.green { border-color: #5d7149; background: linear-gradient(180deg, #36412b, #252e1f); }
+
+    .mission {
+      border: 1px solid var(--line-soft);
+      background: rgba(255,255,255,0.02);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .mission.active {
+      background: linear-gradient(180deg, var(--gold-tint), rgba(255,255,255,0.02));
+      border-color: #8d7346;
+    }
+    .mission h3 {
+      margin: 0 0 8px;
+      color: var(--paper);
+      font-size: 18px;
+    }
+    .mission p {
+      margin: 0 0 10px;
+      color: var(--paper-dim);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .mission-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .mission-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border-top: 1px dashed var(--line-soft);
+      padding-top: 8px;
+      color: var(--paper-dim);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .mission-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .mini-btn {
+      border: 1px solid var(--line);
+      padding: 7px 10px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      background: linear-gradient(180deg, #403126, #2d231b);
+      color: var(--paper);
+    }
+    .mini-btn.gold {
+      border-color: #8d7346;
+      background: linear-gradient(180deg, #4d3c28, #34281d);
+      color: var(--gold);
+    }
+    .mini-btn.red {
+      border-color: #7b3d31;
+      background: linear-gradient(180deg, #46231d, #301915);
+      color: #efb8ae;
+    }
+
+    .log-group {
+      padding: 8px 0 12px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    .log-day {
+      color: var(--gold);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.85px;
+      margin-bottom: 6px;
+    }
+    .log-entry {
+      padding: 5px 0;
+      color: var(--paper);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .footer-strip {
+      margin-top: 16px;
+      border: 1px solid var(--line-soft);
+      background: linear-gradient(180deg, #241d16, #1a1510);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--paper-dim);
+      font-size: 13px;
+    }
+    .tiny {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--paper-dim);
+    }
+
+    @media (max-width: 1220px) {
+      .hud-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+      .main { grid-template-columns: 1fr; }
+      .hero { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hud">
+    <div class="hud-grid">
+      <div class="hud-cell">
+        <div class="hud-label">Gold</div>
+        <div class="hud-value">4,850g</div>
+        <div class="hud-sub">Enough to refit.</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Day</div>
+        <div class="hud-value">47</div>
+        <div class="hud-sub">Mid-season.</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Crew</div>
+        <div class="hud-value">34 / 80</div>
+        <div class="bar"><div class="fill-sea" style="width:42%"></div></div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Hull</div>
+        <div class="hud-value">118 / 150</div>
+        <div class="bar"><div class="fill-gold" style="width:79%"></div></div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Morale</div>
+        <div class="hud-value">72</div>
+        <div class="bar"><div class="fill-green" style="width:72%"></div></div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Fame</div>
+        <div class="hud-value">84</div>
+        <div class="hud-sub">Recognised</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Infamy</div>
+        <div class="hud-value">18</div>
+        <div class="hud-sub">Suspect</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Hold</div>
+        <div class="hud-value">96 / 448</div>
+        <div class="bar"><div class="fill-sea" style="width:21%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <svg class="divider" viewBox="0 0 1200 16" preserveAspectRatio="none">
+    <path d="M0,8 C80,2 130,14 200,8 S330,3 400,8 S530,13 600,8 S730,3 800,8 S930,14 1000,8 S1130,2 1200,8" fill="none" stroke="#7c694b" stroke-width="1.3" />
+  </svg>
+
+  <section class="hero">
+    <div>
+      <h1>Nassau</h1>
+      <div class="meta-line">
+        <span class="pill blue">⚓ Pirate Haven</span>
+        <span class="pill gold">⭐ Friendly Standing</span>
+        <span class="pill red">⚠ Heat 3</span>
+      </div>
+      <p>
+        Nassau sits low and watchful beneath a pale sky, half market and half conspiracy.
+        Powder can be found, questions can be avoided, and nearly every errand comes with a second price hidden beneath it.
+      </p>
+
+      <div class="gossip-inline">
+        <div class="panel-head" style="padding-bottom:8px; margin-bottom:10px;">
+          <h2 class="section-title" style="font-size:20px;">Word on the Docks</h2>
+          <span class="small-note">What the harbour says behind your back</span>
+        </div>
+        <div class="gossip-line warn">⚠ Men are saying English privateers have been asking after a brigantine with patched blue canvas and a captain too lucky for his own health.</div>
+        <div class="gossip-line trade">⚓ A chandler swears powder is thinning all through New Providence. Cannon merchants are smiling and nobody else is.</div>
+        <div class="gossip-line">🧭 The dockside brokers say Havana is paying richly for sugar — if a captain can arrive before the Spaniards grow curious.</div>
+        <div class="gossip-line">☠ Somebody in the fish market is buying tobacco with no questions, provided it never existed on paper in the first place.</div>
+      </div>
+    </div>
+
+    <div class="hero-side">
+      <div class="port-illustration">
+        <svg viewBox="0 0 420 220" width="100%" height="100%" aria-label="Simplified SVG port silhouette">
+          <rect x="0" y="0" width="420" height="220" fill="none"/>
+          <circle cx="334" cy="42" r="14" fill="#d8be82" opacity="0.7"/>
+
+          <path d="M0 122 Q90 116 180 123 T360 120 T420 124 L420 220 L0 220 Z" fill="#21506c" opacity="0.88"/>
+          <path d="M0 146 L40 132 L68 136 L102 122 L130 132 L162 116 L188 128 L220 110 L252 126 L286 112 L316 126 L350 118 L392 129 L420 123 L420 220 L0 220 Z" fill="#392c20"/>
+          <path d="M42 124 L88 124 L88 116 L97 116 L97 108 L110 108 L110 124 L156 124 L156 118 L170 118 L170 106 L184 106 L184 124 L248 124 L248 120 L260 120 L260 110 L274 110 L274 124 L332 124 L332 116 L344 116 L344 106 L356 106 L356 124 L386 124" stroke="#90724b" stroke-width="3" fill="none" opacity="0.9"/>
+          <path d="M0 154 Q52 148 104 154 T208 154 T312 154 T420 154" stroke="#84a9c2" stroke-width="1.2" fill="none" opacity="0.35"/>
+          <path d="M16 168 Q68 162 122 168 T230 168 T330 168 T410 168" stroke="#84a9c2" stroke-width="1.1" fill="none" opacity="0.23"/>
+          <path d="M286 152 Q312 144 342 149 Q324 166 294 163 Z" fill="#1c1510"/>
+          <path d="M296 143 L348 143 L356 150 L290 150 Z" fill="#4b3828"/>
+          <line x1="314" y1="143" x2="314" y2="100" stroke="#231b14" stroke-width="2"/>
+          <line x1="336" y1="143" x2="336" y2="108" stroke="#231b14" stroke-width="2"/>
+          <polygon points="314,104 294,132 332,132" fill="#d4bf93" opacity="0.85"/>
+          <polygon points="336,111 321,135 350,135" fill="#cfb887" opacity="0.82"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="main">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="section-title">Harbour Business</h2>
+        <span class="small-note">Choose your next concern</span>
+      </div>
+      <div class="actions">
+        <div class="btn gold"><span class="b-title">🧭 Consult the Chart Table</span><span class="b-sub">Plot your course and leave the harbour behind.</span></div>
+        <div class="btn blue"><span class="b-title">⚓ Visit the Shipwright</span><span class="b-sub">Refit the hull, compare keels, and mount new iron.</span></div>
+        <div class="btn"><span class="b-title">👥 Hear the Crew</span><span class="b-sub">Check quarrels, loyalty, wages, and the mood of the deck.</span></div>
+        <div class="btn"><span class="b-title">📦 Walk the Market</span><span class="b-sub">Buy provisions, move contraband, and smell out profit.</span></div>
+        <div class="btn"><span class="b-title">📜 Open the Journal</span><span class="b-sub">Read the voyage in the order the sea delivered it.</span></div>
+        <div class="btn red"><span class="b-title">🏛 Hear the Notice Board</span><span class="b-sub">See which governors, brokers, and thieves have business for you.</span></div>
+        <div class="btn green"><span class="b-title">💾 Mark the Ledger</span><span class="b-sub">Record ship, crew, fortune, and unfinished business.</span></div>
+        <div class="btn blue"><span class="b-title">🌍 Read the Wider Sea</span><span class="b-sub">Your standing, your grudges, and the world beyond the quay.</span></div>
+      </div>
+    </section>
+
+    <div>
+      <section class="panel" style="margin-bottom:16px;">
+        <div class="panel-head">
+          <h2 class="section-title">Mission Board</h2>
+          <span class="small-note">Work worth your powder</span>
+        </div>
+
+        <div class="mission active">
+          <div class="mission-meta">
+            <span class="pill gold">Active</span>
+            <span class="pill gold">Current Commission</span>
+          </div>
+          <h3>Deliver Powder to Port Royal</h3>
+          <p>You have already taken this commission. The broker is waiting on five crates of powder, and the hold carries only three. Until then, the matter remains unfinished.</p>
+          <div class="mission-footer">
+            <span>Needed: Powder ×5 • In hold: ×3</span>
+            <span>Reward waiting: <strong style="color:var(--gold)">500g</strong></span>
+          </div>
+          <div class="mission-actions">
+            <div class="mini-btn gold">Complete</div>
+            <div class="mini-btn red">Abandon</div>
+          </div>
+        </div>
+
+        <div class="mission">
+          <div class="mission-meta">
+            <span class="pill blue">Escort</span>
+            <span class="pill gold">Medium Risk</span>
+            <span class="pill">Pirate Broker</span>
+          </div>
+          <h3>Shepherd the Black Gull to Tortuga</h3>
+          <p>A coastal brig carrying useful cargo needs a steady escort through lanes lately troubled by English eyes.</p>
+          <div class="mission-footer">
+            <span>Reward: <strong style="color:var(--gold)">420g</strong> + 2 Fame</span>
+            <span>Standing: +Pirate</span>
+          </div>
+        </div>
+
+        <div class="mission">
+          <div class="mission-meta">
+            <span class="pill red">Smuggle</span>
+            <span class="pill gold">High Risk</span>
+            <span class="pill">Quiet Contact</span>
+          </div>
+          <h3>Carry Tobacco to Havana</h3>
+          <p>Three bales are wanted under the cover of ordinary trade. What customs does not see will still enrich someone.</p>
+          <div class="mission-footer">
+            <span>Need: Tobacco ×3</span>
+            <span>Reward: <strong style="color:var(--gold)">690g</strong> + 1 Infamy</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="section-title">Captain’s Log</h2>
+          <span class="small-note">Ink, consequence, and memory</span>
+        </div>
+
+        <div class="log-group">
+          <div class="log-day">Day 47 — Nassau</div>
+          <div class="log-entry">⚓ Dropped anchor at Nassau beneath ragged cloud and a forest of masts.</div>
+          <div class="log-entry">📜 Could not complete: Powder ×5 required, only ×3 in the hold.</div>
+          <div class="log-entry">👥 Two of the newer hands settled down once ashore and stopped muttering about Port Royal.</div>
+        </div>
+
+        <div class="log-group">
+          <div class="log-day">Day 45 — At Sea</div>
+          <div class="log-entry">⚔ Victory! The Viper’s Mercy struck her colours after a sharp exchange off Hispaniola.</div>
+          <div class="log-entry">☠ Lost 2 crew in the smoke and confusion.</div>
+          <div class="log-entry">📦 Claimed rum, sugar, and a small chest of silver from the crippled brig.</div>
+        </div>
+
+        <div class="log-group">
+          <div class="log-day">Day 43 — At Sea</div>
+          <div class="log-entry">💨 Pulled clear of an English patrol by dusk after feigning a southerly drift.</div>
+          <div class="log-entry">🍷 Bosun Marek discovered who had been skimming rum from the hold.</div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <div class="footer-strip">
+    <div><span class="tiny">Direction</span><br/>Thinner HUD, simpler coastal SVG, gossip integrated into the main port identity panel.</div>
+    <div><span class="tiny">Identity</span><br/>Age of Sail through harbor language, sea-blue accents, parchment tones, and chart-table structure — without cliché pirate props.</div>
+    <div><span class="tiny">No assets</span><br/>Everything in this mockup is CSS or inline SVG only.</div>
+  </div>
+</div>
+</body>
+</html>

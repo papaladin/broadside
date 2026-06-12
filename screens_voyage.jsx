@@ -273,7 +273,7 @@ function MapScreen({ state, dispatch }) {
           </TutorialPopup>
         )}
 
-        <div style={{ flex: "2 1 400px", display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", aspectRatio: "760 / 460"}}>
+        <div style={{ flex: "2 1 0", minWidth: 0, display: "flex", flexDirection: "column", border: `1px solid ${T.border}`, borderRadius: 4, overflow: "hidden", aspectRatio: "760 / 460"}}>
           <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
             <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
             <rect width={W} height={H} fill="url(#sailWaves)" />
