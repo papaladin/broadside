@@ -15,7 +15,6 @@
 | **french_luc** | The Cartographer's Debt | French | Dinghy | 190g | Petit-Goave | Completing a dead man's work |
 | **dutch_pieter** | The Company's Ledger | Dutch | Dinghy | 205g | Santo Domingo | Meeting a quota under pressure |
 | **pirate_rosa** | The Survivor | Pirate | Dinghy | 190g | Santiago de Cuba | Rebuilding after a shipwreck |
-| **debug** | Developer Mode | English | Sloop | 5,000g | Port Royal | Testing (Fame 100, all ports Friendly) |
 
 **Tip**: Each scenario includes a **starter mission** to help you learn the ropes.
 
@@ -392,7 +391,7 @@ Aggressive actions (combat, fleeing patrols, smuggling) generate **faction heat*
 ### Late Game
 - **Big Ships**: Frigate or Galleon for assault missions and large cargo hauls
 - **Equipment Combos**: Long Guns + Expanded Hold on a Galleon = devastating trade-warship
-- **Balance Fame/Infamy**: Fame unlocks better ships; infamy unlocks pirate missions but increases patrols
+- **Balance Fame/Infamy**: Fame unlocks better ships; infamy unlocks pirate content but increases patrols
 - **Locker Management**: Remove equipment before buying a new ship!
 
 ### Combat Tips
@@ -410,6 +409,5 @@ Aggressive actions (combat, fleeing patrols, smuggling) generate **faction heat*
 
 ## Further Reading
 
-- [Developer Guide](developer_guide) -- For modders and contributors
 - [Roadmap](roadmap) -- Upcoming features and priorities
 - [Architecture](architecture) -- Technical deep dive into the game's design

@@ -1,7 +1,5 @@
 # Broadside — Development Roadmap
 
-> Last updated: June 10, 2026
-
 ---
 
 ## Current Playable State
@@ -34,54 +32,8 @@ Broadside is fully playable with rich narrative systems:
 - **Economy simulator** (`tests/sim.html`), **crew lifecycle simulator** (`tests/crew_sim.html`), **bio/log redundancy analyzer** (`tests/crew_bio_log_sim.html`), **balance dashboard** (`tests/tests_balance.html`), **equipment combo analyzer** (`tests/equipment_combo_analyzer.html`)
 - **Screenshot generator** for itch.io assets (`screenshots/index.html`)
 
-The game is always in a fully playable state at any phase boundary.
 
----
 
-## Design Philosophy
-
-Broadside is a **systems-driven pirate game** that creates stories through mechanical interaction, not scripted narrative.
-
-> *A few mechanics that interact strongly beat many mechanics that exist independently.*
-
-Every feature must pass this test: **does it create situations where two or more existing systems collide in ways the player didn't expect?**
-
-### Three Pillars
-
-Every feature must serve at least one of these. If it doesn't, it doesn't ship.
-
-| Pillar | What it means | Examples in-game |
-|---|---|---|
-| **Freedom** | Open-world, player-directed, multiple viable playstyles | Go anywhere, be a trader/pirate/privateer/smuggler, no forced path |
-| **Consequence** | Every choice ripples — the world reacts, remembers, and pushes back | Reputation, crew loyalty, faction heat, infamy, gossip, named crew death |
-| **Discovery** | The Caribbean reveals itself through play — secrets earned, not given | Hidden ports, gossip hints, emergent crew stories, market patterns, map fragments |
-
-### Core Design Axioms
-
-- **Every success creates a new problem.** Win a battle → hull damaged, crew lost, cargo to manage, reputation shifted, heat increased.
-- **The world remembers what you did.** Reputation, infamy, heat, crew loyalty, gossip — actions have echoes.
-- **Resources are interconnected.** Gold buys crew, crew costs wages, wages require missions, missions require ships, ships require fame.
-- **Time is the universal cost.** Every action takes days. Days consume provisions. Provisions cost gold. The clock is always ticking.
-- **Crew are people, not numbers.** Named individuals with traits, scars, faction loyalties, and generated biographies. Losing a veteran hurts because you remember their story.
-
-### Core Emotional Targets
-
-| Emotion | Source | Example |
-|---|---|---|
-| **Pressure** | Resource interconnection | You need crew but can't afford wages. You need gold but can't afford the mission's risk. |
-| **Consequence** | Permanent state changes | Your best navigator dies. A faction remembers your betrayal. Your ship is scarred. |
-| **Attachment** | Named crew, emergent reputation | You protect crew members who've been with you since the beginning. |
-| **Emergent story** | System collisions | A smuggle run goes wrong because your Spanish crew refused to forgive the attack on a Spanish patrol. |
-
-### Game Influences & Stance
-
-| Area | Reference | Broadside stance |
-|---|---|---|
-| Trade/sailing | *Sid Meier's Pirates!* | Similar feel, but with resource pressure and logistics |
-| Roguelike structure | *FTL: Faster Than Light* | Node-based exploration, meaningful events, permadeath consequences |
-| Systems-driven narrative | *Dwarf Fortress*, *RimWorld* | Stories emerge from mechanics, not scripts |
-| Crew identity | *Darkest Dungeon* | Named characters accumulate traits; loss has weight |
-| Encounter design | *Sunless Sea* | Atmosphere-first writing, choices with consequences |
 
 ---
 
@@ -136,7 +88,7 @@ Every feature must serve at least one of these. If it doesn't, it doesn't ship.
 - [X] SVG coastline outlines for major landmasses (Cuba, Hispaniola, mainland)
 - [X] Port dots styled by faction with glow on hover
 - [X] Route line when sailing (animated dash)
-- [ ] Compass rose polish
+- [X] Compass rose polish
 - **Note**: Base SVG map with gradients, grid, wind compass, and sea-position ship marker already implemented.
 
 #### T4.5 — itch.io Listing & Web Presence
@@ -198,13 +150,13 @@ Every feature must serve at least one of these. If it doesn't, it doesn't ship.
 
 #### T6.1 — Responsive Overhaul
 - [ ] Audit all screens at 360px–1440px widths
-- [ ] Stack panels vertically on narrow screens (port, shipyard, crew)
-- [ ] Touch-friendly: all interactive elements ≥ 44px
+- [X] Stack panels vertically on narrow screens (port, shipyard, crew)
+- [X] Touch-friendly: all interactive elements ≥ 44px
 - [ ] Swipe gestures for tab navigation (market, shipyard, journal)
 - **Note**: Basic responsive breakpoints exist (`isNarrow` checks). This pass is about comprehensive polish.
 
 #### T6.2 — Visual Theme Refinement
-- [ ] Consistent spacing, typography, and panel styling across all screens
+- [X] Consistent spacing, typography, and panel styling across all screens
 - [ ] Improve color contrast for accessibility
 - [ ] Add subtle hover/focus states to all interactive elements
 - [ ] Consider high-contrast / colorblind-safe palette option
@@ -222,7 +174,7 @@ Every feature must serve at least one of these. If it doesn't, it doesn't ship.
 > **Goal**: make the voyage — the most-repeated action — more engaging.
 
 #### T7.1 — Sailing Micro-Loop Improvement
-- [ ] More frequent micro-decisions during sailing (not just 5% random event)
+- [ ] More frequent micro-decisions during sailing (around 50-60% dead air at the moment)
 - [ ] Crew events at sea: arguments, sightings, morale moments, trait reveals
 - [ ] Weather changes that affect speed and create decisions ("storm approaching — push through or divert?")
 - [ ] Wind system that matters more: tacking, favorable/unfavorable wind as active consideration

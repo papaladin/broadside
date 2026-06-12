@@ -253,7 +253,7 @@ function MapScreen({ state, dispatch }) {
     const canChangeCourse = reachableFromSea.length > 0;
 
     return (
-      <div style={{ padding: T.spacing.lg, display: "flex", gap: T.spacing.md, flex: 1, overflow: "hidden", flexWrap: "wrap",flexDirection: window.innerWidth < 480 ? "column" : "row" }}>
+      <div style={{ padding: T.spacing.lg, display: "flex", gap: T.spacing.md, flex: 1, overflow: "auto", flexWrap: "wrap",flexDirection: window.innerWidth < 480 ? "column" : "row", maxWidth: "100%", boxSizing: "border-box",}}>
         {/* Tutorial Popup */}
         {showTutorial && (
           <TutorialPopup

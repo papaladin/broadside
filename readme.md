@@ -147,7 +147,6 @@ For a deep dive into architecture, data flow, state shape, and game mechanics, s
 
 - [Architecture](docs/architecture.md) -- System design, data flow, module roles
 - [Player Guide](docs/player_guide.md) -- How to play, mechanics, strategies
-- [Developer Guide](docs/developer_guide.md) -- Setup, contribution rules, code style
 - [Roadmap](docs/roadmap.md) -- Planned features and priorities
 - Module specs: [Data](docs/specs_data.md) | [Engine](docs/specs_engine.md) | [Logic](docs/specs_logic.md) | [Generators](docs/specs_generators.md) | [JSX](docs/specs_jsx.md)
 

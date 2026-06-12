@@ -1,24 +1,5 @@
 # Broadside UI/UX, Narrative, and Mobile Support Improvement Tasks
 
-> **Goal**: Improve visual consistency, immersion, narrative atmosphere, and mobile responsiveness across all screens in *Broadside*.
-> **Scope**: UI/UX refinements, thematic renaming, flavour text, visual polish, and mobile support.
-> **Priority**: High (H), Medium (M), Low (L)
-> **Effort**: Low (⚡), Medium (⚡⚡), High (⚡⚡⚡)
-
----
-
----
-
-## 🎯 **Table of Contents**
-1. [UI/UX Consistency Tasks](#-1-uiux-consistency-tasks)
-2. [Narrative Atmosphere Tasks](#-2-narrative-atmosphere-tasks)
-3. [Responsiveness & Mobile Support Tasks](#-3-responsiveness--mobile-support-tasks)
-4. [Screen-Specific Tasks](#-4-screen-specific-tasks)
-5. [Implementation Roadmap](#-5-implementation-roadmap)
-6. [Testing Checklist](#-6-testing-checklist)
-
----
-
 
 
 ## 🎨 **1. UI/UX Consistency Tasks**
@@ -267,65 +248,12 @@ Effort: ⚡
 
 ## 🗺️ 4. Screen-Specific Tasks
 
-### 4.1 MapScreen (screens_voyage.jsx)
-
-
-  
-    
-      Task
-      Why
-      How
-      Priority
-      Effort
-    
-  
-  
-    
-      Add region flavour text
-      Enhances world-building.
-      Display descriptions when hovering over regions (e.g., "The Windward Passage").
-      M
-      ⚡⚡
-    
-    
-      Animate wind direction arrow
-      Makes the map feel dynamic.
-      Add a slow rotation animation to the wind indicator.
-      L
-      ⚡⚡
-    
-    
-      Use nautical symbols for ports
-      Improves clarity and theme.
-      Replace ⚓ with a custom SVG anchor icon.
-      M
-      ⚡
-    
-    
-      Add port descriptions on hover
-      Provides context for ports.
-      Show PORTS[portKey].description in a tooltip.
-      M
-      ⚡
-    
-  
 
 
 
 
 ### 4.2 SailingScreen (screens_voyage.jsx)
 
-
-  
-    
-      Task
-      Why
-      How
-      Priority
-      Effort
-    
-  
-  
     
       Add visual provisions
       Makes inventory more tangible.
@@ -340,13 +268,6 @@ Effort: ⚡
       L
       ⚡
     
-    
-      Animate ship bobbing
-      Enhances immersion.
-      Add a subtle vertical animation to the ship SVG.
-      L
-      ⚡⚡
-    
   
 
 
@@ -355,16 +276,6 @@ Effort: ⚡
 ### 4.3 BattleScreen (screens_voyage.jsx)
 
 
-  
-    
-      Task
-      Why
-      How
-      Priority
-      Effort
-    
-  
-  
     
       Add flavour text for actions
       Clarifies actions thematically.
@@ -393,17 +304,6 @@ Effort: ⚡
 
 ### 4.4 PlunderScreen (screens_voyage.jsx)
 
-
-  
-    
-      Task
-      Why
-      How
-      Priority
-      Effort
-    
-  
-  
     
       Add icons for goods
       Improves readability.
@@ -430,19 +330,9 @@ Effort: ⚡
 
 
 
-4.7 ShipyardScreen (screens_shipyard.jsx)
+ ### 4.7 ShipyardScreen (screens_shipyard.jsx)
 
 
-  
-    
-      Task
-      Why
-      How
-      Priority
-      Effort
-    
-  
-  
     
       Add flavour text for upgrades
       Explains upgrades thematically.
