@@ -239,7 +239,13 @@ function ShipyardScreen({ state, dispatch }) {
                 <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>
                     Hull: {state.ship.hull} / {effectiveStats.maxHull}
                 </div>
-                <Bar value={state.ship.hull} max={effectiveStats.maxHull} color={T.greenBr} h={8} />
+                <Bar value={state.ship.hull} max={effectiveStats.maxHull}
+                color={
+                    state.ship.hull / effectiveStats.maxHull >= 0.6 ? T.greenBr :
+                    state.ship.hull / effectiveStats.maxHull >= 0.3 ? T.gold :
+                    T.redBr
+                }
+                h={8} />
                 <div style={{ marginTop: 6 }}>
                     <Btn sm v="gold"
                         onClick={() => dispatch({ type: A.REPAIR })}

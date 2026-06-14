@@ -533,11 +533,11 @@ const InterceptScreen = ({ state, dispatch }) => {
           <div style={panelStyle({ borderColor: T.blueBr })}>
             <div style={{ color: T.blueBr, fontSize: 10, marginBottom: 4 }}>{state.ship.name}</div>
             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
-            <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct < 0.3 ? T.redBr : T.greenBr} h={10} />
+            <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={ playerPct >= 0.6 ? T.greenBr :playerPct >= 0.3 ? T.gold :T.redBr} h={10} />
             {bs.convoyHull !== undefined && (
               <>
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {bs.convoyHull} / 50</div>
-                <Bar value={bs.convoyHull} max={50} color={bs.convoyHull < 15 ? T.redBr : T.gold} h={8} />
+                <Bar value={bs.convoyHull} max={50}color={ bs.convoyHull / 50 >= 0.6 ? T.greenBr :bs.convoyHull / 50 >= 0.3 ? T.gold :T.redBr} h={8} />
               </>
             )}
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
@@ -546,7 +546,7 @@ const InterceptScreen = ({ state, dispatch }) => {
           <div style={panelStyle({ borderColor: T.red })}>
             <div style={{ color: T.redBr, fontSize: 10, marginBottom: 4 }}>{bs.enemy.name}</div>
             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.enemyHull} / {bs.enemy.hull}</div>
-            <Bar value={bs.enemyHull} max={bs.enemy.hull} color={T.redBr} h={10} />
+            <Bar value={bs.enemyHull} max={bs.enemy.hull}color={enemyPct >= 0.6 ? T.greenBr :enemyPct >= 0.3 ? T.gold :T.redBr} h={10} />
             <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
             <div style={{ marginTop: 5 }}><FactionPill faction={bs.enemy.faction} /></div>
           </div>
