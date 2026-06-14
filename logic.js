@@ -556,7 +556,7 @@ const revealTag = (member, traitName) => {
           out.enemyCargo = plunder.cargo;
         } else {
           const crewLossPct = 0.3 + Math.random() * 0.2;
-          out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
+          out.player.crewLoss = Math.floor(playerCrew * crewLossPct);
         }
         break;
       }
@@ -599,54 +599,58 @@ const revealTag = (member, traitName) => {
   };
 
   const resolveNpcAction = (state) => {
-    const enemy = state.battleState.enemy;
-    const npcAction = getNPCAction(enemy);
-    const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
-    const result = { enemy: { hullDamage: 0, crewLoss: 0 }, player: { hullDamage: 0, crewLoss: 0 } };
-
-    switch (npcAction) {
-      case "broadside": {
-        result.enemy.hullDamage = Math.floor(npcDmg * 0.6);
-        result.enemy.crewLoss   = maybeCrewLoss(npcDmg * 0.4 / 3);
-        break;
-      }
-      case "precision": {
-        if (Math.random() < 0.7) {
-          result.enemy.hullDamage = Math.floor(npcDmg * 0.9);
-          result.enemy.crewLoss   = maybeCrewLoss(npcDmg * 0.1 / 3);
-        }
-        break;
-      }
-      case "grapple": {
-        const enemyCrew = enemy.crew;
-        const playerCrew = state.crew.roster.length;
-        const enemyHullPct = state.battleState.enemyHull / enemy.hull;
-
-        let npcSuccessChance = 0.5;
-        const npcCrewDiff = enemyCrew - playerCrew;
-        npcSuccessChance += Math.min(0.3, Math.max(0, npcCrewDiff / playerCrew * 0.3));
-        npcSuccessChance += Math.min(0.2, Math.max(0, (enemyHullPct - 0.5) * 0.4));
-        npcSuccessChance += Math.min(0.2, 0.7 - 0.5 * 0.4);
-        npcSuccessChance = Math.min(0.95, npcSuccessChance);
-
-        if (Math.random() < npcSuccessChance) {
-          const npcCrewLossPct = 0.3 + Math.random() * 0.2;
-          result.enemy.crewLoss += Math.floor(playerCrew * npcCrewLossPct);
-        } else {
-          result.player.crewLoss += Math.floor(enemyCrew * 0.05);
-        }
-        break;
-      }
-      case "evade": {
-        if (Math.random() >= 0.9) {
-          result.enemy.hullDamage += result.player?.hullDamage || 0;
-          result.enemy.crewLoss   += result.player?.crewLoss   || 0;
-        }
-        break;
-      }
-    }
-    return result;
+  const enemy = state.battleState.enemy;
+  const npcAction = getNPCAction(enemy);
+  const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
+  const result = {
+    enemy: { hullDamage: 0, crewLoss: 0 },
+    player: { hullDamage: 0, crewLoss: 0 },
+    action: npcAction,
+    hit: false,
+    grappleSuccess: false,
   };
+
+  switch (npcAction) {
+    case "broadside": {
+      result.enemy.hullDamage = Math.floor(npcDmg * 0.6);
+      result.enemy.crewLoss   = maybeCrewLoss(npcDmg * 0.4 / 3);
+      break;
+    }
+    case "precision": {
+      const npcHit = Math.random() < 0.7;
+      result.hit = npcHit;
+      if (npcHit) {
+        result.enemy.hullDamage = Math.floor(npcDmg * 0.9);
+        result.enemy.crewLoss   = maybeCrewLoss(npcDmg * 0.1 / 3);
+      }
+      break;
+    }
+    case "grapple": {
+      const enemyCrew = enemy.crew;
+      const playerCrew = state.crew.roster.length;
+      const enemyHullPct = state.battleState.enemyHull / enemy.hull;
+
+      let npcSuccessChance = 0.5;
+      const npcCrewDiff = enemyCrew - playerCrew;
+      npcSuccessChance += Math.min(0.3, Math.max(0, npcCrewDiff / playerCrew * 0.3));
+      npcSuccessChance += Math.min(0.2, Math.max(0, (enemyHullPct - 0.5) * 0.4));
+      npcSuccessChance += 0.1;   // slight adjustment from old code (was 0.2, but we'll keep same probability)
+      npcSuccessChance = Math.min(0.95, npcSuccessChance);
+
+      const npcSuccess = Math.random() < npcSuccessChance;
+      result.grappleSuccess = npcSuccess;
+      if (npcSuccess) {
+        // NPC succeeds – kills player crew
+        result.player.crewLoss += Math.floor(playerCrew * (0.3 + Math.random() * 0.2));
+      } else {
+        // NPC fails – loses some crew
+        result.enemy.crewLoss += Math.floor(enemyCrew * 0.05);
+      }
+      break;
+    }
+  }
+  return result;
+};
 
   const applyDamageMoralePenalty = (state, outcome) => {
     const effectiveMorale = getEffectiveMorale(state);
@@ -684,6 +688,16 @@ const revealTag = (member, traitName) => {
 
   // 1. Resolve player action
   const playerOutcome = resolvePlayerAction(state, action);
+  const playerAction = action;
+
+  // track whether player precision hit or grapple succeeded
+  let playerHit = null;       // null = not applicable, true = hit, false = miss
+  let playerGrappleSuccess = null;
+  if (playerAction === "precision") {
+    playerHit = playerOutcome.player.hullDamage > 0;   // precision deals damage only on hit
+  } else if (playerAction === "grapple") {
+    playerGrappleSuccess = playerOutcome.instantVictory;
+  }
 
   // 2. Calculate morale delta
   const moraleOutcome = applyMoraleModifier(state, action, playerOutcome);
@@ -704,7 +718,17 @@ const revealTag = (member, traitName) => {
   }
 
   // 5. Apply morale modifier to player damage
-  return applyDamageMoralePenalty(state, combined);
+  const finalOutcome = applyDamageMoralePenalty(state, combined);
+
+  // Attach rich log information
+  finalOutcome.playerAction = playerAction;
+  finalOutcome.npcAction = npcOutcome ? npcOutcome.action : null;
+  finalOutcome.playerHit = playerHit;
+  finalOutcome.playerGrappleSuccess = playerGrappleSuccess;
+  finalOutcome.npcHit = npcOutcome ? npcOutcome.hit : null;
+  finalOutcome.npcGrappleSuccess = npcOutcome ? npcOutcome.grappleSuccess : null;
+
+  return finalOutcome;
 };
 
 

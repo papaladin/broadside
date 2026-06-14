@@ -316,10 +316,91 @@ const MISSION_NAME_PARTS = {
   },
 };
 
+
+// ── Combat Log Templates ──────────────────────────────────────
+const COMBAT_LOG_TEMPLATES = {
+  player: {
+    broadside: [
+      "Your broadside thunders across the waves, dealing {hull} hull damage and sweeping {crew} crew from the deck.",
+      "A full volley crashes into the enemy: {hull} to the hull, {crew} sailors lost.",
+      "Cannons roar in unison – {hull} hull damage, {crew} crew cut down.",
+      "The broadside lands true. {hull} hull integrity gone, {crew} enemy crew fall.",
+    ],
+    precision_hit: [
+      "Your precision shot finds its mark, tearing {hull} from the hull and killing {crew} crew.",
+      "Aimed and fired – the shot hits home. {hull} hull damage, {crew} crew down.",
+      "The gun crew cheers as the precision strike lands, dealing {hull} hull damage and {crew} casualties.",
+      "Right through the gunports! {hull} hull damage, {crew} enemy sailors lost.",
+    ],
+    precision_miss: [
+      "Your precision shot splashes harmlessly into the sea.",
+      "The aimed shot goes wide. Nothing but spray.",
+      "You overcorrect and miss cleanly.",
+      "The cannonball flies past the enemy’s rigging. A miss.",
+    ],
+    grapple_success: [
+      "You bring the ships together and board! The enemy vessel is yours.",
+      "Grapples fly and your crew swarms over the rail. Victory!",
+      "You close the distance and your boarders overwhelm them. The enemy ship is taken.",
+      "Hooks bite into timber – you board and claim the prize!",
+    ],
+    grapple_fail: [
+      "Your grapple fails and you lose {crew} crew in the attempt.",
+      "The enemy repels your boarders. {crew} of your sailors are cut down.",
+      "They fight off the grapple and you retreat, {crew} crew lighter.",
+      "The boarding action is thrown back. {crew} crew lost in the chaos.",
+    ],
+    evade_success: [
+      "You slip away into the smoke and escape!",
+      "You disengage cleanly. The enemy is left behind.",
+      "A quick turn and you’re gone. They won’t catch you today.",
+      "You outrun them and vanish into the open sea.",
+    ],
+    evade_fail: [
+      "Evade fails! The enemy stays on your heels.",
+      "You try to flee but they match your speed.",
+      "No escape – they’re faster than you hoped.",
+      "You can’t shake them. The fight continues.",
+    ],
+  },
+  npc: {
+    broadside: [
+      "The enemy's broadside slams into your hull: {hull} damage, {crew} crew lost.",
+      "A return volley crashes home – {hull} hull, {crew} sailors down.",
+      "Their cannons speak. {hull} hull damage, {crew} crew casualties.",
+      "Fire and splinters: {hull} to the hull, {crew} crew swept away.",
+    ],
+    precision_hit: [
+      "The enemy's precision shot punches through – {hull} hull damage, {crew} crew killed.",
+      "A sniper’s aim: {hull} hull integrity lost, {crew} crew fall.",
+      "They land a perfect shot. {hull} damage, {crew} casualties.",
+      "A well‑aimed cannonball tears into your ship. {hull} hull, {crew} crew lost.",
+    ],
+    precision_miss: [
+      "The enemy's precision shot misses.",
+      "Their aimed shot splashes wide.",
+      "A cannonball whistles past harmlessly.",
+      "They fire too high – a miss.",
+    ],
+    grapple_success: [
+      "The enemy grapples and boards! They kill {crew} of your crew.",
+      "They latch on and swarm your deck, cutting down {crew} sailors.",
+      "Enemy boarders pour over the rail. {crew} crew lost in the melee.",
+      "They take your ship by force, killing {crew} of your men.",
+    ],
+    grapple_fail: [
+      "The enemy's grapple fails. They lose {crew} crew in the attempt.",
+      "You throw them back and they retreat, {crew} men lighter.",
+      "The boarding is repelled. {crew} of theirs are cut down.",
+      "They fail to board and pull back, losing {crew} crew.",
+    ],
+  },
+};
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  Enemy Ship Names
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 
 const ENEMY_SHIP_NAMES = {
   // Procedural Adjectives (With historical elements integrated)
@@ -401,6 +482,7 @@ const ENEMY_SHIP_NAMES = {
     BIO_OPENINGS,
     PORT_GOSSIP_TEMPLATES,
     MISSION_NAME_PARTS,
+    COMBAT_LOG_TEMPLATES,
     ENEMY_SHIP_NAMES,
     ENCOUNTER_FLAVOUR,
   });

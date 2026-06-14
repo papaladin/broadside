@@ -51,6 +51,115 @@ const fledMessage = () =>
   fledTemplates[Math.floor(Math.random() * fledTemplates.length)]();
 
 
+// --- BATTLE_ACTION Helpers ---------------------------------------
+
+// ── Combat helpers (reduce BATTLE_ACTION verbosity) ─────────────
+
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Build a narrative round log using templates from D.COMBAT_LOG_TEMPLATES
+const buildRoundLog = (outcome) => {
+  const T = D.COMBAT_LOG_TEMPLATES;
+  if (!T) return "";  // safety
+
+  const playerAct = outcome.playerAction;
+  const npcAct    = outcome.npcAction;
+
+  let playerLog = "";
+  if (playerAct === "broadside") {
+    playerLog = pickRandom(T.player.broadside)
+      .replace("{hull}", outcome.player.hullDamage)
+      .replace("{crew}", outcome.player.crewLoss);
+  } else if (playerAct === "precision") {
+    playerLog = outcome.playerHit
+      ? pickRandom(T.player.precision_hit)
+          .replace("{hull}", outcome.player.hullDamage)
+          .replace("{crew}", outcome.player.crewLoss)
+      : pickRandom(T.player.precision_miss);
+  } else if (playerAct === "grapple") {
+    playerLog = outcome.playerGrappleSuccess
+      ? pickRandom(T.player.grapple_success)
+      : pickRandom(T.player.grapple_fail)
+          .replace("{crew}", outcome.player.crewLoss);
+  } else if (playerAct === "evade") {
+    playerLog = outcome.fled
+      ? pickRandom(T.player.evade_success)
+      : pickRandom(T.player.evade_fail);
+  }
+
+  let npcLog = "";
+  if (npcAct === "broadside") {
+    npcLog = pickRandom(T.npc.broadside)
+      .replace("{hull}", outcome.enemy.hullDamage)
+      .replace("{crew}", outcome.enemy.crewLoss);
+  } else if (npcAct === "precision") {
+    npcLog = outcome.npcHit
+      ? pickRandom(T.npc.precision_hit)
+          .replace("{hull}", outcome.enemy.hullDamage)
+          .replace("{crew}", outcome.enemy.crewLoss)
+      : pickRandom(T.npc.precision_miss);
+  } else if (npcAct === "grapple") {
+    // NPC grapple success kills *player* crew, failure kills *enemy* crew
+    npcLog = outcome.npcGrappleSuccess
+      ? pickRandom(T.npc.grapple_success)
+          .replace("{crew}", outcome.player.crewLoss)
+      : pickRandom(T.npc.grapple_fail)
+          .replace("{crew}", outcome.enemy.crewLoss);
+  }
+
+  return `${playerLog} ${npcLog}`.trim();
+};
+
+// Process crew loss and return updated roster + log fragment
+const applyCrewLoss = (state, playerCrewLoss) => {
+  const newCount = Math.max(0, (state.battleState.playerCrew || 0) - playerCrewLoss);
+  const lostCount = state.crew.roster.length - newCount;
+  if (lostCount <= 0) return { roster: state.crew.roster, lostCount: 0, log: "", lostNames: [] };
+
+  const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lostCount);
+  const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
+  const namesStr = lostNames.join(", ");
+  const log = ` Lost ${lostCount} crew: ${namesStr}.`;
+  return { roster: newRoster, lostCount, log, lostNames };
+};
+
+// Build a captain's‑log message for battle‑end events (victory/defeat/grapple win)
+const buildCaptainLog = (state, type, newRoster, extra = "") => {
+  const bs = state.battleState;
+  const initialCrew = bs.initialCrewCount ?? state.crew.roster.length;
+  const totalLost = initialCrew - newRoster.length;
+  const lostNames = bs.lostCrewNames ?? [];
+
+  let msg = "";
+  if (type === "grapple_win") {
+    msg = "Victory! Boarding successful.";
+  } else if (type === "sink_win") {
+    msg = "You sunk the enemy ship.";
+  } else if (type === "defeat") {
+    msg = "Defeated! Your ship was destroyed.";
+  }
+  if (totalLost > 0) {
+    const some = lostNames.slice(0, 3).join(", ");
+    msg += ` Lost ${totalLost} crew, including ${some}.`;
+  }
+  msg += extra;
+  return msg;
+};
+
+// Apply alignment penalty and return new morale + possible extra message fragment
+const applyAlignment = (state, newMorale) => {
+  const enemyFaction = state.battleState?.enemy?.faction;
+  if (!enemyFaction) return { morale: newMorale, logExtra: "" };
+
+  const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
+  const finalMorale = Math.max(0, newMorale - alignmentPenalty);
+  const logExtra = alignmentPenalty > 3
+    ? ` Your ${enemyFaction}-majority crew is furious about this.`
+    : "";
+  return { morale: finalMorale, logExtra };
+};
+
+
 // ── DISMISS_BATTLE helpers ───────────────────────────────────
 const handleDefeat = (state, battleState, patrolLog) => {
   const returnPort = state.previousPort || state.currentPort;
@@ -329,157 +438,123 @@ const handleFledMission = (currentState, battleState) => {
       // ── COMBAT ──────────────────────────────────────────────
 
       case A.BATTLE_ACTION: {
-        const outcome = L.resolveCombatAction(state, action.action);
-        const newLog = [...state.battleState.log];
-        let newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
+  const outcome = L.resolveCombatAction(state, action.action);
+  const newLog = [...state.battleState.log];
+  let newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
-        if (outcome.instantVictory) {
-          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
-          const initialCrew = state.battleState.initialCrewCount ?? state.crew.roster.length;
-          const lostCrewNames = state.battleState.lostCrewNames ?? [];
-          const totalLost = initialCrew - state.crew.roster.length;
-          let capMsg = "Victory! Boarding successful.";
-          if (totalLost > 0) {
-            const some = lostCrewNames.slice(0, 3).join(", ");
-            capMsg += ` Lost ${totalLost} crew, including ${some}.`;
-          }
-          const enemyFaction = state.battleState.enemy.faction;
-          const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
-          newMorale = Math.max(0, newMorale - alignmentPenalty);
-          if (alignmentPenalty > 3) {
-            capMsg += ` Your ${enemyFaction}-majority crew is furious about this.`;
-          }
+  // ── Instant victory (grapple) ──────────────────────────
+  if (outcome.instantVictory) {
+    const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+    const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
+    const capMsg = buildCaptainLog(state, "grapple_win", state.crew.roster, logExtra);
 
-          const newBS = {
-            ...state.battleState,
-            phase: "victory",
-            goldReward: outcome.goldReward || 0,
-            enemyCargo: outcome.enemyCargo || {},
-            canPlunder: true,
-            log: [...newLog, `Player: ${action.action}. Boarding successful!`]
-          };
+    const newBS = {
+      ...state.battleState,
+      phase: "victory",
+      goldReward: outcome.goldReward || 0,
+      enemyCargo: outcome.enemyCargo || {},
+      canPlunder: true,
+      log: [...newLog, "Boarding successful!"],
+    };
+    return {
+      ...state,
+      reputation: newRep,
+      ship: { ...state.ship, hull: state.battleState.playerHull },
+      crew: { ...state.crew, morale: moraleAfter },
+      battleState: newBS,
+      log: [...state.log, window.E.logEntry(state, capMsg)],
+    };
+  }
 
-          return {
-            ...state,
-            reputation: newRep,
-            ship: { ...state.ship, hull: state.battleState.playerHull },
-            crew: { ...state.crew, morale: newMorale },
-            battleState: newBS,
-            log: [...state.log, capMsg]
-          };
-        }
+  // ── Normal round: process crew loss, damage, and build round log ─
+  const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
+  const newRoster = crewResult.roster;
+  const crewLog = crewResult.log;
+  const newLostNames = [...state.battleState.lostCrewNames, ...crewResult.lostNames];
 
-        const newPlayerCrewCount = Math.max(0, state.battleState.playerCrew - outcome.enemy.crewLoss);
-        const lostCount = state.crew.roster.length - newPlayerCrewCount;
-        let newRoster = state.crew.roster;
-        let crewLog = "";
-        if (lostCount > 0) {
-          const { newRoster: nr, removed } = L.removeRandomCrew(state.crew.roster, lostCount);
-          newRoster = nr;
-          const lostCrewNames = [...state.battleState.lostCrewNames, ...removed.map(m => `${m.firstName} ${m.lastName}`)];
-          state.battleState.lostCrewNames = lostCrewNames;
-          const names = removed.map(m => `${m.firstName} ${m.lastName}`).join(", ");
-          crewLog = ` Lost ${lostCount} crew: ${names}.`;
-        }
+  const roundLog = buildRoundLog(outcome) + crewLog;  // crew log appended after narrative
 
-        const newBattleState = {
-          ...state.battleState,
-          playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
-          enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
-          playerCrew: newRoster.length,
-          enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
-          round: state.battleState.round + 1,
-          phase: "npc_turn",
-          log: [...newLog, `Player: ${action.action}. Enemy: ${L.getNPCAction(state.battleState.enemy)}.${crewLog}`],
-          lostCrewNames: state.battleState.lostCrewNames ?? [],
-        };
+  const newBattleState = {
+    ...state.battleState,
+    playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
+    enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
+    playerCrew: newRoster.length,
+    enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
+    round: state.battleState.round + 1,
+    phase: "npc_turn",
+    log: [...newLog, roundLog],
+    lostCrewNames: newLostNames,
+  };
 
-        // Escort defend: automatic convoy damage
-        if (newBattleState.encounterType === "escort_defend" && newBattleState.convoyHull > 0) {
-          const convoyDmg = Math.ceil((state.battleState.enemy.cannons || 10) * 0.5);
-          newBattleState.convoyHull = Math.max(0, newBattleState.convoyHull - convoyDmg);
-          newBattleState.log.push(`The convoy takes ${convoyDmg} hull damage.`);
+  // Escort convoy damage
+  if (newBattleState.encounterType === "escort_defend" && newBattleState.convoyHull > 0) {
+    const convoyDmg = Math.ceil((state.battleState.enemy.cannons || 10) * 0.5);
+    newBattleState.convoyHull = Math.max(0, newBattleState.convoyHull - convoyDmg);
+    newBattleState.log.push(`The convoy takes ${convoyDmg} hull damage.`);
+    if (newBattleState.convoyHull <= 0) {
+      newBattleState.phase = "defeat";
+      newBattleState.log.push("The convoy ship has been destroyed!");
+      return {
+        ...state,
+        ship: { ...state.ship, hull: newBattleState.playerHull },
+        crew: { ...state.crew, roster: newRoster, morale: newMorale },
+        battleState: newBattleState,
+        log: [...state.log, "The convoy was lost. Mission failed."],
+      };
+    }
+  }
 
-          if (newBattleState.convoyHull <= 0) {
-            newBattleState.phase = "defeat";
-            newBattleState.log.push("The convoy ship has been destroyed!");
-            return {
-              ...state,
-              ship: { ...state.ship, hull: newBattleState.playerHull },
-              crew: { ...state.crew, roster: newRoster, morale: newMorale },
-              battleState: newBattleState,
-              log: [...state.log, "The convoy was lost. Mission failed."]
-            };
-          }
-        }
+  // ── Enemy sunk ──────────────────────────────────────────
+  if (newBattleState.enemyHull <= 0) {
+    newBattleState.phase = "victory";
+    newBattleState.goldReward = outcome.goldReward || 0;
+    const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
+    const capMsg = buildCaptainLog(state, "sink_win", newRoster, logExtra);
+    const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+    return {
+      ...state,
+      gold: state.gold + (outcome.goldReward || 0),
+      reputation: newRep,
+      ship: { ...state.ship, hull: newBattleState.playerHull },
+      crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
+      battleState: newBattleState,
+      log: [...state.log, window.E.logEntry(state, capMsg)],
+    };
+  }
 
-        // sink victory
-        if (newBattleState.enemyHull <= 0) {
-          newBattleState.phase = "victory";
-          newBattleState.goldReward = outcome.goldReward || 0;
-          const initialCrew = newBattleState.initialCrewCount ?? state.crew.roster.length;
-          const lostCrewNames = newBattleState.lostCrewNames ?? [];
-          const totalLost = initialCrew - newRoster.length;
-          let capMsg = "You sunked the enemy ship.";
-          if (totalLost > 0) {
-            const some = lostCrewNames.slice(0, 3).join(", ");
-            capMsg += ` Lost ${totalLost} crew, including ${some}.`;
-          }
-          const enemyFaction = state.battleState.enemy.faction;
-          const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
-          newMorale = Math.max(0, newMorale - alignmentPenalty);
-          if (alignmentPenalty > 3) {
-            capMsg += ` Your ${enemyFaction}-majority crew is furious about this.`;
-          }
-          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
-          return {
-            ...state,
-            gold: state.gold + (outcome.goldReward || 0),
-            reputation: newRep,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            battleState: newBattleState,
-            log: [...state.log, window.E.logEntry(state, capMsg)]
-          };
-        }
+  // ── Player defeated ─────────────────────────────────────
+  if (newBattleState.playerHull <= 0) {
+    newBattleState.phase = "defeat";
+    const capMsg = buildCaptainLog(state, "defeat", newRoster);
+    newBattleState.log.push("Your ship is destroyed!");
+    return {
+      ...state,
+      ship: { ...state.ship, hull: newBattleState.playerHull },
+      crew: { ...state.crew, roster: newRoster, morale: newMorale },
+      battleState: newBattleState,
+      log: [...state.log, window.E.logEntry(state, capMsg)],
+    };
+  }
 
-        if (newBattleState.playerHull <= 0) {
-          newBattleState.phase = "defeat";
-          const initialCrew = newBattleState.initialCrewCount ?? state.crew.roster.length;
-          const lostCrewNames = newBattleState.lostCrewNames ?? [];
-          const totalLost = initialCrew - newRoster.length;
-          let capMsg = "Defeated! Your ship was destroyed.";
-          if (totalLost > 0) {
-            const some = lostCrewNames.slice(0, 3).join(", ");
-            capMsg += ` Lost ${totalLost} crew, including ${some}.`;
-          }
-          newBattleState.log.push("Your ship is destroyed!");
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            battleState: newBattleState,
-            log: [...state.log, window.E.logEntry(state, capMsg)]
-          };
-        }
+  // ── Evade ───────────────────────────────────────────────
+  if (outcome.fled) {
+    newBattleState.phase = "fled";
+    return {
+      ...state,
+      ship: { ...state.ship, hull: newBattleState.playerHull },
+      crew: { ...state.crew, roster: newRoster, morale: newMorale },
+      battleState: newBattleState,
+    };
+  }
 
-        if (outcome.fled) {
-          newBattleState.phase = "fled";
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            battleState: newBattleState
-          };
-        }
-
-        return {
-          ...state,
-          ship: { ...state.ship, hull: newBattleState.playerHull },
-          crew: { ...state.crew, roster: newRoster, morale: newMorale },
-          battleState: newBattleState
-        };
-      }
+  // ── Continue to next round ──────────────────────────────
+  return {
+    ...state,
+    ship: { ...state.ship, hull: newBattleState.playerHull },
+    crew: { ...state.crew, roster: newRoster, morale: newMorale },
+    battleState: newBattleState,
+  };
+}
 
       case A.DISMISS_BATTLE: {
         const { battleState } = state;
