@@ -420,7 +420,7 @@ const handleFledMission = (currentState, battleState) => {
           const initialCrew = newBattleState.initialCrewCount ?? state.crew.roster.length;
           const lostCrewNames = newBattleState.lostCrewNames ?? [];
           const totalLost = initialCrew - newRoster.length;
-          let capMsg = "Victory! The enemy ship was sunk.";
+          let capMsg = "You sunked the enemy ship.";
           if (totalLost > 0) {
             const some = lostCrewNames.slice(0, 3).join(", ");
             capMsg += ` Lost ${totalLost} crew, including ${some}.`;

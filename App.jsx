@@ -42,7 +42,7 @@ class ErrorBoundary extends React.Component {
 
 const App = () => {
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold , Tooltip} = window.UI;
+  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold , Tooltip, IconBarrel, IconCalendar, IconPirate} = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const { screen } = state;
 
@@ -80,91 +80,109 @@ const App = () => {
   };
 
   const HUD = () => {
-    if (screen === "start" || screen === "title") return null;
-    const currentPort = PORTS[state.currentPort];
-    const stats = L.getShipStats(state);
-    const morale = L.getEffectiveMorale(state);
-    const holdUsed = Object.values(state.hold?.items || {}).reduce((s, q) => s + q, 0);
-    const holdCap = L.getHoldCapacity(state);
-    const food = state.hold?.items?.food ?? 0;
-    const water = state.hold?.items?.water ?? 0;
-    const alerts = state.factionAlerts || {};
-    const topHeat = Object.entries(alerts).reduce((best, [f, lv]) =>
-      lv > best.level ? { faction: f, level: lv } : best, { faction: null, level: 0 });
+  if (screen === "start" || screen === "title") return null;
+  const currentPort = PORTS[state.currentPort];
+  const stats = L.getShipStats(state);
+  const morale = L.getEffectiveMorale(state);
+  const holdUsed = Object.values(state.hold?.items || {}).reduce((s, q) => s + q, 0);
+  const holdCap = L.getHoldCapacity(state);
+  const food = state.hold?.items?.food ?? 0;
+  const water = state.hold?.items?.water ?? 0;
+  const alerts = state.factionAlerts || {};
+  const topHeat = Object.entries(alerts).reduce((best, [f, lv]) =>
+    lv > best.level ? { faction: f, level: lv } : best, { faction: null, level: 0 });
 
-    // Calendar date
-    const start = state.startDate || { day: 1, month: 6, year: 1695 };
-    const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
-      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  // Calendar date
+  const start = state.startDate || { day: 1, month: 6, year: 1695 };
+  const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    const Cell = ({ label, tip, children }) => (
-      <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
-        padding: "4px 6px 5px", minWidth: 0 }}>
-        <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
-          color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
-        {children}
-      </div>
-    );
-    const Val = ({ children, color, small }) => (
-      <div style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
-    );
+  const formatGold = (g) => g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
 
-    return (
-      <div style={{ position: "sticky", top: 0, zIndex: 100,
-        background: "linear-gradient(180deg, #1e1812, #161210)",
-        borderBottom: `1px solid ${T.border}`, padding: "5px 8px",
-        fontFamily: T.font, boxShadow: "0 6px 18px rgba(0,0,0,0.4)" }}>
+  // ── Responsive HUD breakpoint ──────────────────────────────
+  const [isNarrowHUD, setIsNarrowHUD] = React.useState(window.innerWidth < 600);
+  React.useEffect(() => {
+    const handle = () => setIsNarrowHUD(window.innerWidth < 600);
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
 
-        <div style={{ display: "grid",
-          gridTemplateColumns: topHeat.level > 0
-            ? (isDebug ? "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr auto" : "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr")
-            : (isDebug ? "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr auto" : "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr"),
-          gap: 4 }}>
+  // ── Cell / Val helpers (unchanged) ──────────────────────────
+  const Cell = ({ label, tip, children }) => (
+    <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
+      padding: "4px 6px 5px", minWidth: 0 }}>
+      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
+        color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
+      {children}
+    </div>
+  );
+  const Val = ({ children, color, small }) => (
+    <div style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
+  );
 
-          <Cell label={<span><IconGold size={9} color={T.textDim} /> Gold</span>} tip={TOOLTIPS.gold}>
-          <Val color={T.gold}>{state.gold.toLocaleString()}g</Val>
-          </Cell>
-          <Cell label="Day" tip={TOOLTIPS.day}>
-            <Val>{state.day}</Val>
-            <div style={{ fontSize: 9, color: T.textDim, marginTop: 2 }}>{calendarDate}</div>
-          </Cell>
-          <Cell label={<span><IconCrew size={9} color={T.textDim} /> Crew</span>} tip={TOOLTIPS.crew}>
-            <Val small>{state.crew.roster.length}/{state.crew.max}</Val>
-            <Bar value={state.crew.roster.length} max={state.crew.max} color={T.blueBr} h={4} />
-          </Cell>
-          <Cell label={<span><IconShield size={9} color={T.textDim} /> Hull</span>} tip={TOOLTIPS.hull}>
-            <Val small>{state.ship.hull}/{stats.maxHull}</Val>
-            <Bar value={state.ship.hull} max={stats.maxHull} color={T.greenBr} h={4} />
-          </Cell>
-          <Cell label={<span><IconHeart size={9} color={T.textDim} /> Morale</span>} tip={TOOLTIPS.morale}>
-            <Val small>{morale}%</Val>
-            <Bar value={morale} max={100} color={T.yellowBr} h={4} />
-          </Cell>
-          <Cell label={<span><IconStar size={9} color={T.textDim} /> Fame</span>} tip={TOOLTIPS.fame}>
-            <Val small>{state.fame}</Val>
-            <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div>
-          </Cell>
-          <Cell label={<span style={{ color: T.textDim }}>☠ Infamy</span>} tip={TOOLTIPS.infamy}>
-            <Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint}>{state.infamy ?? 0}</Val>
-            <div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
-          </Cell>
-          <Cell label={<span><IconCrate size={9} color={T.textDim} /> Hold</span>} tip={TOOLTIPS.hold}>
-            <Val small>{holdUsed}/{holdCap}</Val>
-            <Bar value={holdUsed} max={holdCap} color={T.blueBr} h={4} />
-          </Cell>
-          <Cell label={<span><IconFood size={9} color={T.textDim} /> Food</span>} tip={TOOLTIPS.food}>
-            <Val small color={food <= 0 ? T.redBr : T.text}>{food}</Val>
-          </Cell>
-          <Cell label={<span><IconWater size={9} color={T.textDim} /> Water</span>} tip={TOOLTIPS.water}>
-            <Val small color={water <= 0 ? T.redBr : T.text}>{water}</Val>
-          </Cell>
-          {topHeat.level > 0 && (
-            <Cell label="Heat" tip={TOOLTIPS.heat}>
-              <Val small color={FACTIONS[topHeat.faction]?.color || T.textDim}>
-                {FACTIONS[topHeat.faction]?.label?.substring(0,3) || "?"} {topHeat.level}
-              </Val>
-            </Cell>
+  // ── Cell data (order matters) ───────────────────────────────
+  const cells = [
+    { label: <span><IconGold size={9} color={T.textDim} /> Gold</span>,  tip: TOOLTIPS.gold,   content: <Val color={T.gold}>{formatGold(state.gold)}</Val> },
+    { label: <span><IconCalendar size={9} color={T.textDim} /> Day</span>,  tip: TOOLTIPS.day,    content: <><Val>{state.day}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 2 }}>{calendarDate}</div></> },
+    { label: <span><IconCrew size={9} color={T.textDim} /> Crew</span>,  tip: TOOLTIPS.crew,   content: <><Val small>{state.crew.roster.length}/{state.crew.max}</Val><Bar value={state.crew.roster.length} max={state.crew.max} color={T.blueBr} h={4} /></> },
+    { label: <span><IconShield size={9} color={T.textDim} /> Hull</span>,tip: TOOLTIPS.hull,   content: <><Val small>{state.ship.hull}/{stats.maxHull}</Val><Bar value={state.ship.hull} max={stats.maxHull} color={T.greenBr} h={4} /></> },
+    { label: <span><IconHeart size={9} color={T.textDim} /> Morale</span>,tip: TOOLTIPS.morale, content: <><Val small>{morale}%</Val><Bar value={morale} max={100} color={T.yellowBr} h={4} /></> },
+    { label: <span><IconStar size={9} color={T.textDim} /> Fame</span>,  tip: TOOLTIPS.fame,   content: <><Val small>{state.fame}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div></> },
+    { label: <span><IconPirate size={9} color={T.textDim} /> Infamy</span>,     tip: TOOLTIPS.infamy, content: <><Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint}>{state.infamy ?? 0}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div></> },
+    { label: <span><IconBarrel size={9} color={T.textDim} /> Hold</span>,  tip: TOOLTIPS.hold,   content: <><Val small>{holdUsed}/{holdCap}</Val><Bar value={holdUsed} max={holdCap} color={T.blueBr} h={4} /></> },
+    { label: <span><IconFood size={9} color={T.textDim} /> Food</span>,  tip: TOOLTIPS.food,   content: <Val small color={food <= 0 ? T.redBr : T.text}>{food}</Val> },
+    { label: <span><IconWater size={9} color={T.textDim} /> Water</span>,tip: TOOLTIPS.water,  content: <Val small color={water <= 0 ? T.redBr : T.text}>{water}</Val> },
+  ];
+  if (topHeat.level > 0) {
+    cells.push({
+      label: "Heat", tip: TOOLTIPS.heat,
+      content: <Val small color={FACTIONS[topHeat.faction]?.color || T.textDim}>
+        {FACTIONS[topHeat.faction]?.label?.substring(0,3) || "?"} {topHeat.level}
+      </Val>
+    });
+  }
+
+  // ── Layout helpers ──────────────────────────────────────────
+  const renderCellRow = (cellSlice, columns) => (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 4, marginTop: 4 }}>
+      {cellSlice.map((c, i) => <Cell key={i} label={c.label} tip={c.tip}>{c.content}</Cell>)}
+    </div>
+  );
+
+  const wideGridStyle = {
+    display: "grid",
+    gridTemplateColumns: topHeat.level > 0
+      ? (isDebug ? "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr auto" : "1fr 1.1fr .75fr .75fr .7fr .7fr .7fr .75fr .55fr .55fr .6fr")
+      : (isDebug ? "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr auto" : "1fr 1.1fr .8fr .8fr .75fr .75fr .75fr .8fr .6fr .6fr"),
+    gap: 4,
+  };
+
+  return (
+    <div style={{ position: "sticky", top: 0, zIndex: 100,
+      background: "linear-gradient(180deg, #1e1812, #161210)",
+      borderBottom: `1px solid ${T.border}`, padding: "5px 8px",
+      fontFamily: T.font, boxShadow: "0 6px 18px rgba(0,0,0,0.4)" }}>
+
+      {isNarrowHUD ? (
+        <>
+          {renderCellRow(cells.slice(0, 5), 5)}
+          {renderCellRow(cells.slice(5), cells.length - 5)}
+          {isDebug && (
+            <div style={{ textAlign: "right", marginTop: 4 }}>
+              <button onClick={() => setDebugOpen(v => !v)}
+                style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                  padding: "2px 6px", borderRadius: 2, cursor: "pointer",
+                  fontSize: 10, fontFamily: T.fontMono }}>
+                ⚙
+              </button>
+            </div>
           )}
+        </>
+      ) : (
+        <div style={wideGridStyle}>
+          {cells.map((c, i) => (
+            <Cell key={i} label={c.label} tip={c.tip}>{c.content}</Cell>
+          ))}
           {isDebug && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
               <button onClick={() => setDebugOpen(v => !v)}
@@ -176,23 +194,24 @@ const App = () => {
             </div>
           )}
         </div>
+      )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-          marginTop: 3, fontSize: 10, color: T.textDim, paddingLeft: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
-            {currentPort && (
-              <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
-                {currentPort.name}
-              </span>
-            )}
-            {savedFlash && (
-              <span style={{ color: T.greenBr, fontSize: 9, transition: "opacity 0.3s" }}>✓ saved</span>
-            )}
-          </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginTop: 3, fontSize: 10, color: T.textDim, paddingLeft: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
+          {currentPort && (
+            <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
+              {currentPort.name}
+            </span>
+          )}
+          {savedFlash && (
+            <span style={{ color: T.greenBr, fontSize: 9, transition: "opacity 0.3s" }}>✓ saved</span>
+          )}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   const renderScreen = () => {
     const { S } = window;

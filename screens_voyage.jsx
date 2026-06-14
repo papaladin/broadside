@@ -179,7 +179,8 @@ function MapScreen({ state, dispatch }) {
                   <circle cx={p.x} cy={p.y} r={24} fill="transparent" />
                   {isHov && <circle cx={p.x} cy={p.y} r={22} fill={fColor} opacity="0.10" />}
                   <circle cx={p.x} cy={p.y} r={7} fill={reachable ? fColor : T.textFaint} stroke={T.bgDeep} strokeWidth="2" opacity={reachable ? 1 : 0.4} />
-                  <text x={p.x} y={p.y + 18} textAnchor="middle" fontSize="8" fill={isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text>
+                  <g transform={`translate(${p.x}, ${p.y + 18}) scale(${1 / transform.scale})`}>
+  <text x="0" y="0" textAnchor="middle" fontSize="10" fill={isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text></g>
                   {isHov && (reachable ? (<>
                     <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
                     <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>

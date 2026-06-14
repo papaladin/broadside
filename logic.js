@@ -157,14 +157,14 @@ const classifyLogLine = (text) => {
   const t = text;
 
   if (t.includes("Arrived at"))      return { icon: "⚓" };
-  if (t.includes("Setting sail"))    return { icon: "⛵" };
+  if (t.includes("Setting sail") || t.includes("Changing course"))   return { icon: "⛵" };
   if (t.includes("left the crew") || t.includes("has left")|| t.includes("Hired")) return { icon: "👥" };
   if (t.includes("upset") || t.includes("disturbed"))       return { icon: "⚠" };
   if (t.includes("settled down"))   return { icon: "👥" };
   if (t.includes("mutineer") || t.includes("Mutiny"))       return { icon: "⚔" };
   if (t.includes("Victory") || t.includes("Defeated"))      return { icon: "⚔" };
   if (t.includes("Escaped") || t.includes("fled"))          return { icon: "💨" };
-  if (t.includes("Bought") || t.includes("Sold") || t.includes("trade")) return { icon: "💰" };
+  if (t.includes("Bought") || t.includes("Sold") || t.includes("trade") || t.includes("repaired")) return { icon: "💰" };
   if (t.includes("Completed:") || t.includes("mission"))    return { icon: "📜" };
   if (t.includes("New port discovered") || t.includes("chart")) return { icon: "🗺" };
   if (t.includes("infamy") || t.includes("wanted") || t.includes("Wanted")) return { icon: "☠" };

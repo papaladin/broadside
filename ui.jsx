@@ -172,6 +172,252 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
   </svg>
 );
 
+  // ── New icons (19) ───────────────────────────────────────────────────────
+
+  // Barrel — redrawn from source (2 slat lines + 2 hoops replace 4 long bezier paths)
+  const IconBarrel = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M3 1.5 C1 4.5 1 11.5 3 14.5 L13 14.5 C15 11.5 15 4.5 13 1.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      <path d="M6.5 1.5 C5.5 4.5 5.5 11.5 6.5 14.5" stroke={color} strokeWidth="0.8" fill="none" />
+      <path d="M9.5 1.5 C10.5 4.5 10.5 11.5 9.5 14.5" stroke={color} strokeWidth="0.8" fill="none" />
+      <line x1="1.5" y1="5" x2="14.5" y2="5" stroke={color} strokeWidth="1" />
+      <line x1="1.5" y1="11" x2="14.5" y2="11" stroke={color} strokeWidth="1" />
+    </svg>
+  );
+
+  // Coins — two stacked coin columns (replaces 11 arc paths from source)
+  const IconCoins = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <ellipse cx="5" cy="4" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" />
+      <line x1="1.5" y1="4" x2="1.5" y2="9.5" stroke={color} strokeWidth="1.1" />
+      <line x1="8.5" y1="4" x2="8.5" y2="9.5" stroke={color} strokeWidth="1.1" />
+      <ellipse cx="5" cy="9.5" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" />
+      <path d="M1.5 7 C1.5 8 8.5 8 8.5 7" stroke={color} strokeWidth="0.9" fill="none" />
+      <ellipse cx="11" cy="9" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" />
+      <line x1="7.5" y1="9" x2="7.5" y2="13.5" stroke={color} strokeWidth="1.1" />
+      <line x1="14.5" y1="9" x2="14.5" y2="13.5" stroke={color} strokeWidth="1.1" />
+      <ellipse cx="11" cy="13.5" rx="3.5" ry="1.2" stroke={color} strokeWidth="1.1" />
+      <path d="M7.5 11.5 C7.5 12.5 14.5 12.5 14.5 11.5" stroke={color} strokeWidth="0.9" fill="none" />
+    </svg>
+  );
+
+  // Fruit / pear — simplified from source's long bezier path; stem + leaf kept
+  const IconFruit = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M8 5.5 C4.5 5.5 2.5 7.5 2.5 10.5 C2.5 13.5 5 15.5 8 15.5 C11 15.5 13.5 13.5 13.5 10.5 C13.5 7.5 11.5 5.5 8 5.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" />
+      <line x1="8" y1="5.5" x2="8" y2="2.5" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      <path d="M8 3.5 C9 2 11.5 2 10.5 4 C9.5 4.5 8 4 8 3.5"
+            stroke={color} strokeWidth="0.9" fill="none" strokeLinejoin="round" />
+    </svg>
+  );
+
+  // Pirate skull — skull with crossed bones (avoids name clash with existing IconSkull)
+  const IconPirate = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M4 8.5 C4 4.5 12 4.5 12 8.5 C12 10 10.5 10.5 10.5 12 L5.5 12 C5.5 10.5 4 10 4 8.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      <circle cx="6.5" cy="8" r="0.8" stroke={color} strokeWidth="0.9" />
+      <circle cx="9.5" cy="8" r="0.8" stroke={color} strokeWidth="0.9" />
+      <line x1="2" y1="15.5" x2="14" y2="11.5" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="14" y1="15.5" x2="2" y2="11.5" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Calendar — redrawn; source used filled rects, this uses strokes only
+  const IconCalendar = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <rect x="1.5" y="2.5" width="13" height="12" rx="0.5" stroke={color} strokeWidth="1.1" />
+      <line x1="1.5" y1="6" x2="14.5" y2="6" stroke={color} strokeWidth="1" />
+      <line x1="5" y1="1" x2="5" y2="4" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="11" y1="1" x2="11" y2="4" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="4" y1="9" x2="12" y2="9" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      <line x1="4" y1="12" x2="9" y2="12" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Chest — 3 long filled paths in source replaced by simple rects + lines
+  const IconChest = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <rect x="1.5" y="7.5" width="13" height="7" rx="0.5" stroke={color} strokeWidth="1.1" />
+      <path d="M1.5 7.5 L1.5 5 C1.5 3 14.5 3 14.5 5 L14.5 7.5"
+            stroke={color} strokeWidth="1.1" fill="none" />
+      <line x1="1.5" y1="7.5" x2="14.5" y2="7.5" stroke={color} strokeWidth="1" />
+      <rect x="6.5" y="8" width="3" height="2.5" rx="0.4" stroke={color} strokeWidth="0.9" />
+      <line x1="1.5" y1="10.5" x2="14.5" y2="10.5" stroke={color} strokeWidth="0.8" />
+    </svg>
+  );
+
+  // Market / shop — 2 large filled paths in source condensed to simple facade
+  const IconMarket = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M1 6 L3.5 2 L12.5 2 L15 6"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="1" y1="6" x2="15" y2="6" stroke={color} strokeWidth="1" />
+      <rect x="1" y="6" width="14" height="9" stroke={color} strokeWidth="1.1" />
+      <rect x="6.5" y="10" width="3" height="5" stroke={color} strokeWidth="0.9" />
+      <rect x="2.5" y="7.5" width="2.5" height="2" stroke={color} strokeWidth="0.8" />
+      <rect x="11" y="7.5" width="2.5" height="2" stroke={color} strokeWidth="0.8" />
+    </svg>
+  );
+
+  // World map — long fill-rule path replaced by 3 simple polygons
+  const IconMap = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <polygon points="1,2 5.5,3 5.5,14 1,13"
+               stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+      <polygon points="5.5,3 10.5,2 10.5,13 5.5,14"
+               stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+      <polygon points="10.5,2 15,3 15,14 10.5,13"
+               stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+    </svg>
+  );
+
+  // Floppy disk — long fill-rule path redrawn with primitives
+  const IconFloppy = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M2 1.5 L12 1.5 L14.5 4 L14.5 14.5 L1.5 14.5 L1.5 1.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      <rect x="3" y="8.5" width="10" height="5" stroke={color} strokeWidth="0.9" />
+      <rect x="9" y="2" width="4" height="4" stroke={color} strokeWidth="0.8" />
+      <rect x="9.8" y="3" width="1.5" height="1.5" stroke={color} strokeWidth="0.7" />
+    </svg>
+  );
+
+  // Journal / book
+  const IconJournal = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <rect x="3.5" y="2" width="10" height="13" rx="0.5" stroke={color} strokeWidth="1.1" />
+      <line x1="5.5" y1="2" x2="5.5" y2="15" stroke={color} strokeWidth="1.3" />
+      <line x1="7.5" y1="5.5" x2="12" y2="5.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      <line x1="7.5" y1="8.5" x2="12" y2="8.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      <line x1="7.5" y1="11.5" x2="10.5" y2="11.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Anchor — source paths kept but split into simple primitives
+  const IconAnchor = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <circle cx="8" cy="3.5" r="1.7" stroke={color} strokeWidth="1.1" />
+      <line x1="8" y1="5.2" x2="8" y2="13.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="4.5" y1="7" x2="11.5" y2="7" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M3.5 12 C3 13.5 3.5 14.5 5 15 C6.5 15.5 7.5 14 8 13.5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      <path d="M12.5 12 C13 13.5 12.5 14.5 11 15 C9.5 15.5 8.5 14 8 13.5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Swords + pistol — original had two ~200-char fill paths; redrawn with lines
+  const IconSwordsGun = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <line x1="1.5" y1="1.5" x2="9" y2="9" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="3" y1="5.5" x2="5.5" y2="3" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      <line x1="14.5" y1="1.5" x2="7" y2="9" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="13" y1="5.5" x2="10.5" y2="3" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      <line x1="3" y1="14" x2="11" y2="14" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M9 14 L9 11.5 L11.5 11.5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="6.5" y1="14" x2="7" y2="12.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Crossed swords — original single 300-char path redrawn with 4 lines
+  const IconSwords = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <line x1="1.5" y1="1.5" x2="14.5" y2="14.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="2.5" y1="6" x2="6" y2="2.5" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      <line x1="14.5" y1="1.5" x2="1.5" y2="14.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="13.5" y1="6" x2="10" y2="2.5" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Sailboat — original had 3 large complex sub-paths; redrawn with lines + a quad curve
+  const IconSailboat = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <line x1="8" y1="1.5" x2="8" y2="11" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M8 2 L2 11 L8 11 Z" stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+      <path d="M8 4 L8 11 L13 11 Z" stroke={color} strokeWidth="0.9" fill="none" strokeLinejoin="round" />
+      <path d="M1 11 Q2.5 14 8 14.5 Q13.5 14 15 11 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    </svg>
+  );
+
+  // Wind — source paths lightly simplified (curls redrawn as compact arcs)
+  const IconWind = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M1 4.5 L9 4.5 C10.5 4.5 11.5 3.5 11 2 C10.5 1 9 1 8.5 2"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      <path d="M1 8 L12.5 8 C13.5 8 14.5 7 14 5.5 C13.5 4.5 12 4 11 5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      <path d="M1 11.5 L8.5 11.5 C10 11.5 11 12.5 10.5 14 C10 15 8.5 15 8 14"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Parchment / scroll — source had 2 long fill paths + transforms; redrawn with rect + ellipses
+  const IconParchment = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <rect x="3.5" y="3" width="9" height="10.5" stroke={color} strokeWidth="1.1" />
+      <ellipse cx="8" cy="3" rx="4.5" ry="1.5" stroke={color} strokeWidth="1" />
+      <ellipse cx="8" cy="13.5" rx="4.5" ry="1.5" stroke={color} strokeWidth="1" />
+      <line x1="5.5" y1="6" x2="10.5" y2="6" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+      <line x1="5.5" y1="8.5" x2="10.5" y2="8.5" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+      <line x1="5.5" y1="11" x2="9" y2="11" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Cloth / fabric — source S-curves kept but simplified to 3 uniform folds
+  const IconCloth = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <line x1="1.5" y1="4" x2="14.5" y2="4" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="1.5" y1="13" x2="14.5" y2="13" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M3 4 C1.5 7 4.5 10 3 13" stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" />
+      <path d="M8 4 C6.5 7 9.5 10 8 13" stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" />
+      <path d="M13 4 C11.5 7 14.5 10 13 13" stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Timber / log — concentric circles (end grain) + 3 lines replace multiple long paths
+  const IconTimber = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <circle cx="4.5" cy="10.5" r="4" stroke={color} strokeWidth="1.1" />
+      <circle cx="4.5" cy="10.5" r="1.8" stroke={color} strokeWidth="0.9" />
+      <line x1="4.5" y1="6.5" x2="14.5" y2="2" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="4.5" y1="14.5" x2="14.5" y2="10" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="14.5" y1="2" x2="14.5" y2="10" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+
+  // Coffee bean — original had matrix transforms + duplicated 200-char paths; single rotated ellipse
+  const IconCoffee = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <ellipse cx="8" cy="8" rx="4" ry="6.5" transform="rotate(30 8 8)"
+               stroke={color} strokeWidth="1.1" />
+      <path d="M6 12 C7 9 9 7 10 4" stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+
   const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {} }) => {
     const variants = {
       default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },
@@ -417,5 +663,7 @@ const Tooltip = ({ text, children }) => {
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton,
     IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold, Tooltip,
+    IconBarrel, IconCoins, IconFruit,IconPirate,IconCalendar,IconChest,IconMarket,IconMap,IconFloppy,IconJournal,IconAnchor,IconSwordsGun,IconSwords,IconSailboat,IconWind,
+    IconParchment,IconCloth,IconTimber,IconCoffee,
   };
 })();

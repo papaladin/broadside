@@ -146,7 +146,7 @@ window.S = window.S || {};
                         const max = Math.min(pg.available, freeSpace);
                         setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
                       }}
-                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:13, fontFamily:T.font, minHeight: 40,touchAction: 'manipulation', }}
                     />
                     <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={buyQty >= maxBuy}>+</Btn>
                   </div>
@@ -165,7 +165,7 @@ window.S = window.S || {};
                         const max = (holdItems[good] || 0) + buyQty;
                         setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
                       }}
-                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font }}
+                      style={{ width:44, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:13, fontFamily:T.font, minHeight: 40,touchAction: 'manipulation', }}
                     />
                     <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={sellQty >= maxSell}>+</Btn>
                   </div>

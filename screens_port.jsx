@@ -323,6 +323,58 @@ window.S = window.S || {};
                   : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
               </div>
             )}
+            {state.activeMission && (
+              <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, marginTop: 6 })}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
+                    <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
+                  </div>
+                </div>
+                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8, lineHeight: 1.4 }}>
+                {state.activeMission.description}
+              </div>
+                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
+                <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 8 }}>
+                  <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
+                  <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
+                </div>
+                {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
+                  const res = window.D.RESOURCES[state.activeMission.requiredGood];
+                  const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
+                  const hasGoods = inHold >= state.activeMission.requiredQty;
+                  const goodName = res?.name || state.activeMission.requiredGood;
+                  return (
+                    <div style={{ marginBottom: 8, fontSize: 10 }}>
+                      <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
+                        {hasGoods
+                          ? `✓ ${inHold} ${goodName} in hold — ready`
+                          : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div style={{ display: "flex", gap: T.spacing.sm }}>
+                  {canFinish && (
+                    <Tooltip text="Complete the mission and claim your reward.">
+                      <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
+                        disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
+                        Complete Mission
+                      </Btn>
+                    </Tooltip>
+                  )}
+                  <Tooltip text="Abandon your current mission. You will lose reputation with the issuing faction.">
+                  <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
+                </Tooltip>
+                </div>
+                {!canFinish && (
+                  <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
+                    Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
+                  </div>
+                )}
+              </div>
+            )}
             {!port.services.includes("missions") ? (
               <EmptyState message="No mission board in this port." />
             ) : state.missions.length === 0 ? (
@@ -411,58 +463,7 @@ window.S = window.S || {};
                 ))}
               </div>
             )}
-            {state.activeMission && (
-              <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, marginTop: 6 })}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
-                    <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
-                  </div>
-                </div>
-                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8, lineHeight: 1.4 }}>
-                {state.activeMission.description}
-              </div>
-                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
-                <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 8 }}>
-                  <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
-                  <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
-                </div>
-                {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
-                  const res = window.D.RESOURCES[state.activeMission.requiredGood];
-                  const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
-                  const hasGoods = inHold >= state.activeMission.requiredQty;
-                  const goodName = res?.name || state.activeMission.requiredGood;
-                  return (
-                    <div style={{ marginBottom: 8, fontSize: 10 }}>
-                      <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
-                        {hasGoods
-                          ? `✓ ${inHold} ${goodName} in hold — ready`
-                          : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div style={{ display: "flex", gap: T.spacing.sm }}>
-                  {canFinish && (
-                    <Tooltip text="Complete the mission and claim your reward.">
-                      <Btn v="gold" onClick={() => dispatch({ type: A.COMPLETE_MISSION })}
-                        disabled={state.activeMission.requiredGood && (state.hold?.items?.[state.activeMission.requiredGood] || 0) < state.activeMission.requiredQty}>
-                        Complete Mission
-                      </Btn>
-                    </Tooltip>
-                  )}
-                  <Tooltip text="Abandon your current mission. You will lose reputation with the issuing faction.">
-                  <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
-                </Tooltip>
-                </div>
-                {!canFinish && (
-                  <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
-                    Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
-                  </div>
-                )}
-              </div>
-            )}
+            
           </div>
         </div>
 
