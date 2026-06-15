@@ -747,16 +747,17 @@ const generateCrewBio = (member, state) => {
   };
 
   const riskWeightsFor = (fame) => {
-    const tier = window.L.getFameInfo(fame).tier;
-    const table = [
-      { low:5, medium:4, high:1, assault:0 },
-      { low:4, medium:4, high:2, assault:0 },
-      { low:3, medium:4, high:3, assault:0 },
-      { low:2, medium:3, high:4, assault:1 },
-      { low:1, medium:3, high:4, assault:2 },
-    ];
-    return table[tier];
-  };
+  const tier = window.L.getFameInfo(fame).tier;
+  const table = [
+    { low:6, medium:3, high:1, assault:0 },  // NEW tier 0
+    { low:5, medium:4, high:1, assault:0 },  // was 0
+    { low:4, medium:4, high:2, assault:0 },  // was 1
+    { low:3, medium:4, high:3, assault:0 },  // was 2
+    { low:2, medium:3, high:4, assault:1 },  // was 3
+    { low:1, medium:3, high:4, assault:2 },  // was 4
+  ];
+  return table[tier] || table[table.length - 1];
+};
 
   const pickMissionType = (faction) => {
     const weights = typeWeightsFor(faction);
@@ -1061,9 +1062,9 @@ const generateMarketFlavour = (state, portKey) => {
 
   // ── Fame ─────────────────────────────────────────────────────
   const fameInfo = window.L.getFameInfo(state.fame ?? 0);
-  if (fameInfo.tier >= 4) { // Immortal
+  if (fameInfo.tier >= 5) { // Immortal
     pools.push({ priority: 4, category: "fame_legendary", text: pickRandom(T.fame_legendary) });
-  } else if (fameInfo.tier >= 2) { // Notorious+
+  } else if (fameInfo.tier >= 3) { // Notorious+
     pools.push({ priority: 4, category: "fame_recognised", text: pickRandom(T.fame_recognised) });
   }
 

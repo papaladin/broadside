@@ -135,9 +135,11 @@ window.S = window.S || {};
                         </div>
                       )}
                       <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
-                        {typeof G.generateCrewBio === 'function'
-                          ? G.generateCrewBio(selectedMember, state)
-                          : `${selectedMember.firstName} is a crew member.`}
+                        {selectedMember.bio
+                          ? selectedMember.bio
+                          : typeof G.generateCrewBio === 'function'
+                            ? G.generateCrewBio(selectedMember, state)
+                            : `${selectedMember.firstName} is a crew member.`}
                       </div>
                       {memberIcons.length > 0 && (
                         <details style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
@@ -150,16 +152,20 @@ window.S = window.S || {};
                         </details>
                       )}
                     </div>
+                      {!L.hasTag(selectedMember, "protected") ? (
                       <Tooltip text="Dismiss this crew member permanently. This cannot be undone.">
-  <Btn sm v="red" style={{ marginTop: 8 }}
-    onClick={() => {
-      dispatch({ type: A.DISMISS_CREW, memberId: selectedMember.id });
-      setSelectedMember(null);
-    }}>
-    ✕ Dismiss
-  </Btn>
-</Tooltip>
-
+                        <Btn sm v="red" style={{ marginTop: 8 }}
+                          onClick={() => {
+                            dispatch({ type: A.DISMISS_CREW, memberId: selectedMember.id });
+                            setSelectedMember(null);
+                          }}>
+                          ✕ Dismiss
+                        </Btn>
+                      </Tooltip>
+                    ) : (
+                      // Placeholder for skip tutorial button (T11)
+                      null
+                    )}
                   </div>
                 );
               })()

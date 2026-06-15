@@ -75,6 +75,11 @@ const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
       continue;
     }
 
+    if (L.hasTag(member, "protected")) {
+      newRoster.push(member);
+      continue; // QM never deserts
+    }
+
     if (L.hasTag(member, "upset")) {
       let desertChance = 0.30;
       if (crewMorale > 60) desertChance = 0.10;
@@ -196,74 +201,107 @@ const processPositiveTraits = (crewRoster, state) => {
     switch (action.type) {
 
       // --- START GAME ---
-      case A.START_GAME: {
-        const start = STARTS.find(s => s.id === action.scenarioId);
-        if (!start) return { ...window.E.initialState, screen: "start" };
+     case A.START_GAME: {
+  const { captainName, faction, onboardingEnabled } = action;
+  const start = STARTS;
 
-        const newState = {
-          ...window.E.initialState,
-          screen: "port",
-          day: 1,
-          infamy: 0,
-          fame: start.debugStartFame ?? 0,
-          gold: start.gold,
-          startDate: start.startDate ?? { day: 1, month: 6, year: 1695 }, 
-          scenarioId: start.id,
-          currentPort: start.startPort,
-          portMarket: null,
-          log: [...(start.openingLog || [])],
-        };
+  // Validate faction
+  const startPort = start.factionPorts?.[faction];
+  if (!startPort) return { ...window.E.initialState, screen: "title" };
 
-        const shipData = SHIPS[start.ship];
-        newState.ship = {
-          type: start.ship,
-          name: shipData.name,
-          hull: shipData.maxHull,
-          cannons: shipData.cannons,
-          equipment: { hull: [], armament: [], rigging: [], special: [] },
-        };
-        newState.hold = {
-          capacity: shipData.holdCapacity,
-          items: {
-            food: 0, water: 0, rum: 0, sugar: 0, timber: 0, cloth: 0,
-            spices: 0, silk: 0, coffee: 0, cocoa: 0, weapons: 0,
-            tobacco: 0, silver: 0, slaves: 0,
-            ...(start.hold || {}),
-          },
-        };
-        newState.crew = {
-          ...newState.crew,
-          max: shipData.maxCrew,
-          roster: start.crewCount > 0
-            ? G.generateRoster(start.crewCount, start.crewFaction || start.faction)
-            : [],
-          morale: 80,
-        };
+  // ── Build initial state ────────────────────────────────
+  const newState = {
+    ...window.E.initialState,
+    screen: "port",
+    day: 1,
+    captainName: captainName || "Captain",
+    faction: faction,
+    gold: start.gold,
+    startDate: start.startDate,
+    currentPort: startPort,
+    portMarket: null,
+    log: [
+      ...(start.factionBackstory?.[faction]?.openingLog || []),
+    ],
+    onboarding: {
+      ...window.E.initialState.onboarding,
+      enabled: onboardingEnabled ?? false,
+      completed: !onboardingEnabled,
+      stepsCompleted: { ...window.E.initialState.onboarding.stepsCompleted },
+    },
+  };
 
-        const rep = {};
-        Object.keys(PORTS).forEach(portKey => { rep[portKey] = 50; });
-        Object.entries(start.repAdjust || {}).forEach(([faction, delta]) => {
-          Object.keys(PORTS).forEach(portKey => {
-            if (PORTS[portKey].faction === faction) {
-              rep[portKey] = Math.max(0, Math.min(100, 50 + delta));
-            }
-          });
-        });
-        newState.reputation = rep;
+  // ── Ship ────────────────────────────────────────────────
+  const shipData = SHIPS[start.ship];
+  newState.ship = {
+    type: start.ship,
+    name: shipData.name,
+    hull: shipData.maxHull,
+    cannons: shipData.cannons,
+    upgrades: [],
+  };
 
-        newState.portMarket = G.generatePortMarket(start.startPort);
-        newState.portGossip = G.generatePortGossip(newState, start.startPort);
-        const generatedMissions = G.generateMissions(start.startPort, newState);
-        if (start.starterMission) {
-          newState.activeMission = { ...start.starterMission, encounterOccurred: false };
-          newState.missions = generatedMissions;
-          newState.log = [...newState.log, `Accepted opening quest: ${start.starterMission.name}.`];
-        } else {
-          newState.missions = generatedMissions;
-        }
+  // ── Hold ────────────────────────────────────────────────
+  newState.hold = {
+    capacity: shipData.holdCapacity,
+    items: {
+      food: 0, water: 0, rum: 0, sugar: 0, timber: 0, cloth: 0,
+      spices: 0, silk: 0, coffee: 0, cocoa: 0, weapons: 0,
+      tobacco: 0, silver: 0, slaves: 0,
+      ...(start.hold || {}),
+    },
+  };
 
-        return newState;
+  // ── Reputation ──────────────────────────────────────────
+  const rep = {};
+  Object.keys(PORTS).forEach(portKey => { rep[portKey] = 50; });
+  const repAdj = start.factionRepAdjust?.[faction] || {};
+  Object.entries(repAdj).forEach(([adjFaction, delta]) => {
+    Object.keys(PORTS).forEach(portKey => {
+      if (PORTS[portKey].faction === adjFaction) {
+        rep[portKey] = Math.max(0, Math.min(100, 50 + delta));
       }
+    });
+  });
+  newState.reputation = rep;
+
+  // ── Crew ────────────────────────────────────────────────
+  newState.crew = {
+    ...newState.crew,
+    max: shipData.maxCrew,
+    roster: [],
+    morale: 80,
+  };
+
+  // Inject Quartermaster if onboarding is enabled
+  if (onboardingEnabled) {
+    const qmData = start.factionQM?.[faction];
+    if (qmData) {
+      newState.crew.roster.push({
+        id: "qm_tutorial",
+        firstName: qmData.firstName,
+        lastName: qmData.lastName,
+        bio: qmData.bio || "",                     // ← new
+        role: "quartermaster",
+        faction: faction,
+        daysAboard: 0,
+        tags: ["quartermaster", "protected"],
+      });
+    }
+  }
+
+  // ── Market & missions ───────────────────────────────────
+  newState.portMarket = G.generatePortMarket(startPort);
+  newState.portGossip = G.generatePortGossip(newState, startPort);
+  newState.missions = G.generateMissions(startPort, newState);
+
+  // Tutorial delivery mission (T5 — auto-accept later)
+  if (onboardingEnabled) {
+    // For now, no auto-accept — T5 will add that
+  }
+
+  return newState;
+}
 
       // --- NAVIGATION ---
       case A.NAVIGATE:
@@ -561,6 +599,12 @@ const processPositiveTraits = (crewRoster, state) => {
         const memberId = action.memberId;
         const member = state.crew.roster.find(m => m.id === memberId);
         if (!member) return state;
+
+        // Quartermaster dismissal triggers skip confirmation (handled by UI later)
+        if (L.hasTag(member, "quartermaster") && state.onboarding?.enabled && !state.onboarding?.completed) {
+          return state; // Block direct dismissal — UI will show skip confirmation instead
+        }
+
         return {
           ...state,
           crew: {

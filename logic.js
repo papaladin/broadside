@@ -23,11 +23,12 @@ window.L = (() => {
   };
 
  const getFameInfo = (fame) => {
-  if (fame >= 350) return { label: "Immortal", tier: 4 };
-  if (fame >= 200) return { label: "Legendary", tier: 3 };
-  if (fame >= 100) return { label: "Notorious", tier: 2 };
-  if (fame >= 50)  return { label: "Recognised", tier: 1 };
-  return { label: "Unknown", tier: 0 };
+  if (fame >= 350) return { label: "Immortal", tier: 5 };
+  if (fame >= 200) return { label: "Legendary", tier: 4 };
+  if (fame >= 100) return { label: "Notorious", tier: 3 };
+  if (fame >= 50)  return { label: "Recognised", tier: 2 };
+  if (fame >= 10)  return { label: "Unknown", tier: 1 };
+  return { label: "Greenhorn", tier: 0 };
 };
 
   const getInfamyLabel = (infamy) => {
@@ -140,6 +141,21 @@ const getHeatLabel = (level) => {
 
     return { ok: true };
   };
+
+    const isFeatureUnlocked = (state, feature) => {
+      const o = state.onboarding;
+      if (!o || !o.enabled || o.completed) return true;
+      const s = o.stepsCompleted;
+      switch (feature) {
+        case 'contracts': return true;
+        case 'market': return s.firstContractAccepted;
+        case 'navigation': return s.provisionsAndGoodsBought;
+        case 'crew': return s.firstContractDelivered;
+        case 'shipyard': return s.tutorialHuntCompleted;
+        case 'journal': return s.shipRepaired;
+        default: return true;
+      }
+    };
 
 
 
@@ -388,7 +404,8 @@ const getUnreachableReason = (state, portKey) => {
     // Remove random members and return the removed list
   const removeRandomCrew = (roster, count) => {
     if (count <= 0) return { newRoster: [...roster], removed: [] };
-    const shuffled = [...roster].sort(() => Math.random() - 0.5);
+    const eligible = roster.filter(m => !(m.tags || []).includes("protected"));
+    const shuffled = [...eligible].sort(() => Math.random() - 0.5);
     const removed = shuffled.slice(0, count);
     const removedIds = new Set(removed.map(m => m.id));
     const newRoster = roster.filter(m => !removedIds.has(m.id));
@@ -978,6 +995,7 @@ const applyLoseContraband = (holdItems) => {
     getEffectiveMorale,
     classifyLogLine,
     getLogTabCategory,
+    isFeatureUnlocked,
     returnScreen,
 
     // Ship/Repair

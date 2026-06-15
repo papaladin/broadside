@@ -50,7 +50,7 @@ window.S = window.S || {};
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
 
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
-            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "start" })}>▶ New Game</Btn>
+            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}>▶ New Game</Btn>
           </Tooltip>
 
           {hasSave && (
@@ -84,61 +84,124 @@ window.S = window.S || {};
     );
   }
 
-  // ── SCENARIO SCREEN ─────────────────────────────────────────────────────
-  function ScenarioScreen({ dispatch }) {
-    const hasSave = L.hasSave();
-    const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
-    const visibleStarts = isDebug ? STARTS : STARTS.filter(s => s.id !== 'debug');
+ // ── NEW GAME SCREEN ─────────────────────────────────────────────────────
+function NewGameScreen({ dispatch }) {
+  const { useState } = React;
+  const { FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
+  const L = window.L;
+  const A = window.E.A;
+  const { T, panelStyle, Btn } = window.UI;
 
-    return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: T.spacing.xl,
-        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
-      }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
-        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+  const [captainName, setCaptainName] = useState(() => {
+    const first = CREW_FIRST_NAMES?.english || ["William"];
+    const last = CREW_LAST_NAMES?.english || ["Hartley"];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    return `${pick(first)} ${pick(last)}`;
+  });
+  const [selectedFaction, setSelectedFaction] = useState(null);
+  const [onboardingEnabled, setOnboardingEnabled] = useState(true);
 
+  const handleRandomName = () => {
+    const faction = selectedFaction || "english";
+    const first = CREW_FIRST_NAMES?.[faction] || ["Captain"];
+    const last = CREW_LAST_NAMES?.[faction] || ["Unknown"];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    setCaptainName(`${pick(first)} ${pick(last)}`);
+  };
 
-        <p style={{ color: T.textDim, fontSize: 12, fontStyle: "italic", marginBottom: 20, textAlign: "center" }}>
-          Every story begins with a choice. What kind of captain will you be?
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(90vw, 280px), 1fr))", gap: T.spacing.md, maxWidth: 640, width: "100%", marginBottom: 20 }}>
-          {visibleStarts.map(s => (
-            <div key={s.id}
-              onClick={() => dispatch({ type: A.START_GAME, scenarioId: s.id })}
+  const handleSetSail = () => {
+    if (!captainName.trim()) return;
+    if (!selectedFaction) return;
+    dispatch({
+      type: A.START_GAME,
+      captainName: captainName.trim(),
+      faction: selectedFaction,
+      onboardingEnabled,
+    });
+  };
+
+  const backstory = selectedFaction ? STARTS.factionBackstory?.[selectedFaction] : null;
+  const startPort = selectedFaction ? (window.D.PORTS[STARTS.factionPorts?.[selectedFaction]]?.name || "") : "";
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh", padding: T.spacing.xl,
+      background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+    }}>
+      <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+      <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+
+      <div style={{ width: 380, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: T.spacing.lg }}>
+
+        {/* Captain Name */}
+        <div>
+          <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Captain's Name</div>
+          <div style={{ display: "flex", gap: T.spacing.sm }}>
+            <input
+              type="text"
+              value={captainName}
+              onChange={e => setCaptainName(e.target.value)}
               style={{
-                ...panelStyle({ cursor: "pointer", transition: "border-color 0.15s" }),
-                borderLeft: `3px solid ${FACTIONS[s.faction]?.color ?? T.gold}`,
+                flex: 1, padding: "10px 12px",
+                background: T.panel, border: `1px solid ${T.border}`,
+                color: T.text, fontSize: 15, fontFamily: T.font,
+                borderRadius: 2, outline: "none",
               }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = T.gold}
-              onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
-            >
-              <div style={{ color: FACTIONS[s.faction]?.color ?? T.gold, fontSize: 10, letterSpacing: "0.08em", marginBottom: 4 }}>
-                {FACTIONS[s.faction]?.label?.toUpperCase()} · {s.ship?.toUpperCase()}
-              </div>
-              <div style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 2 }}>{s.name}</div>
-              <div style={{ color: T.textDim, fontSize: 10, fontStyle: "italic", marginBottom: 8 }}>{s.tagline}</div>
-              <p style={{ color: T.text, fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>{s.story}</p>
-              {s.starterMission && (
-                  <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, padding: 6, marginBottom: 8 })}>
-                  <div style={{ color: T.greenBr, fontSize: 9, marginBottom: 2 }}>OPENING QUEST</div>
-                  <div style={{ color: T.text, fontSize: 10, fontWeight: "bold" }}>{s.starterMission.name}</div>
-                  <div style={{ color: T.textDim, fontSize: 9 }}>{s.starterMission.description}</div>
-                </div>
-              )}
-              <div style={{ display: "flex", gap: T.spacing.md, flexWrap: "wrap", fontSize: 10, color: T.textDim }}>
-                <span>💰 {s.gold}g</span>
-                <span>👥 {s.crewCount} crew</span>
-                <span>🍖 8 food · 💧 8 water</span>
-                <span style={{ color: T.greenBr }}>{Object.entries(s.repAdjust || {}).map(([f, d]) => `${f} ${d >= 0 ? '+' : ''}${d}`).join(', ')}</span>
-              </div>
-            </div>
-          ))}
+            />
+            <Btn sm v="ghost" onClick={handleRandomName}>🎲 Random</Btn>
+          </div>
         </div>
+
+        {/* Faction Selection */}
+        <div>
+          <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Choose your allegiance</div>
+          <div style={{ display: "flex", gap: T.spacing.sm }}>
+            {Object.entries(FACTIONS).map(([key, fac]) => (
+              <div key={key}
+                onClick={() => setSelectedFaction(key)}
+                style={{
+                  flex: 1, padding: "10px 6px", textAlign: "center", cursor: "pointer",
+                  background: selectedFaction === key ? (fac.color + "20") : T.panel,
+                  border: `2px solid ${selectedFaction === key ? fac.color : T.border}`,
+                  borderRadius: 2, transition: "border-color 0.15s",
+                }}>
+                <div style={{ color: fac.color, fontSize: 10, fontWeight: "bold", letterSpacing: "0.05em" }}>{fac.label.substring(0,3).toUpperCase()}</div>
+                <div style={{ color: T.textDim, fontSize: 8 }}>{fac.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Backstory */}
+        {backstory && (
+          <div style={panelStyle({ background: T.bgDeep, borderColor: T.borderFaint })}>
+            <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: "0 0 6px" }}>
+              You arrived in <strong>{startPort}</strong> with {backstory.hook}.
+            </p>
+            <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: 0, fontStyle: "italic" }}>
+              {backstory.flavour}
+            </p>
+            <p style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 8 }}>
+              Your adventure begins in <strong>{startPort}</strong>.
+            </p>
+          </div>
+        )}
+
+        {/* Onboarding toggle */}
+        <label style={{ color: T.textDim, fontSize: 10, cursor: "pointer", textAlign: "center" }}>
+          <input type="checkbox" checked={onboardingEnabled} onChange={e => setOnboardingEnabled(e.target.checked)} style={{ marginRight: 6 }} />
+          Enable guided first voyage (recommended for new players)
+        </label>
+
+        {/* Set Sail */}
+        <Btn v="gold" onClick={handleSetSail} disabled={!captainName.trim() || !selectedFaction} style={{ fontSize: 16, padding: "14px" }}>
+          ⛵ Set Sail
+        </Btn>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ── PORT SCREEN ──────────────────────────────────────────────────────
   function PortScreen({ state, dispatch }) {
@@ -758,7 +821,7 @@ window.S = window.S || {};
   // ── EXPORT ALL SCREENS ──────────────────────────────────────────────
   Object.assign(window.S, {
     TitleScreen,
-    ScenarioScreen,
+    NewGameScreen,
     PortScreen,
     StatusScreen,
     JournalScreen,

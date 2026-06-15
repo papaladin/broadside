@@ -80,7 +80,7 @@ const App = () => {
   };
 
   const HUD = () => {
-  if (screen === "start" || screen === "title") return null;
+  if (screen === "newgame" || screen === "title") return null;
   const currentPort = PORTS[state.currentPort];
   const stats = L.getShipStats(state);
   const morale = L.getEffectiveMorale(state);
@@ -217,7 +217,7 @@ const App = () => {
     const { S } = window;
     switch (state.screen) {
       case "title": return <S.TitleScreen dispatch={dispatch} />;
-      case "start": return <S.ScenarioScreen dispatch={dispatch} />;
+      case "newgame": return <S.NewGameScreen dispatch={dispatch} />;
       case "port": return <S.PortScreen state={state} dispatch={dispatch} />;
       case "map": return <S.MapScreen state={state} dispatch={dispatch} />;
       case "sailing": return <S.SailingScreen state={state} dispatch={dispatch} />;

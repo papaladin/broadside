@@ -650,27 +650,28 @@ const GOODS_AVAILABILITY = {
 // ── Parametric Mission Generator Config ────────────────────────
 
 const MISSION_GOLD_RANGES = {
-  //          [low,        medium,      high,        assault  ]
-  0: { low: [140,180],   medium: [180,230],   high: [230,300],   assault: [300,400]   },
-  1: { low: [400,1500], medium: [1500,5000],   high: [5000,7000], assault: [7000,10000]  },
-  2: { low: [2000,7000], medium: [7000,10000], high: [10000,18000], assault: [18000,22000]  },
-  3: { low: [6000,15000],medium:[15000,30000], high: [30000,50000],assault: [50000,75000]},
-  4: { low: [15200,25000],medium:[25000,50000], high: [50000,80000],assault: [80000,100000]},
+  0: { low: [75,120],   medium: [120,160],   high: [160,200],   assault: [200,280] },
+  1: { low: [140,180],  medium: [180,230],   high: [230,300],   assault: [300,400] },
+  2: { low: [400,1500], medium: [1500,5000], high: [5000,7000], assault: [7000,10000] },
+  3: { low: [2000,7000],medium: [7000,10000],high: [10000,18000],assault: [18000,22000] },
+  4: { low: [6000,15000],medium:[15000,30000],high: [30000,50000],assault: [50000,75000] },
+  5: { low: [15200,25000],medium:[25000,50000],high: [50000,80000],assault: [80000,100000] },
 };
 
 const MISSION_ENEMY_RANGES = {
-  hull:    { 0:[20,45],  1:[40,75],  2:[65,110], 3:[95,155],  4:[135,210] },
-  cannons: { 0:[2,6],    1:[5,10],   2:[8,16],   3:[13,22],   4:[18,30]   },
-  crew:    { 0:[8,18],   1:[15,35],  2:[25,55],  3:[40,80],   4:[60,110]  },
+  hull:    { 0:[12,22],  1:[20,45],  2:[40,75],  3:[65,110], 4:[95,155],  5:[135,210] },
+  cannons: { 0:[1,3],    1:[2,6],    2:[5,10],   3:[8,16],   4:[13,22],   5:[18,30] },
+  crew:    { 0:[3,8],    1:[8,18],   2:[15,35],  3:[25,55],  4:[40,80],   5:[60,110] },
 };
 
 // Plunder balance tuning
 const PLUNDER_TARGET = {
-  0: { low: 27,    medium: 34,    high: 41    },
-  1: { low: 285,   medium: 975,   high: 1800  },
-  2: { low: 1350,  medium: 2550,  high: 4200  },
-  3: { low: 3150,  medium: 6750,  high: 12000 },
-  4: { low: 6030,  medium: 11250, high: 19500 },
+  0: { low: 15,   medium: 20,   high: 28 },
+  1: { low: 27,   medium: 34,   high: 41 },
+  2: { low: 285,  medium: 975,  high: 1800 },
+  3: { low: 1350, medium: 2550, high: 4200 },
+  4: { low: 3150, medium: 6750, high: 12000 },
+  5: { low: 6030, medium: 11250,high: 19500 },
 };
 
 const PLUNDER_GOLD_RATIO = 0.20; // 20% gold, 80% cargo value
@@ -732,19 +733,21 @@ const SMUGGLE_PROFIT_MARGINS = {
 const PATROL_FINE_RATE = 0.50; // Fine = 50% of seized contraband base value
 
 const TRADE_GOODS_BY_TIER = {
-  0: ["rum", "sugar", "timber", "cloth"],
-  1: ["rum", "sugar", "timber", "cloth", "coffee", "cocoa"],
-  2: ["coffee", "cocoa", "cloth", "weapons", "spices"],
-  3: ["spices", "silk", "weapons", "cocoa"],
+  0: ["rum", "sugar", "timber"],
+  1: ["rum", "sugar", "timber", "cloth"],
+  2: ["rum", "sugar", "timber", "cloth", "coffee", "cocoa"],
+  3: ["coffee", "cocoa", "cloth", "weapons", "spices"],
   4: ["spices", "silk", "weapons", "cocoa"],
+  5: ["spices", "silk", "weapons", "cocoa"],
 };
 
 const SMUGGLE_GOODS_BY_TIER = {
-  0: ["rum", "tobacco"],
+  0: ["rum"],
   1: ["rum", "tobacco"],
-  2: ["rum", "tobacco", "slaves"],
+  2: ["rum", "tobacco"],
   3: ["rum", "tobacco", "slaves"],
   4: ["rum", "tobacco", "slaves"],
+  5: ["rum", "tobacco", "slaves"],
 };
 
 
@@ -1071,185 +1074,86 @@ const SMUGGLE_GOODS_BY_TIER = {
   ];
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  STARTS: Starting scenarios for new games.
+  //  STARTS: Starting content for new games.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const STARTS = [
-  // ── English ───────────────────────────────────────────────────
-  {
-    id: "english_william",
-    name: "The Forged Commission",
-    faction: "english",
-    tagline: "You carry papers you did not earn.",
-    story: "William Calder forged a letter of commission after his employer died. The ink is passable. The signature is not. He needs to become the kind of captain who doesn't need the letter before someone in Port Royal looks closely enough to notice.",
-    startPort: "portRoyal",
-    ship: "dinghy",
-    startDate: { day: 1, month: 6, year: 1695 },
-    gold: 490,
-    crewCount: 1,
-    crewFaction: "english",
-    hold: { food: 8, water: 8 },
-    repAdjust: { english: +10, pirate: -5 },
-    openingLog: [
-      "Cleared Port Royal on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
-      "Okafor is useful and incurious. I paid his debt to get him. Worth every coin.",
-      "I need a real reputation before someone calls my bluff. That means work. English work, legal work — at least for now.",
-    ],
-    starterMission: {
-      type: "delivery", name: "Carry the Dispatch to Kingston",
-      description: "An official packet needs to reach the governor's secretary at Kingston. The harbormaster was very clear it should arrive sealed. It's routine paperwork — or it would be, if you were a real Sailing Master.",
-      faction: "english", targetPort: "kingston", risk: "low",
-      gold: 240, fame: 1, infamyGain: 0,
-      repImpact: { english: 2 }, enemy: null,
-      starter: true,
+const STARTS = {
+  // ── Faction → Starting Port ────────────────────────────
+  factionPorts: {
+    english: "portRoyal",
+    spanish: "havana",
+    french: "petitGoave",
+    dutch: "santoDomingo",
+    pirate: "santiagoDeCuba",
+  },
+
+  // ── Faction → Reputation Adjustments ───────────────────
+  factionRepAdjust: {
+    english: { english: +10, pirate: -5 },
+    spanish: { spanish: +10, english: -5 },
+    french:  { french: +10, english: -5 },
+    dutch:   { dutch: +10, spanish: -5 },
+    pirate:  { pirate: +10, spanish: -5 },
+  },
+
+  // ── Faction → Backstory Fragments ─────────────────────
+  factionBackstory: {
+    english: {
+      hook: "a forged commission and a borrowed tide",
+      flavour: "The ink is passable. The signature is not. You need to become the kind of captain who doesn't need the letter before someone looks closely enough to notice.",
+      openingLog: [
+        "Cleared Port Royal on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
+        "I need a real reputation before someone calls my bluff. That means work. English work, legal work — at least for now.",
+      ],
+    },
+    spanish: {
+      hook: "a sealed crate and a debt you didn't ask for",
+      flavour: "The crate makes no sound. It's heavier than it looks. You've decided not to think about it. After the first delivery, you'll know if you have a choice in any of this.",
+      openingLog: [
+        "Don Luis watched the harbour from his window this morning. I did not look back when I cast off.",
+        "First delivery: Santiago de Cuba. After that, I'll know if I have a choice in any of this.",
+      ],
+    },
+    french: {
+      hook: "a dead man's charts and a contract you inherited",
+      flavour: "Your mentor left you his instruments, his dinghy, and a six-month charting contract the navy has already paid for. The navy wants charts. You want freedom. Both require moving.",
+      openingLog: [
+        "Deschamps's charts are better than anything the navy has. That's why they want them finished. That's also why I have leverage, if I'm careful.",
+        "The naval officer said 'by the agreed date' twice. The date is in six months. I have time — if I keep moving.",
+      ],
+    },
+    dutch: {
+      hook: "a company ledger and a quota that won't meet itself",
+      flavour: "You found a discrepancy in a senior partner's account. You were 'promoted' to independent contractor within the week. The freedom is real enough. The accounting isn't.",
+      openingLog: [
+        "The Company gave me a list of contacts. Petit-Goâve is on it. I did not expect Petit-Goâve.",
+        "The freedom is real enough. It's the accounting that isn't free.",
+      ],
+    },
+    pirate: {
+      hook: "a shipwreck, a friend, and nothing else",
+      flavour: "The storm took the ship and everyone on it except you. You made port on the fifth day. You have two years of knowledge, a dinghy, and no particular loyalty to anyone.",
+      openingLog: [
+        "Tortuga smells like rum and bad decisions. I've missed it.",
+        "Two years of watching from the deck. I know the routes. I know the prices. I know the mistakes people make. Now I find out if knowing is enough.",
+      ],
     },
   },
 
-  // ── Spanish ───────────────────────────────────────────────────
-  {
-    id: "spanish_elena",
-    name: "The Governor's Errand",
-    faction: "spanish",
-    tagline: "Don Luis gave you the boat and a vague instruction. Make yourself useful.",
-    story: "Elena Vargas was handed a dinghy, a sealed crate, and a debt she didn't owe. She has no crew. She prefers it that way. Fewer people know she exists. Fewer people know where she's going.",
-    startPort: "havana",
-    ship: "dinghy",
-    startDate: { day: 1, month: 6, year: 1695 },
-    gold: 505,
-    crewCount: 0,
-    crewFaction: "spanish",
-    hold: { food: 8, water: 8 },
-    repAdjust: { spanish: +10, english: -5 },
-    openingLog: [
-      "Don Luis watched the harbour from his window this morning. I did not look back when I cast off.",
-      "The crate makes no sound. It's heavier than it looks. I've decided not to think about it.",
-      "First delivery: Santiago de Cuba. After that, I'll know if I have a choice in any of this.",
-      "Sailing alone is harder than I expected. I'll need crew. Someone who doesn't ask questions.",
-    ],
-    starterMission: {
-      type: "delivery", name: "The Package for Santiago",
-      description: "Don Luis's crate must reach a contact in Santiago de Cuba. No questions. No inspection. A sealed delivery, prompt and quiet.",
-      faction: "spanish", targetPort: "santiagoDeCuba", risk: "low",
-      gold: 280, fame: 1, infamyGain: 0,
-      repImpact: { spanish: 3 }, enemy: null,
-      starter: true, plotItem: true,
-    },
-  },
+  // ── Faction → Quartermaster Names ──────────────────────
+ factionQM: {
+  english: { firstName: "Old",     lastName: "Morley",     bio: "A weathered English bosun who's seen more voyages than he cares to count. Keeps the crew in line with a steady glare and a steadier hand." },
+  spanish: { firstName: "Viejo",   lastName: "Cortés",     bio: "A grizzled Spanish veteran who fought under the flag before he traded it for something less particular. Knows every reef in these waters." },
+  french:  { firstName: "Vieux",   lastName: "Deschamps",  bio: "A seasoned French mariner who served as quartermaster on three ships — two of them still afloat. Quiet, competent, and utterly unsentimental." },
+  dutch:   { firstName: "Oude",    lastName: "Bakker",     bio: "A practical Dutch quartermaster who treats a ship's ledger with the same precision as a surgeon's knife. Doesn't say much, but when he does, listen." },
+  pirate:  { firstName: "Scarred", lastName: "Jim",        bio: "No one remembers Jim's real name, or what he looked like before the scars. He's been aboard more pirate crews than he can recall, and he's one of the few who can still recall anything at all." },
+},
 
-  // ── French ────────────────────────────────────────────────────
-  {
-    id: "french_luc",
-    name: "The Cartographer's Debt",
-    faction: "french",
-    tagline: "Your master left you his boat, his charts, and a debt he forgot to mention in the will.",
-    story: "Luc Fontaine inherited his mentor's dinghy, his instruments, and a six‑month charting contract the late cartographer had been paid for in advance. The navy wants the charts delivered by the agreed date. Luc prefers the dinghy. Marie‑Ange Desroches, the former cook, agreed to stay on. She is more competent than Luc at most sailing tasks and less diplomatic about saying so.",
-    startPort: "petitGoave",
-    ship: "dinghy",
-    startDate: { day: 1, month: 6, year: 1695 },
-    gold: 490,
-    crewCount: 1,
-    crewFaction: "french",
-    hold: { food: 8, water: 8 },
-    repAdjust: { french: +10, english: -5 },
-    openingLog: [
-      "Deschamps's charts are better than anything the navy has. That's why they want them finished. That's also why I have leverage, if I'm careful.",
-      "Desroches says I navigate like I'm reading someone else's handwriting. She is not wrong.",
-      "The naval officer said 'by the agreed date' twice. The date is in six months. I have time — if I keep moving.",
-      "There is a note in Deschamps's margin on the passage to Port‑de‑Paix. Something that doesn't appear on any official chart. I'll look when I'm there.",
-    ],
-    starterMission: {
-      type: "delivery", name: "Chart the Northern Passage",
-      description: "The French naval office wants updated soundings on the route between Martinique and Port‑de‑Paix. Sail the passage and return. Deschamps's notes mention something interesting near the northern end that no official chart acknowledges.",
-      faction: "french", targetPort: "portDePaix", risk: "low",
-      gold: 220, fame: 1, infamyGain: 0,
-      repImpact: { french: 2 }, enemy: null,
-      starter: true,
-    },
-  },
-
-  // ── Dutch ─────────────────────────────────────────────────────
-  {
-    id: "dutch_pieter",
-    name: "The Company's Ledger",
-    faction: "dutch",
-    tagline: "The Dutch West India Company gave you the boat, the freedom, and a quota. The freedom, you have learned, is the trap.",
-    story: "Pieter van Houten found a discrepancy in a senior partner's account. He was 'promoted' to independent trade contractor within the week. His own vessel. His own routes. A quarterly gold quota. No cargo provided. Plenty of implied understanding about consequences.",
-    startPort: "santoDomingo",
-    ship: "dinghy",
-    startDate: { day: 1, month: 6, year: 1695 },
-    gold: 505,
-    crewCount: 0,
-    crewFaction: "dutch",
-    hold: { food: 8, water: 8 },
-    repAdjust: { dutch: +10, spanish: -5 },
-    openingLog: [
-      "The Company gave me a list of contacts. Petit-Goâve is on it. I did not expect Petit-Goâve.",
-      "First quarter quota: 1,200 gold delivered to Company warehouses. Thirty days. I'd better start.",
-      "The freedom is real enough. It's the accounting that isn't free.",
-      "I'll need crew. A one‑man dinghy in these waters is a statement of either poverty or arrogance. I can't afford either.",
-    ],
-    starterMission: {
-      type: "delivery", name: "The Consignment for Petit-Goâve",
-      description: "A Dutch merchant factor on Petit-Goâve is waiting for a consignment order Pieter is to collect from Santo Domingo company warehouse and deliver. The manifest is signed by someone Pieter recognises from the discrepancy he recorded. He chooses not to think about that.",
-      faction: "dutch", targetPort: "petitGoave", risk: "low",
-      gold: 250, fame: 1, infamyGain: 0,
-      repImpact: { dutch: 3 }, enemy: null,
-      starter: true,
-    },
-  },
-
-  // ── Pirate ────────────────────────────────────────────────────
-  {
-    id: "pirate_rosa",
-    name: "The Survivor",
-    faction: "pirate",
-    tagline: "The Marguerite is at the bottom of the sea. You and Cacao are the only ones left.",
-    story: "Rosa Esperanza spent two years on Captain Bouchard's ship, learning which ports ran real patrols and which ran theater. When a storm took the Marguerite, Rosa and Cacao Santos — a Cuban gunner — survived on a dinghy. They made Santiago on the fifth day. Everyone else is gone. Rosa has a boat, a friend, two years of knowledge, and no particular loyalty to anyone who isn't standing next to her.",
-    startPort: "santiagoDeCuba",
-    ship: "dinghy",
-    startDate: { day: 1, month: 6, year: 1695 },
-    gold: 490,
-    crewCount: 1,
-    crewFaction: "pirate",
-    hold: { food: 12, water: 12 },
-    repAdjust: { pirate: +10, spanish: -5 },
-    openingLog: [
-      "Tortuga smells like rum and bad decisions. I've missed it.",
-      "Cacao says we should find a crew and a real ship before we do anything else. He's right, as usual.",
-      "Bouchard knew every useful person in the Caribbean. I know who they are. He kept the introductions to himself. Time to make my own.",
-      "Two years of watching from the deck. I know the routes. I know the prices. I know the mistakes people make. Now I find out if knowing is enough.",
-    ],
-    starterMission: {
-      type: "delivery", name: "Find Renard in Torguga",
-      description: "A message from the port master needs to reach Captain Renard, last seen in Tortuga. Renard is someone Bouchard dealt with — Rosa knows the name but not the face. Delivering the message is a way to introduce herself to the network Bouchard left behind.",
-      faction: "pirate", targetPort: "tortuga", risk: "low",
-      gold: 200, fame: 1, infamyGain: 0,
-      repImpact: { pirate: 3 }, enemy: null,
-      starter: true,
-    },
-  },
-
-  // ── Debug ─────────────────────────────────────────────────────
-  {
-    id: "debug",
-    name: "⚙ Developer Mode",
-    faction: "english",
-    tagline: "Skip the early game. Test what you need to test.",
-    story: "Start at fame 100 with 5,000 gold. All ports Friendly. Sloop. Full hold of trade goods.",
-    startPort: "portRoyal",
-    ship: "sloop",
-    gold: 5000,
-    crewCount: 20,
-    crewFaction: "pirate",
-    hold: { food: 20, water: 20, rum: 10, spices: 5, silk: 3 },
-    repAdjust: { english: +30, spanish: +15, french: +15, dutch: +15, pirate: +10 },
-    openingLog: [
-      "DEBUG MODE: Gold 5000, Fame 100. All ports at minimum Friendly standing.",
-      "Use the ⚙ debug panel in the HUD for quick adjustments.",
-    ],
-    starterMission: null,
-    debugStartFame: 100,
-  },
-];
+  // ── Universal Starting Conditions ─────────────────────
+  gold: 490,
+  ship: "dinghy",
+  hold: { food: 8, water: 8 },
+  startDate: { day: 1, month: 6, year: 1695 },
+};
 
 
 

@@ -50,6 +50,9 @@ window.E = window.E || {};
     PATROL_INSPECT: "PATROL_INSPECT",
     ATTACK_PIRATE: "ATTACK_PIRATE",
     ATTACK_MERCHANT: "ATTACK_MERCHANT",
+    ONBOARDING_ADVANCE: "ONBOARDING_ADVANCE",
+    ONBOARDING_SKIP: "ONBOARDING_SKIP",
+    ONBOARDING_COMPLETE: "ONBOARDING_COMPLETE",
     DEBUG_ADD_GOLD: "DEBUG_ADD_GOLD",
     DEBUG_SET_FAME: "DEBUG_SET_FAME",
     DEBUG_SET_INFAMY: "DEBUG_SET_INFAMY",
@@ -109,6 +112,20 @@ window.E = window.E || {};
     if (!s.equipmentInventory) {
       s.equipmentInventory = [];
     }
+    if (!s.onboarding) {
+      s.onboarding = {
+        enabled: false,
+        completed: true,
+        currentStep: 9,
+        stepsCompleted: Object.fromEntries(
+          Object.keys(window.E.initialState.onboarding.stepsCompleted).map(k => [k, true])
+        ),
+        combatHintShown: true,
+        qmDismissed: false,
+      };
+    }
+    if (!s.captainName) s.captainName = "";
+    if (!s.faction) s.faction = null;
     return s;
   };
 
@@ -151,6 +168,32 @@ window.E = window.E || {};
     },
     currentPort: "portRoyal",
     route: null,
+    captainName: "",
+    faction: null,
+    onboarding: {
+      enabled: false,
+      completed: true,
+      currentStep: 0,
+      stepsCompleted: {
+        contractsOpened: false,
+        firstContractAccepted: false,
+        marketOpened: false,
+        provisionsAndGoodsBought: false,
+        mapOpened: false,
+        firstVoyageStarted: false,
+        firstArrival: false,
+        firstContractDelivered: false,
+        crewOpened: false,
+        firstCrewHired: false,
+        tutorialHuntAccepted: false,
+        tutorialHuntCompleted: false,
+        shipyardOpened: false,
+        shipRepaired: false,
+        journalOpened: false,
+      },
+      combatHintShown: false,
+      qmDismissed: false,
+    },
     scenarioId: null,
     previousPort: null,
     destination: null,
