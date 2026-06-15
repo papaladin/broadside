@@ -722,11 +722,16 @@ const handleFledMission = (currentState, battleState) => {
           }
         }
         if (choice.outcome.crewLoss) {
-          const lost = choice.outcome.crewLoss;
-          const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lost);
-          newState.crew = { ...state.crew, roster: newRoster };
-          const names = removed.map(m => `${m.firstName} ${m.lastName}`).join(", ");
-          newState.log = [...(newState.log || state.log), `Lost ${lost} crew: ${names}.`];
+          const roster = state.crew?.roster || [];
+          const actualLoss = Math.min(choice.outcome.crewLoss, roster.length);
+          if (actualLoss > 0) {
+            const { newRoster, removed } = L.removeRandomCrew(roster, actualLoss);
+            newState.crew = { ...state.crew, roster: newRoster };
+            const names = removed.map(m => `${m.firstName} ${m.lastName}`).join(", ");
+            newState.log = [...(newState.log || state.log), `Lost ${actualLoss} crew: ${names}.`];
+          } else {
+            newState.log = [...(newState.log || state.log), "The storm rages, but there is no one to lose."];
+          }
         }
         if (choice.outcome.loseCargoPercent) {
           const newHoldItems = L.applyLoseCargoPercent(state.hold?.items || {}, choice.outcome.loseCargoPercent);
@@ -844,9 +849,19 @@ const handleFledMission = (currentState, battleState) => {
           }
 
           const names = newMembers.map(m => `${m.firstName} ${m.lastName}`).join(", ");
-          newState.crew = { ...state.crew, roster: [...state.crew.roster, ...newMembers] };
-          newState.log = [...(newState.log || state.log),
-            `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew.`];
+          const combinedRoster = [...state.crew.roster, ...newMembers];
+          const maxCrew = L.getShipStats(state).maxCrew;
+          const cappedRoster = combinedRoster.slice(0, maxCrew);
+          const turnedAway = combinedRoster.length - cappedRoster.length;
+
+          newState.crew = { ...state.crew, roster: cappedRoster };
+          if (turnedAway > 0) {
+            newState.log = [...(newState.log || state.log),
+              `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew, but ${turnedAway === 1 ? 'one was' : turnedAway + ' were'} turned away — your ship can only hold ${maxCrew}.`];
+          } else {
+            newState.log = [...(newState.log || state.log),
+              `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew.`];
+          }
         }
 
         if (choice.outcome.action) {

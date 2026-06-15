@@ -252,6 +252,7 @@ const processPositiveTraits = (crewRoster, state) => {
         newState.reputation = rep;
 
         newState.portMarket = G.generatePortMarket(start.startPort);
+        newState.portGossip = G.generatePortGossip(newState, start.startPort);
         const generatedMissions = G.generateMissions(start.startPort, newState);
         if (start.starterMission) {
           newState.activeMission = { ...start.starterMission, encounterOccurred: false };
@@ -553,6 +554,20 @@ const processPositiveTraits = (crewRoster, state) => {
           gold: state.gold - cost,
           crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
           log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
+        };
+      }
+      
+      case A.DISMISS_CREW: {
+        const memberId = action.memberId;
+        const member = state.crew.roster.find(m => m.id === memberId);
+        if (!member) return state;
+        return {
+          ...state,
+          crew: {
+            ...state.crew,
+            roster: state.crew.roster.filter(m => m.id !== memberId),
+          },
+          log: [...state.log, window.E.logEntry(state, `${member.firstName} ${member.lastName} was dismissed from the crew.`)],
         };
       }
 

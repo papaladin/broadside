@@ -262,7 +262,7 @@ const PORT_GOSSIP_TEMPLATES = {
     "A light rain falls, turning the dock planks slippery.",
     "The sunset paints the harbour gold. For a moment, even the pirates stop to look.",
   ],
-
+  
   // ── HIDDEN PORT HINTS (Priority 1) ────────────────────────────────
   // Shown when player is close to (but hasn't met) unlock conditions.
   // Never reveal exact requirements — be vague and atmospheric.
@@ -300,6 +300,133 @@ const PORT_GOSSIP_TEMPLATES = {
   },
 };
 
+
+const MARKET_FLAVOUR = {
+  // Gold (rare occurrence by generator)
+  gold_rich: [
+    "Gold enough to buy the whole market and the merchants know it.",
+    "Merchants practically trip over themselves when you approach.",
+  ],
+  gold_comfortable: [
+    "You have enough coin to command respect, but not enough to be careless.",
+    "Your purse feels comfortably heavy. The stall‑keepers notice.",
+  ],
+
+  // Hold fullness
+  hold_empty: [
+    "Your hold is empty. Every barrel and crate you see looks like an opportunity.",
+    "The ship’s belly is as hollow as a drum. Time to fill it.",
+    "You walk the market with a hold begging for cargo.",
+    "Nothing but ballast and echoes in the hold. The market calls.",
+  ],
+  hold_light: [
+    "A few crates sit in the hold. Room enough for a profitable run.",
+    "Your hold is light. A few choice purchases will keep the ship nimble.",
+    "Plenty of space below decks. You can afford to browse.",
+    "The hold could take more without slowing the ship.",
+  ],
+  hold_half: [
+    "The hold is filling up. You’re starting to feel the weight of each new barrel.",
+    "Half‑full holds make for careful choices. Every crate matters now.",
+    "You’ve got a solid cargo. A little more won’t hurt... or will it?",
+    "The ship sits a little lower in the water. Halfway there.",
+  ],
+  hold_full: [
+    "The hold is nearly bursting. You could still squeeze in a few more sacks, but the ship will feel it.",
+    "Cargo towers in the hold. The bosun shakes his head at every new purchase.",
+    "One more barrel and the rats will have to move out. The hold is packed.",
+    "You’re hauling as much as you dare. A few more crates and the ship will groan.",
+  ],
+
+  // Extreme prices (reuse same detection as gossip)
+  price_surplus: [
+    "{Good} is practically being given away here. The warehouses must be overflowing.",
+    "You’ve never seen {good} this cheap. The market is flooded with it.",
+    "Merchants are desperate to offload {good}. It’s a buyer’s paradise.",
+    "The price of {good} has collapsed. You could buy a shipful for a song.",
+  ],
+  price_shortage: [
+    "{Good} is scarce and the merchants are guarding every crate like a treasure.",
+    "Everyone wants {good}. The merchants are naming their price.",
+    "You hear talk of a shortage. {Good} hasn’t been this dear in months.",
+    "The stall owners shake their heads when you ask about {good}. Supplies are thin.",
+  ],
+
+  // Rare goods
+  rare_good: [
+    "You spot {good} on a stall. It is a rare sight in this port. The merchant knows what they have.",
+    "Is that {good}? You don’t see that every voyage. The price reflects it.",
+    "A few crates of {good} sit tucked behind the counter. The merchant smiles knowingly.",
+    "Rare cargo, {good}, sits in plain sight. The merchant watches your reaction.",
+  ],
+
+  // Good‑specific lines (just 1 variant each)
+  tobacco_present: [
+    "Bundles of tobacco leaves hang from the rafters, their sweet‑sharp scent unmistakable.",
+  ],
+  slaves_present: [
+    "You turn away from the slave pens. The market may sell them, but you don’t have to look.",
+  ],
+
+  // Fame (low priority)
+  fame_recognised: [
+    "Merchants call out as you pass, your name carries weight here.",
+    "A few stall‑keepers greet you by name. Your reputation precedes you.",
+    "You catch traders watching you with a mix of respect and calculation.",
+  ],
+  fame_legendary: [
+    "The crowd parts as you approach. Even the merchants pause to look.",
+    "You don’t need to haggle, your name settles the price.",
+    "A young trader asks for your autograph. Word of your deeds has spread far.",
+  ],
+
+  // Infamy (low priority)
+  infamy_wanted: [
+    "A few merchants avoid your gaze. Your reputation is a complicated asset.",
+    "The stall‑keepers deal with you quickly, eager to move on.",
+    "No one says it, but they know who you are... and what you’ve done.",
+  ],
+  infamy_notorious: [
+    "The market falls quiet as you pass. Only the bravest merchants meet your eye.",
+    "No one calls out. No one offers a sample. They just want you to leave.",
+    "A child whispers as you pass: 'That’s the one from the wanted posters.'",
+  ],
+
+  // Port atmosphere by faction (fallback ambiance)
+  port_english: [
+    "The market at {port} runs with the clipped efficiency of a naval ship.",
+    "Redcoats patrol the perimeter, but the merchants seem used to it.",
+  ],
+  port_spanish: [
+    "The scent of coffee and gunpowder drifts through {port}’s market.",
+    "A priest blesses a stall. The man crosses himself and pockets the merchant’s coin.",
+  ],
+  port_french: [
+    "The market of {port} is a riot of colour and chatter, with goods from across the islands.",
+    "Someone is singing and playing a violin. Someone else is arguing loudly. Both sound French.",
+  ],
+  port_dutch: [
+    "The stalls at {port} are orderly, the merchants sharp‑eyed and precise.",
+    "Ledgers sit open on every counter and every coin is accounted for.",
+  ],
+  port_pirate: [
+    "At {port}, the market is a glorious chaos of stolen goods and tall tales.",
+    "No one asks where anything came from. No one wants to know.",
+  ],
+
+  // Fallback ambiance — always available
+  ambiance: [
+    "The scent of spices and old timber fills the market square.",
+    "Gulls cry overhead as merchants shout their prices.",
+    "A warm breeze carries the smell of fresh fruit and tar.",
+    "The market bustles with sailors haggling over every last coin.",
+    "You weave through stacks of crates and barrels, the heartbeat of {port}.",
+    "Every stall tells a story — some honest, most not.",
+  ],
+};
+
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  Mission Name Parts
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -312,7 +439,7 @@ const MISSION_NAME_PARTS = {
     spanish: ["Spanish","Colonial","Crown","Viceroyalty"],
     french:  ["French","Republican","Gallic","Louis'"],
     dutch:   ["Dutch","Company","Merchant","West India"],
-    pirate:  ["Brotherhood","Free","Unaligned","Brethren"],
+    pirate:  ["Brotherhood","Free","Account","Brethren"],
   },
 };
 
@@ -481,6 +608,7 @@ const ENEMY_SHIP_NAMES = {
     CREW_ROLES,
     BIO_OPENINGS,
     PORT_GOSSIP_TEMPLATES,
+    MARKET_FLAVOUR,
     MISSION_NAME_PARTS,
     COMBAT_LOG_TEMPLATES,
     ENEMY_SHIP_NAMES,

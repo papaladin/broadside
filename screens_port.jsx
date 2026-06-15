@@ -740,6 +740,10 @@ window.S = window.S || {};
                     alignItems: "baseline",
                     gap: 6,
                   }}>
+                    {(() => {
+                      const cat = L.classifyLogLine(entry.text);
+                      return cat.icon ? <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>{cat.icon}</span> : null;
+                    })()}
                     <span>{entry.text}</span>
                   </div>
                 </React.Fragment>

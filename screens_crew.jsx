@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { SHIPS, FACTIONS, PORTS } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip } = window.UI;
   const G = window.G;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -89,7 +89,7 @@ window.S = window.S || {};
             <SectionTitle>HIRE</SectionTitle>
             <p style={{ color: T.textDim, fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
-              {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < 1 || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
+            {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
             </div>
             {open === 0 && <EmptyState message="Ship is at full capacity." />}
           </div>
@@ -150,6 +150,16 @@ window.S = window.S || {};
                         </details>
                       )}
                     </div>
+                      <Tooltip text="Dismiss this crew member permanently. This cannot be undone.">
+  <Btn sm v="red" style={{ marginTop: 8 }}
+    onClick={() => {
+      dispatch({ type: A.DISMISS_CREW, memberId: selectedMember.id });
+      setSelectedMember(null);
+    }}>
+    ✕ Dismiss
+  </Btn>
+</Tooltip>
+
                   </div>
                 );
               })()

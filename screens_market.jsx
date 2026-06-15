@@ -23,6 +23,8 @@ window.S = window.S || {};
       </div>
     );
 
+    const flavourLines = G.generateMarketFlavour(state, state.currentPort);
+
     const holdItems = state.hold?.items || {};
     const capacity = state.hold?.capacity || 0;
     const previewItems = { ...holdItems };
@@ -96,6 +98,17 @@ window.S = window.S || {};
         )}
 
         <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
+        {flavourLines.length > 0 && (
+          <div style={{
+            fontSize: T.narrativeFontSize,
+            color: T.textDim,
+            fontStyle: "italic",
+            marginBottom: 10,
+            lineHeight: T.narrativeLineHeight,
+          }}>
+            {flavourLines.join(" ")}
+          </div>
+        )}
 
         <div style={panelStyle({ marginBottom: 10 })}>
           <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:T.textDim, marginBottom:4 }}>

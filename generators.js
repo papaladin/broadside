@@ -980,6 +980,126 @@ const generatePortGossip = (state, portKey) => {
 };
 
 
+// ── Market Flavour Generator ──────────────────────────────────────
+const generateMarketFlavour = (state, portKey) => {
+  const T = window.D?.MARKET_FLAVOUR;
+  if (!T) return [];
+
+  const port = window.D.PORTS[portKey];
+  if (!port) return [];
+
+  const faction = port.faction;
+  const market = state.portMarket;
+  const holdItems = state.hold?.items || {};
+  const holdUsed = window.L.getHoldUsed(holdItems);
+  const holdCap = window.L.getHoldCapacity(state);
+  const loadPct = holdCap > 0 ? holdUsed / holdCap : 0;
+
+  const pools = [];   // { priority, category, text } – priority 0 = always eligible
+
+  // ── Gold (rare) ──────────────────────────────────────────────
+  if (state.gold >= 100000) {
+    pools.push({ priority: 0, category: "gold_rich", text: pickRandom(T.gold_rich) });
+  } else if (state.gold >= 10000) {
+    pools.push({ priority: 0, category: "gold_comfortable", text: pickRandom(T.gold_comfortable) });
+  }
+
+  // ── Hold fullness ────────────────────────────────────────────
+  if (loadPct <= 0.2) {
+    pools.push({ priority: 1, category: "hold_empty", text: pickRandom(T.hold_empty) });
+  } else if (loadPct <= 0.5) {
+    pools.push({ priority: 1, category: "hold_light", text: pickRandom(T.hold_light) });
+  } else if (loadPct <= 0.8) {
+    pools.push({ priority: 1, category: "hold_half", text: pickRandom(T.hold_half) });
+  } else {
+    pools.push({ priority: 1, category: "hold_full", text: pickRandom(T.hold_full) });
+  }
+
+  // ── Extreme prices (reuse same detection as gossip) ──────────
+  if (market?.goods) {
+    Object.entries(market.goods).forEach(([good, data]) => {
+      if (good === "food" || good === "water" || good === "slaves") return;
+      const res = window.D.RESOURCES[good];
+      if (!res || res.variance === 0) return;
+      const min = res.basePrice * (1 - res.variance);
+      const max = res.basePrice * (1 + res.variance);
+      const range = max - min;
+      if (range <= 0) return;
+      const pct = (data.buyFromPort - min) / range;
+      if (pct <= 0.20) {
+        const text = pickRandom(T.price_surplus).replace(/\{good\}/g, res.name.toLowerCase()).replace(/\{Good\}/g, res.name);
+        pools.push({ priority: 2, category: "price_surplus", text });
+      } else if (pct >= 0.80) {
+        const text = pickRandom(T.price_shortage).replace(/\{good\}/g, res.name.toLowerCase()).replace(/\{Good\}/g, res.name);
+        pools.push({ priority: 2, category: "price_shortage", text });
+      }
+    });
+  }
+
+  // ── Rare goods (availability tier "rarely" and present) ──────
+  if (market?.goods) {
+    const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
+    const colOrder = ["food","water","rum","sugar","timber","cloth","spices","silk","coffee","cocoa","weapons","tobacco","silver","slaves"];
+    Object.keys(market.goods).forEach(good => {
+      const idx = colOrder.indexOf(good);
+      if (idx === -1) return;
+      const tier = availability[idx];
+      if (tier === "rarely") {
+        const text = pickRandom(T.rare_good).replace(/\{good\}/g, window.D.RESOURCES[good]?.name || good);
+        pools.push({ priority: 3, category: "rare_good", text });
+      }
+    });
+  }
+
+  // ── Specific goods ───────────────────────────────────────────
+  if (market?.goods?.tobacco) {
+    pools.push({ priority: 3, category: "tobacco_present", text: pickRandom(T.tobacco_present) });
+  }
+  if (market?.goods?.slaves) {
+    pools.push({ priority: 3, category: "slaves_present", text: pickRandom(T.slaves_present) });
+  }
+
+  // ── Fame ─────────────────────────────────────────────────────
+  const fameInfo = window.L.getFameInfo(state.fame ?? 0);
+  if (fameInfo.tier >= 4) { // Immortal
+    pools.push({ priority: 4, category: "fame_legendary", text: pickRandom(T.fame_legendary) });
+  } else if (fameInfo.tier >= 2) { // Notorious+
+    pools.push({ priority: 4, category: "fame_recognised", text: pickRandom(T.fame_recognised) });
+  }
+
+  // ── Infamy ───────────────────────────────────────────────────
+  if ((state.infamy ?? 0) >= 50) {
+    pools.push({ priority: 4, category: "infamy_notorious", text: pickRandom(T.infamy_notorious) });
+  } else if ((state.infamy ?? 0) >= 25) {
+    pools.push({ priority: 4, category: "infamy_wanted", text: pickRandom(T.infamy_wanted) });
+  }
+
+  // ── Port atmosphere ──────────────────────────────────────────
+  const portAtmosphere = T[`port_${faction}`];
+  if (portAtmosphere) {
+    pools.push({ priority: 0, category: "port_ambiance", text: pickRandom(portAtmosphere).replace(/\{port\}/g, port.name) });
+  }
+
+  // ── Fallback ambiance ────────────────────────────────────────
+  // Always add one ambiance line as a baseline
+  pools.push({ priority: 0, category: "ambiance", text: pickRandom(T.ambiance).replace(/\{port\}/g, port.name) });
+
+  // ── Selection logic ──────────────────────────────────────────
+  // Sort by priority (lower = more important), then pick 3 lines,
+  // ensuring no duplicate category.
+  pools.sort((a, b) => a.priority - b.priority);
+  const selected = [];
+  const usedCategories = new Set();
+  for (const p of pools) {
+    if (selected.length >= 3) break;
+    if (usedCategories.has(p.category)) continue;
+    selected.push(p.text);
+    usedCategories.add(p.category);
+  }
+
+  return selected;
+};
+
   // ── exports ───────────────────────────────────────────────────
   return {
     // crew (migrated)
@@ -1001,6 +1121,7 @@ const generatePortGossip = (state, portKey) => {
     // port market & gossip
     generatePortMarket,
     generatePortGossip,
+    generateMarketFlavour,
   };
 
 })();
