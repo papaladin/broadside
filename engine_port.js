@@ -201,7 +201,7 @@ const processPositiveTraits = (crewRoster, state) => {
     switch (action.type) {
 
       // --- START GAME ---
-     case A.START_GAME: {
+case A.START_GAME: {
   const { captainName, faction, onboardingEnabled } = action;
   const start = STARTS;
 
@@ -209,29 +209,25 @@ const processPositiveTraits = (crewRoster, state) => {
   const startPort = start.factionPorts?.[faction];
   if (!startPort) return { ...window.E.initialState, screen: "title" };
 
-  // ── Build initial state ────────────────────────────────
-  const newState = {
-    ...window.E.initialState,
-    screen: "port",
-    day: 1,
-    captainName: captainName || "Captain",
-    faction: faction,
-    gold: start.gold,
-    startDate: start.startDate,
-    currentPort: startPort,
-    portMarket: null,
-    log: [
-      ...(start.factionBackstory?.[faction]?.openingLog || []),
-    ],
-    onboarding: {
-      ...window.E.initialState.onboarding,
-      enabled: onboardingEnabled ?? false,
-      completed: !onboardingEnabled,
-      stepsCompleted: { ...window.E.initialState.onboarding.stepsCompleted },
-    },
-  };
+  // ── Deep‑clone the entire initial state ─────────────────────
+  const newState = JSON.parse(JSON.stringify(window.E.initialState));
 
-  // ── Ship ────────────────────────────────────────────────
+  // ── Overwrite fields that differ from the default ───────────
+  newState.screen = "port";
+  newState.day = 1;
+  newState.captainName = captainName || "Captain";
+  newState.faction = faction;
+  newState.gold = start.gold;
+  newState.startDate = start.startDate;
+  newState.currentPort = startPort;
+  newState.portMarket = null;
+  newState.log = [
+    ...(start.factionBackstory?.[faction]?.openingLog || []),
+  ];
+  newState.onboarding.enabled = onboardingEnabled ?? false;
+  newState.onboarding.completed = !onboardingEnabled;
+
+  // ── Ship ────────────────────────────────────────────────────
   const shipData = SHIPS[start.ship];
   newState.ship = {
     type: start.ship,
@@ -241,7 +237,7 @@ const processPositiveTraits = (crewRoster, state) => {
     upgrades: [],
   };
 
-  // ── Hold ────────────────────────────────────────────────
+  // ── Hold ────────────────────────────────────────────────────
   newState.hold = {
     capacity: shipData.holdCapacity,
     items: {
@@ -252,7 +248,7 @@ const processPositiveTraits = (crewRoster, state) => {
     },
   };
 
-  // ── Reputation ──────────────────────────────────────────
+  // ── Reputation ──────────────────────────────────────────────
   const rep = {};
   Object.keys(PORTS).forEach(portKey => { rep[portKey] = 50; });
   const repAdj = start.factionRepAdjust?.[faction] || {};
@@ -265,7 +261,7 @@ const processPositiveTraits = (crewRoster, state) => {
   });
   newState.reputation = rep;
 
-  // ── Crew ────────────────────────────────────────────────
+  // ── Crew ────────────────────────────────────────────────────
   newState.crew = {
     ...newState.crew,
     max: shipData.maxCrew,
@@ -273,32 +269,43 @@ const processPositiveTraits = (crewRoster, state) => {
     morale: 80,
   };
 
-  // Inject Quartermaster if onboarding is enabled
+  // Inject Quartermaster if onboarding is enabled (non‑mutating)
   if (onboardingEnabled) {
     const qmData = start.factionQM?.[faction];
     if (qmData) {
-      newState.crew.roster.push({
-        id: "qm_tutorial",
-        firstName: qmData.firstName,
-        lastName: qmData.lastName,
-        bio: qmData.bio || "",                     // ← new
-        role: "quartermaster",
-        faction: faction,
-        daysAboard: 0,
-        tags: ["quartermaster", "protected"],
-      });
+      newState.crew.roster = [
+        ...newState.crew.roster,
+        {
+          id: "qm_tutorial",
+          firstName: qmData.firstName,
+          lastName: qmData.lastName,
+          bio: qmData.bio || "",
+          role: "quartermaster",
+          faction: faction,
+          daysAboard: 0,
+          tags: ["quartermaster", "protected"],
+        },
+      ];
     }
   }
 
-  // ── Market & missions ───────────────────────────────────
-  newState.portMarket = G.generatePortMarket(startPort);
+  // ── Tutorial delivery mission (auto‑accept) ────────────────
+  if (onboardingEnabled) {
+    const tutorialMission = D.TUTORIAL_DELIVERY?.[faction];
+    if (tutorialMission) {
+      newState.missions = [...newState.missions, tutorialMission];
+      newState.activeMission = { ...tutorialMission, encounterOccurred: false };
+      newState.log.push(`Accepted opening quest: ${tutorialMission.name}.`);
+       // Set onboarding steps directly (state is already a deep clone)
+    newState.onboarding.stepsCompleted.contractsOpened = true;
+    newState.onboarding.stepsCompleted.firstContractAccepted = true;
+    }
+  }
+
+  // ── Market, gossip, missions ───────────────────────────────
+  newState.portMarket = G.generatePortMarket(startPort, newState);
   newState.portGossip = G.generatePortGossip(newState, startPort);
   newState.missions = G.generateMissions(startPort, newState);
-
-  // Tutorial delivery mission (T5 — auto-accept later)
-  if (onboardingEnabled) {
-    // For now, no auto-accept — T5 will add that
-  }
 
   return newState;
 }
@@ -377,74 +384,91 @@ const processPositiveTraits = (crewRoster, state) => {
 }
 
 // ------------ ENTER PORT ------------------------------
-      case A.ENTER_PORT: {
-        if (!state.destination) {
-          return { ...state, screen: "port", log: [...state.log, "You return to port."] };
-        }
-        const port = PORTS[state.destination];
-        const portFaction = port.faction;
-        const playerRep = state.reputation[state.destination] ?? 50;
-        let combatEncounter = null;
+case A.ENTER_PORT: {
+  if (!state.destination) {
+    return { ...state, screen: "port", log: [...state.log, "You return to port."] };
+  }
+  const port = PORTS[state.destination];
+  const portFaction = port.faction;
+  const playerRep = state.reputation[state.destination] ?? 50;
+  let combatEncounter = null;
 
-        if (state.activeMission?.type === "assault" && state.activeMission.targetPort === state.destination) {
-          const mission = state.activeMission;
-          if (mission.enemy) combatEncounter = { type: "hostile_port_entry", enemy: mission.enemy };
-          else combatEncounter = { type: "hostile_port_entry", enemy: { name: `${port.name} Garrison`, hull: 200, cannons: 20, crew: 50, faction: portFaction, gold: 500 } };
-        }
-        else if (playerRep < 10) {
-          combatEncounter = { type: "hostile_port_entry", enemy: { name: `${port.name} Guards`, hull: 150, cannons: 15, crew: 40, faction: portFaction, gold: 300 } };
-        }
+  if (state.activeMission?.type === "assault" && state.activeMission.targetPort === state.destination) {
+    const mission = state.activeMission;
+    if (mission.enemy) combatEncounter = { type: "hostile_port_entry", enemy: mission.enemy };
+    else combatEncounter = { type: "hostile_port_entry", enemy: { name: `${port.name} Garrison`, hull: 200, cannons: 20, crew: 50, faction: portFaction, gold: 500 } };
+  }
+  else if (playerRep < 10) {
+    combatEncounter = { type: "hostile_port_entry", enemy: { name: `${port.name} Guards`, hull: 150, cannons: 15, crew: 40, faction: portFaction, gold: 300 } };
+  }
 
-        if (combatEncounter) {
-          const encounterContext = L.buildEncounterContext(state, combatEncounter.type, combatEncounter.enemy);
-          const logMsg = state.activeMission?.type === "assault"
-            ? `Arrived at ${port.name}. The garrison is on high alert!`
-            : `Arrived at ${port.name}. Hostile port!`;
-          return {
-            ...state,
-            currentPort: state.destination,
-            destination: null,
-            sailingDaysLeft: 0,
-            encounterContext,
-            screen: "intercept",
-            portMarket: G.generatePortMarket(state.destination),
-            log: [...state.log, window.E.logEntry(state, logMsg)]
-          };
-        }
+  if (combatEncounter) {
+    const encounterContext = L.buildEncounterContext(state, combatEncounter.type, combatEncounter.enemy);
+    const logMsg = state.activeMission?.type === "assault"
+      ? `Arrived at ${port.name}. The garrison is on high alert!`
+      : `Arrived at ${port.name}. Hostile port!`;
+    return {
+      ...state,
+      currentPort: state.destination,
+      destination: null,
+      sailingDaysLeft: 0,
+      encounterContext,
+      screen: "intercept",
+      portMarket: G.generatePortMarket(state.destination, state),   // ← pass state
+      log: [...state.log, window.E.logEntry(state, logMsg)]
+    };
+  }
 
-        const nextState = {
-          ...state,
-          currentPort: state.destination,
-          destination: null,
-          sailingDaysLeft: 0,
-          screen: "port",
-          missions: G.generateMissions(state.destination, state),
-          portMarket: G.generatePortMarket(state.destination),
-          log: [...state.log, window.E.logEntry(state, pickArrivalMessage(port.name))]
-        };
+  let nextState = {
+    ...state,
+    currentPort: state.destination,
+    destination: null,
+    sailingDaysLeft: 0,
+    screen: "port",
+    missions: G.generateMissions(state.destination, state),
+    portMarket: G.generatePortMarket(state.destination, state),     // ← pass state
+    log: [...state.log, window.E.logEntry(state, pickArrivalMessage(port.name))]
+  };
 
-        // Run post‑arrival logic
-        const desertionResult = processDesertion(
-          nextState.crew.roster,
-          nextState.crew.morale,
-          nextState.currentPort,
-          state
-        );
-        nextState.crew = { ...nextState.crew, roster: desertionResult.roster };
-        if (desertionResult.logLines.length > 0) {
-          nextState.log = [...nextState.log, ...desertionResult.logLines];
-        }
+  // Run post‑arrival logic
+  const desertionResult = processDesertion(
+    nextState.crew.roster,
+    nextState.crew.morale,
+    nextState.currentPort,
+    state
+  );
+  nextState.crew = { ...nextState.crew, roster: desertionResult.roster };
+  if (desertionResult.logLines.length > 0) {
+    nextState.log = [...nextState.log, ...desertionResult.logLines];
+  }
 
-        const traitResult = processPositiveTraits(nextState.crew.roster, state);
-        nextState.crew = { ...nextState.crew, roster: traitResult.roster };
-        if (traitResult.logLines.length > 0) {
-          nextState.log = [...nextState.log, ...traitResult.logLines];
-        }
+  const traitResult = processPositiveTraits(nextState.crew.roster, state);
+  nextState.crew = { ...nextState.crew, roster: traitResult.roster };
+  if (traitResult.logLines.length > 0) {
+    nextState.log = [...nextState.log, ...traitResult.logLines];
+  }
 
-        nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
-        autoSave(nextState);
-        return nextState;
-      }
+  nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
+
+  // ── Onboarding step advances ──────────────────────────
+  // Onboarding step advances – direct immutable update
+if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
+  nextState = {
+    ...nextState,
+    onboarding: {
+      ...nextState.onboarding,
+      stepsCompleted: {
+        ...nextState.onboarding.stepsCompleted,
+        contractsOpened: true,
+        firstArrival: true,
+      },
+    },
+  };
+}
+
+  autoSave(nextState);
+  return nextState;
+}
 
 // --------------------- PORT ACTIONS --------------------------------
         case A.REPAIR: {

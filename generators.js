@@ -306,7 +306,7 @@ const generateCrewBio = (member, state) => {
 // ---- MARKET GENRATORS ---------------------------------
 
   // ── port market generator ─────────────────────────────────────
-  const generatePortMarket = (portKey) => {
+  const generatePortMarket = (portKey, state) => {
     const resources   = window.D.RESOURCES;
     const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
 
@@ -369,6 +369,23 @@ const generateCrewBio = (member, state) => {
         available,
       };
     });
+
+    // Force‑stock tutorial goods during onboarding
+    if (state?.onboarding?.enabled && !state?.onboarding?.completed && state?.activeMission?.tutorial) {
+      const requiredGood = state.activeMission.requiredGood;
+      if (requiredGood && !goods[requiredGood]) {
+        const res = resources[requiredGood];
+        if (res) {
+          const buyPrice = Math.round(res.basePrice * (1 + (Math.random() * 0.1 - 0.05)));
+          goods[requiredGood] = {
+            basePrice: res.basePrice,
+            buyFromPort: buyPrice,
+            sellToPort: Math.round(buyPrice * 0.85),
+            available: 20,
+          };
+        }
+      }
+    }
 
     return { portKey, goods };
   };

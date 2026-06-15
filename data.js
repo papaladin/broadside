@@ -1155,7 +1155,63 @@ const STARTS = {
   startDate: { day: 1, month: 6, year: 1695 },
 };
 
-
+const TUTORIAL_DELIVERY = {
+  english: {
+    targetPort: "kingston",
+    requiredGood: "rum",
+    requiredQty: 3,
+    gold: 240,
+    fame: 2,
+    name: "Carry the Dispatch to Kingston",
+    description: "An official packet needs to reach Kingston, along with a cask of rum for the harbour office. Buy the rum at the market and deliver it sealed.",
+    repImpact: { english: 2 },
+    tutorial: true,
+  },
+  spanish: {
+    targetPort: "santiagoDeCuba",
+    requiredGood: "sugar",
+    requiredQty: 3,
+    gold: 280,
+    fame: 2,
+    name: "The Crate for Santiago",
+    description: "A consignment of sugar must reach a contact in Santiago de Cuba. Prompt and quiet.",
+    repImpact: { spanish: 3 },
+    tutorial: true,
+  },
+  french: {
+    targetPort: "portDePaix",
+    requiredGood: "sugar",
+    requiredQty: 3,
+    gold: 220,
+    fame: 2,
+    name: "Provisions for Port-de-Paix",
+    description: "The garrison at Port-de-Paix needs sugar for the officers' mess. A small job — but it pays, and it's close.",
+    repImpact: { french: 2 },
+    tutorial: true,
+  },
+  dutch: {
+    targetPort: "petitGoave",
+    requiredGood: "cloth",
+    requiredQty: 2,
+    gold: 250,
+    fame: 2,
+    name: "The Consignment for Petit-Goâve",
+    description: "A Dutch factor in Petit-Goâve awaits a delivery of cloth. The manifest is signed. Don't ask questions.",
+    repImpact: { dutch: 3 },
+    tutorial: true,
+  },
+  pirate: {
+    targetPort: "tortuga",
+    requiredGood: "rum",
+    requiredQty: 3,
+    gold: 200,
+    fame: 2,
+    name: "Rum for Renard in Tortuga",
+    description: "Captain Renard in Tortuga needs rum — and a message. Delivering both is a way to introduce yourself.",
+    repImpact: { pirate: 3 },
+    tutorial: true,
+  },
+};
 
 
   const SURRENDER_CONSEQUENCE = {
@@ -1189,6 +1245,7 @@ const STARTS = {
     PATROL_FINE_RATE,
     RANDOM_EVENTS,
     STARTS,
+    TUTORIAL_DELIVERY,
     SURRENDER_CONSEQUENCE,
   };
 })();

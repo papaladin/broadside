@@ -1,8 +1,6 @@
 // engine_core.js — Shared Infrastructure
 // Exposes window.E with A, initialState, reducer, shared helpers.
-// Loaded first; domain files push reducers into window.E._reducers.
 
-// Ensure window.E exists before anything else
 window.E = window.E || {};
 
 (function() {
@@ -11,7 +9,7 @@ window.E = window.E || {};
   const G = window.G;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  ACTION CONSTANTS (all 44)
+  //  ACTION CONSTANTS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   window.E.A = {
     NAVIGATE: "NAVIGATE",
@@ -92,26 +90,19 @@ window.E = window.E || {};
       s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
     }
     if (!s.portGossip) s.portGossip = [];
-    
-    // Ensure all crew members have tags array (for T2.2+)
     if (s.crew?.roster) {
       s.crew.roster = s.crew.roster.map(member => ({
         ...member,
         tags: member.tags || [],
       }));
     }
-    if (!s.startDate) {
-      s.startDate = { day: 1, month: 6, year: 1695 };
-    }
+    if (!s.startDate) s.startDate = { day: 1, month: 6, year: 1695 };
     if (!s.scenarioId) s.scenarioId = null;
     if (!s.ship.equipment) {
       s.ship.equipment = { hull: [], armament: [], rigging: [], special: [] };
-      // discard old upgrades silently
       delete s.ship.upgrades;
     }
-    if (!s.equipmentInventory) {
-      s.equipmentInventory = [];
-    }
+    if (!s.equipmentInventory) s.equipmentInventory = [];
     if (!s.onboarding) {
       s.onboarding = {
         enabled: false,
@@ -159,13 +150,7 @@ window.E = window.E || {};
     gold: 1000,
     fame: 0,
     infamy: 0,
-    factionAlerts: {
-      english: 0,
-      spanish: 0,
-      french: 0,
-      dutch: 0,
-      pirate: 0,
-    },
+    factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
     currentPort: "portRoyal",
     route: null,
     captainName: "",
@@ -208,12 +193,7 @@ window.E = window.E || {};
       name: "Sea Dog",
       hull: 100,
       cannons: 10,
-      equipment: {
-        hull: [],
-        armament: [],
-        rigging: [],
-        special: [],
-      },
+      equipment: { hull: [], armament: [], rigging: [], special: [] },
     },
     crew: { roster: [], max: 50, morale: 80 },
     hold: {
@@ -242,185 +222,92 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   window.E._reducers = [];
 
-  window.E.reducer = (state, action) => {
-    return window.E._reducers.reduce(
-      (s, r) => r(s, action),
-      state
-    );
-  };
+  window.E.reducer = (state, action) =>
+    window.E._reducers.reduce((s, r) => r(s, action), state);
 
   // ── Debug reducer ──────────────────────────────────────────────
-window.E._reducers.push((state, action) => {
-  switch (action.type) {
-
-    case window.E.A.DEBUG_ADD_GOLD:
-      return { ...state, gold: state.gold + action.amount };
-
-    case window.E.A.DEBUG_SET_FAME:
-      return { ...state, fame: action.fame };
-
-    case window.E.A.DEBUG_SET_INFAMY:
-      return { ...state, infamy: action.infamy };
-
-    case window.E.A.DEBUG_SET_SHIP: {
-      const s = window.D.SHIPS[action.shipType];
-      if (!s) return state;
-      return {
-        ...state,
-        ship: {
-          type: action.shipType,
-          name: s.name,
-          hull: s.maxHull,
-          cannons: s.cannons,
-          equipment: { hull: [], armament: [], rigging: [], special: [] },   // NEW
-        },
-        equipmentInventory: [],           // reset inventory
-        hold: { ...state.hold, capacity: s.holdCapacity },
-        crew: { ...state.crew, max: s.maxCrew },
-      };
+  window.E._reducers.push((state, action) => {
+    switch (action.type) {
+      case window.E.A.DEBUG_ADD_GOLD:
+        return { ...state, gold: state.gold + action.amount };
+      case window.E.A.DEBUG_SET_FAME:
+        return { ...state, fame: action.fame };
+      case window.E.A.DEBUG_SET_INFAMY:
+        return { ...state, infamy: action.infamy };
+      case window.E.A.DEBUG_SET_SHIP: {
+        const s = window.D.SHIPS[action.shipType];
+        if (!s) return state;
+        return {
+          ...state,
+          ship: { type: action.shipType, name: s.name, hull: s.maxHull, cannons: s.cannons, equipment: { hull: [], armament: [], rigging: [], special: [] } },
+          equipmentInventory: [],
+          hold: { ...state.hold, capacity: s.holdCapacity },
+          crew: { ...state.crew, max: s.maxCrew },
+        };
+      }
+      case window.E.A.DEBUG_SET_PORT_REP:
+        return { ...state, reputation: { ...state.reputation, [action.port]: action.amount } };
+      case window.E.A.DEBUG_FILL_HOLD:
+        return { ...state, hold: { ...state.hold, items: { food:20, water:20, rum:10, sugar:8, spices:4, silk:3, cloth:6, weapons:5, coffee:5, cocoa:4, timber:0, tobacco:3, silver:2, slaves:0 } } };
+      case window.E.A.DEBUG_REPAIR: {
+        const stats = L.getShipStats(state);
+        return { ...state, ship: { ...state.ship, hull: stats.maxHull }, hold: { ...state.hold, items: { ...state.hold.items, food: Math.ceil(state.crew.roster.length/10)*10, water: Math.ceil(state.crew.roster.length/10)*10 } } };
+      }
+      case window.E.A.DEBUG_SET_MORALE:
+        return { ...state, crew: { ...state.crew, morale: Math.min(100, Math.max(0, action.morale)) } };
+      case window.E.A.DEBUG_UNLOCK_HIDDEN_PORTS:
+        return { ...state, discoveredPorts: Object.keys(window.D.PORTS), log: [...state.log, "⚙ All hidden ports unlocked."] };
+      case window.E.A.DEBUG_MAX_CREW: {
+        const max = L.getShipStats(state).maxCrew;
+        const deficit = Math.max(0, max - state.crew.roster.length);
+        if (deficit === 0) return state;
+        const factions = Object.keys(window.D.FACTIONS);
+        const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
+        const newMembers = [];
+        for (let i = 0; i < deficit; i++) {
+          const faction = factions[Math.floor(Math.random() * factions.length)];
+          const member = G.generateCrewMember(faction, existingNames);
+          member.daysAboard = Math.floor(Math.random() * 240) + 10;
+          if (Math.random() < 0.30) member.tags.push("loyal");
+          if (Math.random() < 0.30 && !member.tags.includes("loyal")) member.tags.push("upset");
+          if (Math.random() < 0.25) member.tags.push("mutineer");
+          if (Math.random() < 0.35) member.tags.push("scar_battle");
+          if (Math.random() < 0.25) member.tags.push("scar_storm");
+          if (Math.random() < 0.15) member.tags.push("scar_shipwreck");
+          if (Math.random() < 0.25) member.tags.push("revealed_drunkard");
+          if (Math.random() < 0.15) member.tags.push("revealed_coward");
+          if (Math.random() < 0.15) member.tags.push("revealed_greedy");
+          if (Math.random() < 0.20) {
+            const hiddenPool = ["hidden_drunkard","hidden_coward","hidden_greedy"];
+            member.tags.push(hiddenPool[Math.floor(Math.random()*hiddenPool.length)]);
+          }
+          newMembers.push(member);
+          existingNames.push(`${member.firstName} ${member.lastName}`);
+        }
+        return { ...state, crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] }, log: [...state.log, `⚙ Hired ${deficit} crew with random traits for testing.`] };
+      }
+      case window.E.A.DEBUG_COMPLETE_MISSION: {
+        const mission = state.activeMission;
+        if (!mission) return state;
+        const rep = state.reputation[state.currentPort] ?? 50;
+        const perk = L.getRepPerk(rep);
+        const baseGold = mission.gold || 0;
+        const finalGold = (mission.type === "trade" || mission.type === "smuggle") ? baseGold : Math.floor(baseGold * perk.missionMult);
+        return { ...state, gold: state.gold + finalGold, fame: state.fame + (mission.fame || 0), infamy: Math.min(999, (state.infamy ?? 0) + (mission.infamyGain || 0)), reputation: L.applyReputationImpact(state, mission.repImpact), activeMission: null, log: [...state.log, `⚙ Debug-completed mission: ${mission.name}. +${finalGold}g.`] };
+      }
+      case window.E.A.DEBUG_SET_HEAT: {
+        const alerts = { ...(state.factionAlerts || {}) };
+        alerts[action.faction] = Math.min(10, Math.max(0, action.amount));
+        return { ...state, factionAlerts: alerts };
+      }
+      case window.E.A.DEBUG_AGE_CREW: {
+        const aged = state.crew.roster.map(member => ({ ...member, daysAboard: (member.daysAboard || 0) + 50 }));
+        return { ...state, crew: { ...state.crew, roster: aged }, log: [...state.log, `⚙ Added 50 days aboard to all crew.`] };
+      }
+      default:
+        return state;
     }
-
-    case window.E.A.DEBUG_SET_PORT_REP:
-      return {
-        ...state,
-        reputation: { ...state.reputation, [action.port]: action.amount }
-      };
-
-    case window.E.A.DEBUG_FILL_HOLD:
-      return {
-        ...state,
-        hold: { ...state.hold, items: {
-          food: 20, water: 20, rum: 10, sugar: 8, spices: 4,
-          silk: 3, cloth: 6, weapons: 5, coffee: 5, cocoa: 4,
-          timber: 0, tobacco: 3, silver: 2, slaves: 0,
-        }}
-      };
-
-    case window.E.A.DEBUG_REPAIR: {
-      const stats = L.getShipStats(state);
-      return {
-        ...state,
-        ship: { ...state.ship, hull: stats.maxHull },
-        hold: { ...state.hold, items: {
-          ...state.hold.items,
-          food: Math.ceil(state.crew.roster.length / 10) * 10,
-          water: Math.ceil(state.crew.roster.length / 10) * 10,
-        }},
-      };
-    }
-
-    case window.E.A.DEBUG_SET_MORALE:
-      return { ...state, crew: { ...state.crew, morale: Math.min(100, Math.max(0, action.morale)) } };
-
-    case window.E.A.DEBUG_UNLOCK_HIDDEN_PORTS:
-      return {
-        ...state,
-        discoveredPorts: Object.keys(window.D.PORTS),
-        log: [...state.log, "⚙ All hidden ports unlocked."],
-      };
-
-case window.E.A.DEBUG_MAX_CREW: {
-  const max = L.getShipStats(state).maxCrew;
-  const deficit = Math.max(0, max - state.crew.roster.length);
-  if (deficit === 0) return state;
-
-  const factions = Object.keys(window.D.FACTIONS);
-  const existingNames = state.crew.roster.map(c => `${c.firstName} ${c.lastName}`);
-  const newMembers = [];
-
-  for (let i = 0; i < deficit; i++) {
-    const faction = factions[Math.floor(Math.random() * factions.length)];
-    const member = G.generateCrewMember(faction, existingNames);
-
-    // Random days aboard (10–250) to trigger seasoned/veteran/loyal
-    member.daysAboard = Math.floor(Math.random() * 240) + 10;
-
-    // ── Status tags ──────────────────────────────────────
-    const rollLoyal = Math.random() < 0.30;  // 30% loyal
-    if (rollLoyal) {
-      member.tags.push("loyal");
-    }
-
-    const rollUpset = Math.random() < 0.30 && !rollLoyal;  // upset only if not loyal
-    if (rollUpset) {
-      member.tags.push("upset");
-    }
-
-    if (Math.random() < 0.25) member.tags.push("mutineer");  // 25% mutineer
-
-    // ── Scars ────────────────────────────────────────────
-    if (Math.random() < 0.35) member.tags.push("scar_battle");
-    if (Math.random() < 0.25) member.tags.push("scar_storm");
-    if (Math.random() < 0.15) member.tags.push("scar_shipwreck");
-
-    // ── Revealed traits (bypass hidden, for UI testing) ───
-    if (Math.random() < 0.25) member.tags.push("revealed_drunkard");
-    if (Math.random() < 0.15) member.tags.push("revealed_coward");
-    if (Math.random() < 0.15) member.tags.push("revealed_greedy");
-
-    // ── Also add a hidden trait occasionally (will be invisible) ──
-    if (Math.random() < 0.20) {
-      const hiddenPool = ["hidden_drunkard", "hidden_coward", "hidden_greedy"];
-      member.tags.push(hiddenPool[Math.floor(Math.random() * hiddenPool.length)]);
-    }
-
-    newMembers.push(member);
-    existingNames.push(`${member.firstName} ${member.lastName}`);
-  }
-
-  return {
-    ...state,
-    crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-    log: [...state.log, `⚙ Hired ${deficit} crew with random traits for testing.`],
-  };
-}
-
-
-    case window.E.A.DEBUG_COMPLETE_MISSION: {
-      const mission = state.activeMission;
-      if (!mission) return state;
-      const rep = state.reputation[state.currentPort] ?? 50;
-      const perk = L.getRepPerk(rep);
-      const baseGold = mission.gold || 0;
-      const finalGold = (mission.type === "trade" || mission.type === "smuggle")
-        ? baseGold
-        : Math.floor(baseGold * perk.missionMult);
-      const newRep = L.applyReputationImpact(state, mission.repImpact);
-      return {
-        ...state,
-        gold: state.gold + finalGold,
-        fame: state.fame + (mission.fame || 0),
-        infamy: Math.min(999, (state.infamy ?? 0) + (mission.infamyGain || 0)),
-        reputation: newRep,
-        activeMission: null,
-        log: [...state.log, `⚙ Debug-completed mission: ${mission.name}. +${finalGold}g.`],
-      };
-    }
-
-    case window.E.A.DEBUG_SET_HEAT: {
-  const alerts = { ...(state.factionAlerts || {}) };
-  alerts[action.faction] = Math.min(10, Math.max(0, action.amount));
-  return { ...state, factionAlerts: alerts };
-}
-
-case window.E.A.DEBUG_AGE_CREW: {
-  const aged = state.crew.roster.map(member => ({
-    ...member,
-    daysAboard: (member.daysAboard || 0) + 50,
-  }));
-  return {
-    ...state,
-    crew: { ...state.crew, roster: aged },
-    log: [...state.log, `⚙ Added 50 days aboard to all crew.`],
-  };
-}
-
-
-    default:
-      return state;
-  }
-});
-
+  });
 
   // ── Save / Load / Export / Import ────────────────────────────
   window.E._reducers.push((state, action) => {
@@ -428,7 +315,6 @@ case window.E.A.DEBUG_AGE_CREW: {
       case window.E.A.SAVE_GAME:
         localStorage.setItem("piratesSave", JSON.stringify(state));
         return { ...state };
-
       case window.E.A.LOAD_GAME: {
         try {
           const raw = localStorage.getItem("piratesSave");
@@ -436,20 +322,11 @@ case window.E.A.DEBUG_AGE_CREW: {
           const parsed = JSON.parse(raw);
           const loaded = window.E.migrateState(parsed);
           const currentPort = loaded.currentPort || "portRoyal";
-          return {
-            ...loaded,
-            screen: "port",
-            battleState: null,
-            activeEvent: null,
-            encounterContext: null,
-            portMarket: G.generatePortMarket(currentPort),
-            missions: G.generateMissions(currentPort, loaded),
-          };
+          return { ...loaded, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(currentPort), missions: G.generateMissions(currentPort, loaded) };
         } catch (e) {
           return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
         }
       }
-
       case window.E.A.EXPORT_SAVE: {
         const encoded = L.encodeSave(state);
         const scenario = state.scenarioId || "unknown";
@@ -464,32 +341,15 @@ case window.E.A.DEBUG_AGE_CREW: {
         URL.revokeObjectURL(url);
         return state;
       }
-
       case window.E.A.IMPORT_SAVE: {
         const { state: loaded, tampered, error } = L.decodeSave(action.fileContent);
-        if (error) {
-          return { ...state, log: [...state.log, `⚠ ${error}`] };
-        }
+        if (error) return { ...state, log: [...state.log, `⚠ ${error}`] };
         const migrated = window.E.migrateState(loaded);
-        if (tampered) {
-          migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
-        }
-        return {
-          ...migrated,
-          screen: "port",
-          battleState: null,
-          activeEvent: null,
-          encounterContext: null,
-          portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"),
-          missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated),
-        };
+        if (tampered) migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
+        return { ...migrated, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"), missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated) };
       }
-
       default:
         return state;
     }
   });
-
-
-
 })();

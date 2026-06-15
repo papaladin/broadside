@@ -181,7 +181,7 @@ const handleDefeat = (state, battleState, patrolLog) => {
       ...state.hold,
       items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
     },
-    portMarket: G.generatePortMarket(returnPort),
+    portMarket: G.generatePortMarket(returnPort, state),
     missions: G.generateMissions(returnPort, state),
     infamy: Math.min(999, (state.infamy ?? 0) + (patrolLog.length > 0 ? 2 : 0)),
     log: [
