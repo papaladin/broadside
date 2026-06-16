@@ -760,7 +760,7 @@ Each relevant reducer/screen must dispatch `ONBOARDING_ADVANCE` when the player 
 
 ---
 
-## 8. T5 — Tutorial Delivery Mission
+## 8. T5 — Tutorial Delivery Mission --> DONE
 
 ### Overview
 
@@ -1162,17 +1162,17 @@ Add to `data_text.js` or `data.js`:
 const QM_DIALOGUE = {
   // ── Step 0: Welcome ──────────────────────────────────
   step0_welcome: (portName) =>
-    `Welcome to ${portName}, Captain. We've a ship, a handful of coin, and not much else. Let's see what work there is — check the Contracts Board.`,
+    `Welcome to ${portName}, Captain. We've a ship, a handful of coin, and not much else. Let's see what work there is. Check the Contracts Board.`,
 
   // ── Step 1: First contract ───────────────────────────
   step1_contractsOpen: () =>
-    `Here's the work board. Look for an easy run — something short, something close. Good way to earn our first coin.`,
+    `Here's the work board. I picked an easy run. something short, something close. Good way to earn our first coin.`,
   step1_accepted: () =>
     `Right. We'll need to pick up the cargo and stock provisions. Let's head to the Market.`,
 
   // ── Step 2: Market ───────────────────────────────────
   step2_marketOpen: () =>
-    `Buy what we need for our contract, and don't forget provisions — crew's gotta eat. Running dry at sea is... unpleasant.`,
+    `Buy what we need for our contract, and don't forget provisions: the crew's gotta eat. Running dry at sea is... unpleasant.`,
   step2_stocked: () =>
     `Cargo loaded, bellies will be full. Time to chart a course, Captain. Let's look at the Map.`,
 
@@ -1182,7 +1182,7 @@ const QM_DIALOGUE = {
 
   // ── Step 4: Sailing ──────────────────────────────────
   step4_sailing: () =>
-    `Smooth seas so far. Watch our provisions — each day at sea costs food and water. If we spot trouble, I'll let you know.`,
+    `Smooth seas so far. Watch our provisions: each day at sea costs food and water. If we spot trouble, I'll let you know.`,
 
   // ── Step 5: Arrival & delivery ───────────────────────
   step5_arrival: () =>
@@ -1192,9 +1192,9 @@ const QM_DIALOGUE = {
 
   // ── Step 6: Crew ─────────────────────────────────────
   step6_crewOpen: () =>
-    `Here's our lot. You can hire more hands here — each one's got different skills. More crew means we can handle tougher seas... and tougher fights.`,
+    `Here's our lot. You can hire more hands here. Each one's got different skills. More crew means we can handle tougher seas... and tougher fights.`,
   step6_hired: () =>
-    `Good, we've got hands now. There's a bounty posted — a small vessel preying on fishing boats near here. Check the Contracts Board — I've marked the one.`,
+    `Good, we've got hands now. There's a bounty posted: A small vessel preying on fishing boats near here. Check the Contracts Board, I've marked the one.`,
 
   // ── Step 6b: Tutorial hunt ───────────────────────────
   step6b_huntAccepted: () =>
@@ -1206,9 +1206,9 @@ const QM_DIALOGUE = {
 
   // ── Step 7: Shipyard ─────────────────────────────────
   step7_shipyardOpen: () =>
-    `Repairs, upgrades, or a new ship when we've saved enough. A Cutter would serve us well — faster, tougher, more hold space. About 1,000 gold. A few more jobs and we're there.`,
+    `Repairs, upgrades, or a new ship when we've saved enough. A Cutter would serve us well:  faster, tougher, more hold space. About 1,000 gold. A few more jobs and we're there.`,
   step7_repaired: () =>
-    `Good as new — well, good enough. I've been keeping a record of our voyages. Your Journal might be worth a look.`,
+    `Good as new! Well, good enough. I've been keeping a record of our voyages. Your Journal might be worth a look.`,
 
   // ── Step 8: Journal ──────────────────────────────────
   step8_journalOpen: () =>
@@ -1216,13 +1216,13 @@ const QM_DIALOGUE = {
 
   // ── Step 9: Completion ───────────────────────────────
   step9_complete: (qmName) =>
-    `I'd say you've got your sea legs now, Captain. The Caribbean's a big place — plenty more where that came from. Fair winds.`,
+    `I'd say you've got your sea legs now, Captain. The Caribbean's a big place, plenty more where that came from. You don't need me anymore. `,
   step9_departure: (qmName) =>
     `${qmName} tips his hat. "Fair winds, Captain." He takes a jolly boat ashore.`,
 
   // ── Combat hint (one-time, outside main chain) ──────
   combatHint: () =>
-    `Enemy sails! Battle stations, Captain — aim for their hull if you want them sunk, their sails if you want to escape.`,
+    `Enemy sails! Battle stations, Captain. Aim for their hull if you want them sunk, try to grapple if you want to plunder, or escape to live another day.`,
 };
 ```
 

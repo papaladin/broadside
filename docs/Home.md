@@ -21,6 +21,7 @@
 - [Engine Module (specs_engine.md)](specs_engine) — State management, reducer cases, and the **4-way file split** (`engine_core`, `engine_port`, `engine_voyage`, `engine_combat`).
 - [Logic Module (specs_logic.md)](specs_logic) — Pure functions for calculations (travel, reputation, combat, etc.).
 - [Generators Module (specs_generators.md)](specs_generators) — Runtime content generation (missions, enemies, markets).
+- [Data Module (specs_data.md)](specs_data) - All game data, used by the Generator mainly (text), but also directly by Logic or Engine.
 - [React/JSX Module (specs_jsx.md)](specs_jsx) — UI components, screens, and rendering logic.
 
 ---
