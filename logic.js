@@ -142,20 +142,41 @@ const getHeatLabel = (level) => {
     return { ok: true };
   };
 
-    const isFeatureUnlocked = (state, feature) => {
-      const o = state.onboarding;
-      if (!o || !o.enabled || o.completed) return true;
-      const s = o.stepsCompleted;
-      switch (feature) {
-        case 'contracts': return true;
-        case 'market': return s.firstContractAccepted;
-        case 'navigation': return s.provisionsAndGoodsBought;
-        case 'crew': return s.firstContractDelivered;
-        case 'shipyard': return s.tutorialHuntCompleted;
-        case 'journal': return s.shipRepaired;
-        default: return true;
-      }
-    };
+  const isFeatureUnlocked = (state, feature) => {
+  // If onboarding is disabled or completed, everything is unlocked.
+  if (!state.onboarding || !state.onboarding.enabled || state.onboarding.completed) return true;
+
+  const onboarding = state.onboarding;
+  const steps = onboarding.stepsCompleted;
+  const seen = onboarding.qmMessagesSeen || {};
+
+  switch (feature) {
+    case 'contracts': return true;
+
+    // Market: shows after the welcome message is acknowledged AND the first contract is accepted
+    case 'market':
+      return seen.welcome && steps.firstContractAccepted;
+
+    // Navigation (World Map): shows after goods + provisions are bought
+    case 'navigation':
+      return steps.provisionsAndGoodsBought;
+
+    // Crew: shows after the first contract is delivered
+    case 'crew':
+      return steps.firstContractDelivered;
+
+    // Shipyard: shows after the tutorial hunt is completed
+    case 'shipyard':
+      return steps.tutorialHuntCompleted;
+
+    // Journal: shows after repairing at the shipyard
+    case 'journal':
+      return steps.shipRepaired;
+
+    default:
+      return true;
+  }
+};
 
 
 

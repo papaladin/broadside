@@ -418,7 +418,7 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
     </svg>
   );
 
-  const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {} }) => {
+  const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {}, className = ""  }) => {
     const variants = {
       default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },
       gold:    { bg: "linear-gradient(180deg, #4a3926, #32271c)", border: T.gold, color: T.gold },
@@ -429,7 +429,7 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
     };
     const { bg, border, color } = variants[v] || variants.default;
     return (
-      <button onClick={onClick} disabled={disabled} style={{
+      <button onClick={onClick} disabled={disabled} className={className} style={{
         background: bg, border: `1px solid ${border}`, color: color,
         padding: sm ? "4px 8px" : "8px 12px", borderRadius: 2,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -441,6 +441,23 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
       }}>{children}</button>
     );
   };
+
+window.__pulsedButtons = window.__pulsedButtons || {};
+
+const PulseBtn = ({ visible, children, pulseKey, ...btnProps }) => {
+  const [pulse, setPulse] = React.useState(false);
+  React.useEffect(() => {
+    if (visible && pulseKey && !window.__pulsedButtons[pulseKey]) {
+      window.__pulsedButtons[pulseKey] = true;
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [visible, pulseKey]);
+
+  if (!visible) return null;
+  return React.createElement(Btn, { ...btnProps, className: pulse ? 'btn-pulse' : '' }, children);
+};
 
   const Bar = ({ value, max, color = T.greenBr, h = 7 }) => (
     <div style={{ width: "100%", height: h, background: "#181411",
@@ -661,7 +678,7 @@ const Tooltip = ({ text, children }) => {
 
 
   return {
-    T, panelStyle, Btn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
+    T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton,
     IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold, Tooltip,

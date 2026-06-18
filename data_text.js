@@ -620,7 +620,7 @@ const ENEMY_SHIP_NAMES = {
     `Your destination port is just a few days' sail. Select it and we'll weigh anchor. You can zoom in to ease your weary sea eyes.`,
 
   step4_sailing: (qmName) =>
-    `Smooth seas so far. Watch our provisions, each day at sea costs food and water.`,
+    `We're underway, Captain. Each day we sail brings us closer to our destination. Use the Advance Day button to make way. When we arrive, we can Enter Port.`,
 
    step5_arrival: (qmName) =>
     `We've made port. Head to the Mission board to deliver our cargo and collect the pay.`,

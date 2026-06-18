@@ -339,71 +339,104 @@ case A.START_GAME: {
 
       // --- SAIL_TO ---
       case A.SAIL_TO: {
-  const destPort = PORTS[action.port];
-  if (!destPort) return state;
+        const destPort = PORTS[action.port];
+        if (!destPort) return state;
 
-  // ── Reroute from sea ──────────────────────────────────────
-  if (state.route && state.route.totalDays > 0 && state.sailingDaysLeft > 0) {
-    // Same destination = cancel / no‑op
-    if (action.port === state.route.destinationPort) return state;
+        // ── Reroute from sea ──────────────────────────────────────
+        if (state.route && state.route.totalDays > 0 && state.sailingDaysLeft > 0) {
+          // Same destination = cancel / no‑op
+          if (action.port === state.route.destinationPort) return state;
 
-    const seaPos = L.getSeaPosition(state.route);
-    const remainingEndurance = state.route.enduranceBudget - state.route.enduranceSpent;
-    if (!L.canReachFromPosition(seaPos, action.port, state, remainingEndurance)) {
-      return {
-        ...state,
-        log: [...state.log, `Cannot reach ${destPort.name} from current position under present conditions.`],
+          const seaPos = L.getSeaPosition(state.route);
+          const remainingEndurance = state.route.enduranceBudget - state.route.enduranceSpent;
+          if (!L.canReachFromPosition(seaPos, action.port, state, remainingEndurance)) {
+            return {
+              ...state,
+              log: [...state.log, `Cannot reach ${destPort.name} from current position under present conditions.`],
+            };
+          }
+
+          const newDays = L.travelDaysFromPosition(seaPos, action.port, state);
+
+          let newState = {
+            ...state,
+            destination: action.port,
+            sailingDaysLeft: newDays,
+            sailingDaysTotal: newDays,
+            screen: "sailing",
+            portGossip: [],
+            log: [...state.log, `Changing course for ${destPort.name}. ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
+            route: {
+              ...state.route,
+              destinationPort: action.port,
+              destinationPos: { x: destPort.x, y: destPort.y },
+              progressDays: 0,
+              totalDays: newDays,
+              seaPosition: seaPos,
+            },
+          };
+
+          // Onboarding: advance mapOpened + firstVoyageStarted
+          if (newState.onboarding?.enabled && !newState.onboarding.completed) {
+            newState = {
+              ...newState,
+              onboarding: {
+                ...newState.onboarding,
+                stepsCompleted: {
+                  ...newState.onboarding.stepsCompleted,
+                  mapOpened: true,
+                  firstVoyageStarted: true,
+                },
+              },
+            };
+          }
+
+          return newState;
+        }
+
+    // ── Normal port departure ─────────────────────────────────
+    const days = L.travelDays(state.currentPort, action.port, state);
+    const originPort = PORTS[state.currentPort];
+    const shipStats = L.getShipStats(state);
+
+    let newState = {
+      ...state,
+      previousPort: state.currentPort,
+      destination: action.port,
+      sailingDaysLeft: days,
+      sailingDaysTotal: days,
+      screen: "sailing",
+      portGossip: [],
+      log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
+      route: {
+        originPort: state.currentPort,
+        destinationPort: action.port,
+        originPos: { x: originPort.x, y: originPort.y },
+        destinationPos: { x: destPort.x, y: destPort.y },
+        progressDays: 0,
+        totalDays: days,
+        seaPosition: { x: originPort.x, y: originPort.y },
+        enduranceBudget: shipStats.maxDays,
+        enduranceSpent: 0,
+      },
+    };
+
+    // Onboarding: advance mapOpened + firstVoyageStarted
+    if (newState.onboarding?.enabled && !newState.onboarding.completed) {
+      newState = {
+        ...newState,
+        onboarding: {
+          ...newState.onboarding,
+          stepsCompleted: {
+            ...newState.onboarding.stepsCompleted,
+            mapOpened: true,
+            firstVoyageStarted: true,
+          },
+        },
       };
     }
 
-    const newDays = L.travelDaysFromPosition(seaPos, action.port, state);
-
-    return {
-      ...state,
-      destination: action.port,
-      sailingDaysLeft: newDays,
-      sailingDaysTotal: newDays,
-      screen: "sailing",
-      portGossip: [],
-      log: [...state.log, `Changing course for ${destPort.name}. ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
-      route: {
-        ...state.route,
-        destinationPort: action.port,
-        destinationPos: { x: destPort.x, y: destPort.y },
-        progressDays: 0,
-        totalDays: newDays,
-        seaPosition: seaPos,           // start new leg from current sea position
-        // enduranceBudget unchanged, enduranceSpent unchanged (continues)
-      },
-    };
-  }
-
-  // ── Normal port departure ─────────────────────────────────
-  const days = L.travelDays(state.currentPort, action.port, state);
-  const originPort = PORTS[state.currentPort];
-  const shipStats = L.getShipStats(state);
-
-  return {
-    ...state,
-    previousPort: state.currentPort,
-    destination: action.port,
-    sailingDaysLeft: days,
-    sailingDaysTotal: days,
-    screen: "sailing",
-    portGossip: [],
-    log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
-    route: {
-      originPort: state.currentPort,
-      destinationPort: action.port,
-      originPos: { x: originPort.x, y: originPort.y },
-      destinationPos: { x: destPort.x, y: destPort.y },
-      progressDays: 0,
-      totalDays: days,
-      seaPosition: { x: originPort.x, y: originPort.y },
-      enduranceBudget: shipStats.maxDays,
-      enduranceSpent: 0,
-    },
-  };
+    return newState;
 }
 
 // ------------ ENTER PORT ------------------------------

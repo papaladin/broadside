@@ -161,38 +161,45 @@ function MapScreen({ state, dispatch }) {
 
             {state.activeMission && (() => { const fr = PORTS[state.currentPort]; const to = PORTS[state.activeMission.targetPort]; return fr && to ? <line x1={fr.x} y1={fr.y} x2={to.x} y2={to.y} stroke={T.gold} strokeWidth="1" strokeDasharray="6,4" opacity="0.35" /> : null; })()}
 
-            {/* Ports */}
-            {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
-              const isHov = hov === key;
-              const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
-              const rep = state.reputation[key] ?? 20;
-              let days, reachable;
-              if (atSea) {
-                days = L.travelDaysFromPosition(seaPos, key, state);
-                reachable = L.canReachFromPosition(seaPos, key, state, remainingEndurance) && key !== state.route.destinationPort;
-              } else {
-                days = L.travelDays(state.currentPort, key, state);
-                reachable = L.canReach(state, key) && key !== state.currentPort;
-              }
-              return (
-                <g key={key} onClick={() => reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: reachable ? "pointer" : "default" }}>
-                  <circle cx={p.x} cy={p.y} r={24} fill="transparent" />
-                  {isHov && <circle cx={p.x} cy={p.y} r={22} fill={fColor} opacity="0.10" />}
-                  <circle cx={p.x} cy={p.y} r={7} fill={reachable ? fColor : T.textFaint} stroke={T.bgDeep} strokeWidth="2" opacity={reachable ? 1 : 0.4} />
-                  <g transform={`translate(${p.x}, ${p.y + 18}) scale(${1 / transform.scale})`}>
-  <text x="0" y="0" textAnchor="middle" fontSize="10" fill={isHov ? T.text : T.textDim} fontFamily={T.font}>{p.name.toUpperCase()}</text></g>
-                  {isHov && (reachable ? (<>
-                    <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
-                    <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
-                  </>) : (
-                    <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>
-                      {atSea ? getAtSeaUnreachableReason(key, days) : (L.getUnreachableReason(state, key) || `Out of range — ${days} day${days !== 1 ? "s" : ""}`)}
-                    </text>
-                  ))}
-                  {isHov && (() => { const alertLevel = state.factionAlerts?.[p.faction] || 0; if (alertLevel > 0) return (<text x={p.x} y={p.y + 48} textAnchor="middle" fontSize="7" fill={T.redBr} fontFamily={T.font}>⚠ Heat {alertLevel}</text>); return null; })()}
+          {/* Ports */}
+          {Object.entries(PORTS).filter(([key]) => state.discoveredPorts?.includes(key)).map(([key, p]) => {
+            const isHov = hov === key;
+            const isMissionTarget = state.activeMission?.targetPort === key;
+            const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
+            const rep = state.reputation[key] ?? 20;
+            let days, reachable;
+            if (atSea) {
+              days = L.travelDaysFromPosition(seaPos, key, state);
+              reachable = L.canReachFromPosition(seaPos, key, state, remainingEndurance) && key !== state.route.destinationPort;
+            } else {
+              days = L.travelDays(state.currentPort, key, state);
+              reachable = L.canReach(state, key) && key !== state.currentPort;
+            }
+            return (
+              <g key={key} onClick={() => reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: reachable ? "pointer" : "default" }}>
+                <circle cx={p.x} cy={p.y} r={24} fill="transparent" />
+                {isMissionTarget && (
+                  <circle cx={p.x} cy={p.y} r={11} fill="none" stroke={T.gold} strokeWidth="2" opacity="0.9" />
+                )}
+                {isHov && <circle cx={p.x} cy={p.y} r={22} fill={fColor} opacity="0.10" />}
+                <circle cx={p.x} cy={p.y} r={7} fill={reachable ? fColor : T.textFaint} stroke={T.bgDeep} strokeWidth="2" opacity={reachable ? 1 : 0.4} />
+                <g transform={`translate(${p.x}, ${p.y + 18}) scale(${1 / transform.scale})`}>
+                  <text x="0" y="0" textAnchor="middle" fontSize="10" fill={isMissionTarget ? T.gold : (isHov ? T.text : T.textDim)} fontFamily={T.font}>
+                    {p.name.toUpperCase()}
+                  </text>
                 </g>
-              );
-            })}
+                {isHov && (reachable ? (<>
+                  <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{days} day{days !== 1 ? "s" : ""}</text>
+                  <text x={p.x} y={p.y + 38} textAnchor="middle" fontSize="7" fill={rep >= 40 ? T.greenBr : T.redBr} fontFamily={T.font}>{L.reputationLabel(rep)}</text>
+                </>) : (
+                  <text x={p.x} y={p.y + 28} textAnchor="middle" fontSize="8" fill={T.redBr} fontFamily={T.font}>
+                    {atSea ? getAtSeaUnreachableReason(key, days) : (L.getUnreachableReason(state, key) || `Out of range — ${days} day${days !== 1 ? "s" : ""}`)}
+                  </text>
+                ))}
+                {isHov && (() => { const alertLevel = state.factionAlerts?.[p.faction] || 0; if (alertLevel > 0) return (<text x={p.x} y={p.y + 48} textAnchor="middle" fontSize="7" fill={T.redBr} fontFamily={T.font}>⚠ Heat {alertLevel}</text>); return null; })()}
+              </g>
+            );
+          })}
 
             {/* Ship marker */}
             {playerPos && (

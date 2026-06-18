@@ -59,7 +59,7 @@ function ShipyardScreen({ state, dispatch }) {
     const effectiveStats = L.getShipStats(state);
 
     // --- UI state ---
-    const [activeTab, setActiveTab] = useState(TABS.EQUIP);
+    const [activeTab, setActiveTab] = useState(TABS.SHIPS);
     const [slotFilter, setSlotFilter] = useState("all");
     const [selectedEquip, setSelectedEquip] = useState(null);
     const [selectedShip, setSelectedShip] = useState(null);
