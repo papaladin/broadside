@@ -92,7 +92,7 @@ Broadside is fully playable with rich narrative systems:
 - **Note**: Base SVG map with gradients, grid, wind compass, and sea-position ship marker already implemented.
 
 #### T4.5 — itch.io Listing & Web Presence
-- [ ] itch.io page with screenshots, description, tags
+- [X] itch.io page with screenshots, description, tags
 - [X] GitHub Pages deployment verified
 - [X] README badges (play link, license)
 
@@ -104,10 +104,10 @@ Broadside is fully playable with rich narrative systems:
 - **Pillar**: Consequence (failure should sting, but not softlock)
 
 #### T4.7 — Onboarding Redesign *(NEW)*
-- [ ] Replace text-wall tutorial popups with progressive mechanic introduction
-- [ ] Gate early complexity: equipment only appears after first ship upgrade, contraband after day 30 or first smuggle mission encounter
-- [ ] Add contextual situation-triggered hints (e.g., "you're about to sail without food — here's how provisions work")
-- [ ] First voyage as safe failure zone: starter mission to a nearby port with generous provisions, low encounter chance
+- [X] Replace text-wall tutorial popups with progressive mechanic introduction
+- [X] Gate early complexity: equipment only appears after first ship upgrade, contraband after day 30 or first smuggle mission encounter
+- [X] Add contextual situation-triggered hints (e.g., "you're about to sail without food — here's how provisions work")
+- [X] First voyage as safe failure zone: starter mission to a nearby port with generous provisions, low encounter chance
 - [ ] Watch a first-time player silently — adjust based on where they get confused
 - **Note**: Current per-screen tutorial overlays remain as fallback; this redesign layers on top.
 - **Pillar**: Discovery (learn by doing, not by reading)
@@ -149,7 +149,7 @@ Broadside is fully playable with rich narrative systems:
 > **Goal**: make the game feel good to use on any device.
 
 #### T6.1 — Responsive Overhaul
-- [ ] Audit all screens at 360px–1440px widths
+- [X] Audit all screens at 360px–1440px widths
 - [X] Stack panels vertically on narrow screens (port, shipyard, crew)
 - [X] Touch-friendly: all interactive elements ≥ 44px
 - [ ] Swipe gestures for tab navigation (market, shipyard, journal)

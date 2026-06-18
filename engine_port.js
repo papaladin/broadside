@@ -300,7 +300,6 @@ case A.START_GAME: {
        // Set onboarding steps directly (state is already a deep clone)
     newState.onboarding.stepsCompleted.contractsOpened = true;
     newState.onboarding.stepsCompleted.firstContractAccepted = true;
-    newState.onboarding.stepsCompleted.firstArrival = true;
     }
   }
 
@@ -308,6 +307,9 @@ case A.START_GAME: {
   newState.portMarket = G.generatePortMarket(startPort, newState);
   newState.portGossip = G.generatePortGossip(newState, startPort);
   newState.missions = G.generateMissions(startPort, newState);
+
+
+  console.log('START_GAME stepsCompleted', newState.onboarding.stepsCompleted);
 
   return newState;
 }

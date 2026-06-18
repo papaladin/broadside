@@ -313,14 +313,16 @@ window.S = window.S || {};
       return null;
     }, [state]);  // react to any state change
 
-    const handleDismiss = () => {
+ const handleDismiss = () => {
+    console.log('handleDismiss called, getMessage:', getMessage);
     if (getMessage?.key) {
+        console.log('Dispatching QM_SEEN for', getMessage.key);
         dispatch({ type: A.ONBOARDING_QM_SEEN, messageKey: getMessage.key });
         if (getMessage.key === 'departure') {
-        dispatch({ type: A.ONBOARDING_COMPLETE });
+            dispatch({ type: A.ONBOARDING_COMPLETE });
         }
     }
-    };
+};
 
     const handleSkip = () => {
       dispatch({ type: A.ONBOARDING_SKIP });

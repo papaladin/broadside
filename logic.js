@@ -155,7 +155,7 @@ const getHeatLabel = (level) => {
 
     // Market: shows after the welcome message is acknowledged AND the first contract is accepted
     case 'market':
-      return seen.welcome && steps.firstContractAccepted;
+      return !!(seen.welcome && steps.firstContractAccepted);
 
     // Navigation (World Map): shows after goods + provisions are bought
     case 'navigation':

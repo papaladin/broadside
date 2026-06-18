@@ -362,6 +362,7 @@ window.E = window.E || {};
     // --- ONBOARDING REDUCER ------------------
   window.E._reducers.push((state, action) => {
     if (action.type === window.E.A.ONBOARDING_QM_SEEN) {
+      console.log('QM_SEEN reducer fired', action.messageKey);  // ← add this
       if (!state.onboarding?.enabled || state.onboarding.completed) return state;
       return {
         ...state,

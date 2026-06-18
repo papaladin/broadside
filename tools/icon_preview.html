@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Icon Preview – Broadside</title>
+  <!-- React + Babel (same as your main game) -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+
+<!-- Load dependencies before ui.jsx -->
+<script src="../data.js"></script>
+<script src="../data_text.js"></script>
+<script src="../logic.js"></script>
+
+<!-- Now load ui.jsx (it needs window.D and window.L) -->
+<script type="text/babel" data-presets="react" src="../ui.jsx"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a1622; color: #e2d6be; font-family: Georgia, serif; padding: 30px; }
+    h1 { color: #c9aa6e; margin-bottom: 30px; text-align: center; font-size: 28px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 24px;
+      align-items: start;
+    }
+    .card {
+      background: #221d16;
+      border: 1px solid #5a4a32;
+      border-radius: 6px;
+      padding: 18px 10px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .card svg { display: block; }
+    .card .label {
+      font-size: 10px;
+      color: #b0a48c;
+      text-align: center;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚓ Broadside – Icon Preview</h1>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+
+    function App() {
+      const [icons, setIcons] = useState([]);
+
+      useEffect(() => {
+        if (!window.UI) return;
+        // Grab all functions whose name starts with 'Icon'
+        const iconEntries = Object.entries(window.UI)
+          .filter(([key, val]) => key.startsWith("Icon") && typeof val === "function")
+          .sort(([a], [b]) => a.localeCompare(b));
+        setIcons(iconEntries);
+      }, []);
+
+      if (icons.length === 0) {
+        return <div style={{ color: "#b0a48c", textAlign: "center", marginTop: 40 }}>
+          Loading icons… (ensure ui.jsx is properly loaded)
+        </div>;
+      }
+
+      return (
+        <div className="grid">
+          {icons.map(([name, IconComponent]) => (
+            <div key={name} className="card">
+              {/* Render the icon at 50x50 with the game's gold color */}
+              <IconComponent size={50} color="#c9aa6e" />
+              <div className="label">{name}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    root.render(<App />);
+  </script>
+</body>
+</html>

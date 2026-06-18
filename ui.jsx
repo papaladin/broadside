@@ -418,6 +418,217 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
     </svg>
   );
 
+   // Rum bottle — source path simplified to cap + neck + shoulders + body
+  const IconRhum = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Cap */}
+      <rect x="6" y="1" width="4" height="1.5" rx="0.3" stroke={color} strokeWidth="1" />
+      {/* Neck */}
+      <rect x="6.5" y="2.5" width="3" height="2.5" stroke={color} strokeWidth="0.9" />
+      {/* Shoulders + body */}
+      <path d="M6.5 5 L4.5 7 L4.5 14.5 L11.5 14.5 L11.5 7 L9.5 5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Label lines */}
+      <line x1="4.5" y1="9" x2="11.5" y2="9" stroke={color} strokeWidth="0.8" />
+      <line x1="4.5" y1="11.5" x2="11.5" y2="11.5" stroke={color} strokeWidth="0.8" />
+    </svg>
+  );
+ 
+  // Rum jug / demijohn — source was a 1024-viewBox trophy-vessel; redrawn as round jug
+  const IconRhum2 = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Cork */}
+      <rect x="6.5" y="1.5" width="3" height="1.5" rx="0.3" stroke={color} strokeWidth="0.9" />
+      {/* Neck */}
+      <rect x="6" y="3" width="4" height="2.5" stroke={color} strokeWidth="1" />
+      {/* Round body */}
+      <path d="M5 5.5 C3 5.5 2 8 2 10 C2 12.5 4 15 8 15 C12 15 14 12.5 14 10 C14 8 13 5.5 11 5.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" />
+      {/* Handle */}
+      <path d="M10 6 C13 6 14.5 8.5 13.5 10" stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Sugar crate — source was a 3D hex-box; redrawn as isometric cube
+  const IconSugar = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Top face */}
+      <polygon points="8,2 14,5 8,8 2,5"
+               stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Left face */}
+      <path d="M2 5 L2 11 L8 14 L8 8 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Right face */}
+      <path d="M14 5 L14 11 L8 14 L8 8 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    </svg>
+  );
+ 
+  // Spice jar — source had 11+ filled circle paths; jar outline + 3 dots
+  const IconSpice = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Jar body (tapers toward base) */}
+      <path d="M4.5 5.5 C3 6 2.5 8 2.5 10 C2.5 12.5 4 14.5 8 14.5 C12 14.5 13.5 12.5 13.5 10 C13.5 8 13 6 11.5 5.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" />
+      {/* Shoulder line */}
+      <line x1="4.5" y1="5.5" x2="11.5" y2="5.5" stroke={color} strokeWidth="0.9" />
+      {/* Cap */}
+      <rect x="5.5" y="2" width="5" height="3.5" rx="0.5" stroke={color} strokeWidth="1" />
+      {/* Holes */}
+      <circle cx="6.5" cy="9.5" r="0.7" fill={color} />
+      <circle cx="9.5" cy="9.5" r="0.7" fill={color} />
+      <circle cx="8" cy="11.5" r="0.7" fill={color} />
+    </svg>
+  );
+ 
+  // Tobacco leaf — source path simplified; diagonal leaf + stem + veins
+  const IconTobacco = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Leaf body */}
+      <path d="M3 14 C3 14 6.5 13 8.5 10 C10.5 7 13.5 3 14 2 C14 2 13 5 11 8 C9 11 8 13 8 14 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Midrib */}
+      <line x1="3" y1="14" x2="14" y2="2" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      {/* Veins */}
+      <line x1="10" y1="5" x2="8.5" y2="6.5" stroke={color} strokeWidth="0.7" strokeLinecap="round" />
+      <line x1="8.5" y1="8" x2="6.5" y2="9.5" stroke={color} strokeWidth="0.7" strokeLinecap="round" />
+      <line x1="7" y1="11" x2="5" y2="12" stroke={color} strokeWidth="0.7" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Silk bolt — source had 6 complex layered-fabric paths in 512 viewBox; bolt of cloth
+  const IconSilk = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* End caps */}
+      <ellipse cx="3" cy="8" rx="1.5" ry="5" stroke={color} strokeWidth="1.1" />
+      <ellipse cx="13" cy="8" rx="1.5" ry="5" stroke={color} strokeWidth="1.1" />
+      {/* Top + bottom edges */}
+      <line x1="3" y1="3" x2="13" y2="3" stroke={color} strokeWidth="1.1" />
+      <line x1="3" y1="13" x2="13" y2="13" stroke={color} strokeWidth="1.1" />
+      {/* Diagonal sheen lines */}
+      <line x1="5" y1="3" x2="13" y2="8" stroke={color} strokeWidth="0.7" strokeLinecap="round" />
+      <line x1="3" y1="8" x2="11" y2="13" stroke={color} strokeWidth="0.7" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Ship — source paths kept but condensed; mast + two sails + hull + portholes
+  const IconShip = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Mast */}
+      <line x1="8" y1="1" x2="8" y2="9.5" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      {/* Main sail (right, triangular) */}
+      <path d="M8 1.5 L14 8 L8 9.5 Z" stroke={color} strokeWidth="0.9" fill="none" strokeLinejoin="round" />
+      {/* Pennant (left) */}
+      <polygon points="8,1.5 5,2.5 6,3.5 8,3.5"
+               stroke={color} strokeWidth="0.8" fill="none" strokeLinejoin="round" />
+      {/* Deck */}
+      <path d="M4 9.5 L5 9 L11 9 L12 9.5"
+            stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+      {/* Hull */}
+      <path d="M1 9.5 L1 12 C1 13.5 4 14.5 8 14.5 C12 14.5 15 13.5 15 12 L15 9.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Portholes */}
+      <line x1="4.5" y1="12" x2="5.5" y2="12" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      <line x1="7.5" y1="12" x2="8.5" y2="12" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+      <line x1="10.5" y1="12" x2="11.5" y2="12" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Bag of gold — user proposal; drawstring bag + coin mark
+  const IconGoldBag = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Bag body */}
+      <path d="M8 5.5 C4 5.5 2 7.5 2 10.5 C2 13.5 4.5 15 8 15 C11.5 15 14 13.5 14 10.5 C14 7.5 12 5.5 8 5.5 Z"
+            stroke={color} strokeWidth="1.1" fill="none" />
+      {/* Neck pinch */}
+      <line x1="6" y1="5.5" x2="10" y2="5.5" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      {/* Drawstring knot */}
+      <path d="M6 5.5 C6 3.5 7.5 2.5 8 2 C8.5 2.5 10 3.5 10 5.5"
+            stroke={color} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Coin circle */}
+      <circle cx="8" cy="10.5" r="2.5" stroke={color} strokeWidth="0.9" />
+      {/* $ stroke */}
+      <line x1="8" y1="9" x2="8" y2="12" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Cocoa pod — user proposal; ridged oval pod (distinct from coffee bean ellipse)
+  const IconCocoa = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Pod outline */}
+      <ellipse cx="8" cy="8.5" rx="5" ry="6.5" stroke={color} strokeWidth="1.1" />
+      {/* Vertical ridges */}
+      <path d="M5 3 C4.5 5.5 4.5 11.5 5 14" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+      <path d="M8 2 C7.5 5 7.5 12 8 15" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+      <path d="M11 3 C11.5 5.5 11.5 11.5 11 14" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+      {/* Stem */}
+      <line x1="8" y1="2" x2="8" y2="1" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Person silhouette — user proposal for enslaved person icon; neutral human shape
+  const IconPerson = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Head */}
+      <circle cx="8" cy="4" r="2.5" stroke={color} strokeWidth="1.1" />
+      {/* Shoulders */}
+      <line x1="4.5" y1="9" x2="11.5" y2="9" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      {/* Body */}
+      <path d="M4.5 9 L4 14.5 M11.5 9 L12 14.5 M8 9 L8 14.5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      {/* Neck */}
+      <line x1="8" y1="6.5" x2="8" y2="9" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Goblet / silver chalice — user proposal for silver icon
+  const IconGoblet = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Cup bowl */}
+      <path d="M4 2 L5.5 9 C5.5 11 6.5 12 8 12 C9.5 12 10.5 11 10.5 9 L12 2 Z"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Rim */}
+      <line x1="4" y1="2" x2="12" y2="2" stroke={color} strokeWidth="1" strokeLinecap="round" />
+      {/* Stem */}
+      <line x1="8" y1="12" x2="8" y2="14.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      {/* Base */}
+      <line x1="5.5" y1="14.5" x2="10.5" y2="14.5" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+      {/* Foot taper */}
+      <line x1="7" y1="12.5" x2="6" y2="14.5" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+      <line x1="9" y1="12.5" x2="10" y2="14.5" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    </svg>
+  );
+ 
+  // Pistol — user proposal for weapons icon; side-view flintlock/pistol
+  const IconPistol = ({ size = 14, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {/* Barrel */}
+      <line x1="1.5" y1="7" x2="8" y2="7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      {/* Slide / frame body */}
+      <rect x="5.5" y="5.5" width="7.5" height="3" rx="0.5" stroke={color} strokeWidth="1.1" />
+      {/* Grip (angled) */}
+      <path d="M11 8.5 L11.5 13.5 L13.5 13.5 L13.5 8.5"
+            stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+      {/* Trigger guard */}
+      <path d="M7.5 8.5 C7.5 11 9 11 9 8.5"
+            stroke={color} strokeWidth="0.9" fill="none" />
+      {/* Trigger */}
+      <line x1="8.2" y1="8.5" x2="8.4" y2="10.5" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    </svg>
+  );
+
   const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {}, className = ""  }) => {
     const variants = {
       default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },

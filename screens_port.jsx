@@ -46,6 +46,8 @@ function PortScreen({ state, dispatch }) {
   const canShipyard = L.isFeatureUnlocked(state, 'shipyard');
   const canJournal = L.isFeatureUnlocked(state, 'journal');
 
+  console.log('canMarket', canMarket, 'qmMessagesSeen', state.onboarding.qmMessagesSeen);
+
   return (
     <div style={{
       display: "flex",
