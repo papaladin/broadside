@@ -45,6 +45,7 @@ const App = () => {
   const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold , Tooltip, IconBarrel, IconCalendar, IconPirate} = window.UI;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const { screen } = state;
+  const { OnboardingPopup } = window.S;
 
   const [savedFlash, setSavedFlash] = React.useState(false);
   React.useEffect(() => {
@@ -241,6 +242,9 @@ const App = () => {
       <div style={{ flex: 1, overflow: "auto", paddingBottom: 20, minWidth: 0 }}>
         {renderScreen()}
       </div>
+    {/* ═══ Onboarding QM Popup (fixed to bottom) ═══ */}
+    <OnboardingPopup state={state} dispatch={dispatch} />
+
       {isDebug && debugOpen && <DebugPanel state={state} dispatch={dispatch} />}
     </div>
   );

@@ -42,8 +42,8 @@
       used += qty;
       goldDelta -= qty * portGood.buyFromPort;
     }
-    if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled — insufficient gold." };
-    if (used > L.getHoldCapacity(state)) return { valid: false, reason: "Trade cancelled — not enough hold space." };
+    if (state.gold + goldDelta < 0) return { valid: false, reason: "Trade cancelled. Insufficient gold." };
+    if (used > L.getHoldCapacity(state)) return { valid: false, reason: "Trade cancelled. Not enough hold space." };
     return { valid: true };
   };
 
@@ -54,7 +54,7 @@ const arrivalMessages = [
   name => `⚓ Made port at ${name}.`,
   name => `⚓ The harbour of ${name} comes into view.`,
   name => `⚓ ${name} at last. The crew is glad to see land.`,
-  name => `⚓ ${name} welcomes you — for now.`,
+  name => `⚓ ${name} welcomes you, for now.`,
 ];
 
 const pickArrivalMessage = (portName) => {
@@ -299,6 +299,7 @@ case A.START_GAME: {
        // Set onboarding steps directly (state is already a deep clone)
     newState.onboarding.stepsCompleted.contractsOpened = true;
     newState.onboarding.stepsCompleted.firstContractAccepted = true;
+    newState.onboarding.stepsCompleted.firstArival = true;
     }
   }
 
@@ -311,8 +312,30 @@ case A.START_GAME: {
 }
 
       // --- NAVIGATION ---
-      case A.NAVIGATE:
-        return { ...state, screen: action.screen };
+      case A.NAVIGATE: {
+  let nextState = { ...state, screen: action.screen };
+
+  // Onboarding screen‑based step advances
+  const screenSteps = {
+    market: 'marketOpened',
+    map: 'mapOpened',
+    crew: 'crewOpened',
+    shipyard: 'shipyardOpened',
+    journal: 'journalOpened',
+  };
+  const step = screenSteps[action.screen];
+  if (step && nextState.onboarding?.enabled && !nextState.onboarding.completed) {
+    nextState = {
+      ...nextState,
+      onboarding: {
+        ...nextState.onboarding,
+        stepsCompleted: { ...nextState.onboarding.stepsCompleted, [step]: true },
+      },
+    };
+  } 
+
+  return nextState;
+}
 
       // --- SAIL_TO ---
       case A.SAIL_TO: {
@@ -466,6 +489,20 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
   };
 }
 
+// Inject tutorial hunt mission after player has hired crew
+const huntData = D.TUTORIAL_HUNT;
+if (
+  huntData &&
+  nextState.onboarding?.enabled &&
+  !nextState.onboarding.completed &&
+  nextState.onboarding.stepsCompleted.firstCrewHired &&
+  !nextState.onboarding.stepsCompleted.tutorialHuntAccepted
+) {
+  if (!nextState.missions.some(m => m?.tutorial && !m.requiredGood)) {
+    nextState.missions = [huntData, ...nextState.missions];
+  }
+} 
+
   autoSave(nextState);
   return nextState;
 }
@@ -484,12 +521,23 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
           if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
           const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
           const eqPenaltyNote = eqRepairPct > 0 ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)` : "";
-          return {
+          let s = {
             ...state,
             gold: state.gold - cost,
             ship: { ...state.ship, hull: shipStats.maxHull },
             log: [...state.log, `Repaired ship for ${cost}g${discountNote}${eqPenaltyNote}.`]
           };
+          // Advance onboarding step: ship repaired
+          if (s.onboarding?.enabled && !s.onboarding.completed) {
+            s = {
+              ...s,
+              onboarding: {
+                ...s.onboarding,
+                stepsCompleted: { ...s.onboarding.stepsCompleted, shipRepaired: true },
+              },
+            };
+          }
+          return s;
         }
 
       case A.BUY_SHIP: {
@@ -604,20 +652,47 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
         };
       }
 
-      case A.HIRE_CREW: {
-        const blocked = checkServicesBlocked(state);
-        if (blocked) return blocked;
-        const cost = action.count * 50;
-        if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
-        const portFaction = PORTS[state.currentPort]?.faction || "pirate";
-        const newMembers = G.generateRoster(action.count, portFaction);
-        return {
-          ...state,
-          gold: state.gold - cost,
-          crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-          log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
-        };
-      }
+   case A.HIRE_CREW: {
+  const blocked = checkServicesBlocked(state);
+  if (blocked) return blocked;
+  const cost = action.count * 50;
+  if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
+  const portFaction = PORTS[state.currentPort]?.faction || "pirate";
+  const newMembers = G.generateRoster(action.count, portFaction);
+  let s = {
+    ...state,
+    gold: state.gold - cost,
+    crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
+    log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
+  };
+
+  // Advance onboarding step: first crew hired
+  if (s.onboarding?.enabled && !s.onboarding.completed) {
+    s = {
+      ...s,
+      onboarding: {
+        ...s.onboarding,
+        stepsCompleted: { ...s.onboarding.stepsCompleted, firstCrewHired: true },
+      },
+    };
+  }
+
+  // Inject tutorial hunt into the board (but do NOT auto‑accept)
+  const huntData = D.TUTORIAL_HUNT;
+  if (
+    huntData &&
+    s.onboarding?.enabled &&
+    !s.onboarding.completed &&
+    s.onboarding.stepsCompleted.firstCrewHired &&
+    !s.onboarding.stepsCompleted.tutorialHuntAccepted
+  ) {
+    if (!s.missions.some(m => m?.tutorial && !m.requiredGood)) {
+      s = { ...s, missions: [huntData, ...s.missions] };
+    }
+  }
+
+  return s;
+}
       
       case A.DISMISS_CREW: {
         const memberId = action.memberId;
@@ -626,7 +701,7 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
 
         // Quartermaster dismissal triggers skip confirmation (handled by UI later)
         if (L.hasTag(member, "quartermaster") && state.onboarding?.enabled && !state.onboarding?.completed) {
-          return state; // Block direct dismissal — UI will show skip confirmation instead
+          return state; // Block direct dismissal : UI will show skip confirmation instead
         }
 
         return {
@@ -653,20 +728,65 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
       }
 
       // --- MISSIONS ---
-      case A.REFRESH_MISSIONS:
-        return { ...state, missions: G.generateMissions(state.currentPort, state) };
+      case A.REFRESH_MISSIONS: {
+        let missions = G.generateMissions(state.currentPort, state);
+        const huntData = D.TUTORIAL_HUNT;
+        if (
+          huntData &&
+          state.onboarding?.enabled &&
+          !state.onboarding.completed &&
+          state.onboarding.stepsCompleted.firstCrewHired &&
+          !state.onboarding.stepsCompleted.tutorialHuntAccepted
+        ) {
+          if (!missions.some(m => m?.tutorial && !m.requiredGood)) {
+            missions = [...missions, huntData];
+          }
+        }
+        return { ...state, missions };
+      }
+
 
       case A.TAKE_MISSION: {
         const mission = action.mission;
         if (!mission) return state;
+
+        // Helper: mark hunt messages as seen when accepting the tutorial hunt
+        const markHuntMessagesSeen = (s) => {
+          if (
+            mission.tutorial &&
+            !mission.requiredGood &&
+            s.onboarding?.enabled &&
+            !s.onboarding.completed
+          ) {
+            return {
+              ...s,
+              onboarding: {
+                ...s.onboarding,
+                qmMessagesSeen: {
+                  ...s.onboarding.qmMessagesSeen,
+                  crewHired: true,
+                  huntAccepted: true,
+                },
+              },
+            };
+          }
+          return s;
+        };
+
         if (mission.type === "combat" && mission.enemy) {
-          return {
+          return markHuntMessagesSeen({
             ...state,
             activeMission: mission,
             encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
             screen: "intercept",
-            log: [...state.log, `Accepted mission: ${mission.name}.`]
-          };
+            log: [...state.log, `Accepted mission: ${mission.name}.`],
+            onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
+              ? {
+                  ...state.onboarding,
+                  stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
+                }
+              : state.onboarding,
+          });
         }
 
         // ── Coward trait: fear on dangerous missions ─────────────────
@@ -685,20 +805,32 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
               ? `${firstCoward.firstName} ${updatedCoward.lastName} is visibly shaking. He didn't sign up for this kind of work.`
               : `${firstCoward.firstName} ${updatedCoward.lastName} looks terrified. Again.`;
 
-            return {
+            return markHuntMessagesSeen({
               ...state,
               activeMission: { ...mission, encounterOccurred: false },
               crew: { ...state.crew, roster: newRoster, morale: newMorale },
               log: [...state.log, logLine],
-            };
+              onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
+                ? {
+                    ...state.onboarding,
+                    stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
+                  }
+                : state.onboarding,
+            });
           }
         }
 
-        return {
+        return markHuntMessagesSeen({
           ...state,
           activeMission: { ...mission, encounterOccurred: false },
-          log: [...state.log, `Accepted mission: ${mission.name}.`]
-        };
+          log: [...state.log, `Accepted mission: ${mission.name}.`],
+          onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
+            ? {
+                ...state.onboarding,
+                stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
+              }
+            : state.onboarding,
+        });
       }
 
        case A.COMPLETE_MISSION: {
@@ -785,7 +917,7 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
         if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
         if (mission.plotItem) holdItems = { ...holdItems, plot_item: 0 };
 
-        const nextState = {
+        let nextState = {
           ...state,
           gold: state.gold + finalGold,
           fame: state.fame + finalFame,
@@ -797,6 +929,20 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
           missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
           log: newLog,
         };
+
+        // Onboarding: mark delivery delivered
+        if (mission.tutorial && mission.requiredGood) {
+          nextState = {
+            ...nextState,
+            onboarding: {
+              ...nextState.onboarding,
+              stepsCompleted: {
+                ...nextState.onboarding.stepsCompleted,
+                firstContractDelivered: true,
+              },
+            },
+          };
+        }
 
         // ── Smuggle mission: add heat to target faction ────────────
         if (mission.type === "smuggle" && mission.targetPort) {
@@ -826,7 +972,7 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
                 : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
             ];
           } else {
-            // Can't afford — becomes upset
+            // Can't afford : becomes upset
             nextState.crew.roster = nextState.crew.roster.map(m =>
               m.id === greedy.id
                 ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
@@ -838,7 +984,21 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
                 : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
             ];
           }
-}
+        }
+
+        // Onboarding: mark hunt completed
+        if (mission.tutorial && !mission.requiredGood) { // hunt missions have no requiredGood
+          nextState = {
+            ...nextState,
+            onboarding: {
+              ...nextState.onboarding,
+              stepsCompleted: {
+                ...nextState.onboarding.stepsCompleted,
+                tutorialHuntCompleted: true,
+              },
+            },
+          };
+        }
 
         autoSave(nextState);
         return nextState;
@@ -854,82 +1014,109 @@ if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
 
       // --- MARKET ---
       case A.CONFIRM_TRADE: {
-  const { buys, sells } = action;
-  if (!state.portMarket) return state;
+        const { buys, sells } = action;
+        if (!state.portMarket) return state;
 
-  const validation = validateTrade(state, buys, sells);
-  if (!validation.valid) return { ...state, log: [...state.log, validation.reason] };
+        const validation = validateTrade(state, buys, sells);
+        if (!validation.valid) return { ...state, log: [...state.log, validation.reason] };
 
-  const items = { ...(state.hold?.items || {}) };
-  let goldDelta = 0;
-  let infamyDelta = 0;
-  const logLines = [];
-  const marketGoods = { ...state.portMarket.goods };
+        const items = { ...(state.hold?.items || {}) };
+        let goldDelta = 0;
+        let infamyDelta = 0;
+        const logLines = [];
+        const marketGoods = { ...state.portMarket.goods };
 
-  // ── Sells ──────────────────────────────────────────────────
-  const soldGoods = [];
-  Object.entries(sells || {}).forEach(([good, qty]) => {
-    if (qty <= 0) return;
-    const portGood = state.portMarket.goods[good];
-    const actualQty = Math.min(qty, items[good] || 0);
-    if (actualQty <= 0) return;
-    const revenue = actualQty * (portGood ? portGood.sellToPort : 0);
-    items[good] = (items[good] || 0) - actualQty;
-    goldDelta += revenue;
-    if (marketGoods[good]) marketGoods[good] = { ...marketGoods[good], available: (marketGoods[good].available || 0) + actualQty };
-    // Always record the good name — even if market doesn't trade it
-    soldGoods.push(window.D.RESOURCES[good]?.name || good);
-  });
+        // ── Sells ──────────────────────────────────────────────────
+        const soldGoods = [];
+        Object.entries(sells || {}).forEach(([good, qty]) => {
+          if (qty <= 0) return;
+          const portGood = state.portMarket.goods[good];
+          const actualQty = Math.min(qty, items[good] || 0);
+          if (actualQty <= 0) return;
+          const revenue = actualQty * (portGood ? portGood.sellToPort : 0);
+          items[good] = (items[good] || 0) - actualQty;
+          goldDelta += revenue;
+          if (marketGoods[good]) marketGoods[good] = { ...marketGoods[good], available: (marketGoods[good].available || 0) + actualQty };
+          // Always record the good name : even if market doesn't trade it
+          soldGoods.push(window.D.RESOURCES[good]?.name || good);
+        });
 
-  // ── Buys ───────────────────────────────────────────────────
-  const boughtGoods = [];
-  const buyEntries = Object.entries(buys || {}).filter(([_, qty]) => qty > 0);
-  for (const [good, qty] of buyEntries) {
-    const portGood = state.portMarket.goods[good];
-    if (!portGood) { logLines.push(`${good} is not available at this port.`); continue; }
-    if (qty > portGood.available) { logLines.push(`Not enough ${good} available.`); continue; }
-    const cost = qty * portGood.buyFromPort;
-    items[good] = (items[good] || 0) + qty;
-    goldDelta -= cost;
-    marketGoods[good] = { ...portGood, available: portGood.available - qty };
-    const res = window.D.RESOURCES[good];
-    if (res?.infamyOnBuy) {
-      infamyDelta += res.infamyOnBuy;
-      logLines.push(`Purchasing ${res.name} darkens your reputation.`);
-    }
-    boughtGoods.push(res?.name || good);
-  }
+        // ── Buys ───────────────────────────────────────────────────
+        const boughtGoods = [];
+        const buyEntries = Object.entries(buys || {}).filter(([_, qty]) => qty > 0);
+        for (const [good, qty] of buyEntries) {
+          const portGood = state.portMarket.goods[good];
+          if (!portGood) { logLines.push(`${good} is not available at this port.`); continue; }
+          if (qty > portGood.available) { logLines.push(`Not enough ${good} available.`); continue; }
+          const cost = qty * portGood.buyFromPort;
+          items[good] = (items[good] || 0) + qty;
+          goldDelta -= cost;
+          marketGoods[good] = { ...portGood, available: portGood.available - qty };
+          const res = window.D.RESOURCES[good];
+          if (res?.infamyOnBuy) {
+            infamyDelta += res.infamyOnBuy;
+            logLines.push(`Purchasing ${res.name} darkens your reputation.`);
+          }
+          boughtGoods.push(res?.name || good);
+        }
 
-  // ── Build consolidated trade summary ───────────────────────
-  const uniq = arr => [...new Set(arr)];
-  const formatGoods = names => {
-    if (names.length === 0) return null;
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return "several goods";
-  };
+        // ── Build consolidated trade summary ───────────────────────
+        const uniq = arr => [...new Set(arr)];
+        const formatGoods = names => {
+          if (names.length === 0) return null;
+          if (names.length === 1) return names[0];
+          if (names.length === 2) return `${names[0]} and ${names[1]}`;
+          return "several goods";
+        };
 
-  const bought = formatGoods(uniq(boughtGoods));
-  const sold = formatGoods(uniq(soldGoods));
+        const bought = formatGoods(uniq(boughtGoods));
+        const sold = formatGoods(uniq(soldGoods));
 
-  if (bought || sold) {
-    let summary = "";
-    if (bought) summary += `Bought ${bought}`;
-    if (bought && sold) summary += ". ";
-    if (sold)  summary += `Sold ${sold}`;
-    summary += `. Net: ${goldDelta >= 0 ? "+" : ""}${goldDelta}g.`;
-    logLines.push(summary);
-  }
+        if (bought || sold) {
+          let summary = "";
+          if (bought) summary += `Bought ${bought}`;
+          if (bought && sold) summary += ". ";
+          if (sold)  summary += `Sold ${sold}`;
+          summary += `. Net: ${goldDelta >= 0 ? "+" : ""}${goldDelta}g.`;
+          logLines.push(summary);
+        }
 
-  return {
-    ...state,
-    gold: state.gold + goldDelta,
-    hold: { ...state.hold, items },
-    portMarket: { ...state.portMarket, goods: marketGoods },
-    infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
-    log: [...state.log, ...logLines],
-  };
-}
+        const newState = {
+          ...state,
+          gold: state.gold + goldDelta,
+          hold: { ...state.hold, items },
+          portMarket: { ...state.portMarket, goods: marketGoods },
+          infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
+          log: [...state.log, ...logLines],
+        };
+
+        // Onboarding advancement: if tutorial mission goods and provisions are now in hold, mark provisionsAndGoodsBought
+        if (
+          newState.onboarding?.enabled &&
+          !newState.onboarding.completed &&
+          newState.activeMission?.tutorial &&
+          newState.activeMission?.requiredGood
+        ) {
+          const requiredGood = newState.activeMission.requiredGood;
+          const requiredQty = newState.activeMission.requiredQty;
+          const holdItems = newState.hold?.items || {};
+          if (
+            (holdItems[requiredGood] || 0) >= requiredQty &&
+            (holdItems.food || 0) > 0 &&
+            (holdItems.water || 0) > 0
+          ) {
+            newState.onboarding = {
+              ...newState.onboarding,
+              stepsCompleted: {
+                ...newState.onboarding.stepsCompleted,
+                provisionsAndGoodsBought: true,
+              },
+            };
+          }
+        }
+
+        return newState;
+      }
 
 
       default:

@@ -1,4 +1,4 @@
-// screens_crew.jsx — Crew Screen
+// screens_crew.jsx : Crew Screen
 window.S = window.S || {};
 
 (() => {
@@ -40,9 +40,9 @@ window.S = window.S || {};
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
               <li><strong>Scars</strong> from battles and storms they survived</li>
               <li><strong>Traits</strong> that reveal hidden personalities</li>
-              <li><strong>Loyalty</strong> status — veterans who've served 200+ days may pledge loyalty</li>
+              <li><strong>Loyalty</strong> status : veterans who've served 200+ days may pledge loyalty</li>
             </ul>
-            <p>Watch crew faction alignment — attacking a crew member's home faction can make them upset and eventually desert.</p>
+            <p>Watch crew faction alignment. Attacking a crew member's home faction can make them upset and eventually desert.</p>
           </TutorialPopup>
         )}
 
@@ -100,17 +100,17 @@ window.S = window.S || {};
             {selectedMember ? (
               (() => {
                 const ALL_ICONS = {
-                  seasoned:           { icon: "⭐", label: "Seasoned — halved desertion chance" },
-                  veteran:            { icon: "🎖️", label: "Veteran — halved desertion chance" },
-                  loyal:              { icon: "👑", label: "Loyal Officer — never deserts" },
-                  upset:              { icon: "⚠️", label: "Upset — may desert at next port" },
-                  mutineer:           { icon: "⚓", label: "Mutineer — permanent; doubles desertion chance if upset" },
+                  seasoned:           { icon: "⭐", label: "Seasoned: halved desertion chance" },
+                  veteran:            { icon: "🎖️", label: "Veteran: halved desertion chance" },
+                  loyal:              { icon: "👑", label: "Loyal Officer: never deserts" },
+                  upset:              { icon: "⚠️", label: "Upset: may desert at next port" },
+                  mutineer:           { icon: "⚓", label: "Mutineer: permanent; doubles desertion chance if upset" },
                   scar_battle:        { icon: "⚔️", label: "Battle-Scarred" },
                   scar_storm:         { icon: "🌊", label: "Storm Survivor" },
                   scar_shipwreck:     { icon: "🚢", label: "Shipwreck Survivor" },
-                  revealed_drunkard:  { icon: "🍺", label: "Drunkard — drinks the ship's rum" },
-                  revealed_coward:    { icon: "🐔", label: "Coward — loses morale on dangerous missions" },
-                  revealed_greedy:    { icon: "💰", label: "Greedy — demands a bonus after missions" },
+                  revealed_drunkard:  { icon: "🍺", label: "Drunkard: drinks the ship's rum" },
+                  revealed_coward:    { icon: "🐔", label: "Coward: loses morale on dangerous missions" },
+                  revealed_greedy:    { icon: "💰", label: "Greedy: demands a bonus after missions" },
                 };
                 const visibleTags = (selectedMember.tags || []).filter(t => !t.startsWith("hidden_"));
                 const memberIcons = Object.entries(ALL_ICONS).filter(([tag]) => visibleTags.includes(tag));

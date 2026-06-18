@@ -11,18 +11,25 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #07111e; }
     ::-webkit-scrollbar-thumb { background: #1c3450; border-radius: 2px; }
+  
+    /* QM popup slide-in animation */
+  @keyframes qmSlideIn {
+    from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+    to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+  }
+  
   </style>
 </head>
 <body>
   <div id="root"></div>
 
-  <!-- Dependencies — must load before Babel scripts -->
+  <!-- Dependencies : must load before Babel scripts -->
 <script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 
   <!--
-    Game files — loaded in strict dependency order.
+    Game files : loaded in strict dependency order.
     Each file exposes a window namespace (window.D, window.L, etc.)
     that subsequent files consume. Babel standalone fetches
     each src synchronously before moving to the next.
@@ -40,19 +47,20 @@
   -->
 <script type="text/babel" data-presets="react" src="data.js"></script>
 <script type="text/babel" data-presets="react" src="data_text.js"></script>
-  <script type="text/babel" data-presets="react" src="logic.js"></script>
-  <script type="text/babel" data-presets="react"  src="storage.js"></script>         
-  <script type="text/babel" data-presets="react" src="generators.js"></script>
+<script type="text/babel" data-presets="react" src="logic.js"></script>
+<script type="text/babel" data-presets="react"  src="storage.js"></script>         
+<script type="text/babel" data-presets="react" src="generators.js"></script>
 <script type="text/babel" data-presets="react" src="engine_core.js"></script>
 <script type="text/babel" data-presets="react" src="engine_port.js"></script>
 <script type="text/babel" data-presets="react" src="engine_voyage.js"></script>
 <script type="text/babel" data-presets="react" src="engine_combat.js"></script>
-  <script type="text/babel" data-presets="react" src="ui.jsx"></script>
+<script type="text/babel" data-presets="react" src="ui.jsx"></script>
+<script type="text/babel" data-presets="react" src="screens_core.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_shipyard.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_crew.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_market.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
-  <script type="text/babel" data-presets="react" src="App.jsx"></script>
+<script type="text/babel" data-presets="react" src="App.jsx"></script>
 </body>
 </html>

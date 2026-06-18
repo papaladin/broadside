@@ -1,4 +1,4 @@
-// data_text.js — All text constants for Broadside
+// data_text.js : All text constants for Broadside
 // Extends window.D with pure text data.
 // Must be loaded AFTER data.js.
 
@@ -75,7 +75,7 @@ const CREW_LAST_NAMES = {
   `{fn} is new aboard. Time will tell what kind of sailor they are.`,
   `{fn}, a {factionLabel} {role}, is still finding their place among the crew.`,
   `The new {role} from {factionLabel} waters keeps their head down. Early days.`,
-  `{fn} signed on recently. A quiet {role} — for now.`,
+  `{fn} signed on recently. A quiet {role}...  for now.`,
   `{fn} came aboard from {factionLabel} territory. The crew hasn't made up its mind yet.`,
   `{fn} is the newest face on deck. No one really knows them yet.`,
   `Fresh off the dock, {fn} is eager to prove themselves.`,
@@ -106,7 +106,7 @@ const CREW_LAST_NAMES = {
     `{fn} has served {days} days. This ship is their life now.`,
     `After {days} days, {fn} is part of the ship itself. An old salt through and through.`,
     `{fn}, the {factionLabel} {role}, has been aboard longer than most can remember. {days} days.`,
-    `They say {fn} was born on this deck. {days} days — and still counting.`,
+    `They say {fn} was born on this deck. {days} days and still counting.`,
     `The old {role} they call {fn} has {days} days aboard. This ship is home.`,
   ],
 };
@@ -129,7 +129,7 @@ const PORT_GOSSIP_TEMPLATES = {
       "Warships sit in the harbour, crews at the ready. They're looking for someone. Possibly you.",
       "Every soldier you pass studies your face. The garrison is on full alert.",
       "The harbour battery is manned and the chains across the harbour mouth are raised.",
-      "A patrol stops you before you've walked twenty paces. They let you go — this time.",
+      "A patrol stops you before you've walked twenty paces. They let you go.. this time.",
     ],
   },
 
@@ -185,14 +185,14 @@ const PORT_GOSSIP_TEMPLATES = {
       "A young sailor asks if the stories about you are true. You let him wonder.",
     ],
     notorious: [
-      "Children point at your flag. Sailors trade stories about you — some of them true.",
+      "Children point at your flag. Sailors trade stories about you, and some of them are true.",
       "A crowd gathers when you come ashore. They want to see if the legends match.",
       "The tavern keeper refuses your coin. 'Your money's no good here, Captain. Tell us a tale instead.'",
     ],
     legendary: [
       "Your arrival is the talk of the port. Captains raise a glass in your honour.",
       "A painter sketches your ship from the quay. He says it'll sell in every port in the Caribbean.",
-      "The governor sends a messenger with compliments — and a request for a private audience.",
+      "The governor sends a messenger with compliments and a request for a private audience.",
     ],
   },
 
@@ -203,24 +203,24 @@ const PORT_GOSSIP_TEMPLATES = {
       "Someone studies your face a moment too long. Then looks away.",
     ],
     medium: [
-      "People avoid eye contact. Your reputation precedes you — and not the good kind.",
+      "People avoid eye contact. Your reputation precedes you, but not in a good way.",
       "A barmaid serves you quickly and retreats. She's heard the stories.",
       "No one sits at the table next to yours. They prefer the distance.",
     ],
     high: [
       "The constable watches from the dock. You feel the noose tightening.",
-      "Wanted posters with your name — your real name — are nailed to the customs house door.",
+      "Wanted posters with your name are nailed to the customs house door.",
       "A bounty hunter in the corner pretends not to see you. He's waiting for the right moment.",
     ],
     extreme: [
       "Every colonial power wants you dead. The question is who gets there first.",
-      "The crowd parts when you walk. Not out of respect — out of fear.",
+      "The crowd parts when you walk. Not out of respect but out of fear.",
       "A child asks if you're really the devil. His mother pulls him away before you can answer.",
       "The tavern falls silent when you enter. The bravest man in the room is the one who serves your drink.",
     ],
   },
 
-  // ── AMBIANCE (Priority 0) — Faction-specific ──────────────────────
+  // ── AMBIANCE (Priority 0) : Faction-specific ──────────────────────
   ambiance: {
     english: [
       "The smell of tar and tobacco drifts from the shipyard.",
@@ -254,7 +254,7 @@ const PORT_GOSSIP_TEMPLATES = {
     ],
   },
 
-  // ── WEATHER (Priority 0) — Faction-agnostic filler ────────────────
+  // ── WEATHER (Priority 0)  Faction-agnostic filler ────────────────
   weather: [
     "A warm breeze carries the smell of salt and tar.",
     "Storm clouds gather on the horizon. The old sailors are watching.",
@@ -265,29 +265,28 @@ const PORT_GOSSIP_TEMPLATES = {
   
   // ── HIDDEN PORT HINTS (Priority 1) ────────────────────────────────
   // Shown when player is close to (but hasn't met) unlock conditions.
-  // Never reveal exact requirements — be vague and atmospheric.
   //
   // Roatan:      fame >= 50 OR pirate rep >= 65
   // Dry Tortugas: infamy >= 25 AND pirate rep >= 65
   // Las Aves:    map_fragment_lasAves (from Wrecker's Map event, fame >= 50)
   // Libertalia:  fame >= 200 AND map_fragment_libertalia (from Dying Sailor event, fame >= 100)
   hiddenPorts: {
-    roatan: "Old sailors speak of a hidden cove in the Bay Islands. 'You need a name worth knowing — or friends among the Brotherhood — to find it,' they say.",
+    roatan: "Old sailors speak of a hidden cove in the Bay Islands. 'You need a name worth knowing, or friends on the Account to find it,' they say.",
     dryTortugas: "A drunk pirate mumbles about islands at the tip of Florida. 'You need to be one of us to find the channel,' he slurs.",
-    lasAves: "A wrecker nurses his drink alone. He looks like a man with charts to sell — for the right price.",
-    libertalia: "A dying sailor's tale keeps surfacing in tavern talk — a free republic, somewhere far south, where pirates live like kings.",
+    lasAves: "A marooned marin nurses his drink alone. He holds a tattered nautical charts firmly in his hand.",
+    libertalia: "A dying sailor's tale keeps surfacing in tavern talk. A tale about a free republic, somewhere far south, where pirates live like kings.",
   },
 
   // ── MARKET (Priority 1) ───────────────────────────────────────────
   // Template variables: {good} = lowercase, {Good} = capitalised
-  // NOTE: Generator must skip "slaves" — no market gossip for slaves.
+  // NOTE: Generator must skip "slaves" : no market gossip for slaves.
   // NOTE: If you want to add harvest-specific lines later, tag them as
   //       organic:true and filter in the generator. Organic goods:
   //       sugar, coffee, cocoa, tobacco, timber, cloth, rum.
   market: {
     surplus: [
       "Warehouses overflow with {good}. A buyer's market if ever there was one.",
-      "{Good} is cheap here — the docks are stacked with it.",
+      "{Good} is cheap here and the docks are stacked with it.",
       "A recent convoy flooded the market with {good}. Prices have dropped sharply.",
       "Merchants are practically giving {good} away. Supply far outstrips demand.",
     ],
@@ -414,14 +413,14 @@ const MARKET_FLAVOUR = {
     "No one asks where anything came from. No one wants to know.",
   ],
 
-  // Fallback ambiance — always available
+  // Fallback ambiance , always available
   ambiance: [
     "The scent of spices and old timber fills the market square.",
     "Gulls cry overhead as merchants shout their prices.",
     "A warm breeze carries the smell of fresh fruit and tar.",
     "The market bustles with sailors haggling over every last coin.",
     "You weave through stacks of crates and barrels, the heartbeat of {port}.",
-    "Every stall tells a story — some honest, most not.",
+    "Every stall tells a story. Some are honest but most are not.",
   ],
 };
 
@@ -601,6 +600,59 @@ const ENEMY_SHIP_NAMES = {
       `${enemy.name} moves to intercept. They haven't fired yet.`,
   };
 
+  const QM_DIALOGUE = {
+  step0_welcome: (qmName, portName) =>
+    `Welcome to ${portName}, Captain. I'm ${qmName}, your quartermaster. Let's see what work there is. Check the Contracts Board.`,
+
+  step1_accepted: (qmName) =>
+    `Right. We'll need to pick up the cargo and stock provisions. Let's head to the Market.`,
+
+  step1_contractAccepted: (qmName) =>
+  `Right. We'll need to pick up the cargo and stock provisions. Let's head to the Market.`,
+
+  step2_marketOpen: (qmName) =>
+    `Buy what we need for our contract, and don't forget provisions! Crew's gotta eat.`,
+
+  step2_stocked: (qmName) =>
+    `Cargo loaded, bellies will be full. Time to chart a course, Captain. Let's look at the Navigation map.`,
+
+  step3_mapOpen: (qmName, destName) =>
+    `Your destination port is just a few days' sail. Select it and we'll weigh anchor. You can zoom in to ease your weary sea eyes.`,
+
+  step4_sailing: (qmName) =>
+    `Smooth seas so far. Watch our provisions, each day at sea costs food and water.`,
+
+   step5_arrival: (qmName) =>
+    `We've made port. Head to the Mission board to deliver our cargo and collect the pay.`,
+
+  step5_delivered: (qmName) =>
+    `Well done, Captain. Coin in our pockets. Might be worth checking the Crew quarters.. we could use more hands.`,
+
+  step6_crewOpen: (qmName) =>
+    `Here's our lot. Hire a sailor: more crew means we can handle tougher work.`,
+
+  step6_hired: (qmName) =>
+    `Good, we've got hands now. There's a bounty posted. Hunt the Rat. Check the board.`,
+
+  step6b_huntAccepted: (qmName) =>
+    `Easy pickings. Let's set sail and find this rat!`,
+
+  step6b_victory: (qmName) =>
+    `Well fought! She's got some holes in her now. Let's find a Shipyard.`,
+
+  step7_shipyardOpen: (qmName) =>
+    `Repairs, upgrades, or a new ship when we've saved enough. Patch her up.`,
+
+  step7_repaired: (qmName) =>
+    `Good as new. I've been keeping a record, your Journal. It might be worth a look.`,
+
+  step8_journalOpen: (qmName) =>
+    `Everything's written down for you to consult at your pleasure. Your adventure saves itself each time we make port.`,
+
+  step9_departure: (qmName) =>
+    `${qmName} tips his hat. "You've got your sea legs now, Captain, you don't need me around. Fair winds." He takes a jolly boat ashore.`,
+};
+
   // ── Merge into window.D ──────────────────────────────────
   Object.assign(window.D, {
     CREW_FIRST_NAMES,
@@ -613,5 +665,6 @@ const ENEMY_SHIP_NAMES = {
     COMBAT_LOG_TEMPLATES,
     ENEMY_SHIP_NAMES,
     ENCOUNTER_FLAVOUR,
+    QM_DIALOGUE,
   });
 })();

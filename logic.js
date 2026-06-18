@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-//  logic.js — ALL PURE FUNCTIONS FOR GAME LOGIC
+//  logic.js : ALL PURE FUNCTIONS FOR GAME LOGIC
 //  No side effects, no state mutation. Only calculations and data transformations.
 //  Imports: window.D (data constants)
 //  Exposed as window.L for global access.
@@ -477,7 +477,7 @@ const revealTag = (member, traitName) => {
   const baseChance = 0.01;
   const infamyBonus = (state.infamy ?? 0) / 400;
   
-  // Heat bonus — based on origin and destination faction
+  // Heat bonus : based on origin and destination faction
   const alerts = state.factionAlerts || {};
   const originFaction = port.faction;
   const destFaction = state.destination ? D.PORTS[state.destination]?.faction : null;
@@ -536,7 +536,7 @@ const revealTag = (member, traitName) => {
         const dmg = shipStats.cannons * (0.8 + Math.random() * 0.4);
         const hullMod = 1 + (getEquipmentEffect(state, "hullDmgPct") || 0);
         const crewMod = 1 + (getEquipmentEffect(state, "crewDmgPct") || 0);
-        out.player.hullDamage = Math.floor(dmg * 0.6 * hullMod);
+        out.player.hullDamage = Math.max(1,Math.floor(dmg * 0.6 * hullMod));
         out.player.crewLoss   = maybeCrewLoss(dmg * 0.4 / 3 * crewMod);
         break;
       }
@@ -669,13 +669,19 @@ const revealTag = (member, traitName) => {
   return result;
 };
 
-  const applyDamageMoralePenalty = (state, outcome) => {
-    const effectiveMorale = getEffectiveMorale(state);
-    const modifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
-    outcome.player.hullDamage = Math.floor(outcome.player.hullDamage * modifier);
-    outcome.player.crewLoss   = Math.floor(outcome.player.crewLoss   * modifier);
-    return outcome;
-  };
+ const applyDamageMoralePenalty = (state, outcome) => {
+  const effectiveMorale = getEffectiveMorale(state);
+  const modifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
+
+  const wasHit = outcome.player.hullDamage > 0;               // ← remember
+  outcome.player.hullDamage = Math.floor(outcome.player.hullDamage * modifier);
+  if (wasHit && outcome.player.hullDamage === 0) {
+    outcome.player.hullDamage = 1;                              // ← minimum 1 only on hits
+  }
+
+  outcome.player.crewLoss = Math.floor(outcome.player.crewLoss * modifier);
+  return outcome;
+};
 
   const combineCombatOutcomes = (playerOut, morale, npcOut) => {
     const final = emptyOutcome();
@@ -792,7 +798,7 @@ function buildEncounterContext(state, type, enemy) {
     : type === "hostile_port_entry" ? "Already in range of the harbour guns"
     : type === "navy_patrol" || type === "navy_patrol_combat"
       ? "You cannot outrun a patrol in open waters"
-    : "The target is cornered — no escape";
+    : "The target is cornered. No escape";
 
   // ── Parley ──────────────────────────────────────────────────
   const noParleyTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
@@ -801,7 +807,7 @@ function buildEncounterContext(state, type, enemy) {
   const canParley    = !noParleyTypes.includes(type) && rep >= 30;
   const parleyReason = noParleyTypes.includes(type)
     ? "They are not here to negotiate"
-    : rep < 30 ? `Reputation too low (${rep} — need 30)` : null;
+    : rep < 30 ? `Reputation too low (${rep} : need 30)` : null;
 
   // ── Bribe ───────────────────────────────────────────────────
   const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat",
@@ -862,7 +868,7 @@ function buildEncounterContext(state, type, enemy) {
     });
     options.push({
       id:         "fight",
-      label:      "Refuse — Open Fire",
+      label:      "Refuse and Open Fire",
       available:  true,
       reason:     null,
       action:     { type: "INTERCEPT_FIGHT" },

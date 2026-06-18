@@ -223,67 +223,68 @@
     switch (action.type) {
 
       // --- ADVANCE DAY ---
-      case A.ADVANCE_DAY: {
-        if (state.sailingDaysLeft <= 0) return state;
+    case A.ADVANCE_DAY: {
+      if (state.sailingDaysLeft <= 0) return state;
 
-        const newDays = state.sailingDaysLeft - 1;
-        const newWind = advanceWind(state.wind);
-        const wages = L.payCrewWages(state);
-        const newGold = Math.max(0, state.gold - wages);
-        const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
-        const newCrew = advanceCrew(state.crew);
-        const prov = advanceProvisions(state);
+      const newDays = state.sailingDaysLeft - 1;
+      const newWind = advanceWind(state.wind);
+      const wages = L.payCrewWages(state);
+      const newGold = Math.max(0, state.gold - wages);
+      const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
+      const newCrew = advanceCrew(state.crew);
+      const prov = advanceProvisions(state);
 
-        // Morale decay
-        let newMorale = newCrew.morale;
-        const wagesCrisis = state.gold < wages;
-        if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
-          newMorale = Math.max(0, newMorale - 1);
-        }
+      // Morale decay
+      let newMorale = newCrew.morale;
+      const wagesCrisis = state.gold < wages;
+      if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
+        newMorale = Math.max(0, newMorale - 1);
+      }
 
-        // Faction alert decay
-        let newAlerts = { ...(state.factionAlerts || {}) };
-        if (state.day % 2 === 0) {
-          Object.keys(newAlerts).forEach(faction => {
-            newAlerts[faction] = Math.max(0, (newAlerts[faction] || 0) - 1);
-          });
-        }
+      // Faction alert decay
+      let newAlerts = { ...(state.factionAlerts || {}) };
+      if (state.day % 2 === 0) {
+        Object.keys(newAlerts).forEach(faction => {
+          newAlerts[faction] = Math.max(0, (newAlerts[faction] || 0) - 1);
+        });
+      }
 
-        const newLog = [...state.log];
-        if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
-        if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
+      const newLog = [...state.log];
+      if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
+      if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
-        // ── Route progression ──────────────────────────────────────
-        let newRoute = state.route;
-        if (newRoute) {
-          const progressedDays = newRoute.progressDays + 1;
-          const seaPos = L.getSeaPosition({ ...newRoute, progressDays: progressedDays });
-          newRoute = {
-            ...newRoute,
-            progressDays: progressedDays,
-            seaPosition: seaPos,
-            enduranceSpent: newRoute.enduranceSpent + 1,
-          };
-        }
-
-        // Base state with all day‑advance changes applied
-        const baseState = {
-          ...state,
-          wind: newWind,
-          day: state.day + 1,
-          sailingDaysLeft: newDays,
-          gold: newGold,
-          reputation: newRep,
-          crew: { ...newCrew, morale: newMorale },
-          hold: { ...state.hold, items: prov.items },
-          factionAlerts: newAlerts,
-          log: newLog,
-          route: newRoute,
+      // ── Route progression ──────────────────────────────────────
+      let newRoute = state.route;
+      if (newRoute) {
+        const progressedDays = newRoute.progressDays + 1;
+        const seaPos = L.getSeaPosition({ ...newRoute, progressDays: progressedDays });
+        newRoute = {
+          ...newRoute,
+          progressDays: progressedDays,
+          seaPosition: seaPos,
+          enduranceSpent: newRoute.enduranceSpent + 1,
         };
+      }
 
-        // Each interception checker is called with the original `state` (it still
-        // needs that for mission state etc.). Its result is merged on top of
-        // `baseState`, so the updated route is never lost.
+      // Base state with all day‑advance changes applied
+      const baseState = {
+        ...state,
+        wind: newWind,
+        day: state.day + 1,
+        sailingDaysLeft: newDays,
+        gold: newGold,
+        reputation: newRep,
+        crew: { ...newCrew, morale: newMorale },
+        hold: { ...state.hold, items: prov.items },
+        factionAlerts: newAlerts,
+        log: newLog,
+        route: newRoute,
+      };
+
+      const isOnboarding = state.onboarding?.enabled && !state.onboarding?.completed;
+
+      // Skip random events during onboarding (protect new players)
+      if (!isOnboarding) {
         const smuggleResult = maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
         if (smuggleResult) return { ...baseState, ...smuggleResult };
 
@@ -293,19 +294,21 @@
         const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
         if (patrolResult) return { ...baseState, ...patrolResult };
 
-        const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (missionEncResult) return { ...baseState, ...missionEncResult };
-
         const drunkardResult = maybeDrunkardEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
         if (drunkardResult) return { ...baseState, ...drunkardResult };
-
-        // Hidden port discovery
-        const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
-        if (discoveryLog.length) baseState.log.push(...discoveryLog);
-        baseState.discoveredPorts = discoveredPorts;
-
-        return baseState;
       }
+
+      // Mission encounters ALWAYS fire (tutorial hunt needs this)
+      const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
+      if (missionEncResult) return { ...baseState, ...missionEncResult };
+
+      // Hidden port discovery
+      const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
+      if (discoveryLog.length) baseState.log.push(...discoveryLog);
+      baseState.discoveredPorts = discoveredPorts;
+
+      return baseState;
+    }
 
       // --- DISCOVER PORT ---
       case A.DISCOVER_PORT: {

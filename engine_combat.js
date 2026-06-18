@@ -279,7 +279,16 @@ const handleFledMission = (currentState, battleState) => {
       case A.INTERCEPT_FIGHT: {
         const ctx = state.encounterContext;
         if (!ctx) return state;
-        const bs = window.E.createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
+        let bs = window.E.createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
+
+        // Tutorial hunt: enemy gets a free opening shot before round 1
+        if (state.activeMission?.tutorial && !state.activeMission?.requiredGood) {
+          bs = {
+            ...bs,
+            playerHull: Math.max(0, bs.playerHull - 1),
+            log: [...bs.log, "The Rat fires a hasty shot, grazing your hull!"],
+          };
+        }
 
         // Heat for fighting a navy patrol (triggered now, before battle outcome)
         let s = { ...state, encounterContext: null, battleState: bs, screen: "battle" };
@@ -297,7 +306,7 @@ const handleFledMission = (currentState, battleState) => {
         const playerRoll = player + L.roll(6);
         const enemyRoll  = enemy  + L.roll(6);
         if (playerRoll >= enemyRoll) {
-          let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear — the enemy couldn't keep up."] };
+          let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
           // Heat for fleeing a navy patrol
           if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
             s = addHeat(s, ctx.enemy.faction, 2);
@@ -306,7 +315,7 @@ const handleFledMission = (currentState, battleState) => {
         }
         const enemyObj = ctx.enemy;
         const bs = window.E.createBattleState(state, enemyObj, "Escape failed! The enemy closes in.", ctx.encounterType);
-        return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Failed to escape — battle unavoidable."] };
+        return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Failed to escape. The battle is unavoidable."] };
       }
 
       case A.INTERCEPT_PARLEY: {
@@ -319,7 +328,7 @@ const handleFledMission = (currentState, battleState) => {
           return { ...state, encounterContext: null, screen: L.returnScreen(state), reputation: { ...state.reputation, [portKey]: Math.min(100, (state.reputation[portKey] ?? 20) + 3) }, log: [...state.log, "Parley successful. They let you pass."] };
         }
         const enemyObj = ctx.enemy;
-        const bs = window.E.createBattleState(state, enemyObj, "Parley failed — they attack!", ctx.encounterType);
+        const bs = window.E.createBattleState(state, enemyObj, "Your parley failed. They attack!", ctx.encounterType);
         return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Parley failed. Battle unavoidable."] };
       }
 
@@ -397,7 +406,7 @@ const handleFledMission = (currentState, battleState) => {
           };
         }
 
-        // ── Contraband found — existing seizure logic ────────────
+        // ── Contraband found : existing seizure logic ────────────
         let seizedValue = 0;
         if (hasTobacco) seizedValue += (items.tobacco || 0) * (D.RESOURCES.tobacco?.basePrice || 90);
         if (hasSlaves)  seizedValue += (items.slaves  || 0) * (D.RESOURCES.slaves?.basePrice  || 220);
@@ -429,7 +438,7 @@ const handleFledMission = (currentState, battleState) => {
             ...state.log,
             "The patrol found contraband. All illegal goods seized.",
             `Fine levied: ${fine}g.`,
-            "+2 infamy — your name is in their ledger now.",
+            "+2 infamy. Your name is in their ledger now.",
             "The crew's morale drops.",
           ],
         };
@@ -573,7 +582,7 @@ const handleFledMission = (currentState, battleState) => {
                         || battleState.encounterType === "navy_patrol_combat";
         const patrolInfamy = isNavyFight ? 2 : 0;
         const patrolLog = patrolInfamy > 0
-          ? [window.E.logEntry(state, `+${patrolInfamy} infamy — attacking crown forces was witnessed.`)]
+          ? [window.E.logEntry(state, `+${patrolInfamy} infamy. ASttacking crown forces was witnessed.`)]
           : [];
 
         // Defeat
@@ -584,6 +593,16 @@ const handleFledMission = (currentState, battleState) => {
 
         // Victory aftermath (upset + scar)
         let currentState = applyVictoryAftermath(state, battleState);
+        // After victory, if it was the tutorial hunt, advance onboarding
+        if (battleState.phase === "victory" && currentState.activeMission?.tutorial && !currentState.activeMission?.requiredGood) {
+          currentState = {
+            ...currentState,
+            onboarding: {
+              ...currentState.onboarding,
+              stepsCompleted: { ...currentState.onboarding.stepsCompleted, tutorialHuntCompleted: true },
+            },
+          };
+        }
 
         // Patrol victory
         const patrolResult = handlePatrolVictory(currentState, battleState,heatAmount);
@@ -661,7 +680,7 @@ const handleFledMission = (currentState, battleState) => {
                 `You promise better conditions, costing ${mutinyCost}g. The crew stands down… for now.`
               ];
             } else {
-              // Can't afford — negotiation fails, some crew become upset
+              // Can't afford : negotiation fails, some crew become upset
               const upsetCount = Math.ceil(roster.length * 0.30);
               const shuffled = [...roster].sort(() => Math.random() - 0.5);
               const upsetNames = [];
@@ -687,7 +706,7 @@ const handleFledMission = (currentState, battleState) => {
               ];
             }
           } else if (action.choiceIndex === 1) {
-            // Crush — after generic crew loss & morale penalty have been applied
+            // Crush : after generic crew loss & morale penalty have been applied
             const survivors = newState.crew?.roster || roster;
             const mutineerCount = Math.ceil(survivors.length * 0.30);
             if (mutineerCount > 0) {
@@ -857,7 +876,7 @@ const handleFledMission = (currentState, battleState) => {
           newState.crew = { ...state.crew, roster: cappedRoster };
           if (turnedAway > 0) {
             newState.log = [...(newState.log || state.log),
-              `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew, but ${turnedAway === 1 ? 'one was' : turnedAway + ' were'} turned away — your ship can only hold ${maxCrew}.`];
+              `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew, but ${turnedAway === 1 ? 'one was' : turnedAway + ' were'} turned away : your ship can only hold ${maxCrew}.`];
           } else {
             newState.log = [...(newState.log || state.log),
               `${newMembers.length === 1 ? names + " joins" : names + " join"} your crew.`];
@@ -950,7 +969,7 @@ const handleFledMission = (currentState, battleState) => {
           member.tags = [...(member.tags || []), "scar_shipwreck"];
           newState.crew = { ...state.crew, roster: [...state.crew.roster, member] };
           newState.log = [...state.log,
-            `You find a survivor clinging to the wreckage — ${member.firstName} ${member.lastName}, battered but alive.`
+            `You find a survivor clinging to the wreckage. ${member.firstName} ${member.lastName}, battered but alive.`
           ];
 
         } else {
@@ -959,7 +978,7 @@ const handleFledMission = (currentState, battleState) => {
           const ctx = L.buildEncounterContext(state, "random", enemy);
           newState.encounterContext = ctx;
           newState.screen = "intercept";
-          newState.log = [...state.log, "As you board the wreck, pirates emerge from the hold — it was a trap!"];
+          newState.log = [...state.log, "As you board the wreck, pirates emerge from the hold. It was a trap!"];
         }
 
         return newState;

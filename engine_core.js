@@ -1,4 +1,4 @@
-// engine_core.js — Shared Infrastructure
+// engine_core.js : Shared Infrastructure
 // Exposes window.E with A, initialState, reducer, shared helpers.
 
 window.E = window.E || {};
@@ -49,6 +49,7 @@ window.E = window.E || {};
     ATTACK_PIRATE: "ATTACK_PIRATE",
     ATTACK_MERCHANT: "ATTACK_MERCHANT",
     ONBOARDING_ADVANCE: "ONBOARDING_ADVANCE",
+    ONBOARDING_QM_SEEN: "ONBOARDING_QM_SEEN",
     ONBOARDING_SKIP: "ONBOARDING_SKIP",
     ONBOARDING_COMPLETE: "ONBOARDING_COMPLETE",
     DEBUG_ADD_GOLD: "DEBUG_ADD_GOLD",
@@ -176,6 +177,7 @@ window.E = window.E || {};
         shipRepaired: false,
         journalOpened: false,
       },
+       qmMessagesSeen: {}, 
       combatHintShown: false,
       qmDismissed: false,
     },
@@ -324,7 +326,7 @@ window.E = window.E || {};
           const currentPort = loaded.currentPort || "portRoyal";
           return { ...loaded, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(currentPort), missions: G.generateMissions(currentPort, loaded) };
         } catch (e) {
-          return { ...state, log: [...state.log, "Failed to load save — corrupted data."] };
+          return { ...state, log: [...state.log, "Failed to load save. Corrupted data."] };
         }
       }
       case window.E.A.EXPORT_SAVE: {
@@ -352,4 +354,91 @@ window.E = window.E || {};
         return state;
     }
   });
+
+    // --- ONBOARDING REDUCER ------------------
+  window.E._reducers.push((state, action) => {
+    if (action.type === window.E.A.ONBOARDING_QM_SEEN) {
+      if (!state.onboarding?.enabled || state.onboarding.completed) return state;
+      return {
+        ...state,
+        onboarding: {
+          ...state.onboarding,
+          qmMessagesSeen: {
+            ...state.onboarding.qmMessagesSeen,
+            [action.messageKey]: true,
+          },
+        },
+      };
+    }
+    return state;
+  });
+
+  window.E._reducers.push((state, action) => {
+    if (action.type === window.E.A.ONBOARDING_SKIP) {
+      if (!state.onboarding?.enabled || state.onboarding.completed) return state;
+
+      const allStepsComplete = {};
+      Object.keys(state.onboarding.stepsCompleted).forEach(k => {
+        allStepsComplete[k] = true;
+      });
+
+      const newRoster = state.crew.roster.filter(
+        m => !(m.tags || []).includes("quartermaster")
+      );
+
+      return {
+        ...state,
+        onboarding: {
+          enabled: false,
+          completed: true,
+          currentStep: 9,
+          stepsCompleted: allStepsComplete,
+          qmMessagesSeen: state.onboarding.qmMessagesSeen || {},
+          combatHintShown: true,
+          qmDismissed: true,
+        },
+        crew: {
+          ...state.crew,
+          roster: newRoster,
+        },
+        log: [
+          ...state.log,
+          "You've decided to go it alone. All features are now available.",
+        ],
+      };
+    }
+    return state;
+  });
+
+  window.E._reducers.push((state, action) => {
+  if (action.type === window.E.A.ONBOARDING_COMPLETE) {
+    if (!state.onboarding?.enabled || state.onboarding.completed) return state;
+
+    const qm = state.crew.roster.find(m => (m.tags || []).includes('quartermaster'));
+    const farewellName = qm ? `${qm.firstName} ${qm.lastName}` : 'Your quartermaster';
+
+    const newRoster = state.crew.roster.filter(m => !(m.tags || []).includes('quartermaster'));
+
+    return {
+      ...state,
+      onboarding: {
+        ...state.onboarding,
+        enabled: false,
+        completed: true,
+        currentStep: 9,
+      },
+      crew: {
+        ...state.crew,
+        roster: newRoster,
+      },
+      log: [
+        ...state.log,
+        `${farewellName} tips his hat. "You've got your sea legs now, Captain, you don't need me around. Fair winds." He takes a jolly boat ashore.`,
+      ],
+    };
+  }
+  return state;
+});
+
+
 })();

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-//  data.js — ALL GAME CONSTANTS (FULLY UPDATED WITH COMBAT MISSIONS)
+//  data.js : ALL GAME CONSTANTS (FULLY UPDATED WITH COMBAT MISSIONS)
 //  No logic, no functions. Pure data.
 //  Exposed as window.D for global access.
 // ═══════════════════════════════════════════════════════════════════
@@ -50,27 +50,35 @@ window.D = (() => {
   const PORTS = {
  
   // ═══════════════════════════════════════════════════
-  //  STANDARD — visible and reachable from the start
+  //  STANDARD : visible and reachable from the start
   // ═══════════════════════════════════════════════════
  
+//central islands (for starters)
+
+
   tortuga: {
     name: "Tortuga", faction: "pirate",
     x: 500, y: 235,
     services: ["tavern", "shipyard", "crew", "missions"],
     desc: "A lawless haven for pirates and buccaneers. The most notorious port in the Caribbean.",
   },
+    nassau: {
+    name: "Nassau", faction: "pirate",
+    x: 415, y: 152,
+    services: ["tavern", "crew", "missions"],
+    desc: "A loosely governed English settlement in the Bahamas. Rapidly becoming a pirate refuge.",
+  },
  
   portDePaix: {
     name: "Port-de-Paix", faction: "french",
     x: 476, y: 248,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A small French port on northern Saint-Domingue, close neighbour to Tortuga.",
   },
- 
   petitGoave: {
     name: "Petit-Goâve", faction: "french",
     x: 480, y: 275,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard", "missions"],
     desc: "A French buccaneer base on western Saint-Domingue. Rougher and more desperate than Martinique.",
   },
  
@@ -80,42 +88,37 @@ window.D = (() => {
     services: ["tavern", "shipyard", "crew"],
     desc: "The oldest European city in the Americas. A proud Spanish administrative centre on Hispaniola.",
   },
- 
   havana: {
     name: "Havana", faction: "spanish",
     x: 340, y: 185,
     services: ["tavern", "shipyard", "crew", "missions"],
     desc: "Crown jewel of Spanish power in the New World. Heavily fortified and fiercely proud.",
   },
- 
   santiagoDeCuba: {
     name: "Santiago de Cuba", faction: "spanish",
     x: 430, y: 245,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "shipyard", "crew", "missions"],
     desc: "The second city of Cuba. A waypoint for Spanish convoys heading east toward Hispaniola.",
   },
  
-  nassau: {
-    name: "Nassau", faction: "pirate",
-    x: 415, y: 152,
-    services: ["tavern", "crew", "missions"],
-    desc: "A loosely governed English settlement in the Bahamas. Rapidly becoming a pirate refuge.",
-  },
  
   portRoyal: {
     name: "Port Royal", faction: "english",
     x: 401, y: 275,
     services: ["tavern", "shipyard", "crew", "missions"],
     desc: "The wealthiest English harbour in the Caribbean. Rebuilt since the great earthquake of 1692.",
-  },
- 
+  }, 
   kingston: {
     name: "Kingston", faction: "english",
     x: 428, y: 290,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "shipyard", "missions"],
     desc: "A young town growing in Port Royal's shadow. Modest but honest trade and a welcome harbour.",
   },
  
+
+// normal ports but outside of the central region
+
+
   portobelo: {
     name: "Portobelo", faction: "spanish",
     x: 355, y: 440,
@@ -127,7 +130,7 @@ window.D = (() => {
     name: "Cartagena", faction: "spanish",
     x: 440, y: 415,
     services: ["tavern", "shipyard", "missions"],
-    desc: "A formidable fortified city. The Spanish treasure fleet assembles here — rich, guarded, and unforgiving.",
+    desc: "A formidable fortified city. The Spanish treasure fleet assembles here. It is rich, guarded, and unforgiving.",
   },
  
   maracaibo: {
@@ -166,7 +169,7 @@ window.D = (() => {
   },
  
   // ═══════════════════════════════════════════════════
-  //  REMOTE — visible on map but require sufficient
+  //  REMOTE : visible on map but require sufficient
   //  ship range (brigantine+ typically). Greyed out
   //  in MapScreen when canReach() returns false.
   // ═══════════════════════════════════════════════════
@@ -212,13 +215,13 @@ window.D = (() => {
   },
  
   // ═══════════════════════════════════════════════════
-  //  HIDDEN — not rendered on MapScreen until
+  //  HIDDEN : not rendered on MapScreen until
   //  unlockCondition is satisfied for the current
   //  save state. Logic lives in canSeePort() in
   //  logic.js (Phase 3 implementation).
   //
   //  These ports are fully inert until that function
-  //  is written — the unlockCondition field is ignored
+  //  is written : the unlockCondition field is ignored
   //  by all current code.
   // ═══════════════════════════════════════════════════
  
@@ -659,9 +662,9 @@ const MISSION_GOLD_RANGES = {
 };
 
 const MISSION_ENEMY_RANGES = {
-  hull:    { 0:[12,22],  1:[20,45],  2:[40,75],  3:[65,110], 4:[95,155],  5:[135,210] },
+  hull:    { 0:[10,20],  1:[20,45],  2:[40,75],  3:[65,110], 4:[95,155],  5:[135,210] },
   cannons: { 0:[1,3],    1:[2,6],    2:[5,10],   3:[8,16],   4:[13,22],   5:[18,30] },
-  crew:    { 0:[3,8],    1:[8,18],   2:[15,35],  3:[25,55],  4:[40,80],   5:[60,110] },
+  crew:    { 0:[3,6],    1:[6,18],   2:[15,35],  3:[25,55],  4:[40,80],   5:[60,110] },
 };
 
 // Plunder balance tuning
@@ -844,7 +847,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       desc: [
   "A damaged ship drifts in the current, hull split and sails in tatters.",
   "A derelict vessel wallows in the swell, its crew long gone.",
-  "You spot a wreck adrift — broken masts, silent decks.",
+  "You spot a wreck adrift:  broken masts, silent decks.",
 ],
       condition: (state) => state.screen === "sailing",
       choices: [
@@ -941,7 +944,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       title: "Whale Sighting",
       desc: [
   "A pod of whales surfaces near your ship. The crew watches in wonder.",
-  "Massive spouts erupt off the bow — whales, dozens of them.",
+  "Massive spouts erupt off the bow:  whales, dozens of them.",
   "Whales breach alongside the ship. A good omen, some say.",
 ],
       choices: [
@@ -968,7 +971,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       type: "crew",
       title: "Mutiny!",
       desc: [
-  "The crew has had enough. Angry voices demand changes — now.",
+  "The crew has had enough. Angry voices demand changes, and they want it now.",
   "A group of sailors confronts you on the quarterdeck. This is mutiny.",
   "Whispers have turned to shouts. The crew is on the brink of revolt.",
 ],
@@ -1025,7 +1028,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "mysterious_chart",
       title: "A Dying Sailor's Secret",
       type: "discovery",
-      desc: "A dying sailor presses a folded chart into your hands. The coastline it marks is like nothing on any official map — a sheltered harbour surrounded by reefs, with no name written.",
+      desc: "A dying sailor presses a folded chart into your hands. The coastline it marks is like nothing on any official map. A sheltered harbour surrounded by reefs, with no name written.",
       condition: (state) =>
         state.fame >= 100 &&
         !(state.mapFragments || []).includes("map_fragment_libertalia"),
@@ -1079,7 +1082,7 @@ const SMUGGLE_GOODS_BY_TIER = {
 const STARTS = {
   // ── Faction → Starting Port ────────────────────────────
   factionPorts: {
-    english: "portRoyal",
+    english: "kingston",
     spanish: "havana",
     french: "petitGoave",
     dutch: "santoDomingo",
@@ -1101,8 +1104,8 @@ const STARTS = {
       hook: "a forged commission and a borrowed tide",
       flavour: "The ink is passable. The signature is not. You need to become the kind of captain who doesn't need the letter before someone looks closely enough to notice.",
       openingLog: [
-        "Cleared Port Royal on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
-        "I need a real reputation before someone calls my bluff. That means work. English work, legal work — at least for now.",
+        "Cleared Kingston on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
+        "I need a real reputation before someone calls my bluff. That means work. English work, legal work. Well, at least for now.",
       ],
     },
     spanish: {
@@ -1118,7 +1121,7 @@ const STARTS = {
       flavour: "Your mentor left you his instruments, his dinghy, and a six-month charting contract the navy has already paid for. The navy wants charts. You want freedom. Both require moving.",
       openingLog: [
         "Deschamps's charts are better than anything the navy has. That's why they want them finished. That's also why I have leverage, if I'm careful.",
-        "The naval officer said 'by the agreed date' twice. The date is in six months. I have time — if I keep moving.",
+        "The naval officer said 'by the agreed date' twice. The date is in six months. I have time if I keep moving.",
       ],
     },
     dutch: {
@@ -1143,7 +1146,7 @@ const STARTS = {
  factionQM: {
   english: { firstName: "Old",     lastName: "Morley",     bio: "A weathered English bosun who's seen more voyages than he cares to count. Keeps the crew in line with a steady glare and a steadier hand." },
   spanish: { firstName: "Viejo",   lastName: "Cortés",     bio: "A grizzled Spanish veteran who fought under the flag before he traded it for something less particular. Knows every reef in these waters." },
-  french:  { firstName: "Vieux",   lastName: "Deschamps",  bio: "A seasoned French mariner who served as quartermaster on three ships — two of them still afloat. Quiet, competent, and utterly unsentimental." },
+  french:  { firstName: "Vieux",   lastName: "Deschamps",  bio: "A seasoned French mariner who served as quartermaster on three ships, two of them still afloat. Quiet, competent, and utterly unsentimental." },
   dutch:   { firstName: "Oude",    lastName: "Bakker",     bio: "A practical Dutch quartermaster who treats a ship's ledger with the same precision as a surgeon's knife. Doesn't say much, but when he does, listen." },
   pirate:  { firstName: "Scarred", lastName: "Jim",        bio: "No one remembers Jim's real name, or what he looked like before the scars. He's been aboard more pirate crews than he can recall, and he's one of the few who can still recall anything at all." },
 },
@@ -1151,19 +1154,19 @@ const STARTS = {
   // ── Universal Starting Conditions ─────────────────────
   gold: 490,
   ship: "dinghy",
-  hold: { food: 8, water: 8 },
+  hold: { food: 5, water: 5 },
   startDate: { day: 1, month: 6, year: 1695 },
 };
 
 const TUTORIAL_DELIVERY = {
   english: {
-    targetPort: "kingston",
+    targetPort: "portRoyal",
     requiredGood: "rum",
     requiredQty: 3,
     gold: 240,
     fame: 2,
-    name: "Carry the Dispatch to Kingston",
-    description: "An official packet needs to reach Kingston, along with a cask of rum for the harbour office. Buy the rum at the market and deliver it sealed.",
+    name: "Carry the Dispatch to Port Royal",
+    description: "An official packet needs to reach Port Royal, along with a cask of rum for the harbour office. Buy the rum at the market and deliver it sealed.",
     repImpact: { english: 2 },
     tutorial: true,
   },
@@ -1185,7 +1188,7 @@ const TUTORIAL_DELIVERY = {
     gold: 220,
     fame: 2,
     name: "Provisions for Port-de-Paix",
-    description: "The garrison at Port-de-Paix needs sugar for the officers' mess. A small job — but it pays, and it's close.",
+    description: "The garrison at Port-de-Paix needs sugar for the officers' mess. A small job but it pays, and it's close.",
     repImpact: { french: 2 },
     tutorial: true,
   },
@@ -1207,9 +1210,31 @@ const TUTORIAL_DELIVERY = {
     gold: 200,
     fame: 2,
     name: "Rum for Renard in Tortuga",
-    description: "Captain Renard in Tortuga needs rum — and a message. Delivering both is a way to introduce yourself.",
+    description: "Captain Renard in Tortuga needs rum and a message. Delivering both is a way to introduce yourself.",
     repImpact: { pirate: 3 },
     tutorial: true,
+  },
+};
+
+const TUTORIAL_HUNT = {
+  type: "combat",
+  name: "Hunt the Rat",
+  description: "A small vessel has been preying on fishing boats near here. Easy pickings, and good coin.",
+  faction: "pirate",
+  risk: "low",
+  gold: 250,
+  fame: 1,
+  infamyGain: 0,
+  repImpact: {},
+  tutorial: true,
+  enemy: {
+    name: "The Rat",
+    faction: "pirate",
+    hull: 10,
+    maxHull: 10,
+    cannons: 2,
+    crew: 3,
+    speed: 5,
   },
 };
 
@@ -1246,6 +1271,7 @@ const TUTORIAL_DELIVERY = {
     RANDOM_EVENTS,
     STARTS,
     TUTORIAL_DELIVERY,
+    TUTORIAL_HUNT,
     SURRENDER_CONSEQUENCE,
   };
 })();

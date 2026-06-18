@@ -1,4 +1,4 @@
-// screens_market.jsx — Market Screen
+// screens_market.jsx : Market Screen
 window.S = window.S || {};
 
 (() => {
@@ -89,7 +89,7 @@ window.S = window.S || {};
           >
             <p>Buy goods to trade at other ports for profit. A few things to know:</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-              <li>Prices vary between ports — buy where it's cheap, sell where it's rare</li>
+              <li>Prices vary between ports. Buy where it's cheap, sell where it's rare</li>
               <li>Loading your hold above 50% <strong>slows your ship</strong></li>
               <li>Goods marked <strong>illegal</strong> risk confiscation by patrol inspection at sea</li>
             </ul>
@@ -118,7 +118,7 @@ window.S = window.S || {};
           <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={10} />
           {speedMult > 1 && (
             <div style={{ color: T.gold, fontSize: 10, marginTop: 4 }}>
-              ⚠ Hold over 50% — voyages take {Math.round((speedMult - 1) * 100)}% longer.
+              ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
             </div>
           )}
         </div>

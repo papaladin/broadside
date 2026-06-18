@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
-//  generators.js — ALL RUNTIME CONTENT GENERATORS
+//  generators.js : ALL RUNTIME CONTENT GENERATORS
 //  Functions that use Math.random to produce game content at runtime.
-//  No pure game logic here — that lives in logic.js.
+//  No pure game logic here. that lives in logic.js.
 //  Reads: window.D (data constants), window.L (pure logic helpers)
 //  Exposed as: window.G
 // ═══════════════════════════════════════════════════════════════════
@@ -164,8 +164,8 @@ const generateCrewBio = (member, state) => {
     m_coward:      "They followed the mutineers, but their courage failed when it mattered most.",
     drunk_greedy:  "Their fondness for rum is matched only by their hunger for gold.",
     coward_battle: "They've seen too many battles; it has left them fearful and scarred.",
-    storm_wreck:   "Twice the sea tried to claim them — a storm and a wreck. They're still here.",
-    m_storm:       "After surviving a storm, they thought they could survive anything — even mutiny.",
+    storm_wreck:   "Twice the sea tried to claim them: a storm and a wreck. They're still here.",
+    m_storm:       "After surviving a storm, they thought they could survive anything.. even mutiny.",
     drunk_wreck:   "They say the drink started after the shipwreck. No one asks too many questions.",
     battle_storm:  "They have faced battle and storm alike. Neither broke them.",
     battle_wreck:  "They fought and were shipwrecked. The sea couldn't finish what battle started.",
@@ -249,7 +249,7 @@ const generateCrewBio = (member, state) => {
     revealed_coward: [
       (desc) => `Known to ${desc}.`,
       (desc) => `Not the bravest soul aboard. The crew has noticed.`,
-      (desc) => `They tend to ${desc} — everyone knows it.`,
+      (desc) => `They tend to ${desc}. Everyone knows it.`,
     ],
     revealed_greedy: [
       (desc) => `Known to ${desc}.`,
@@ -487,7 +487,7 @@ const generateCrewBio = (member, state) => {
     };
   };
 
-  // Assault enemy — uses the defending port's faction
+  // Assault enemy : uses the defending port's faction
   const generateEnemyForAssault = (targetPortKey, fame) => {
     const port = window.D.PORTS[targetPortKey];
     const faction = port?.faction || "spanish";
@@ -573,7 +573,7 @@ const generateCrewBio = (member, state) => {
     // Only ports whose faction is different from the commissioning faction
     eligible = eligible.filter(k => window.D.PORTS[k].faction !== faction);
   } else if (type === "smuggle") {
-    // Exclude pirate ports — you smuggle TO colonial powers, not pirate havens
+    // Exclude pirate ports : you smuggle TO colonial powers, not pirate havens
     eligible = eligible.filter(k => window.D.PORTS[k].faction !== "pirate");
   } else if (type === "patrol") {
     // Patrol: target a port of a rival faction
@@ -592,7 +592,7 @@ const generateCrewBio = (member, state) => {
   // Exclude hidden ports that the player hasn't discovered yet
   eligible = eligible.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
 
-  // NEW: Early-game restriction — limit target ports for fame < 10
+  // NEW: Early-game restriction : limit target ports for fame < 10
   if ((state.fame ?? 0) < 10) {
     const starterPorts = [
       "havana", "nassau", "santiagoDeCuba", "portDePaix", "tortuga",
@@ -635,7 +635,7 @@ const generateCrewBio = (member, state) => {
     return {
       type: "trade",
       name: `Deliver ${res.name} to ${targetPortName}`,
-      description: `The ${factionAdj} factor requires ${requiredQty} ${res.unit} of ${res.name} at ${targetPortName}. Source the goods yourself and deliver — you will be paid in full on arrival.`,
+      description: `The ${factionAdj} factor requires ${requiredQty} ${res.unit} of ${res.name} at ${targetPortName}. Source the goods yourself and deliver:  you will be paid in full on arrival.`,
       faction,
       targetPort,
       risk,
@@ -714,7 +714,7 @@ const generateCrewBio = (member, state) => {
     return {
       type: "smuggle",
       name: `Smuggle ${goodName} to ${targetPortName}`,
-      description: `Get ${requiredQty} ${goodUnit} of ${goodName} to ${targetPortName} without inspection. ${riskLabel.charAt(0).toUpperCase() + riskLabel.slice(1)} work — patrols are active.${infamyWarning} ${sourceHint}`,
+      description: `Get ${requiredQty} ${goodUnit} of ${goodName} to ${targetPortName} without inspection. ${riskLabel.charAt(0).toUpperCase() + riskLabel.slice(1)} work. Patrols are active.${infamyWarning} ${sourceHint}`,
       faction: "pirate",
       targetPort,
       risk,
@@ -845,7 +845,7 @@ const generateCrewBio = (member, state) => {
   };
 
   // ═══════════════════════════════════════════════════════════════
-  //  MAIN ENTRY POINT — generateMissions
+  //  MAIN ENTRY POINT : generateMissions
   // ═══════════════════════════════════════════════════════════════
   const generateMissions = (portKey, state) => {
     const eligibleFactions = getEligibleFactions(portKey, state);
