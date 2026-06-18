@@ -82,10 +82,15 @@
     try { localStorage.setItem(TUTORIAL_KEY, JSON.stringify(ts)); } catch {}
   };
 
-  const shouldShowTutorial = (screenName) => {
-    const ts = loadTutorialState();
-    return ts.enabled && !ts.seen[screenName];
-  };
+  const shouldShowTutorial = (state, screenName) => {
+  // If the player chose no guidance, never show tutorial popups
+  if (state.tutorialMode === "none") return false;
+  // Full onboarding uses QM, not old‑style popups
+  if (state.tutorialMode === "full") return false;
+  // Light mode – use the old localStorage‑based system
+  const ts = loadTutorialState();
+  return ts.enabled && !ts.seen[screenName];
+};
 
   const markTutorialSeen = (screenName, disableAll = false) => {
     const ts = loadTutorialState();

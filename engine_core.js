@@ -118,6 +118,9 @@ window.E = window.E || {};
     }
     if (!s.captainName) s.captainName = "";
     if (!s.faction) s.faction = null;
+    if (!s.tutorialMode) {
+  s.tutorialMode = s.onboarding?.completed ? "light" : "full";   // guess from existing state
+}
     return s;
   };
 
@@ -156,6 +159,7 @@ window.E = window.E || {};
     route: null,
     captainName: "",
     faction: null,
+    tutorialMode: "full",   // default for new games without a choice (should never happen)
     onboarding: {
       enabled: false,
       completed: true,

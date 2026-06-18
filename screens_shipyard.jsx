@@ -63,7 +63,7 @@ function ShipyardScreen({ state, dispatch }) {
     const [slotFilter, setSlotFilter] = useState("all");
     const [selectedEquip, setSelectedEquip] = useState(null);
     const [selectedShip, setSelectedShip] = useState(null);
-    const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial("shipyard"));
+    const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial(state,"shipyard"));
 
     // --- Responsive ---
     const [isNarrow, setIsNarrow] = useState(window.innerWidth < 700);

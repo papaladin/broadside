@@ -60,11 +60,6 @@ window.S = window.S || {};
             <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
           </Tooltip>
 
-          <label style={{ color: T.textDim, fontSize: 10, marginTop: 16, textAlign: "center", cursor: "pointer" }}>
-            <input type="checkbox" checked={tutorialEnabled} onChange={e => toggleTutorial(e.target.checked)} style={{ marginRight: 6 }} />
-            Show tutorial hints
-          </label>
-
           {localStorageWarning && (
             <div style={{ color: T.redBr, fontSize: 9, textAlign: "center", marginTop: 8 }}>
               Browser storage is blocked. Use Import/Export Save to keep your progress.
@@ -89,7 +84,7 @@ window.S = window.S || {};
       return `${pick(first)} ${pick(last)}`;
     });
     const [selectedFaction, setSelectedFaction] = useState(null);
-    const [onboardingEnabled, setOnboardingEnabled] = useState(true);
+    const [tutorialMode, setTutorialMode] = useState("full");
 
     const handleRandomName = () => {
       const faction = selectedFaction || "english";
@@ -106,7 +101,7 @@ window.S = window.S || {};
         type: A.START_GAME,
         captainName: captainName.trim(),
         faction: selectedFaction,
-        onboardingEnabled,
+        tutorialMode,   
       });
     };
 
@@ -166,10 +161,41 @@ window.S = window.S || {};
           )}
 
           {/* Onboarding toggle */}
-          <label style={{ color: T.textDim, fontSize: 10, cursor: "pointer", textAlign: "center" }}>
-            <input type="checkbox" checked={onboardingEnabled} onChange={e => setOnboardingEnabled(e.target.checked)} style={{ marginRight: 6 }} />
-            Enable guided first voyage (recommended for new players)
-          </label>
+          {/* Tutorial choice */}
+<div>
+  <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+    Tutorial style
+  </div>
+  <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
+    {[
+      { value: "full",  label: "Guided (Quartermaster)", desc: "A crewmate guides you step by step." },
+      { value: "light", label: "Hints only",             desc: "Help popups on your first visit to each screen." },
+      { value: "none",  label: "None",                   desc: "No guidance – you're on your own." },
+    ].map(opt => (
+      <label key={opt.value}
+        style={{
+          display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+          padding: "6px 8px", borderRadius: 3,
+          background: tutorialMode === opt.value ? T.panelAlt : T.panel,
+          border: `2px solid ${tutorialMode === opt.value ? T.gold : T.border}`,
+          transition: "border-color 0.15s",
+        }}>
+        <input
+          type="radio"
+          name="tutorialMode"
+          value={opt.value}
+          checked={tutorialMode === opt.value}
+          onChange={() => setTutorialMode(opt.value)}
+          style={{ accentColor: T.gold }}
+        />
+        <div>
+          <div style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{opt.label}</div>
+          <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
+        </div>
+      </label>
+    ))}
+  </div>
+</div>
 
           {/* Set Sail */}
           <Btn v="gold" onClick={handleSetSail} disabled={!captainName.trim() || !selectedFaction} style={{ fontSize: 16, padding: "14px" }}>

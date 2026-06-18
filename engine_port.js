@@ -202,7 +202,7 @@ const processPositiveTraits = (crewRoster, state) => {
 
       // --- START GAME ---
 case A.START_GAME: {
-  const { captainName, faction, onboardingEnabled } = action;
+  const { captainName, faction, tutorialMode } = action;
   const start = STARTS;
 
   // Validate faction
@@ -224,8 +224,9 @@ case A.START_GAME: {
   newState.log = [
     ...(start.factionBackstory?.[faction]?.openingLog || []),
   ];
-  newState.onboarding.enabled = onboardingEnabled ?? false;
-  newState.onboarding.completed = !onboardingEnabled;
+  newState.tutorialMode = tutorialMode || "full";          // store the choice
+  newState.onboarding.enabled = tutorialMode === "full";
+  newState.onboarding.completed = tutorialMode !== "full";
 
   // ── Ship ────────────────────────────────────────────────────
   const shipData = SHIPS[start.ship];
@@ -270,7 +271,7 @@ case A.START_GAME: {
   };
 
   // Inject Quartermaster if onboarding is enabled (non‑mutating)
-  if (onboardingEnabled) {
+  if (tutorialMode === "full") {
     const qmData = start.factionQM?.[faction];
     if (qmData) {
       newState.crew.roster = [
@@ -290,7 +291,7 @@ case A.START_GAME: {
   }
 
   // ── Tutorial delivery mission (auto‑accept) ────────────────
-  if (onboardingEnabled) {
+  if (tutorialMode === "full") {
     const tutorialMission = D.TUTORIAL_DELIVERY?.[faction];
     if (tutorialMission) {
       newState.missions = [...newState.missions, tutorialMission];
@@ -299,7 +300,7 @@ case A.START_GAME: {
        // Set onboarding steps directly (state is already a deep clone)
     newState.onboarding.stepsCompleted.contractsOpened = true;
     newState.onboarding.stepsCompleted.firstContractAccepted = true;
-    newState.onboarding.stepsCompleted.firstArival = true;
+    newState.onboarding.stepsCompleted.firstArrival = true;
     }
   }
 

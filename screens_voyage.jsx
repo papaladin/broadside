@@ -13,7 +13,7 @@ window.S = window.S || {};
   // ── MAP SCREEN ───────────────────────────────────────────────────────
 function MapScreen({ state, dispatch }) {
   const [hov, setHov] = useState(null);
-  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("map"));
+  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"map"));
   const W = 760, H = 460;
 
   // ── Zoom / Pan state ───────────────────────────────────────
@@ -254,7 +254,7 @@ function MapScreen({ state, dispatch }) {
   const loadPct = L.getHoldLoadPct(state.hold?.items, L.getHoldCapacity(state));
   const speedMult = L.getHoldSpeedMultiplier(loadPct);
 
-  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("sailing"));
+  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"sailing"));
 
   // Rerouting availability
   const reachableFromSea = L.getReachablePortsFromSea(state);
@@ -511,7 +511,7 @@ const InterceptScreen = ({ state, dispatch }) => {
     const playerPct = bs.playerHull / SHIPS[state.ship.type].maxHull;
     const enemyPct = bs.enemyHull / bs.enemy.hull;
 
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("battle"));
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"battle"));
 
     return (
       <div style={{ padding: T.spacing.lg, maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>

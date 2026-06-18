@@ -29,7 +29,7 @@ function PortScreen({ state, dispatch }) {
     e.target.value = "";
   };
 
-  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("port"));
+  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"port"));
 
   const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 700);
   React.useEffect(() => {
@@ -370,7 +370,7 @@ function PortScreen({ state, dispatch }) {
 
   // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("status"));
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"status"));
     const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => { if (!acc[p.faction]) acc[p.faction] = []; acc[p.faction].push({ key, ...p }); return acc; }, {});
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
@@ -489,7 +489,7 @@ function PortScreen({ state, dispatch }) {
   function JournalScreen({ state, dispatch }) {
     const [filterTab, setFilterTab] = useState("all");
     const [search, setSearch] = useState("");
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("journal"));
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"journal"));
 
     // Parse log entries
     const parsed = state.log.map(entry => {

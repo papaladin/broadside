@@ -14,7 +14,7 @@ window.S = window.S || {};
     const portName = PORTS[state.currentPort]?.name || "Port";
     const [buyPending, setBuyPending] = useState({});
     const [sellPending, setSellPending] = useState({});
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("market"));
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"market"));
 
     if (!market) return (
       <div style={{ padding: T.spacing.lg }}>

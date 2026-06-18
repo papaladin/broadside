@@ -22,7 +22,7 @@ window.S = window.S || {};
     }
     const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
     const [selectedMember, setSelectedMember] = React.useState(null);
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial("crew"));
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"crew"));
 
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
