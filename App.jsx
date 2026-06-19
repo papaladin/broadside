@@ -40,31 +40,61 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-const App = () => {
-  const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T, Bar, panelStyle, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold , Tooltip, IconBarrel, IconCalendar, IconPirate} = window.UI;
-  const { PORTS, SHIPS, FACTIONS } = window.D;
+// ── HUD COMPONENT (separate so flash hook works) ─────────────────
+const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
+  const { T, Bar, useFlashOnChange, IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold, Tooltip, IconBarrel, IconCalendar, IconPirate } = window.UI;
+  const L = window.L;
+  const { PORTS, FACTIONS } = window.D;
   const { screen } = state;
-  const { OnboardingPopup } = window.S;
 
-  const [savedFlash, setSavedFlash] = React.useState(false);
+  if (screen === "newgame" || screen === "title") return null;
+
+  const currentPort = PORTS[state.currentPort];
+  const stats = L.getShipStats(state);
+  const morale = L.getEffectiveMorale(state);
+  const holdUsed = Object.values(state.hold?.items || {}).reduce((s, q) => s + q, 0);
+  const holdCap = L.getHoldCapacity(state);
+  const food = state.hold?.items?.food ?? 0;
+  const water = state.hold?.items?.water ?? 0;
+  const alerts = state.factionAlerts || {};
+  const topHeat = Object.entries(alerts).reduce((best, [f, lv]) =>
+    lv > best.level ? { faction: f, level: lv } : best, { faction: null, level: 0 });
+
+  const start = state.startDate || { day: 1, month: 6, year: 1695 };
+  const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const formatGold = (g) => g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
+  const goldFlash = useFlashOnChange(state.gold, { direction: null }); // auto detect
+  const moraleFlash   = useFlashOnChange(morale, { direction: null });
+  const fameFlash     = useFlashOnChange(state.fame, { direction: null });
+  const infamyFlash   = useFlashOnChange(state.infamy ?? 0, { invert: true });
+  const crewFlash     = useFlashOnChange(state.crew.roster.length, { direction: null });
+  const hullFlash     = useFlashOnChange(state.ship.hull, { direction: null });
+  const foodFlash     = useFlashOnChange(food, { direction: null });
+  const waterFlash    = useFlashOnChange(water, { direction: null });
+  const holdUsedFlash = useFlashOnChange(holdUsed, { direction: null });
+
+
+  // ── Responsive HUD breakpoint ──────────────────────────────
+  const [isNarrowHUD, setIsNarrowHUD] = React.useState(window.innerWidth < 600);
   React.useEffect(() => {
-    setSavedFlash(true);
-    const t = setTimeout(() => setSavedFlash(false), 1500);
-    return () => clearTimeout(t);
-  }, [state.currentPort, state.missions.length]);
+    const handle = () => setIsNarrowHUD(window.innerWidth < 600);
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
 
-  const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
-  const [debugOpen, setDebugOpen] = React.useState(false);
-
-  if (isDebug) {
-    window.__b = {
-      gold:   (n) => dispatch({ type: window.E.A.DEBUG_ADD_GOLD, amount: n }),
-      fame:   (n) => dispatch({ type: window.E.A.DEBUG_SET_FAME, fame: n }),
-      infamy: (n) => dispatch({ type: window.E.A.DEBUG_SET_INFAMY, infamy: n }),
-      ship:   (t) => dispatch({ type: window.E.A.DEBUG_SET_SHIP, shipType: t }),
-    };
-  }
+  const Cell = ({ label, tip, children }) => (
+    <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
+      padding: "4px 6px 5px", minWidth: 0 }}>
+      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
+        color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
+      {children}
+    </div>
+  );
+  const Val = ({ children, color, small, className = "" }) => (
+  <div className={className} style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
+);
 
   const TOOLTIPS = {
     gold: "Your gold. Spent on repairs, crew wages, provisions, and equipment.",
@@ -80,59 +110,17 @@ const App = () => {
     heat: "Faction Alert Level. High heat means more patrols. Decays every 2 days.",
   };
 
-  const HUD = () => {
-  if (screen === "newgame" || screen === "title") return null;
-  const currentPort = PORTS[state.currentPort];
-  const stats = L.getShipStats(state);
-  const morale = L.getEffectiveMorale(state);
-  const holdUsed = Object.values(state.hold?.items || {}).reduce((s, q) => s + q, 0);
-  const holdCap = L.getHoldCapacity(state);
-  const food = state.hold?.items?.food ?? 0;
-  const water = state.hold?.items?.water ?? 0;
-  const alerts = state.factionAlerts || {};
-  const topHeat = Object.entries(alerts).reduce((best, [f, lv]) =>
-    lv > best.level ? { faction: f, level: lv } : best, { faction: null, level: 0 });
-
-  // Calendar date
-  const start = state.startDate || { day: 1, month: 6, year: 1695 };
-  const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
-    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-  const formatGold = (g) => g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
-
-  // ── Responsive HUD breakpoint ──────────────────────────────
-  const [isNarrowHUD, setIsNarrowHUD] = React.useState(window.innerWidth < 600);
-  React.useEffect(() => {
-    const handle = () => setIsNarrowHUD(window.innerWidth < 600);
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, []);
-
-  // ── Cell / Val helpers (unchanged) ──────────────────────────
-  const Cell = ({ label, tip, children }) => (
-    <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
-      padding: "4px 6px 5px", minWidth: 0 }}>
-      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
-        color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
-      {children}
-    </div>
-  );
-  const Val = ({ children, color, small }) => (
-    <div style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
-  );
-
-  // ── Cell data (order matters) ───────────────────────────────
   const cells = [
-    { label: <span><IconGold size={9} color={T.textDim} /> Gold</span>,  tip: TOOLTIPS.gold,   content: <Val color={T.gold}>{formatGold(state.gold)}</Val> },
+    { label: <span><IconGold size={9} color={T.textDim} /> Gold</span>,  tip: TOOLTIPS.gold,   content: <Val color={T.gold}><span className={goldFlash}>{formatGold(state.gold)}</span></Val> },
     { label: <span><IconCalendar size={9} color={T.textDim} /> Day</span>,  tip: TOOLTIPS.day,    content: <><Val>{state.day}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 2 }}>{calendarDate}</div></> },
-    { label: <span><IconCrew size={9} color={T.textDim} /> Crew</span>,  tip: TOOLTIPS.crew,   content: <><Val small>{state.crew.roster.length}/{state.crew.max}</Val><Bar value={state.crew.roster.length} max={state.crew.max} color={T.blueBr} h={4} /></> },
-    { label: <span><IconShield size={9} color={T.textDim} /> Hull</span>,tip: TOOLTIPS.hull,   content: <><Val small>{state.ship.hull}/{stats.maxHull}</Val><Bar value={state.ship.hull} max={stats.maxHull}color={state.ship.hull / stats.maxHull >= 0.6 ? T.greenBr :state.ship.hull / stats.maxHull >= 0.3 ? T.gold :T.redBr} h={4} /></> },
-    { label: <span><IconHeart size={9} color={T.textDim} /> Morale</span>,tip: TOOLTIPS.morale, content: <><Val small>{morale}%</Val><Bar value={morale} max={100} color={T.blueBr} h={4} /></> },
-    { label: <span><IconStar size={9} color={T.textDim} /> Fame</span>,  tip: TOOLTIPS.fame,   content: <><Val small>{state.fame}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div></> },
-    { label: <span><IconPirate size={9} color={T.textDim} /> Infamy</span>,     tip: TOOLTIPS.infamy, content: <><Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint}>{state.infamy ?? 0}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div></> },
-    { label: <span><IconBarrel size={9} color={T.textDim} /> Hold</span>,  tip: TOOLTIPS.hold,   content: <><Val small>{holdUsed}/{holdCap}</Val><Bar value={holdUsed} max={holdCap} color={T.blueBr} h={4} /></> },
-    { label: <span><IconFood size={9} color={T.textDim} /> Food</span>,  tip: TOOLTIPS.food,   content: <Val small color={food <= 0 ? T.redBr : T.text}>{food}</Val> },
-    { label: <span><IconWater size={9} color={T.textDim} /> Water</span>,tip: TOOLTIPS.water,  content: <Val small color={water <= 0 ? T.redBr : T.text}>{water}</Val> },
+    { label: <span><IconCrew size={9} color={T.textDim} /> Crew</span>,  tip: TOOLTIPS.crew,   content: <><Val small className={crewFlash}>{state.crew.roster.length}/{state.crew.max}</Val><Bar value={state.crew.roster.length} max={state.crew.max} color={T.blueBr} h={4} /></> },
+    { label: <span><IconShield size={9} color={T.textDim} /> Hull</span>,tip: TOOLTIPS.hull,   content: <><Val small className={hullFlash}>{state.ship.hull}/{stats.maxHull}</Val><Bar value={state.ship.hull} max={stats.maxHull}color={state.ship.hull / stats.maxHull >= 0.6 ? T.greenBr :state.ship.hull / stats.maxHull >= 0.3 ? T.gold :T.redBr} h={4} /></> },
+    { label: <span><IconHeart size={9} color={T.textDim} /> Morale</span>,tip: TOOLTIPS.morale, content: <><Val small className={moraleFlash}>{morale}%</Val><Bar value={morale} max={100} color={T.blueBr} h={4} /></> },
+    { label: <span><IconStar size={9} color={T.textDim} /> Fame</span>,  tip: TOOLTIPS.fame,   content: <><Val small className={fameFlash}>{state.fame}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getFameInfo(state.fame).label}</div></> },
+    { label: <span><IconPirate size={9} color={T.textDim} /> Infamy</span>,     tip: TOOLTIPS.infamy, content: <><Val small color={(state.infamy ?? 0) > 0 ? T.redBr : T.textFaint} className={infamyFlash}>{state.infamy ?? 0}</Val><div style={{ fontSize: 9, color: T.textDim, marginTop: 1 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div></> },
+    { label: <span><IconBarrel size={9} color={T.textDim} /> Hold</span>,  tip: TOOLTIPS.hold,   content: <><Val small className={holdUsedFlash}>{holdUsed}/{holdCap}</Val><Bar value={holdUsed} max={holdCap} color={T.blueBr} h={4} /></> },
+    { label: <span><IconFood size={9} color={T.textDim} /> Food</span>,  tip: TOOLTIPS.food,   content: <Val small color={food <= 0 ? T.redBr : T.text} className={foodFlash}>{food}</Val> },
+    { label: <span><IconWater size={9} color={T.textDim} /> Water</span>,tip: TOOLTIPS.water,  content: <Val small color={water <= 0 ? T.redBr : T.text} className={waterFlash}>{water}</Val> },
   ];
   if (topHeat.level > 0) {
     cells.push({
@@ -143,7 +131,6 @@ const App = () => {
     });
   }
 
-  // ── Layout helpers ──────────────────────────────────────────
   const renderCellRow = (cellSlice, columns) => (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 4, marginTop: 4 }}>
       {cellSlice.map((c, i) => <Cell key={i} label={c.label} tip={c.tip}>{c.content}</Cell>)}
@@ -205,14 +192,37 @@ const App = () => {
               {currentPort.name}
             </span>
           )}
-          {savedFlash && (
-            <span style={{ color: T.greenBr, fontSize: 9, transition: "opacity 0.3s" }}>✓ saved</span>
-          )}
         </div>
       </div>
     </div>
   );
 };
+
+// ── APP COMPONENT ──────────────────────────────────────────────────
+const App = () => {
+  const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
+  const { T } = window.UI;
+  const { screen } = state;
+  const { OnboardingPopup } = window.S;
+
+  const [savedFlash, setSavedFlash] = React.useState(false);
+  React.useEffect(() => {
+    setSavedFlash(true);
+    const t = setTimeout(() => setSavedFlash(false), 1500);
+    return () => clearTimeout(t);
+  }, [state.currentPort, state.missions.length]);
+
+  const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
+  const [debugOpen, setDebugOpen] = React.useState(false);
+
+  if (isDebug) {
+    window.__b = {
+      gold:   (n) => dispatch({ type: window.E.A.DEBUG_ADD_GOLD, amount: n }),
+      fame:   (n) => dispatch({ type: window.E.A.DEBUG_SET_FAME, fame: n }),
+      infamy: (n) => dispatch({ type: window.E.A.DEBUG_SET_INFAMY, infamy: n }),
+      ship:   (t) => dispatch({ type: window.E.A.DEBUG_SET_SHIP, shipType: t }),
+    };
+  }
 
   const renderScreen = () => {
     const { S } = window;
@@ -238,18 +248,17 @@ const App = () => {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text,
       fontFamily: T.font, display: "flex", flexDirection: "column" }}>
-      <HUD />
+      <HUD state={state} dispatch={dispatch} debugOpen={debugOpen} setDebugOpen={setDebugOpen} isDebug={isDebug} />
       <div style={{ flex: 1, overflow: "auto", paddingBottom: 20, minWidth: 0 }}>
         {renderScreen()}
       </div>
-    {/* ═══ Onboarding QM Popup (fixed to bottom) ═══ */}
-    <OnboardingPopup state={state} dispatch={dispatch} />
-
+      <OnboardingPopup state={state} dispatch={dispatch} />
       {isDebug && debugOpen && <DebugPanel state={state} dispatch={dispatch} />}
     </div>
   );
 };
 
+// ── DEBUG PANEL ──────────────────────────────────────────────────
 const DebugPanel = ({ state, dispatch }) => {
   const { T, panelStyle } = window.UI;
   const A = window.E.A;
@@ -262,8 +271,8 @@ const DebugPanel = ({ state, dispatch }) => {
       <div style={{
         position: "fixed", top: 40, right: 10, zIndex: 999,
         width: 250, fontSize: 11, fontFamily: T.fontMono,
-        maxHeight: "calc(100vh - 60px)",   // ← new
-        overflowY: "auto",                 // ← new
+        maxHeight: "calc(100vh - 60px)",
+        overflowY: "auto",
         ...panelStyle({ variant: "gold" })
       }}>
       <div style={{ color: T.gold, marginBottom: 8 }}>⚙ DEBUG PANEL</div>

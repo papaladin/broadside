@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pirate Sound Tester</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #08111e;
+      --deep-wood:   #160b06;
+      --wood:        #2a1508;
+      --plank:       #3b1f0e;
+      --gold:        #c9a84c;
+      --gold-bright: #e2c46a;
+      --gold-dim:    #7a5f1a;
+      --parchment:   #e5d09a;
+      --parchment-2: #b89a68;
+      --sea:         #0e3a60;
+      --red-stop:    #8b1f1f;
+      --red-bright:  #c84040;
+    }
+
+    body {
+      background-color: var(--deep-wood);
+      background-image:
+        repeating-linear-gradient(0deg,   transparent, transparent 79px, rgba(0,0,0,.12) 79px, rgba(0,0,0,.12) 80px),
+        repeating-linear-gradient(90deg,  transparent, transparent 39px, rgba(0,0,0,.06) 39px, rgba(0,0,0,.06) 40px);
+      min-height: 100vh;
+      font-family: 'Crimson Text', Georgia, serif;
+      color: var(--parchment);
+    }
+
+    .header {
+      background: linear-gradient(180deg, #020a14 0%, var(--navy) 55%, var(--sea) 100%);
+      padding: 2.5rem 1.5rem 5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .header h1 {
+      font-family: 'Pirata One', cursive;
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      color: var(--gold);
+      letter-spacing: .12em;
+      text-shadow: 0 2px 20px rgba(201,168,76,.25);
+    }
+    .header p {
+      font-style: italic;
+      color: var(--parchment-2);
+      font-size: 1.05rem;
+      margin-top: .4rem;
+    }
+    .wave-svg {
+      position: absolute;
+      bottom: -1px; left: 0;
+      width: 200%;
+      animation: wave-scroll 10s linear infinite;
+    }
+    @keyframes wave-scroll { to { transform: translateX(-50%); } }
+
+    .main { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.25rem 3rem; }
+
+    .section-label {
+      font-family: 'Pirata One', cursive;
+      font-size: 1.35rem;
+      color: var(--gold);
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: .4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .sound-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.1rem;
+      margin-bottom: 2.5rem;
+    }
+    @media (max-width: 680px) { .sound-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 440px) { .sound-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: linear-gradient(150deg, var(--plank) 0%, var(--wood) 100%);
+      border: 1.5px solid var(--gold-dim);
+      border-radius: 10px;
+      padding: 1.3rem 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .55rem;
+      text-align: center;
+      transition: border-color .25s, box-shadow .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.04) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .card.playing {
+      border-color: var(--gold);
+      box-shadow: 0 0 22px rgba(201,168,76,.22), inset 0 0 18px rgba(201,168,76,.04);
+    }
+    .card-icon  { font-size: 2.2rem; line-height: 1; }
+    .card-name  { font-family: 'Pirata One', cursive; font-size: 1.1rem; color: var(--gold); }
+    .card-desc  { font-style: italic; font-size: .88rem; color: var(--parchment-2); line-height: 1.45; }
+    .card-type  {
+      font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--gold-dim); border: 1px solid var(--gold-dim);
+      border-radius: 20px; padding: .15rem .55rem;
+    }
+    .card.playing .card-type { color: var(--gold); border-color: var(--gold); }
+
+    .play-btn {
+      margin-top: .3rem;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      border: 2px solid var(--gold);
+      background: radial-gradient(circle at 38% 32%, var(--gold-bright), var(--gold-dim));
+      color: var(--deep-wood);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .1s, box-shadow .2s, background .2s;
+      box-shadow: 0 3px 12px rgba(0,0,0,.55), inset 0 1px 2px rgba(255,255,255,.25);
+    }
+    .play-btn:hover  { transform: scale(1.09); box-shadow: 0 4px 18px rgba(201,168,76,.45); }
+    .play-btn:active { transform: scale(.95); }
+    .play-btn.playing {
+      background: radial-gradient(circle at 38% 32%, var(--red-bright), var(--red-stop));
+      border-color: var(--red-bright);
+    }
+
+    .add-box {
+      background: rgba(0,0,0,.25);
+      border: 1px dashed var(--gold-dim);
+      border-radius: 10px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 3rem;
+    }
+    .add-box h3 { font-family: 'Pirata One', cursive; color: var(--gold); font-size: 1.1rem; margin-bottom: .65rem; }
+    .add-box p  { font-style: italic; color: var(--parchment-2); font-size: .92rem; margin-bottom: .75rem; line-height: 1.6; }
+    .code {
+      background: rgba(0,0,0,.5);
+      border: 1px solid rgba(201,168,76,.18);
+      border-radius: 6px;
+      padding: 1rem 1.1rem;
+      font-family: 'Courier New', monospace;
+      font-size: .78rem; color: #8fca5a;
+      white-space: pre; overflow-x: auto; line-height: 1.6;
+    }
+
+    /* Debug panel — hidden unless JS sets an error */
+    #debug-panel {
+      display: none;
+      background: #3a0000; border: 2px solid #ff4444;
+      border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+      font-family: 'Courier New', monospace; font-size: .82rem;
+      color: #ffaaaa; line-height: 1.6;
+    }
+
+    footer { text-align: center; padding: 1rem; font-style: italic; font-size: .85rem; color: var(--gold-dim); }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>Captain's Sound Log</h1>
+  <p>Test yer sounds before casting 'em to the code</p>
+  <svg class="wave-svg" viewBox="0 0 1440 60" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" height="60">
+    <path d="M0,30 C180,55 360,5 540,30 C720,55 900,5 1080,30 C1260,55 1440,5 1440,30 L1440,60 L0,60 Z" fill="#160b06" opacity=".9"/>
+    <path d="M0,40 C200,15 400,60 600,35 C800,10 1000,55 1200,30 C1350,14 1440,40 1440,40 L1440,60 L0,60 Z" fill="#160b06"/>
+  </svg>
+</header>
+
+<main class="main">
+  <div id="debug-panel"></div>
+
+  <h2 class="section-label">Sounds</h2>
+  <div class="sound-grid" id="soundGrid"></div>
+
+  <h2 class="section-label">Add More Sounds</h2>
+  <div class="add-box">
+    <h3>How to add a new sound</h3>
+    <p>Drop a registerSound() call in the script block, in the marked section. The UI rebuilds automatically.
+       Use loop:true for ambient sounds (button becomes a toggle), loop:false for one-shots.</p>
+    <div class="code">registerSound({
+  id:          'cannon',
+  icon:        'cannon',       // text or emoji
+  name:        'Cannon Fire',
+  desc:        "The roar of a ship's cannon",
+  loop:        false,
+  durationSec: 2.5,
+
+  synth: function(ctx) {
+    // Build your Web Audio graph here.
+    // Connect everything to ctx.destination.
+    // For loop:true, return a cleanup function:
+    //   return function() { source.stop(); }
+    var osc = ctx.createOscillator();
+    var g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.value = 80;
+    g.gain.setValueAtTime(0.6, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
+    osc.start(); osc.stop(ctx.currentTime + 2.5);
+  }
+});</div>
+  </div>
+</main>
+
+<footer>Ye have found the sound locker — use it well, Captain.</footer>
+
+<script>
+// ---- error capture (shown on-screen so mobile can see it) ----
+window.onerror = function(msg, src, line, col, err) {
+  var panel = document.getElementById('debug-panel');
+  if (panel) {
+    panel.style.display = 'block';
+    panel.innerHTML = '<strong>JS Error</strong><br>' + msg + '<br>line ' + line;
+  }
+  return false;
+};
+
+// ---- registry & helpers ----
+var registry = [];
+var active   = {};
+
+function registerSound(def) {
+  registry.push(def);
+}
+
+function noiseBuffer(ctx, sec) {
+  var n   = Math.ceil(ctx.sampleRate * sec);
+  var buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  var d   = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) {
+    d[i] = Math.random() * 2 - 1;
+  }
+  return buf;
+}
+
+// Procedural impulse response for ConvolverNode.
+// type: 'room' (smooth decay) | 'metal' (shimmering) | 'outdoor' (long tail)
+function makeImpulse(ctx, durationSec, decay, type) {
+  type = type || 'room';
+  var rate = ctx.sampleRate;
+  var len  = Math.max(1, Math.floor(rate * durationSec));
+  var buf  = ctx.createBuffer(2, len, rate);
+  for (var ch = 0; ch < 2; ch++) {
+    var d = buf.getChannelData(ch);
+    for (var i = 0; i < len; i++) {
+      var n   = Math.random() * 2 - 1;
+      var env = Math.pow(1 - i / len, decay);
+      if (type === 'metal') env *= 0.6 + 0.4 * Math.sin(i * 0.03);
+      d[i] = n * env;
+    }
+  }
+  return buf;
+}
+
+function getCtx() {
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error('Web Audio API not supported on this browser.');
+  return new AC();
+}
+
+// ============================================================
+//  SOUNDS
+// ============================================================
+
+// -- Bell -----------------------------------------------------
+registerSound({
+  id: 'bell', icon: '&#x1F514;', name: 'Ship Bell',
+  desc: 'Two deep iron strikes echoing across still water',
+  loop: false, durationSec: 5,
+  synth: function(ctx) {
+    var f0 = 270;
+    var partials = [
+      [1.000, 1.00], [2.765, 0.42], [5.409, 0.22],
+      [8.920, 0.11], [13.34, 0.06], [18.64, 0.03]
+    ];
+    var master = ctx.createGain();
+    master.gain.value = 0.38;
+    master.connect(ctx.destination);
+
+    function strike(offset, ampMul) {
+      var startAt = ctx.currentTime + offset;
+      var dur = 4.5;
+      for (var i = 0; i < partials.length; i++) {
+        var ratio = partials[i][0];
+        var amp   = partials[i][1] * ampMul;
+        var osc   = ctx.createOscillator();
+        var g     = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = f0 * ratio;
+        var decay = Math.min(dur * 0.95, dur / (ratio * 0.38 + 0.62));
+        g.gain.setValueAtTime(amp, startAt);
+        g.gain.exponentialRampToValueAtTime(0.0001, startAt + decay);
+        osc.connect(g); g.connect(master);
+        osc.start(startAt); osc.stop(startAt + dur);
+      }
+      // hammer click
+      var click = ctx.createBufferSource();
+      click.buffer = noiseBuffer(ctx, 0.025);
+      var cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass'; cf.frequency.value = 600; cf.Q.value = 1;
+      var cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.3 * ampMul, startAt);
+      cg.gain.exponentialRampToValueAtTime(0.001, startAt + 0.025);
+      click.connect(cf); cf.connect(cg); cg.connect(master);
+      click.start(startAt); click.stop(startAt + 0.03);
+    }
+
+    strike(0,    1.0);   // first dong
+    strike(0.38, 0.78);  // second dong, slightly softer
+  }
+});
+
+// -- Ocean Waves ----------------------------------------------
+registerSound({
+  id: 'ocean', icon: '&#x1F30A;', name: 'Ocean Waves',
+  desc: 'Rolling sea swells — 30s noise loop, slow drifting filters',
+  loop: true,
+  synth: function(ctx) {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 30);  // <-- was 6
+    src.loop   = true;
+
+    var hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass'; hpf.frequency.value = 80;
+
+    var lpf = ctx.createBiquadFilter();
+    lpf.type = 'lowpass'; lpf.frequency.value = 750; lpf.Q.value = 0.8;
+
+    // Three incommensurate LFOs on filter cutoff — long perceived period
+    var lfo1 = ctx.createOscillator(); var lg1 = ctx.createGain();
+    lfo1.frequency.value = 0.13; lg1.gain.value = 380;
+    lfo1.connect(lg1); lg1.connect(lpf.frequency);
+
+    var lfo2 = ctx.createOscillator(); var lg2 = ctx.createGain();
+    lfo2.frequency.value = 0.237; lg2.gain.value = 160;
+    lfo2.connect(lg2); lg2.connect(lpf.frequency);
+
+    var lfo3 = ctx.createOscillator(); var lg3 = ctx.createGain();
+    lfo3.frequency.value = 0.041; lg3.gain.value = 220; // very slow drift
+    lfo3.connect(lg3); lg3.connect(lpf.frequency);
+
+    // Slow volume swell
+    var vLfo = ctx.createOscillator(); var vLg = ctx.createGain();
+    vLfo.frequency.value = 0.19; vLg.gain.value = 0.12;
+    vLfo.connect(vLg);
+
+    var master = ctx.createGain();
+    master.gain.value = 0.38;
+    vLg.connect(master.gain);
+
+    src.connect(hpf); hpf.connect(lpf); lpf.connect(master);
+    master.connect(ctx.destination);
+
+    src.start(); lfo1.start(); lfo2.start(); lfo3.start(); vLfo.start();
+
+    return function() {
+      try { src.stop();  } catch(e) {}
+      try { lfo1.stop(); } catch(e) {}
+      try { lfo2.stop(); } catch(e) {}
+      try { lfo3.stop(); } catch(e) {}
+      try { vLfo.stop(); } catch(e) {}
+    };
+  }
+});
+
+// -- Gunshot --------------------------------------------------
+
+ registerSound({
+  id: 'gunshot', icon: '&#x1F52B;', name: 'Gunshot',
+  desc: 'A flintlock crack with a black-powder boom and outdoor tail',
+  loop: false, durationSec: 2.5,
+  synth: function(ctx) {
+    var t0 = ctx.currentTime;
+    var master = ctx.createGain(); master.gain.value = 0.55;
+
+    // --- outdoor reverb (convolver) ---
+    var conv = ctx.createConvolver();
+    conv.buffer = makeImpulse(ctx, 1.8, 2.5, 'outdoor');
+    var wet = ctx.createGain(); wet.gain.value = 0.35;
+    var dry = ctx.createGain(); dry.gain.value = 0.85;
+    master.connect(dry); dry.connect(ctx.destination);
+    master.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
+
+    // (1) ignition click — 8 ms, high-Q resonance
+    var click = ctx.createBufferSource();
+    click.buffer = noiseBuffer(ctx, 0.008);
+    var clickF = ctx.createBiquadFilter();
+    clickF.type = 'bandpass'; clickF.frequency.value = 5000; clickF.Q.value = 12;
+    var clickG = ctx.createGain();
+    clickG.gain.setValueAtTime(0.35, t0);
+    clickG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.008);
+    click.connect(clickF); clickF.connect(clickG); clickG.connect(master);
+    click.start(t0); click.stop(t0 + 0.01);
+
+    // (2) main CRACK — high-Q bandpass at 2.5 kHz
+    var crack = ctx.createBufferSource();
+    crack.buffer = noiseBuffer(ctx, 0.1);
+    var crackF = ctx.createBiquadFilter();
+    crackF.type = 'bandpass'; crackF.frequency.value = 2500; crackF.Q.value = 10;
+    var crackG = ctx.createGain();
+    crackG.gain.setValueAtTime(0, t0 + 0.005);
+    crackG.gain.linearRampToValueAtTime(1.4, t0 + 0.008);
+    crackG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+    crack.connect(crackF); crackF.connect(crackG); crackG.connect(master);
+    crack.start(t0 + 0.005); crack.stop(t0 + 0.11);
+
+    // (2b) parallel SNAP — highpass noise for the air whip
+    var snap = ctx.createBufferSource();
+    snap.buffer = noiseBuffer(ctx, 0.04);
+    var snapF = ctx.createBiquadFilter();
+    snapF.type = 'highpass'; snapF.frequency.value = 4000;
+    var snapG = ctx.createGain();
+    snapG.gain.setValueAtTime(0.8, t0 + 0.005);
+    snapG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
+    snap.connect(snapF); snapF.connect(snapG); snapG.connect(master);
+    snap.start(t0 + 0.005); snap.stop(t0 + 0.05);
+
+    // (3) BOOM — lowpass-swept noise body
+    var boom = ctx.createBufferSource();
+    boom.buffer = noiseBuffer(ctx, 0.5);
+    var boomF = ctx.createBiquadFilter();
+    boomF.type = 'lowpass';
+    boomF.frequency.setValueAtTime(800, t0 + 0.005);
+    boomF.frequency.exponentialRampToValueAtTime(60, t0 + 0.4);
+    var boomG = ctx.createGain();
+    boomG.gain.setValueAtTime(0.9, t0 + 0.005);
+    boomG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+    boom.connect(boomF); boomF.connect(boomG); boomG.connect(master);
+    boom.start(t0 + 0.005); boom.stop(t0 + 0.5);
+
+    // (4) SUB thump — pitch drops from 80 → 30 Hz
+    var sub = ctx.createOscillator(); sub.type = 'sine';
+    sub.frequency.setValueAtTime(80, t0 + 0.005);
+    sub.frequency.exponentialRampToValueAtTime(30, t0 + 0.35);
+    var subG = ctx.createGain();
+    subG.gain.setValueAtTime(0.7, t0 + 0.005);
+    subG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+    sub.connect(subG); subG.connect(master);
+    sub.start(t0 + 0.005); sub.stop(t0 + 0.42);
+  }
+});
+
+// -- Sword Clang ----------------------------------------------
+registerSound({
+  id: 'sword', icon: '&#x2694;', name: 'Sword Clang',
+  desc: 'Steel on steel — inharmonic ring with metallic shimmer',
+  loop: false, durationSec: 2.5,
+  synth: function(ctx) {
+    var t0 = ctx.currentTime;
+    var master = ctx.createGain(); master.gain.value = 0.5;
+
+    // --- small metallic reverb ---
+    var conv = ctx.createConvolver();
+    conv.buffer = makeImpulse(ctx, 0.6, 3, 'metal');
+    var wet = ctx.createGain(); wet.gain.value = 0.28;
+    var dry = ctx.createGain(); dry.gain.value = 0.9;
+    master.connect(dry); dry.connect(ctx.destination);
+    master.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
+
+    // (1) scrape transient — high-shelf noise burst
+    var scrape = ctx.createBufferSource();
+    scrape.buffer = noiseBuffer(ctx, 0.04);
+    var scrapeF = ctx.createBiquadFilter();
+    scrapeF.type = 'highpass'; scrapeF.frequency.value = 3000;
+    var scrapeG = ctx.createGain();
+    scrapeG.gain.setValueAtTime(0.7, t0);
+    scrapeG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.04);
+    scrape.connect(scrapeF); scrapeF.connect(scrapeG); scrapeG.connect(master);
+    scrape.start(t0); scrape.stop(t0 + 0.05);
+
+    // (2) INHARMONIC partials — deliberately non-musical ratios
+    // freq, decay-seconds, amplitude
+    var partials = [
+      [1840, 1.8, 1.00],
+      [2730, 1.4, 0.70],
+      [4120, 1.0, 0.50],
+      [5680, 0.7, 0.32],
+      [7200, 0.45, 0.20],
+      [9100, 0.30, 0.12]
+    ];
+
+    // Shared ring-mod carrier — adds metallic sidebands
+    var ringMod = ctx.createOscillator();
+    ringMod.frequency.value = 73; // inharmonic w.r.t. partials
+    ringMod.start(t0); ringMod.stop(t0 + 2.2);
+
+    for (var i = 0; i < partials.length; i++) {
+      var freq = partials[i][0], decay = partials[i][1], amp = partials[i][2];
+
+      var osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = (Math.random() - 0.5) * 14; // ±7 cents
+
+      // Ring modulation: gain.value=0 + modulator -> .gain  ===  carrier * modulator
+      var ringGate = ctx.createGain(); ringGate.gain.value = 0;
+      var ringDepth = ctx.createGain(); ringDepth.gain.value = 0.35;
+      ringMod.connect(ringDepth); ringDepth.connect(ringGate.gain);
+
+      // Mix: 65% dry partial + 35% ring-modulated
+      var dryMix = ctx.createGain(); dryMix.gain.value = 0.65;
+      var partialEnv = ctx.createGain();
+      partialEnv.gain.setValueAtTime(amp * 0.45, t0);
+      partialEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+
+      osc.connect(dryMix);    dryMix.connect(partialEnv);
+      osc.connect(ringGate);  ringGate.connect(partialEnv);
+      partialEnv.connect(master);
+
+      osc.start(t0); osc.stop(t0 + decay + 0.05);
+    }
+  }
+});
+
+// -- Tavern Crowd ---------------------------------------------
+registerSound({
+  id: 'crowd', icon: '&#x1F37A;', name: 'Tavern Crowd',
+  desc: 'A rowdy tavern — babble streams, mug clinks, laughter',
+  loop: true,
+  synth: function(ctx) {
+    var stops = [];
+    var timers = [];
+    var alive = true;
+
+    var master = ctx.createGain(); master.gain.value = 0.45;
+    var roomLP = ctx.createBiquadFilter();
+    roomLP.type = 'lowpass'; roomLP.frequency.value = 3800;
+    roomLP.connect(master); master.connect(ctx.destination);
+
+    // --- 5 babble streams, each with random slow amplitude modulation ---
+    var formants = [600, 900, 1200, 1800, 2400];
+
+    function makeModBuffer(sec, rateHz) {
+      var len = Math.floor(ctx.sampleRate * sec);
+      var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      var d = buf.getChannelData(0);
+      var step = Math.floor(ctx.sampleRate / rateHz);
+      var prev = Math.random() * 0.7, next = Math.random() * 0.7, idx = 0;
+      for (var i = 0; i < len; i++) {
+        if (idx >= step) { prev = next; next = Math.random() * 0.7; idx = 0; }
+        d[i] = prev + (next - prev) * (idx / step); // linear interp
+        idx++;
+      }
+      return buf;
+    }
+
+    for (var i = 0; i < formants.length; i++) {
+      var src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(ctx, 4);
+      src.loop = true;
+
+      var bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = formants[i]; bp.Q.value = 4;
+
+      var modSrc = ctx.createBufferSource();
+      modSrc.buffer = makeModBuffer(8, 1.5 + Math.random() * 2); // 1.5–3.5 Hz
+      modSrc.loop = true;
+
+      var streamG = ctx.createGain(); streamG.gain.value = 0;
+      modSrc.connect(streamG.gain);
+
+      src.connect(bp); bp.connect(streamG); streamG.connect(roomLP);
+      src.start(); modSrc.start();
+
+      (function(s, m) {
+        stops.push(function() {
+          try { s.stop(); } catch(e) {}
+          try { m.stop(); } catch(e) {}
+        });
+      })(src, modSrc);
+    }
+
+    // --- random clink layer ---
+    function scheduleClink() {
+      if (!alive) return;
+      var when = ctx.currentTime + 0.05;
+      var f1 = ctx.createOscillator(); f1.type = 'sine';
+      f1.frequency.value = 2400 + Math.random() * 600;
+      var f2 = ctx.createOscillator(); f2.type = 'sine';
+      f2.frequency.value = 3700 + Math.random() * 700;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.18, when + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.18);
+      f1.connect(g); f2.connect(g); g.connect(roomLP);
+      f1.start(when); f2.start(when);
+      f1.stop(when + 0.2); f2.stop(when + 0.2);
+      timers.push(setTimeout(scheduleClink, 1500 + Math.random() * 2800));
+    }
+
+    // --- random laugh / shout bursts (formant-AM'd noise) ---
+    function scheduleLaugh() {
+      if (!alive) return;
+      var when = ctx.currentTime + 0.05;
+      var dur = 0.35 + Math.random() * 0.35;
+      var src = ctx.createBufferSource();
+      src.buffer = noiseBuffer(ctx, dur);
+      var bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 700 + Math.random() * 500;
+      bp.Q.value = 6;
+      var am = ctx.createOscillator();
+      am.frequency.value = 4 + Math.random() * 4; // "ha-ha-ha" rate
+      var amDepth = ctx.createGain(); amDepth.gain.value = 0.12;
+      am.connect(amDepth);
+      var g = ctx.createGain(); g.gain.value = 0.13;
+      amDepth.connect(g.gain);
+      src.connect(bp); bp.connect(g); g.connect(roomLP);
+      src.start(when); am.start(when);
+      src.stop(when + dur); am.stop(when + dur);
+      timers.push(setTimeout(scheduleLaugh, 2500 + Math.random() * 4500));
+    }
+
+    timers.push(setTimeout(scheduleClink, 800));
+    timers.push(setTimeout(scheduleLaugh, 1800));
+
+    return function() {
+      alive = false;
+      for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+      for (var j = 0; j < stops.length; j++) stops[j]();
+    };
+  }
+});
+
+// -- Splash ---------------------------------------------------
+registerSound({
+  id: 'splash', icon: '&#x1F4A7;', name: 'Splash',
+  desc: 'Body hits water — sharp impact, chaotic bubble cluster',
+  loop: false, durationSec: 2,
+  synth: function(ctx) {
+    var t0 = ctx.currentTime;
+    var master = ctx.createGain(); master.gain.value = 0.65;
+    master.connect(ctx.destination);
+
+    // (1) sharp impact
+    var imp = ctx.createBufferSource();
+    imp.buffer = noiseBuffer(ctx, 0.03);
+    var impF = ctx.createBiquadFilter();
+    impF.type = 'bandpass'; impF.frequency.value = 1200; impF.Q.value = 3;
+    var impG = ctx.createGain();
+    impG.gain.setValueAtTime(1.0, t0);
+    impG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.03);
+    imp.connect(impF); impF.connect(impG); impG.connect(master);
+    imp.start(t0); imp.stop(t0 + 0.04);
+
+    // (2) water body — filter sweep from bright to muffled
+    var water = ctx.createBufferSource();
+    water.buffer = noiseBuffer(ctx, 1.2);
+    var hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass'; hpf.frequency.value = 200;
+    var lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass';
+    lpf.frequency.setValueAtTime(5000, t0);
+    lpf.frequency.exponentialRampToValueAtTime(300, t0 + 1.0);
+    var waterG = ctx.createGain();
+    waterG.gain.setValueAtTime(0.6, t0);
+    waterG.gain.exponentialRampToValueAtTime(0.001, t0 + 1.2);
+    water.connect(hpf); hpf.connect(lpf); lpf.connect(waterG); waterG.connect(master);
+    water.start(t0); water.stop(t0 + 1.3);
+
+    // (3) RANDOMIZED bubble cluster — 14 sine chirps, rising pitch
+    for (var i = 0; i < 14; i++) {
+      var when   = t0 + 0.03 + Math.random() * 0.8;
+      var startF = 300 + Math.random() * 1200;
+      var endF   = startF * (1.3 + Math.random() * 0.4); // bubbles rise in pitch
+      var dur    = 0.06 + Math.random() * 0.08;
+      var amp    = 0.08 + Math.random() * 0.14;
+
+      var osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(startF, when);
+      osc.frequency.exponentialRampToValueAtTime(endF, when + dur);
+      var bg = ctx.createGain();
+      bg.gain.setValueAtTime(0, when);
+      bg.gain.linearRampToValueAtTime(amp, when + 0.005);
+      bg.gain.exponentialRampToValueAtTime(0.001, when + dur);
+      osc.connect(bg); bg.connect(master);
+      osc.start(when); osc.stop(when + dur + 0.02);
+    }
+  }
+});
+
+
+// -- Cannon ---------------------------------------------------
+
+
+registerSound({
+  id: 'cannon', icon: '&#x1F4A5;', name: 'Cannon Fire',
+  desc: 'Massive black-powder cannon — ignition, boom, rolling thunder',
+  loop: false, durationSec: 4.5,
+  synth: function(ctx) {
+    var t0 = ctx.currentTime;
+    var master = ctx.createGain(); master.gain.value = 0.6;
+
+    // --- big outdoor naval reverb ---
+    var conv = ctx.createConvolver();
+    conv.buffer = makeImpulse(ctx, 3, 2, 'outdoor');
+    var wet = ctx.createGain(); wet.gain.value = 0.45;
+    var dry = ctx.createGain(); dry.gain.value = 0.9;
+    master.connect(dry); dry.connect(ctx.destination);
+    master.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
+
+    // (1) powder ignition fizz (just before the boom)
+    var fizz = ctx.createBufferSource();
+    fizz.buffer = noiseBuffer(ctx, 0.025);
+    var fizzF = ctx.createBiquadFilter();
+    fizzF.type = 'highpass'; fizzF.frequency.value = 3000;
+    var fizzG = ctx.createGain();
+    fizzG.gain.setValueAtTime(0.4, t0);
+    fizzG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.025);
+    fizz.connect(fizzF); fizzF.connect(fizzG); fizzG.connect(master);
+    fizz.start(t0); fizz.stop(t0 + 0.03);
+
+    // (2) mid-range punch — the "crack" of the muzzle
+    var crack = ctx.createBufferSource();
+    crack.buffer = noiseBuffer(ctx, 0.15);
+    var crackF = ctx.createBiquadFilter();
+    crackF.type = 'bandpass'; crackF.frequency.value = 1200; crackF.Q.value = 6;
+    var crackG = ctx.createGain();
+    crackG.gain.setValueAtTime(0, t0 + 0.02);
+    crackG.gain.linearRampToValueAtTime(1.5, t0 + 0.025);
+    crackG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.15);
+    crack.connect(crackF); crackF.connect(crackG); crackG.connect(master);
+    crack.start(t0 + 0.02); crack.stop(t0 + 0.16);
+
+    // (3) BOOM body — long lowpass-swept noise
+    var boom = ctx.createBufferSource();
+    boom.buffer = noiseBuffer(ctx, 1.5);
+    var boomF = ctx.createBiquadFilter();
+    boomF.type = 'lowpass';
+    boomF.frequency.setValueAtTime(600, t0 + 0.02);
+    boomF.frequency.exponentialRampToValueAtTime(50, t0 + 1.2);
+    var boomG = ctx.createGain();
+    boomG.gain.setValueAtTime(1.2, t0 + 0.02);
+    boomG.gain.exponentialRampToValueAtTime(0.001, t0 + 1.3);
+    boom.connect(boomF); boomF.connect(boomG); boomG.connect(master);
+    boom.start(t0 + 0.02); boom.stop(t0 + 1.4);
+
+    // (4) deep SUB — chest-thumping fundamental drops 55 → 22 Hz
+    var sub = ctx.createOscillator(); sub.type = 'sine';
+    sub.frequency.setValueAtTime(55, t0 + 0.02);
+    sub.frequency.exponentialRampToValueAtTime(22, t0 + 0.9);
+    var subG = ctx.createGain();
+    subG.gain.setValueAtTime(0, t0 + 0.02);
+    subG.gain.linearRampToValueAtTime(1.0, t0 + 0.04);
+    subG.gain.exponentialRampToValueAtTime(0.001, t0 + 1.0);
+    sub.connect(subG); subG.connect(master);
+    sub.start(t0 + 0.02); sub.stop(t0 + 1.05);
+
+    // (5) rolling thunder echoes across the bay
+    for (var i = 0; i < 5; i++) {
+      var when = t0 + 0.4 + i * 0.28 + Math.random() * 0.12;
+      var rumble = ctx.createBufferSource();
+      rumble.buffer = noiseBuffer(ctx, 0.45);
+      var rF = ctx.createBiquadFilter();
+      rF.type = 'lowpass'; rF.frequency.value = 220 - i * 30;
+      var rG = ctx.createGain();
+      rG.gain.setValueAtTime(0, when);
+      rG.gain.linearRampToValueAtTime(0.32 - i * 0.05, when + 0.06);
+      rG.gain.exponentialRampToValueAtTime(0.001, when + 0.45);
+      rumble.connect(rF); rF.connect(rG); rG.connect(master);
+      rumble.start(when); rumble.stop(when + 0.48);
+    }
+  }
+});
+
+
+
+
+// ---------- Shanties ---------------------------------------------
+
+
+registerSound({
+  id: 'shanty', icon: '&#x1F3BB;', name: 'Pirate Shanty',
+  desc: 'Fiddle, lute & flute — 19s loopable menu tune (D minor)',
+  loop: true,
+  synth: function(ctx) {
+    var alive = true;
+    var srcNode = null;
+    var masterG = ctx.createGain();
+    masterG.gain.value = 0.55;
+    masterG.connect(ctx.destination);
+
+    var tempo = 100;            // BPM
+    var beat  = 60 / tempo;     // 0.6s per beat
+    var bars  = 8;
+    var totalDur = beat * 4 * bars + 0.5;  // 19.7s incl. tail
+    var sr = ctx.sampleRate;
+
+    var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var offline = new OAC(2, Math.ceil(sr * totalDur), sr);
+
+    var N = {
+      'A2': 110.00, 'D3': 146.83, 'F3': 174.61, 'G3': 196.00,
+      'A3': 220.00, 'Bb3': 233.08, 'C4': 261.63, 'D4': 293.66,
+      'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00,
+      'Bb4': 466.16, 'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46
+    };
+
+    // --- FIDDLE: sawtooth + lowpass + vibrato, sustained bow ---
+// --- FIDDLE v2: PeriodicWave + body formants + bow noise + delayed vibrato ---
+function fiddle(when, freq, dur) {
+  // Violin-like harmonic spectrum (H2 stronger than H1, gentle roll-off)
+  var real = new Float32Array([0, 1.0, 1.15, 0.85, 0.65, 0.5, 0.4, 0.32, 0.26, 0.2, 0.14, 0.09, 0.06]);
+  var imag = new Float32Array(real.length);
+  var wave = offline.createPeriodicWave(real, imag);
+
+  // Two oscillators slightly detuned — natural chorus
+  var osc1 = offline.createOscillator();
+  osc1.setPeriodicWave(wave); osc1.frequency.value = freq; osc1.detune.value = -5;
+  var osc2 = offline.createOscillator();
+  osc2.setPeriodicWave(wave); osc2.frequency.value = freq; osc2.detune.value = +5;
+
+  // Subtle pitch instability at the very start ("bow grip")
+  osc1.frequency.setValueAtTime(freq * 0.996, when);
+  osc1.frequency.linearRampToValueAtTime(freq, when + 0.09);
+  osc2.frequency.setValueAtTime(freq * 0.996, when);
+  osc2.frequency.linearRampToValueAtTime(freq, when + 0.09);
+
+  // Delayed vibrato — silent for first ~180ms, then ramps in
+  var vibStart = Math.min(0.18, dur * 0.3);
+  var vibFull  = Math.min(0.42, dur * 0.6);
+  var vib  = offline.createOscillator(); vib.frequency.value = 5.2;
+  var vibG = offline.createGain();
+  vibG.gain.setValueAtTime(0, when);
+  vibG.gain.setValueAtTime(0, when + vibStart);
+  vibG.gain.linearRampToValueAtTime(freq * 0.013, when + vibFull);
+  vib.connect(vibG);
+  vibG.connect(osc1.frequency); vibG.connect(osc2.frequency);
+
+  // --- Body resonance: parallel bandpass formants mimic violin wood ---
+  var bodyMix = offline.createGain(); bodyMix.gain.value = 0.6;
+
+  // Direct signal still passes through (otherwise it sounds hollow)
+  var direct = offline.createGain(); direct.gain.value = 0.45;
+  osc1.connect(direct); osc2.connect(direct); direct.connect(bodyMix);
+
+  function formant(fHz, q, gain) {
+    var bp = offline.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = fHz; bp.Q.value = q;
+    var g = offline.createGain(); g.gain.value = gain;
+    osc1.connect(bp); osc2.connect(bp);
+    bp.connect(g); g.connect(bodyMix);
+  }
+  formant(280,  3.5, 0.55);  // Helmholtz air resonance
+  formant(460,  4.0, 0.65);  // top plate (T1)
+  formant(2700, 1.8, 0.75);  // "bridge hill" — the violin's signature sparkle
+
+  // --- Bow noise: filtered noise = friction character ---
+  var nLen = Math.ceil(sr * dur);
+  var nBuf = offline.createBuffer(1, nLen, sr);
+  var nd = nBuf.getChannelData(0);
+  for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+  var bowNoise = offline.createBufferSource(); bowNoise.buffer = nBuf;
+  var bowBP = offline.createBiquadFilter();
+  bowBP.type = 'bandpass';
+  bowBP.frequency.value = Math.min(freq * 5, 3800);
+  bowBP.Q.value = 1.4;
+  var bowG = offline.createGain();
+  // Noise burst on attack, quiet sustain
+  bowG.gain.setValueAtTime(0.14, when);
+  bowG.gain.exponentialRampToValueAtTime(0.025, when + 0.12);
+  bowG.gain.setValueAtTime(0.025, when + Math.max(dur - 0.08, 0.13));
+  bowG.gain.linearRampToValueAtTime(0, when + dur);
+
+  // --- Master envelope: slow bowed attack, gentle release ---
+  var g = offline.createGain();
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(0.13, when + 0.08);   // bowed attack (~80ms)
+  g.gain.setValueAtTime(0.13, when + Math.max(dur - 0.1, 0.1));
+  g.gain.linearRampToValueAtTime(0, when + dur);
+
+  bowNoise.connect(bowBP); bowBP.connect(bowG); bowG.connect(g);
+  bodyMix.connect(g);
+  g.connect(offline.destination);
+
+  osc1.start(when);     osc2.start(when);
+  vib.start(when);      bowNoise.start(when);
+  osc1.stop(when + dur);     osc2.stop(when + dur);
+  vib.stop(when + dur);      bowNoise.stop(when + dur);
+}
+
+    // --- LUTE: plucked-string — saw+triangle, filter snaps down fast ---
+    function lute(when, freq, dur) {
+      var osc1 = offline.createOscillator();
+      osc1.type = 'triangle'; osc1.frequency.value = freq;
+      var osc2 = offline.createOscillator();
+      osc2.type = 'sawtooth'; osc2.frequency.value = freq;
+      var mix2 = offline.createGain(); mix2.gain.value = 0.35;
+      var lpf = offline.createBiquadFilter();
+      lpf.type = 'lowpass';
+      lpf.frequency.setValueAtTime(4500, when);
+      lpf.frequency.exponentialRampToValueAtTime(500, when + Math.min(dur * 0.6, 0.6));
+      var g = offline.createGain();
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.28, when + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+      osc1.connect(lpf); osc2.connect(mix2); mix2.connect(lpf);
+      lpf.connect(g); g.connect(offline.destination);
+      osc1.start(when); osc2.start(when);
+      osc1.stop(when + dur); osc2.stop(when + dur);
+    }
+
+    // --- FLUTE: sine + breath noise + vibrato ---
+    function flute(when, freq, dur) {
+      var osc = offline.createOscillator();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      var vib = offline.createOscillator(); var vibG = offline.createGain();
+      vib.frequency.value = 5; vibG.gain.value = freq * 0.005;
+      vib.connect(vibG); vibG.connect(osc.frequency);
+      // breath noise
+      var nLen = Math.ceil(sr * dur);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = (Math.random() * 2 - 1);
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass'; nBP.frequency.value = freq * 2; nBP.Q.value = 6;
+      var nG = offline.createGain(); nG.gain.value = 0.05;
+      var g = offline.createGain();
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.18, when + 0.09);
+      g.gain.setValueAtTime(0.18, when + Math.max(dur - 0.12, 0.1));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+      osc.connect(g); nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+      g.connect(offline.destination);
+      osc.start(when); vib.start(when); nSrc.start(when);
+      osc.stop(when + dur); vib.stop(when + dur); nSrc.stop(when + dur);
+    }
+
+    var INSTR = { fiddle: fiddle, lute: lute, flute: flute };
+
+    // Score: [beat-index, note, beats-duration, instrument]
+    // 8 bars * 4 beats = 32 beats. D minor (with B natural for that Dorian swagger).
+    var score = [
+      // ---- Bars 1-2: opening call (fiddle) ----
+      [ 0,   'A4', 1,   'fiddle'],
+      [ 1,   'A4', 1,   'fiddle'],
+      [ 2,   'A4', 0.5, 'fiddle'],
+      [ 2.5, 'D5', 1.5, 'fiddle'],
+      [ 4,   'F5', 1,   'fiddle'],
+      [ 5,   'E5', 1,   'fiddle'],
+      [ 6,   'D5', 2,   'fiddle'],
+      // ---- Bars 3-4: variation ----
+      [ 8,   'A4', 1,   'fiddle'],
+      [ 9,   'A4', 1,   'fiddle'],
+      [10,   'A4', 0.5, 'fiddle'],
+      [10.5, 'C5', 1.5, 'fiddle'],
+      [12,   'D5', 1,   'fiddle'],
+      [13,   'E5', 1,   'fiddle'],
+      [14,   'D5', 2,   'fiddle'],
+      // ---- Bars 5-6: flute takes the lead, descending ----
+      [16,   'D5',  2, 'flute'],
+      [18,   'C5',  2, 'flute'],
+      [20,   'Bb4', 2, 'flute'],
+      [22,   'A4',  2, 'flute'],
+      // ---- Bars 7-8: fiddle resolution ----
+      [24,   'G4',  1, 'fiddle'],
+      [25,   'A4',  1, 'fiddle'],
+      [26,   'Bb4', 1, 'fiddle'],
+      [27,   'G4',  1, 'fiddle'],
+      [28,   'A4',  3.5, 'fiddle'],
+
+      // ---- LUTE bass line (every 2 beats) ----
+      [ 0,  'D3', 2, 'lute'],
+      [ 2,  'A2', 2, 'lute'],
+      [ 4,  'D3', 2, 'lute'],
+      [ 6,  'A2', 2, 'lute'],
+      [ 8,  'D3', 2, 'lute'],
+      [10,  'A2', 2, 'lute'],
+      [12,  'F3', 2, 'lute'],
+      [14,  'A2', 2, 'lute'],
+      [16,  'D3', 2, 'lute'],
+      [18,  'F3', 2, 'lute'],
+      [20,  'G3', 2, 'lute'],
+      [22,  'A3', 2, 'lute'],
+      [24,  'D3', 2, 'lute'],
+      [26,  'A2', 2, 'lute'],
+      [28,  'D3', 4, 'lute']
+    ];
+
+    for (var i = 0; i < score.length; i++) {
+      var s = score[i];
+      var when = s[0] * beat;
+      var freq = N[s[1]];
+      var dur  = s[2] * beat * 0.95; // small gap between notes
+      INSTR[s[3]](when, freq, dur);
+    }
+
+    // Render asynchronously, then loop the resulting buffer
+    offline.startRendering().then(function(rendered) {
+      if (!alive) return;
+      srcNode = ctx.createBufferSource();
+      // Loop ONLY the musical portion (drop the half-second tail padding)
+      srcNode.buffer = rendered;
+      srcNode.loop = true;
+      srcNode.loopStart = 0;
+      srcNode.loopEnd = beat * 4 * bars; // 19.2s
+      srcNode.connect(masterG);
+      srcNode.start();
+    }).catch(function(err) {
+      console.warn('Shanty render failed:', err);
+    });
+
+    return function() {
+      alive = false;
+      if (srcNode) { try { srcNode.stop(); } catch(e) {} }
+    };
+  }
+});
+
+
+
+// ============================================================
+//  ADD YOUR OWN SOUNDS BELOW THIS LINE
+// ============================================================
+registerSound({
+  id: 'shanty_flute', icon: '&#x1F3B6;', name: 'Flute Shanty',
+  desc: 'Two flutes + bass flute + drone + bodhrán — 42s loopable, D-minor',
+  loop: true,
+  synth: function(ctx) {
+    var alive = true;
+    var srcNode = null;
+    var masterG = ctx.createGain();
+    masterG.gain.value = 0.6;
+    masterG.connect(ctx.destination);
+
+    var tempo = 92;
+    var beat  = 60 / tempo;
+    var bars  = 16;
+    var totalDur = beat * 4 * bars + 0.6;
+    var sr = ctx.sampleRate;
+
+    var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var offline = new OAC(2, Math.ceil(sr * totalDur), sr);
+
+    var N = {
+      'D3': 146.83, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00,
+      'Bb3': 233.08, 'C4': 261.63, 'D4': 293.66, 'E4': 329.63,
+      'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'Bb4': 466.16,
+      'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46
+    };
+
+    // --- FLUTE (parameterizable for lead vs harmony) ---
+    function flute(when, freq, dur, breathiness, detuneCents, ampMul) {
+      var osc = offline.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = detuneCents || 0;
+
+      var vib = offline.createOscillator();
+      var vibG = offline.createGain();
+      vib.frequency.value = 4.8 + Math.random() * 0.5;
+      vibG.gain.setValueAtTime(0, when);
+      vibG.gain.setValueAtTime(0, when + Math.min(0.12, dur * 0.25));
+      vibG.gain.linearRampToValueAtTime(freq * 0.005, when + Math.min(0.32, dur * 0.55));
+      vib.connect(vibG); vibG.connect(osc.frequency);
+
+      var nLen = Math.ceil(sr * dur);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass';
+      nBP.frequency.value = freq * 2;
+      nBP.Q.value = 5;
+      var nG = offline.createGain();
+      nG.gain.value = 0.05 * breathiness;
+
+      var g = offline.createGain();
+      var atk = Math.min(0.09, dur * 0.18);
+      var rel = Math.min(0.12, dur * 0.25);
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.18 * ampMul, when + atk);
+      g.gain.setValueAtTime(0.18 * ampMul, when + Math.max(dur - rel, atk + 0.02));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+
+      osc.connect(g);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+      g.connect(offline.destination);
+
+      osc.start(when); vib.start(when); nSrc.start(when);
+      osc.stop(when + dur); vib.stop(when + dur); nSrc.stop(when + dur);
+    }
+
+    function lead(when, note, beats) {
+      flute(when, N[note], beats * beat * 0.95, 1.0, 0, 1.0);
+    }
+    function harm(when, note, beats) {
+      flute(when, N[note], beats * beat * 0.95, 1.3, -2, 0.75);
+    }
+
+    // // --- DRONE: sustained low D + A fifth ---
+    // function drone(when, dur) {
+    //   var voices = [
+    //     { freq: 146.83, gain: 0.05 },   // D3 root
+    //     { freq: 220.00, gain: 0.03 }    // A3 fifth (softer)
+    //   ];
+    //   for (var v = 0; v < voices.length; v++) {
+    //     var freq = voices[v].freq;
+    //     var amp  = voices[v].gain;
+
+    //     var osc = offline.createOscillator();
+    //     osc.type = 'sine'; osc.frequency.value = freq;
+
+    //     var vib = offline.createOscillator();
+    //     var vibG = offline.createGain();
+    //     vib.frequency.value = 0.4 + v * 0.13;
+    //     vibG.gain.value = freq * 0.003;
+    //     vib.connect(vibG); vibG.connect(osc.frequency);
+
+    //     var g = offline.createGain(); g.gain.value = amp;
+
+    //     var nLen = Math.ceil(sr * dur);
+    //     var nBuf = offline.createBuffer(1, nLen, sr);
+    //     var nd = nBuf.getChannelData(0);
+    //     for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+    //     var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+    //     var nBP = offline.createBiquadFilter();
+    //     nBP.type = 'bandpass'; nBP.frequency.value = freq * 2; nBP.Q.value = 8;
+    //     var nG = offline.createGain(); nG.gain.value = 0.012;
+
+    //     osc.connect(g);
+    //     nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+    //     g.connect(offline.destination);
+
+    //     osc.start(when); vib.start(when); nSrc.start(when);
+    //     osc.stop(when + dur); vib.stop(when + dur); nSrc.stop(when + dur);
+    //   }
+    // }
+
+    // --- HAND DRUM (bodhrán-style) ---
+    function drum(when, strength) {
+      var thump = offline.createOscillator(); thump.type = 'sine';
+      thump.frequency.setValueAtTime(90, when);
+      thump.frequency.exponentialRampToValueAtTime(55, when + 0.12);
+      var thumpG = offline.createGain();
+      thumpG.gain.setValueAtTime(0.38 * strength, when);
+      thumpG.gain.exponentialRampToValueAtTime(0.001, when + 0.15);
+      thump.connect(thumpG); thumpG.connect(offline.destination);
+      thump.start(when); thump.stop(when + 0.18);
+
+      var body = offline.createOscillator(); body.type = 'sine';
+      body.frequency.value = 180;
+      var bodyG = offline.createGain();
+      bodyG.gain.setValueAtTime(0.16 * strength, when);
+      bodyG.gain.exponentialRampToValueAtTime(0.001, when + 0.1);
+      body.connect(bodyG); bodyG.connect(offline.destination);
+      body.start(when); body.stop(when + 0.12);
+
+      var nLen = Math.ceil(sr * 0.04);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass'; nBP.frequency.value = 2200; nBP.Q.value = 1.5;
+      var nG = offline.createGain();
+      nG.gain.setValueAtTime(0.13 * strength, when);
+      nG.gain.exponentialRampToValueAtTime(0.001, when + 0.04);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(offline.destination);
+      nSrc.start(when); nSrc.stop(when + 0.05);
+    }
+
+    // --- BASS FLUTE: octave-low wooden flute / alto recorder character ---
+    function bassFlute(when, freq, dur) {
+      var osc = offline.createOscillator();
+      osc.type = 'sine'; osc.frequency.value = freq;
+
+      var oct = offline.createOscillator();
+      oct.type = 'sine'; oct.frequency.value = freq * 2;
+      var octG = offline.createGain(); octG.gain.value = 0.18;
+      oct.connect(octG);
+
+      var vib = offline.createOscillator();
+      var vibG = offline.createGain();
+      vib.frequency.value = 3.4 + Math.random() * 0.4;
+      vibG.gain.setValueAtTime(0, when);
+      vibG.gain.setValueAtTime(0, when + Math.min(0.3, dur * 0.2));
+      vibG.gain.linearRampToValueAtTime(freq * 0.006, when + Math.min(0.7, dur * 0.45));
+      vib.connect(vibG);
+      vibG.connect(osc.frequency); vibG.connect(oct.frequency);
+
+      var nLen = Math.ceil(sr * dur);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass';
+      nBP.frequency.value = freq * 3.5;
+      nBP.Q.value = 3.5;
+      var nG = offline.createGain(); nG.gain.value = 0.10;
+
+      var g = offline.createGain();
+      var atk = Math.min(0.22, dur * 0.18);
+      var rel = Math.min(0.30, dur * 0.25);
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.11, when + atk);
+      g.gain.setValueAtTime(0.11, when + Math.max(dur - rel, atk + 0.02));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+
+      osc.connect(g); octG.connect(g);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+      g.connect(offline.destination);
+
+      osc.start(when); oct.start(when); vib.start(when); nSrc.start(when);
+      osc.stop(when + dur); oct.stop(when + dur);
+      vib.stop(when + dur); nSrc.stop(when + dur);
+    }
+
+    function bass(when, note, beats) {
+      bassFlute(when, N[note], beats * beat * 0.95);
+    }
+
+    // ============================================================
+    //  SCORE — 16 bars, A section (1-8) + B section (9-16)
+    // ============================================================
+
+    // ---- LEAD FLUTE ----
+    var leadScore = [
+      // === A SECTION ===
+      [ 0,   'D5', 1.5], [ 1.5, 'F5', 0.5], [ 2,   'E5', 1], [ 3,   'D5', 1],
+      [ 4,   'C5', 1.5], [ 5.5, 'D5', 0.5], [ 6,   'A4', 2],
+      [ 8,   'D5', 1.5], [ 9.5, 'F5', 0.5], [10,   'E5', 1], [11,   'D5', 1],
+      [12,   'Bb4', 1.5],[13.5, 'C5', 0.5], [14,   'D5', 2],
+      [16,   'F5', 1],   [17,   'E5', 0.5], [17.5, 'D5', 0.5],
+      [20,   'E5', 1],   [21,   'D5', 0.5], [21.5, 'C5', 0.5],
+      [24,   'D5', 1],   [25,   'C5', 1],   [26,   'Bb4', 1], [27,   'A4', 1],
+      [28,   'D5', 3.5],
+
+      // === B SECTION (bars 9-16, stays in D minor, rising → peak → descent) ===
+      // Bars 9-10: solo opening, inverted arc (rises from A4 up to F5)
+      [32,   'A4', 1.5], [33.5, 'C5', 0.5], [34,   'D5', 1],  [35,   'F5', 1],
+      [36,   'E5', 1.5], [37.5, 'D5', 0.5], [38,   'F5', 2],
+      // Bars 11-12: harmony joins, gentle settling
+      [40,   'E5', 1],   [41,   'D5', 1],   [42,   'C5', 1],  [43,   'D5', 1],
+      [44,   'A4', 1.5], [45.5, 'Bb4', 0.5],[46,   'A4', 2],
+      // Bars 13-14: climbs again toward the peak
+      [48,   'D5', 1],   [49,   'E5', 1],   [50,   'F5', 1],  [51,   'E5', 1],
+      [52,   'D5', 1.5], [53.5, 'C5', 0.5], [54,   'D5', 2],
+      // Bars 15-16: descending resolution back to D5 for the loop
+      [56,   'Bb4', 1],  [57,   'A4', 1],   [58,   'G4', 1],  [59,   'A4', 1],
+      [60,   'D5', 3.5]
+    ];
+
+    // ---- HARMONY FLUTE ----
+    var harmScore = [
+      // === A SECTION ===
+      [ 8,   'A4', 1.5], [ 9.5, 'D5', 0.5], [10,   'C5', 1],  [11,   'A4', 1],
+      [12,   'G4', 1.5], [13.5, 'A4', 0.5], [14,   'A4', 2],
+      [18,   'A4', 1],   [19,   'G4', 0.5], [19.5, 'A4', 0.5],
+      [22,   'G4', 1],   [23,   'F4', 1],
+      [24,   'A4', 1],   [25,   'G4', 1],   [26,   'F4', 1],  [27,   'E4', 1],
+      [28,   'A4', 3.5],
+
+      // === B SECTION (silent in bars 9-10 — lead states new theme alone) ===
+      // Bars 11-12: 3rds/4ths below lead
+      [40,   'C5', 1],   [41,   'A4', 1],   [42,   'A4', 1],  [43,   'A4', 1],
+      [44,   'F4', 1.5], [45.5, 'G4', 0.5], [46,   'F4', 2],
+      // Bars 13-14: parallel motion (3rds) supporting the climb
+      [48,   'A4', 1],   [49,   'C5', 1],   [50,   'D5', 1],  [51,   'C5', 1],
+      [52,   'A4', 1.5], [53.5, 'A4', 0.5], [54,   'A4', 2],
+      // Bars 15-16: descending 3rds below the lead's descent
+      [56,   'G4', 1],   [57,   'F4', 1],   [58,   'E4', 1],  [59,   'F4', 1],
+      [60,   'A4', 3.5]
+    ];
+
+    // ---- Schedule lead & harmony ----
+    for (var i = 0; i < leadScore.length; i++) {
+      lead(leadScore[i][0] * beat, leadScore[i][1], leadScore[i][2]);
+    }
+    for (var j = 0; j < harmScore.length; j++) {
+      harm(harmScore[j][0] * beat, harmScore[j][1], harmScore[j][2]);
+    }
+
+    // ---- Schedule drone (sustained whole loop) ----
+    //drone(0, beat * 4 * bars);
+
+   // Short bass-flute "shadows" under sustained lead notes — sparse, melodic.
+    var bassScore = [
+      // A section — 3 echoes under phrase endings
+      [ 6,  'D4', 1.25],  // bar 2: under held A4 (a 4th below)
+      [14,  'A3', 1.5],   // bar 4: under held D5 (a 4th below)
+      [28,  'D4', 2],     // bar 8: under long D5 (octave below — closes A section)
+      // B section — 3 echoes mirroring the A pattern
+      [38,  'D4', 1.5],   // bar 10: under held F5 (3rd below)
+      [54,  'A3', 1.5],   // bar 14: under held D5 (a 4th below)
+      [60,  'D4', 2]      // bar 16: under final D5 (octave below — anchors the loop)
+    ];
+
+    for (var b = 0; b < bassScore.length; b++) {
+      bass(bassScore[b][0] * beat, bassScore[b][1], bassScore[b][2]);
+    }
+
+    // ---- HAND DRUM ----
+    var drumScore = [
+      // A section
+      [ 0, 1.0],
+      [ 4, 1.0], [ 6, 0.45],
+      [ 8, 1.0],
+      [12, 1.0], [14, 0.45],
+      [16, 0.65],
+      [20, 0.65],
+      [24, 1.0], [26, 0.45],
+      [28, 1.0],
+      // B section
+      [32, 1.0],
+      [36, 1.0], [38, 0.45],
+      [40, 1.0],
+      [44, 1.0], [46, 0.45],
+      [48, 1.0], [50, 0.5], [51, 0.4],
+      [52, 1.0], [54, 0.5], [55, 0.4],
+      [56, 1.0], [58, 0.45],
+      [60, 1.0], [63, 0.55]
+    ];
+    for (var k = 0; k < drumScore.length; k++) {
+      drum(drumScore[k][0] * beat, drumScore[k][1]);
+    }
+
+    // ---- Render asynchronously, then loop seamlessly ----
+    offline.startRendering().then(function(rendered) {
+      if (!alive) return;
+      srcNode = ctx.createBufferSource();
+      srcNode.buffer = rendered;
+      srcNode.loop = true;
+      srcNode.loopStart = 0;
+      srcNode.loopEnd = beat * 4 * bars; // 41.74s at 92 BPM
+      srcNode.connect(masterG);
+      srcNode.start();
+    }).catch(function(err) {
+      console.warn('Flute shanty render failed:', err);
+    });
+
+    return function() {
+      alive = false;
+      if (srcNode) { try { srcNode.stop(); } catch(e) {} }
+    };
+  }
+});
+
+
+registerSound({
+  id: 'shanty_flute_2', icon: '&#x1F3B5;', name: 'Flute Shanty II',
+  desc: 'Companion ritournelle — gentle wave melody, descending arc, ~45s loop',
+  loop: true,
+  synth: function(ctx) {
+    var alive = true;
+    var srcNode = null;
+    var masterG = ctx.createGain();
+    masterG.gain.value = 0.6;
+    masterG.connect(ctx.destination);
+
+    var tempo = 86;             // slightly slower — more lullaby than march
+    var beat  = 60 / tempo;
+    var bars  = 16;
+    var totalDur = beat * 4 * bars + 0.6;
+    var sr = ctx.sampleRate;
+
+    var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var offline = new OAC(2, Math.ceil(sr * totalDur), sr);
+
+    var N = {
+      'A3': 220.00, 'Bb3': 233.08, 'C4': 261.63, 'D4': 293.66, 'E4': 329.63,
+      'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'Bb4': 466.16,
+      'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46
+    };
+
+    // --- FLUTE (parameterizable for lead vs harmony) ---
+    function flute(when, freq, dur, breathiness, detuneCents, ampMul) {
+      var osc = offline.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = detuneCents || 0;
+
+      var vib = offline.createOscillator();
+      var vibG = offline.createGain();
+      vib.frequency.value = 4.8 + Math.random() * 0.5;
+      vibG.gain.setValueAtTime(0, when);
+      vibG.gain.setValueAtTime(0, when + Math.min(0.12, dur * 0.25));
+      vibG.gain.linearRampToValueAtTime(freq * 0.005, when + Math.min(0.32, dur * 0.55));
+      vib.connect(vibG); vibG.connect(osc.frequency);
+
+      var nLen = Math.ceil(sr * dur);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass';
+      nBP.frequency.value = freq * 2;
+      nBP.Q.value = 5;
+      var nG = offline.createGain();
+      nG.gain.value = 0.05 * breathiness;
+
+      var g = offline.createGain();
+      var atk = Math.min(0.09, dur * 0.18);
+      var rel = Math.min(0.12, dur * 0.25);
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.18 * ampMul, when + atk);
+      g.gain.setValueAtTime(0.18 * ampMul, when + Math.max(dur - rel, atk + 0.02));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+
+      osc.connect(g);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+      g.connect(offline.destination);
+
+      osc.start(when); vib.start(when); nSrc.start(when);
+      osc.stop(when + dur); vib.stop(when + dur); nSrc.stop(when + dur);
+    }
+
+    function lead(when, note, beats) {
+      flute(when, N[note], beats * beat * 0.95, 1.0, 0, 1.0);
+    }
+    function harm(when, note, beats) {
+      flute(when, N[note], beats * beat * 0.95, 1.3, -2, 0.75);
+    }
+
+    // --- HAND DRUM (bodhrán-style) ---
+    function drum(when, strength) {
+      var thump = offline.createOscillator(); thump.type = 'sine';
+      thump.frequency.setValueAtTime(90, when);
+      thump.frequency.exponentialRampToValueAtTime(55, when + 0.12);
+      var thumpG = offline.createGain();
+      thumpG.gain.setValueAtTime(0.38 * strength, when);
+      thumpG.gain.exponentialRampToValueAtTime(0.001, when + 0.15);
+      thump.connect(thumpG); thumpG.connect(offline.destination);
+      thump.start(when); thump.stop(when + 0.18);
+
+      var body = offline.createOscillator(); body.type = 'sine';
+      body.frequency.value = 180;
+      var bodyG = offline.createGain();
+      bodyG.gain.setValueAtTime(0.16 * strength, when);
+      bodyG.gain.exponentialRampToValueAtTime(0.001, when + 0.1);
+      body.connect(bodyG); bodyG.connect(offline.destination);
+      body.start(when); body.stop(when + 0.12);
+
+      var nLen = Math.ceil(sr * 0.04);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass'; nBP.frequency.value = 2200; nBP.Q.value = 1.5;
+      var nG = offline.createGain();
+      nG.gain.setValueAtTime(0.13 * strength, when);
+      nG.gain.exponentialRampToValueAtTime(0.001, when + 0.04);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(offline.destination);
+      nSrc.start(when); nSrc.stop(when + 0.05);
+    }
+
+    // --- BASS FLUTE (short shadow notes) ---
+    function bassFlute(when, freq, dur) {
+      var osc = offline.createOscillator();
+      osc.type = 'sine'; osc.frequency.value = freq;
+
+      var oct = offline.createOscillator();
+      oct.type = 'sine'; oct.frequency.value = freq * 2;
+      var octG = offline.createGain(); octG.gain.value = 0.18;
+      oct.connect(octG);
+
+      var vib = offline.createOscillator();
+      var vibG = offline.createGain();
+      vib.frequency.value = 3.4 + Math.random() * 0.4;
+      vibG.gain.setValueAtTime(0, when);
+      vibG.gain.setValueAtTime(0, when + Math.min(0.3, dur * 0.2));
+      vibG.gain.linearRampToValueAtTime(freq * 0.006, when + Math.min(0.7, dur * 0.45));
+      vib.connect(vibG);
+      vibG.connect(osc.frequency); vibG.connect(oct.frequency);
+
+      var nLen = Math.ceil(sr * dur);
+      var nBuf = offline.createBuffer(1, nLen, sr);
+      var nd = nBuf.getChannelData(0);
+      for (var i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+      var nSrc = offline.createBufferSource(); nSrc.buffer = nBuf;
+      var nBP = offline.createBiquadFilter();
+      nBP.type = 'bandpass';
+      nBP.frequency.value = freq * 3.5;
+      nBP.Q.value = 3.5;
+      var nG = offline.createGain(); nG.gain.value = 0.10;
+
+      var g = offline.createGain();
+      var atk = Math.min(0.22, dur * 0.18);
+      var rel = Math.min(0.30, dur * 0.25);
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.11, when + atk);
+      g.gain.setValueAtTime(0.11, when + Math.max(dur - rel, atk + 0.02));
+      g.gain.linearRampToValueAtTime(0, when + dur);
+
+      osc.connect(g); octG.connect(g);
+      nSrc.connect(nBP); nBP.connect(nG); nG.connect(g);
+      g.connect(offline.destination);
+
+      osc.start(when); oct.start(when); vib.start(when); nSrc.start(when);
+      osc.stop(when + dur); oct.stop(when + dur);
+      vib.stop(when + dur); nSrc.stop(when + dur);
+    }
+
+    function bass(when, note, beats) {
+      bassFlute(when, N[note], beats * beat * 0.95);
+    }
+
+    // ============================================================
+    //  SCORE — 16 bars, D minor, descending tonal arc
+    //  Bars 1-4:  "Question" centered on A   → settles on A4
+    //  Bars 5-8:  "Climb & sigh" peaks at F5 → settles on F4 (lower)
+    //  Bars 9-12: Restate question + harmony → settles on A4
+    //  Bars 13-16: Long descent              → settles on D4 (lowest)
+    // ============================================================
+
+    // ---- LEAD FLUTE (carries the tune throughout) ----
+    var leadScore = [
+      // Bars 1-2: gentle rocking around A
+      [ 0,   'A4', 1],   [ 1,   'C5', 1],   [ 2,   'D5', 1],   [ 3,   'C5', 1],
+      [ 4,   'A4', 1.5], [ 5.5, 'G4', 0.5], [ 6,   'A4', 2],
+      // Bars 3-4: same opening, reaches up one note higher
+      [ 8,   'A4', 1],   [ 9,   'C5', 1],   [10,   'D5', 1],   [11,   'E5', 1],
+      [12,   'D5', 1.5], [13.5, 'C5', 0.5], [14,   'A4', 2],
+
+      // Bars 5-6: climb to peak F5, sigh down
+      [16,   'F5', 1.5], [17.5, 'E5', 0.5], [18,   'D5', 1],   [19,   'C5', 1],
+      [20,   'D5', 1],   [21,   'Bb4', 1],  [22,   'A4', 2],
+      // Bars 7-8: stepwise climb then resolution down to F4
+      [24,   'G4', 1],   [25,   'A4', 1],   [26,   'Bb4', 1],  [27,   'C5', 1],
+      [28,   'A4', 1],   [29,   'G4', 1],   [30,   'F4', 2],
+
+      // Bars 9-10: restate opening (harmony joins here)
+      [32,   'A4', 1],   [33,   'C5', 1],   [34,   'D5', 1],   [35,   'C5', 1],
+      [36,   'A4', 1.5], [37.5, 'G4', 0.5], [38,   'A4', 2],
+      // Bars 11-12: variation reaches up to E5
+      [40,   'A4', 1],   [41,   'D5', 1],   [42,   'E5', 1],   [43,   'D5', 1],
+      [44,   'C5', 1.5], [45.5, 'Bb4', 0.5],[46,   'A4', 2],
+
+      // Bars 13-14: peak then long descent begins
+      [48,   'F5', 1],   [49,   'E5', 1],   [50,   'D5', 1],   [51,   'C5', 1],
+      [52,   'Bb4', 1],  [53,   'A4', 1],   [54,   'G4', 2],
+      // Bars 15-16: gentle final descent to low D
+      [56,   'A4', 1],   [57,   'Bb4', 1],  [58,   'A4', 1],   [59,   'G4', 1],
+      [60,   'F4', 1],   [61,   'A4', 1],   [62,   'D4', 2]
+    ];
+
+    // ---- HARMONY FLUTE (silent first half, joins from bar 9) ----
+    var harmScore = [
+      // Bars 9-10: 3rd below
+      [32,   'F4', 1],   [33,   'A4', 1],   [34,   'Bb4', 1],  [35,   'A4', 1],
+      [36,   'F4', 1.5], [37.5, 'E4', 0.5], [38,   'F4', 2],
+      // Bars 11-12: 3rd below the higher line
+      [40,   'F4', 1],   [41,   'Bb4', 1],  [42,   'C5', 1],   [43,   'Bb4', 1],
+      [44,   'A4', 1.5], [45.5, 'G4', 0.5], [46,   'F4', 2],
+
+      // Bars 13-14: parallel descent in 3rds
+      [48,   'D5', 1],   [49,   'C5', 1],   [50,   'Bb4', 1],  [51,   'A4', 1],
+      [52,   'G4', 1],   [53,   'F4', 1],   [54,   'E4', 2],
+      // Bars 15-16: 3rds below resolving to open 5th (A3 under D4)
+      [56,   'F4', 1],   [57,   'G4', 1],   [58,   'F4', 1],   [59,   'E4', 1],
+      [60,   'D4', 1],   [61,   'F4', 1],   [62,   'A3', 2]
+    ];
+
+    // ---- Schedule lead & harmony ----
+    for (var i = 0; i < leadScore.length; i++) {
+      lead(leadScore[i][0] * beat, leadScore[i][1], leadScore[i][2]);
+    }
+    for (var j = 0; j < harmScore.length; j++) {
+      harm(harmScore[j][0] * beat, harmScore[j][1], harmScore[j][2]);
+    }
+
+    // ---- BASS FLUTE shadows (short notes under sustained lead notes) ----
+    var bassScore = [
+      [ 6,  'D4', 1.5],  // bar 2: 4th below the held A4
+      [14,  'D4', 1.5],  // bar 4: 4th below the held A4
+      [22,  'D4', 1.5],  // bar 6: 4th below the held A4
+      [30,  'A3', 1.5],  // bar 8: 6th below the F4 — drops lower
+      [38,  'D4', 1.5],  // bar 10: 4th below the held A4
+      [46,  'D4', 1.5],  // bar 12: 4th below the held A4
+      [54,  'D4', 1.5],  // bar 14: 5th below the held G4 — anchors descent
+      [62,  'A3', 1.5]   // bar 16: 4th below the held D4 — deep settling at loop point
+    ];
+    for (var b = 0; b < bassScore.length; b++) {
+      bass(bassScore[b][0] * beat, bassScore[b][1], bassScore[b][2]);
+    }
+
+    // ---- HAND DRUM ----
+    var drumScore = [
+      // Bars 1-4
+      [ 0, 1.0],
+      [ 4, 0.9], [ 6, 0.45],
+      [ 8, 1.0],
+      [12, 0.9], [14, 0.45],
+      // Bars 5-8 (peak section, slightly more presence)
+      [16, 1.0], [18, 0.4],
+      [20, 1.0], [22, 0.45],
+      [24, 0.9], [26, 0.5], [27, 0.3],
+      [28, 1.0], [30, 0.5],
+      // Bars 9-12 (harmony joins)
+      [32, 1.0],
+      [36, 0.9], [38, 0.45],
+      [40, 1.0],
+      [44, 0.9], [46, 0.45],
+      // Bars 13-16 (descent)
+      [48, 1.0], [50, 0.5],
+      [52, 0.9], [54, 0.5],
+      [56, 1.0], [58, 0.45],
+      [60, 0.9], [62, 0.5], [63, 0.4]
+    ];
+    for (var k = 0; k < drumScore.length; k++) {
+      drum(drumScore[k][0] * beat, drumScore[k][1]);
+    }
+
+    // ---- Render asynchronously, then loop seamlessly ----
+    offline.startRendering().then(function(rendered) {
+      if (!alive) return;
+      srcNode = ctx.createBufferSource();
+      srcNode.buffer = rendered;
+      srcNode.loop = true;
+      srcNode.loopStart = 0;
+      srcNode.loopEnd = beat * 4 * bars; // ~44.65s at 86 BPM
+      srcNode.connect(masterG);
+      srcNode.start();
+    }).catch(function(err) {
+      console.warn('Flute Shanty II render failed:', err);
+    });
+
+    return function() {
+      alive = false;
+      if (srcNode) { try { srcNode.stop(); } catch(e) {} }
+    };
+  }
+});
+
+
+// ============================================================
+//  UI
+// ============================================================
+
+function buildUI() {
+  var grid = document.getElementById('soundGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  if (registry.length === 0) {
+    grid.innerHTML = '<p style="color:#b89a68;font-style:italic;grid-column:1/-1">No sounds registered.</p>';
+    return;
+  }
+
+  for (var i = 0; i < registry.length; i++) {
+    var s    = registry[i];
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'card-' + s.id;
+
+    var typeLabel = s.loop ? 'loop' : 'one-shot';
+
+    var btn = document.createElement('button');
+    btn.className = 'play-btn';
+    btn.id = 'btn-' + s.id;
+    btn.setAttribute('aria-label', 'Play ' + s.name);
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><polygon points="5,2 16,9 5,16"/></svg>';
+    btn.setAttribute('data-id', s.id);
+    btn.addEventListener('click', function() {
+      toggle(this.getAttribute('data-id'));
+    });
+
+    var iconEl = document.createElement('div');
+    iconEl.className = 'card-icon';
+    iconEl.innerHTML = s.icon;
+
+    var nameEl = document.createElement('div');
+    nameEl.className = 'card-name';
+    nameEl.textContent = s.name;
+
+    var descEl = document.createElement('div');
+    descEl.className = 'card-desc';
+    descEl.textContent = s.desc;
+
+    var typeEl = document.createElement('div');
+    typeEl.className = 'card-type';
+    typeEl.textContent = typeLabel;
+
+    card.appendChild(iconEl);
+    card.appendChild(nameEl);
+    card.appendChild(descEl);
+    card.appendChild(typeEl);
+    card.appendChild(btn);
+
+    grid.appendChild(card);
+  }
+}
+
+function toggle(id) {
+  var s    = null;
+  for (var i = 0; i < registry.length; i++) {
+    if (registry[i].id === id) { s = registry[i]; break; }
+  }
+  if (!s) return;
+
+  var card   = document.getElementById('card-' + id);
+  var btn    = document.getElementById('btn-' + id);
+  var wasOn  = !!active[id];
+
+  var playIcon = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><polygon points="5,2 16,9 5,16"/></svg>';
+  var stopIcon = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>';
+
+  if (active[id]) {
+    try { if (active[id].stop) active[id].stop(); } catch(e) {}
+    try { active[id].ctx.close(); } catch(e) {}
+    delete active[id];
+    card.classList.remove('playing');
+    btn.classList.remove('playing');
+    btn.innerHTML = playIcon;
+  }
+
+  if (s.loop && wasOn) return;
+
+  var ctx;
+  try {
+    ctx = getCtx();
+  } catch(e) {
+    alert(e.message);
+    return;
+  }
+
+  var stopFn;
+  try {
+    stopFn = s.synth(ctx);
+  } catch(e) {
+    var panel = document.getElementById('debug-panel');
+    panel.style.display = 'block';
+    panel.innerHTML = '<strong>Synth error in ' + id + ':</strong><br>' + e.message;
+    try { ctx.close(); } catch(e2) {}
+    return;
+  }
+
+  active[id] = { ctx: ctx, stop: stopFn };
+  card.classList.add('playing');
+  btn.classList.add('playing');
+  btn.innerHTML = s.loop ? stopIcon : playIcon;
+
+  if (!s.loop) {
+    var ms = ((s.durationSec || 2) + 0.3) * 1000;
+    setTimeout(function() {
+      if (!active[id]) return;
+      try { active[id].ctx.close(); } catch(e) {}
+      delete active[id];
+      card.classList.remove('playing');
+      btn.classList.remove('playing');
+      btn.innerHTML = playIcon;
+    }, ms);
+  }
+}
+
+// Run after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', buildUI);
+} else {
+  buildUI();
+}
+</script>
+</body>
+</html>

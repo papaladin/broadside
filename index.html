@@ -27,6 +27,60 @@
     50% { box-shadow: 0 0 12px 6px rgba(201, 170, 110, 0.6); }
   }
   
+    /* UI juice keyframes */
+     /* UI juice keyframes */
+  @keyframes flashGreen {
+    0%   {
+      color: #7ab868;
+      text-shadow: 0 0 18px #7ab868, 0 0 36px #7ab868, 0 0 8px #fff;
+    }
+    100% {
+      color: inherit;
+      text-shadow: none;
+    }
+  }
+  @keyframes flashRed {
+    0%   {
+      color: #d06a58;
+      text-shadow: 0 0 18px #d06a58, 0 0 36px #d06a58, 0 0 8px #fff;
+    }
+    100% {
+      color: inherit;
+      text-shadow: none;
+    }
+  }
+  @keyframes flashGold {
+    0%   { color: #dfc080; text-shadow: 0 0 18px #dfc080; }
+    100% { color: inherit; text-shadow: none; }
+  }
+  @keyframes flashBlue {
+    0%   { color: #6a9aba; text-shadow: 0 0 18px #6a9aba; }
+    100% { color: inherit; text-shadow: none; }
+  }
+  @keyframes flashPurple {
+    0%   { color: #9a6aaa; text-shadow: 0 0 18px #9a6aaa; }
+    100% { color: inherit; text-shadow: none; }
+  }
+  @keyframes pulseBar {
+    0%   { filter: brightness(1.8); }
+    100% { filter: brightness(1);   }
+  }
+  .flash-green,
+  .flash-red,
+  .flash-gold,
+  .flash-blue,
+  .flash-purple {
+    display: inline-block;
+  }
+  .flash-green  { animation: flashGreen 0.8s ease-out; }
+  .flash-red    { animation: flashRed   0.8s ease-out; }
+  .flash-gold   { animation: flashGold  0.8s ease-out; }
+  .flash-blue   { animation: flashBlue  0.8s ease-out; }
+  .flash-purple { animation: flashPurple 0.8s ease-out; }
+  .bar-pulse    { animation: pulseBar   0.5s ease-out; }
+
+
+
   </style>
 </head>
 <body>

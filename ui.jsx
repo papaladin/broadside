@@ -629,6 +629,196 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
     </svg>
   );
 
+  // ── Batch 3 icons (15) ───────────────────────────────────────────────────
+
+// Crossed spears — simple weapon icon: two diagonal shafts with triangular
+// heads and a small crossguard near each tip
+const IconSpear = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <line x1="3" y1="14" x2="12.5" y2="2.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    <polygon points="12.5,2.5 9.8,4.3 11.6,5.3" stroke={color} strokeWidth="0.8" fill="none" strokeLinejoin="round" />
+    <line x1="11.2" y1="6" x2="9.4" y2="3.6" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    <line x1="13" y1="14" x2="3.5" y2="2.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    <polygon points="3.5,2.5 6.2,4.3 4.4,5.3" stroke={color} strokeWidth="0.8" fill="none" strokeLinejoin="round" />
+    <line x1="4.8" y1="6" x2="6.6" y2="3.6" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+  </svg>
+);
+
+// Cog — circle body + 8 rotated teeth (array map keeps it short) + center hole
+const IconCog = ({ size = 14, color = "currentColor" }) => {
+  const teeth = [0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+    <rect key={a} x="7" y="0.4" width="2" height="2.2" rx="0.3" fill={color} transform={`rotate(${a} 8 8)`} />
+  ));
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      {teeth}
+      <circle cx="8" cy="8" r="4" stroke={color} strokeWidth="1.1" />
+      <circle cx="8" cy="8" r="1.6" stroke={color} strokeWidth="0.9" />
+    </svg>
+  );
+};
+
+// Compass — outer ring, N/S needle (filled north, outline south), cardinal ticks
+const IconCompass = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <circle cx="8" cy="8" r="6.3" stroke={color} strokeWidth="1.1" />
+    <polygon points="8,3 9.3,8 8,8" fill={color} />
+    <polygon points="8,13 6.7,8 8,8" stroke={color} strokeWidth="0.8" fill="none" />
+    <circle cx="8" cy="8" r="0.8" fill={color} />
+    <line x1="8" y1="1.3" x2="8" y2="2.3" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    <line x1="8" y1="13.7" x2="8" y2="14.7" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    <line x1="1.3" y1="8" x2="2.3" y2="8" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    <line x1="13.7" y1="8" x2="14.7" y2="8" stroke={color} strokeWidth="1" strokeLinecap="round" />
+  </svg>
+);
+
+// Play button — outline ring + filled right-pointing triangle
+const IconPlay = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <circle cx="8" cy="8" r="6.3" stroke={color} strokeWidth="1.1" />
+    <polygon points="5.8,5 5.8,11 11.2,8" fill={color} />
+  </svg>
+);
+
+// Cheers — two tilted mugs with foam + handles, small "clink" sparkle between them
+const IconCheers = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <g transform="rotate(-15 4 12)">
+      <rect x="1.5" y="5" width="5" height="7" rx="0.6" stroke={color} strokeWidth="1" />
+      <rect x="1.5" y="4" width="5" height="1.4" fill={color} />
+      <path d="M6.5 6.5 C8.3 6.5 8.3 9.5 6.5 9.5" stroke={color} strokeWidth="1" fill="none" />
+    </g>
+    <g transform="rotate(15 12 12)">
+      <rect x="9.5" y="5" width="5" height="7" rx="0.6" stroke={color} strokeWidth="1" />
+      <rect x="9.5" y="4" width="5" height="1.4" fill={color} />
+      <path d="M9.5 6.5 C7.7 6.5 7.7 9.5 9.5 9.5" stroke={color} strokeWidth="1" fill="none" />
+    </g>
+    <line x1="6.5" y1="1" x2="9.5" y2="3" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    <line x1="9.5" y1="1" x2="6.5" y2="3" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+  </svg>
+);
+
+// Cannon — barrel + muzzle ring, trapezoid carriage, spoked wheel, fuse
+const IconCannon = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <rect x="2" y="6" width="9" height="3" rx="1.4" stroke={color} strokeWidth="1.1" />
+    <circle cx="11" cy="7.5" r="1.6" stroke={color} strokeWidth="1" />
+    <line x1="2.5" y1="6" x2="1.5" y2="3.5" stroke={color} strokeWidth="0.9" strokeLinecap="round" />
+    <path d="M5 9 L4.5 12 L8.5 12 L8 9" stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+    <circle cx="6.5" cy="13" r="2" stroke={color} strokeWidth="1" />
+    <line x1="4.7" y1="13" x2="8.3" y2="13" stroke={color} strokeWidth="0.8" />
+    <line x1="6.5" y1="11" x2="6.5" y2="15" stroke={color} strokeWidth="0.8" />
+  </svg>
+);
+
+// Chef hat — puffy top (single wavy path) on a banded base
+const IconChefHat = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M4 11 C3 9 3.2 6.5 5 5.5 C5 4 6.5 3 8 3 C9.5 3 11 4 11 5.5 C12.8 6.5 13 9 12 11 Z"
+          stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    <rect x="4" y="11" width="8" height="3" rx="0.6" stroke={color} strokeWidth="1.1" />
+  </svg>
+);
+
+// Hammer — head + handle drawn upright, then rotated 45° as a group
+const IconHammer = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <g transform="rotate(45 8 8)">
+      <rect x="5" y="2" width="6" height="3" rx="0.5" stroke={color} strokeWidth="1.1" />
+      <rect x="7" y="5" width="2" height="9" rx="0.5" stroke={color} strokeWidth="1.1" />
+    </g>
+  </svg>
+);
+
+// Talking head — side-profile silhouette + 3 nested sound-wave arcs from the mouth
+const IconTalking = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M5 14 C3.5 14 3 11.5 3.7 10 C3 8.5 3.3 6.5 4.5 5.3 C5.5 3.7 7.5 3 9 3.5 C9.6 3.7 9.8 4.3 9.4 4.7 C9.9 5 10 5.6 9.6 5.9 C10.1 6.3 9.9 7 9.3 7.1 C9.7 7.8 9.2 8.4 8.6 8.4 C8.8 9.5 7.9 10.2 6.9 10.1 L6.7 14 Z"
+          stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    <path d="M10.5 7 Q11.5 7 11.3 6" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+    <path d="M10.8 8.2 Q12.8 8 12 6" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+    <path d="M11 9.5 Q14 9 12.8 5.5" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+  </svg>
+);
+
+// Bar chart — baseline + 3 bars of increasing/varied height
+const IconBarChart = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <line x1="2" y1="14" x2="14" y2="14" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    <rect x="3.5" y="9" width="2.3" height="5" stroke={color} strokeWidth="1" />
+    <rect x="7" y="5.5" width="2.3" height="8.5" stroke={color} strokeWidth="1" />
+    <rect x="10.5" y="7.5" width="2.3" height="6.5" stroke={color} strokeWidth="1" />
+  </svg>
+);
+
+// Dice — rounded square with a 5-pip face (4 corners + center)
+const IconDice = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke={color} strokeWidth="1.1" />
+    <circle cx="5" cy="5" r="1" fill={color} />
+    <circle cx="11" cy="5" r="1" fill={color} />
+    <circle cx="8" cy="8" r="1" fill={color} />
+    <circle cx="5" cy="11" r="1" fill={color} />
+    <circle cx="11" cy="11" r="1" fill={color} />
+  </svg>
+);
+
+// Continue/resume — "enter key" style hook arrow (right, down, then left with arrowhead)
+const IconContinue = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M4 5 H12 V10 H8" stroke={color} strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <polygon points="8,10 10.5,8.3 10.5,11.7" fill={color} />
+  </svg>
+);
+
+// Import/export — small document + bidirectional vertical arrow (up & down heads)
+const IconFileTransfer = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M1.5 1.5 H6.5 L9 4 V14.5 H1.5 Z" stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    <path d="M6.5 1.5 V4 H9" stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
+    <line x1="3.5" y1="8" x2="7.5" y2="8" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    <line x1="3.5" y1="11" x2="7.5" y2="11" stroke={color} strokeWidth="0.8" strokeLinecap="round" />
+    <line x1="12.5" y1="3" x2="12.5" y2="13" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    <polygon points="12.5,1.5 11,4 14,4" fill={color} />
+    <polygon points="12.5,14.5 11,12 14,12" fill={color} />
+  </svg>
+);
+
+// Flame — two-layer teardrop (outer body + inner core)
+const IconFlame = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <path d="M8 1.5 C5 5 4 8.3 4 10.5 C4 12.9 5.8 14.5 8 14.5 C10.2 14.5 12 12.9 12 10.5 C12 8.3 11 5 8 1.5 Z"
+          stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+    <path d="M8 6.3 C6.8 8.2 6.3 9.6 6.3 10.8 C6.3 12.1 7 13 8 13 C9 13 9.7 12.1 9.7 10.8 C9.7 9.6 9.2 8.2 8 6.3 Z"
+          stroke={color} strokeWidth="0.9" fill="none" strokeLinejoin="round" />
+  </svg>
+);
+
+// Target — 3 concentric rings + filled bullseye
+const IconTarget = ({ size = 14, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+       style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <circle cx="8" cy="8" r="6.3" stroke={color} strokeWidth="1.1" />
+    <circle cx="8" cy="8" r="4.2" stroke={color} strokeWidth="1" />
+    <circle cx="8" cy="8" r="2.1" stroke={color} strokeWidth="0.9" />
+    <circle cx="8" cy="8" r="0.8" fill={color} />
+  </svg>
+);
+
   const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {}, className = ""  }) => {
     const variants = {
       default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },
@@ -669,6 +859,34 @@ const PulseBtn = ({ visible, children, pulseKey, ...btnProps }) => {
   if (!visible) return null;
   return React.createElement(Btn, { ...btnProps, className: pulse ? 'btn-pulse' : '' }, children);
 };
+
+  // ── Juice hook: flashes CSS class when value changes ──────────
+ const useFlashOnChange = (value, options = {}) => {
+    const { direction, customClass, invert = false } = options;
+    const prev = React.useRef(value);
+    const [flashClass, setFlashClass] = React.useState('');
+
+    React.useEffect(() => {
+      if (prev.current !== value) {
+        let cls = customClass || '';
+        if (!cls) {
+          if (direction === 'up') cls = invert ? 'flash-red' : 'flash-green';
+          else if (direction === 'down') cls = invert ? 'flash-green' : 'flash-red';
+          else if (value > prev.current) cls = invert ? 'flash-red' : 'flash-green';
+          else if (value < prev.current) cls = invert ? 'flash-green' : 'flash-red';
+        }
+        if (cls) {
+          setFlashClass(cls);
+          const timer = setTimeout(() => setFlashClass(''), 600);
+          prev.current = value;
+          return () => clearTimeout(timer);
+        }
+        prev.current = value;
+      }
+    }, [value]);
+
+    return flashClass;
+  };
 
   const Bar = ({ value, max, color = T.greenBr, h = 7 }) => (
     <div style={{ width: "100%", height: h, background: "#181411",
@@ -891,9 +1109,10 @@ const Tooltip = ({ text, children }) => {
   return {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
-    FactionPill, RepPill, ShipSprite, BackButton,
+    FactionPill, RepPill, ShipSprite, BackButton, useFlashOnChange,
     IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconCrate, IconFood, IconWater, IconGold, Tooltip,
     IconBarrel, IconCoins, IconFruit,IconPirate,IconCalendar,IconChest,IconMarket,IconMap,IconFloppy,IconJournal,IconAnchor,IconSwordsGun,IconSwords,IconSailboat,IconWind,
-    IconParchment,IconCloth,IconTimber,IconCoffee,
+    IconParchment,IconCloth,IconTimber,IconCoffee,IconRhum,IconRhum2,IconSugar,IconSpice,IconTobacco,IconSilk,IconShip,IconGoldBag,IconCocoa,IconPerson,IconGoblet,IconPistol,
+    IconSpear,IconCog,IconCompass,IconPlay,IconCheers ,IconCannon ,IconChefHat,IconHammer ,IconTalking,IconBarChart,IconDice,IconContinue,IconFileTransfer,IconFlame,IconTarget,
   };
 })();

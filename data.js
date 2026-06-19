@@ -1101,10 +1101,10 @@ const STARTS = {
   // ── Faction → Backstory Fragments ─────────────────────
   factionBackstory: {
     english: {
-      hook: "a forged commission and a borrowed tide",
+      hook: "a forged commission and a borrowed time",
       flavour: "The ink is passable. The signature is not. You need to become the kind of captain who doesn't need the letter before someone looks closely enough to notice.",
       openingLog: [
-        "Cleared Kingston on a borrowed tide. The harbormaster stamped my commission without reading it. He never reads them.",
+        "Cleared Kingston on a borrowed time. The harbormaster stamped my commission without reading it. He never reads them.",
         "I need a real reputation before someone calls my bluff. That means work. English work, legal work. Well, at least for now.",
       ],
     },
