@@ -1637,6 +1637,246 @@ registerSound({
 });
 
 
+
+// -- Wind in the Rigging -----------------------------------------
+registerSound({
+  id: 'wind', icon: '&#x1F4A8;', name: 'Wind in the Rigging',
+  desc: 'Gusts whistling through ropes and sails',
+  loop: true,
+  synth: function(ctx) {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 20); src.loop = true;
+
+    var hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 200;
+    var lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 1400; lpf.Q.value = 0.7;
+
+    var lfo1 = ctx.createOscillator(); var lg1 = ctx.createGain();
+    lfo1.frequency.value = 0.09; lg1.gain.value = 600;
+    lfo1.connect(lg1); lg1.connect(lpf.frequency);
+
+    var lfo2 = ctx.createOscillator(); var lg2 = ctx.createGain();
+    lfo2.frequency.value = 0.27; lg2.gain.value = 250;
+    lfo2.connect(lg2); lg2.connect(lpf.frequency);
+
+    // Whistling resonant peak — rigging "singing" in gusts
+    var whistle = ctx.createBiquadFilter();
+    whistle.type = 'bandpass'; whistle.frequency.value = 900; whistle.Q.value = 8;
+    var wLfo = ctx.createOscillator(); var wLg = ctx.createGain();
+    wLfo.frequency.value = 0.05; wLg.gain.value = 300;
+    wLfo.connect(wLg); wLg.connect(whistle.frequency);
+    var whistleG = ctx.createGain(); whistleG.gain.value = 0.25;
+
+    var vLfo = ctx.createOscillator(); var vLg = ctx.createGain();
+    vLfo.frequency.value = 0.14; vLg.gain.value = 0.1;
+    vLfo.connect(vLg);
+
+    var master = ctx.createGain(); master.gain.value = 0.32;
+    vLg.connect(master.gain);
+
+    src.connect(hpf); hpf.connect(lpf); lpf.connect(master);
+    lpf.connect(whistle); whistle.connect(whistleG); whistleG.connect(master);
+    master.connect(ctx.destination);
+
+    src.start(); lfo1.start(); lfo2.start(); wLfo.start(); vLfo.start();
+
+    return function() {
+      try { src.stop();  } catch(e) {}
+      try { lfo1.stop(); } catch(e) {}
+      try { lfo2.stop(); } catch(e) {}
+      try { wLfo.stop(); } catch(e) {}
+      try { vLfo.stop(); } catch(e) {}
+    };
+  }
+});
+
+// -- Rain ----------------------------------------------------------
+registerSound({
+  id: 'rain', icon: '&#x1F327;', name: 'Rain',
+  desc: 'Steady rain pattering on deck and sails',
+  loop: true,
+  synth: function(ctx) {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 15); src.loop = true;
+
+    var hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 1800;
+    var lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 7000;
+
+    var master = ctx.createGain(); master.gain.value = 0.3;
+    src.connect(hpf); hpf.connect(lpf); lpf.connect(master);
+    master.connect(ctx.destination);
+    src.start();
+
+    // Sparse droplet "ticks" — random higher-pitched clicks
+    var alive = true;
+    var timers = [];
+    function drop() {
+      if (!alive) return;
+      var when = ctx.currentTime + 0.01;
+      var d = ctx.createBufferSource();
+      d.buffer = noiseBuffer(ctx, 0.012);
+      var df = ctx.createBiquadFilter();
+      df.type = 'bandpass'; df.frequency.value = 3500 + Math.random() * 3500; df.Q.value = 3;
+      var dg = ctx.createGain();
+      dg.gain.setValueAtTime(0.06 + Math.random() * 0.05, when);
+      dg.gain.exponentialRampToValueAtTime(0.001, when + 0.012);
+      d.connect(df); df.connect(dg); dg.connect(master);
+      d.start(when); d.stop(when + 0.015);
+      timers.push(setTimeout(drop, 15 + Math.random() * 40));
+    }
+    drop();
+
+    return function() {
+      alive = false;
+      for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+      try { src.stop(); } catch(e) {}
+    };
+  }
+});
+
+// -- Distant Thunder ----------------------------------------------
+registerSound({
+  id: 'thunder', icon: '&#x26A1;', name: 'Distant Thunder',
+  desc: 'A storm rolling in over the horizon',
+  loop: false, durationSec: 4,
+  synth: function(ctx) {
+    var master = ctx.createGain(); master.gain.value = 0.55;
+    master.connect(ctx.destination);
+    var t0 = ctx.currentTime;
+
+    // Initial crack — already softened since it's far away, no sharp transient
+    var crack = ctx.createBufferSource();
+    crack.buffer = noiseBuffer(ctx, 0.3);
+    var crackF = ctx.createBiquadFilter();
+    crackF.type = 'bandpass'; crackF.frequency.value = 500; crackF.Q.value = 1.5;
+    var crackG = ctx.createGain();
+    crackG.gain.setValueAtTime(0.5, t0);
+    crackG.gain.exponentialRampToValueAtTime(0.001, t0 + 0.3);
+    crack.connect(crackF); crackF.connect(crackG); crackG.connect(master);
+    crack.start(t0); crack.stop(t0 + 0.32);
+
+    // Long rolling rumble — several overlapping low-passed bursts
+    var numRolls = 8;
+    for (var i = 0; i < numRolls; i++) {
+      var when = t0 + 0.2 + i * 0.42 + Math.random() * 0.25;
+      var dur = 0.6 + Math.random() * 0.5;
+      var rumble = ctx.createBufferSource();
+      rumble.buffer = noiseBuffer(ctx, dur);
+      var rF = ctx.createBiquadFilter();
+      rF.type = 'lowpass'; rF.frequency.value = 120 - i * 6 + Math.random() * 20;
+      var rG = ctx.createGain();
+      var amp = 0.35 * (1 - i / (numRolls + 2));
+      rG.gain.setValueAtTime(0, when);
+      rG.gain.linearRampToValueAtTime(amp, when + 0.15);
+      rG.gain.exponentialRampToValueAtTime(0.001, when + dur);
+      rumble.connect(rF); rF.connect(rG); rG.connect(master);
+      rumble.start(when); rumble.stop(when + dur + 0.05);
+    }
+  }
+});
+
+// -- Campfire Crackle ----------------------------------------------
+registerSound({
+  id: 'fire', icon: '&#x1F525;', name: 'Campfire Crackle',
+  desc: 'A torch or campfire hissing and popping',
+  loop: true,
+  synth: function(ctx) {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 10); src.loop = true;
+
+    var hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 700;
+    var lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 3500;
+
+    var master = ctx.createGain(); master.gain.value = 0.22;
+    src.connect(hpf); hpf.connect(lpf); lpf.connect(master);
+    master.connect(ctx.destination);
+    src.start();
+
+    var alive = true;
+    var timers = [];
+    function pop() {
+      if (!alive) return;
+      var when = ctx.currentTime + 0.01;
+      var dur = 0.03 + Math.random() * 0.05;
+      var p = ctx.createBufferSource();
+      p.buffer = noiseBuffer(ctx, dur);
+      var pf = ctx.createBiquadFilter();
+      pf.type = 'bandpass'; pf.frequency.value = 800 + Math.random() * 2200; pf.Q.value = 2;
+      var pg = ctx.createGain();
+      pg.gain.setValueAtTime(0.12 + Math.random() * 0.18, when);
+      pg.gain.exponentialRampToValueAtTime(0.001, when + dur);
+      p.connect(pf); pf.connect(pg); pg.connect(master);
+      p.start(when); p.stop(when + dur + 0.01);
+      timers.push(setTimeout(pop, 80 + Math.random() * 350));
+    }
+    pop();
+
+    return function() {
+      alive = false;
+      for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+      try { src.stop(); } catch(e) {}
+    };
+  }
+});
+
+// -- Flapping Sail ---------------------------------------------
+registerSound({
+  id: 'sailflap', icon: '&#x26F5;', name: 'Flapping Sail',
+  desc: 'Canvas snapping and ropes creaking in the wind',
+  loop: true,
+  synth: function(ctx) {
+    var src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 12); src.loop = true;
+
+    var bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass'; bpf.frequency.value = 600; bpf.Q.value = 0.9;
+
+    // Irregular amplitude modulation = canvas flapping rhythm
+    var amLfo1 = ctx.createOscillator(); var amG1 = ctx.createGain();
+    amLfo1.frequency.value = 0.6; amG1.gain.value = 0.5;
+    amLfo1.connect(amG1);
+    var amLfo2 = ctx.createOscillator(); var amG2 = ctx.createGain();
+    amLfo2.frequency.value = 1.7; amG2.gain.value = 0.3;
+    amLfo2.connect(amG2);
+
+    var dynGain = ctx.createGain(); dynGain.gain.value = 0.18;
+    amG1.connect(dynGain.gain); amG2.connect(dynGain.gain);
+
+    var master = ctx.createGain(); master.gain.value = 0.3;
+    src.connect(bpf); bpf.connect(dynGain); dynGain.connect(master);
+    master.connect(ctx.destination);
+    src.start(); amLfo1.start(); amLfo2.start();
+
+    // Occasional rope creak — short pitched glide
+    var alive = true;
+    var timers = [];
+    function creak() {
+      if (!alive) return;
+      var when = ctx.currentTime + 0.01;
+      var f0 = 180 + Math.random() * 120;
+      var dur = 0.25 + Math.random() * 0.25;
+      var osc = ctx.createOscillator(); osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f0 * 1.1, when);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 0.9, when + dur);
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(0.1, when + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      osc.connect(lp); lp.connect(g); g.connect(master);
+      osc.start(when); osc.stop(when + dur + 0.02);
+      timers.push(setTimeout(creak, 2500 + Math.random() * 4000));
+    }
+    timers.push(setTimeout(creak, 1200));
+
+    return function() {
+      alive = false;
+      for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+      try { src.stop(); } catch(e) {}
+      try { amLfo1.stop(); } catch(e) {}
+      try { amLfo2.stop(); } catch(e) {}
+    };
+  }
+});
+
 // ============================================================
 //  UI
 // ============================================================

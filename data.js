@@ -653,7 +653,7 @@ const GOODS_AVAILABILITY = {
 // ── Parametric Mission Generator Config ────────────────────────
 
 const MISSION_GOLD_RANGES = {
-  0: { low: [75,120],   medium: [120,160],   high: [160,200],   assault: [200,280] },
+  0: { low: [140,180],  medium: [180,230],   high: [230,300],   assault: [300,400] },
   1: { low: [140,180],  medium: [180,230],   high: [230,300],   assault: [300,400] },
   2: { low: [400,1500], medium: [1500,5000], high: [5000,7000], assault: [7000,10000] },
   3: { low: [2000,7000],medium: [7000,10000],high: [10000,18000],assault: [18000,22000] },
