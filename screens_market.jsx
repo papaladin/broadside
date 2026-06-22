@@ -6,8 +6,37 @@ window.S = window.S || {};
   const { PORTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton,
+    IconAnchor,
+    IconFood, IconWater, IconRhum, IconSugar, IconTimber, IconCloth,
+    IconSpice, IconSilk, IconCoffee, IconCocoa, IconSpear, IconTobacco,
+    IconGoblet, IconPerson
+  } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
+
+  // Map good keys to their icon components (use IconSpear for weapons, IconPerson for slaves)
+  const GOOD_ICONS = {
+    food: IconFood,
+    water: IconWater,
+    rum: IconRhum,
+    sugar: IconSugar,
+    timber: IconTimber,
+    cloth: IconCloth,
+    spices: IconSpice,
+    silk: IconSilk,
+    coffee: IconCoffee,
+    cocoa: IconCocoa,
+    tobacco: IconTobacco,
+    weapons: IconSpear,
+    silver: IconGoblet,
+    slaves: IconPerson,
+  };
+
+  const getGoodIcon = (good) => {
+    const IconComponent = GOOD_ICONS[good];
+    if (!IconComponent) return null;
+    return React.createElement(IconComponent, { size: 14, color: T.textDim, style: { marginRight: 8 } });
+  };
 
   const MarketScreen = ({ state, dispatch }) => {
     const market = state.portMarket;
@@ -97,7 +126,7 @@ window.S = window.S || {};
           </TutorialPopup>
         )}
 
-        <SectionTitle>⚓ MARKET — {portName}</SectionTitle>
+        <SectionTitle><><IconAnchor size={18} color={T.gold} />  MARKET — {portName}</></SectionTitle>
         {flavourLines.length > 0 && (
           <div style={{
             fontSize: T.narrativeFontSize,
@@ -137,7 +166,8 @@ window.S = window.S || {};
             return (
               <div key={good} style={panelStyle({ background: T.panelAlt })}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, flexWrap:"wrap" }}>
-                  <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
+                  <span style={{ color:T.text, fontSize:12, fontWeight:"bold", display:"flex", alignItems:"center" }}>
+                    {getGoodIcon(good)}
                     {res.name}
                     {res.illegal && <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>}
                   </span>
@@ -232,7 +262,8 @@ window.S = window.S || {};
                 return (
                   <div key={good} style={panelStyle({ variant: "danger", background: T.panelAlt })}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, flexWrap:"wrap" }}>
-                      <span style={{ color:T.text, fontSize:12, fontWeight:"bold" }}>
+                      <span style={{ color:T.text, fontSize:12, fontWeight:"bold", display:"flex", alignItems:"center" }}>
+                        {getGoodIcon(good)}
                         {res.name}
                         <span style={{ color:T.red, fontSize:10, marginLeft:6 }}>(Illegal)</span>
                       </span>

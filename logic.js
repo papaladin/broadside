@@ -188,52 +188,54 @@ const getHeatLabel = (level) => {
 // LOGS FUNCTIONS
 // --------------------------------------------
 
-
 const classifyLogLine = (text) => {
-  if (!text) return { icon: null };
+  if (!text) return null;
   const t = text;
 
-  if (t.includes("Arrived at"))      return { icon: "⚓" };
-  if (t.includes("Setting sail") || t.includes("Changing course"))   return { icon: "⛵" };
-  if (t.includes("left the crew") || t.includes("has left")|| t.includes("Hired")) return { icon: "👥" };
-  if (t.includes("upset") || t.includes("disturbed"))       return { icon: "⚠" };
-  if (t.includes("settled down"))   return { icon: "👥" };
-  if (t.includes("mutineer") || t.includes("Mutiny"))       return { icon: "⚔" };
-  if (t.includes("Victory") || t.includes("Defeated"))      return { icon: "⚔" };
-  if (t.includes("Escaped") || t.includes("fled"))          return { icon: "💨" };
-  if (t.includes("Bought") || t.includes("Sold") || t.includes("trade") || t.includes("repaired")) return { icon: "💰" };
-  if (t.includes("Completed:") || t.includes("mission"))    return { icon: "📜" };
-  if (t.includes("New port discovered") || t.includes("chart")) return { icon: "🗺" };
-  if (t.includes("infamy") || t.includes("wanted") || t.includes("Wanted")) return { icon: "☠" };
-  if (t.includes("heat") || t.includes("alert") || t.includes("patrol")) return { icon: "🚨" };
-  if (t.includes("Plundered") || t.includes("plunder"))    return { icon: "🏴‍☠️" };
-  if (t.includes("survivor") || t.includes("rescue"))      return { icon: "🆘" };
-  if (t.includes("stores are empty") || t.includes("barrels are dry")) return { icon: "⚠" };
-  if (t.includes("morale") || t.includes("drinks"))        return { icon: "🍻" };
+  if (t.includes("Arrived at"))      return "arrival";
+  if (t.includes("Setting sail") || t.includes("Changing course"))   return "sailing";
+  if (t.includes("left the crew") || t.includes("has left")|| t.includes("Hired")) return "crew";
+  if (t.includes("upset") || t.includes("disturbed"))       return "warning";
+  if (t.includes("settled down"))   return "crew";
+  if (t.includes("mutineer") || t.includes("Mutiny"))       return "combat";
+  if (t.includes("Victory") || t.includes("Defeated"))      return "combat";
+  if (t.includes("Escaped") || t.includes("fled"))          return "combat";
+  if (t.includes("Bought") || t.includes("Sold") || t.includes("trade") || t.includes("repaired")) return "trade";
+  if (t.includes("Completed:") || t.includes("mission"))    return "mission";
+  if (t.includes("New port discovered") || t.includes("chart")) return "discovery";
+  if (t.includes("infamy") || t.includes("wanted") || t.includes("Wanted")) return "infamy";
+  if (t.includes("heat") || t.includes("alert") || t.includes("patrol")) return "warning";
+  if (t.includes("Plundered") || t.includes("plunder"))    return "combat";
+  if (t.includes("survivor") || t.includes("rescue"))      return "crew";
+  if (t.includes("stores are empty") || t.includes("barrels are dry")) return "warning";
+  if (t.includes("morale") || t.includes("drinks"))        return "crew";
 
-  return { icon: null };
+  return null;
 };
 
 const getLogTabCategory = (text) => {
-  const t = text || '';
-  // Crew (including traits)
-  if (/disturbed|left the crew|settled|seasoned|veteran|loyal|Hired|drinks|mutineer|upset|shaking|terrified|demands|brawl|rum|Bosun/i.test(t))
-    return "crew";
-  // Combat & Encounters
-  if (/Victory|Defeated|sinks|strikes|fled|escaped|Plundered|patrol|inspection|Bribed|Parley|surrendered|contraband/i.test(t))
-    return "combat";
-  // Ports (navigation, discovery, provisions)
-  if (/Arrived|Dropped anchor|Made port|Setting sail|New port discovered|food stores|water barrels/i.test(t))
-    return "ports";
-  // Missions
-  if (/Accepted mission|Completed:|Abandoned|Cannot complete|infamy/i.test(t))
-    return "missions";
-  // Trade & Repairs
-  if (/Bought|Sold|Net:|Repaired|Purchased|Installed/i.test(t))
-    return "trade";
-  return "other"; // fallback – will show under "All"
+  const category = classifyLogLine(text);
+  if (!category) return "other";
+  // Map categories to tabs
+  switch (category) {
+    case "crew":
+    case "warning":
+      return "crew";
+    case "combat":
+      return "combat";
+    case "arrival":
+    case "sailing":
+    case "discovery":
+      return "ports";
+    case "mission":
+    case "infamy":
+      return "missions";
+    case "trade":
+      return "trade";
+    default:
+      return "other";
+  }
 };
-
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIP & REPAIR FUNCTIONS

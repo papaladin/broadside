@@ -240,52 +240,101 @@ const Pill = ({ label, color = T.textDim, style = {} }) => (
       fontStyle: 'italic', ...style }}>{children}</p>
   );
 
-  const TutorialPopup = ({ title, children, onDismiss }) => {
-    const [dontShowAgain, setDontShowAgain] = React.useState(false);
-    return React.createElement('div', {
-      style: { position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)",
-        display: "flex", alignItems: "center", justifyContent: "center" }
-    }, React.createElement('div', {
-      style: { ...panelStyle({ maxWidth: 460, width: "90%" }), borderColor: T.gold }
-    },
-      React.createElement('div', { style: { color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 10 } }, "📖 " + title),
-      React.createElement('div', { style: { color: T.text, fontSize: 12, lineHeight: 1.6, marginBottom: 16 } }, children),
-      React.createElement('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-        React.createElement('label', { style: { color: T.textDim, fontSize: 11, cursor: "pointer" } },
-          React.createElement('input', { type: "checkbox", checked: dontShowAgain,
-            onChange: e => setDontShowAgain(e.target.checked), style: { marginRight: 6 } }),
-          "Don't show tutorial hints again"
-        ),
-        React.createElement(Btn, { v: "gold", onClick: () => onDismiss(dontShowAgain) }, "Got it!")
-      )
-    ));
+const TutorialPopup = ({ title, children, onDismiss }) => {
+  const [dontShowAgain, setDontShowAgain] = React.useState(false);
+  return React.createElement('div', {
+    style: { position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center" }
+  }, React.createElement('div', {
+    style: { ...panelStyle({ maxWidth: 460, width: "90%" }), borderColor: T.gold }
+  },
+    React.createElement('div', { style: { color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 10 } }, title),
+    React.createElement('div', { style: { color: T.text, fontSize: 12, lineHeight: 1.6, marginBottom: 16 } }, children),
+    React.createElement('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+      React.createElement('label', { style: { color: T.textDim, fontSize: 11, cursor: "pointer" } },
+        React.createElement('input', { type: "checkbox", checked: dontShowAgain,
+          onChange: e => setDontShowAgain(e.target.checked), style: { marginRight: 6 } }),
+        "Don't show tutorial hints again"
+      ),
+      React.createElement(Btn, { v: "gold", onClick: () => onDismiss(dontShowAgain) }, "Got it!")
+    )
+  ));
+};
+
+const LogList = ({ entries, maxEntries = 20 }) => {
+  let lastDay = null;
+  const LOG_ICONS = window.UI.LOG_ICONS || {};
+
+  // Strip a leading emoji + whitespace (covers ⚓ ⚔ 💨 ☠ ⚠ 👥 etc.)
+  const stripLeadingEmoji = (s) =>
+    s.replace(/^[\u2600-\u27BF\u2B00-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\uFE0F]+\s*/, '');
+
+  return (
+    <div style={{ /* ... */ }}>
+      {entries.slice(-maxEntries).map((entry, i) => {
+        const dayMatch = entry && entry.match(/^\[(\d+)\]\s*(.*)/);
+        const day = dayMatch ? parseInt(dayMatch[1], 10) : null;
+        const rawText = dayMatch ? dayMatch[2] : entry;
+        const showDay = day !== null && day !== lastDay;
+        if (day !== null) lastDay = day;
+
+        const categoryKey = window.L.classifyLogLine(rawText);
+        const IconComponent = categoryKey ? LOG_ICONS[categoryKey] : null;
+        const displayText = stripLeadingEmoji(rawText);
+
+        return (
+          <div key={i} style={{ marginBottom: 6, display: "flex", alignItems: "baseline" }}>
+            <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "baseline" }}>
+              {IconComponent && (
+                <IconComponent size={12} color={T.textDim}
+                  style={{ flexShrink: 0, verticalAlign: "middle" }} />
+              )}
+              <span>{displayText}</span>
+            </div>
+            {showDay && (
+              <span style={{ flexShrink: 0, marginLeft: 8, fontSize: T.captionFontSize, color: T.textFaint }}>
+                Day {day}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+
+// ── Good icon lookup ──────────────────────────────────────
+  // Maps a resource key (e.g. "rum", "sugar") to the corresponding icon component.
+  // Built lazily because icons.jsx loads after ui.jsx — at IIFE execution time
+  // the Icon components don't exist yet, so we resolve them on demand.
+  const GOOD_ICON_KEYS = {
+    food:    'IconFood',
+    water:   'IconWater',
+    rum:     'IconRhum',
+    sugar:   'IconSugar',
+    timber:  'IconTimber',
+    cloth:   'IconCloth',
+    spices:  'IconSpice',
+    silk:    'IconSilk',
+    coffee:  'IconCoffee',
+    cocoa:   'IconCocoa',
+    tobacco: 'IconTobacco',
+    weapons: 'IconSpear',
+    silver:  'IconGoblet',
+    slaves:  'IconPerson',
   };
 
-  const LogList = ({ entries, maxEntries = 20 }) => {
-    let lastDay = null;
-    return (
-      <div style={{ fontSize: T.narrativeFontSize, color: T.textDim,
-        lineHeight: T.narrativeLineHeight, overflowY: "auto", flex: 1, padding: "4px 0" }}>
-        {entries.slice(-maxEntries).map((entry, i) => {
-          const dayMatch = entry && entry.match(/^\[(\d+)\]\s*(.*)/);
-          const day = dayMatch ? parseInt(dayMatch[1], 10) : null;
-          const text = dayMatch ? dayMatch[2] : entry;
-          const showDay = day !== null && day !== lastDay;
-          if (day !== null) lastDay = day;
-          const startsWithEmoji = text && /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/u.test(text.trim());
-          const category = startsWithEmoji ? { icon: null } : window.L.classifyLogLine(text);
-          return (
-            <div key={i} style={{ marginBottom: 6, display: "flex", alignItems: "baseline" }}>
-              <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "baseline" }}>
-                {category.icon && <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>{category.icon}</span>}
-                <span>{text}</span>
-              </div>
-              {showDay && <span style={{ flexShrink: 0, marginLeft: 8, fontSize: T.captionFontSize, color: T.textFaint }}>Day {day}</span>}
-            </div>
-          );
-        })}
-      </div>
-    );
+  const getGoodIcon = (good, opts = {}) => {
+    const iconName = GOOD_ICON_KEYS[good];
+    if (!iconName) return null;
+    const IconComponent = window.UI[iconName];
+    if (!IconComponent) return null;
+    return React.createElement(IconComponent, {
+      size: opts.size ?? 14,
+      color: opts.color ?? T.textDim,
+      style: opts.style ?? { marginRight: 6 },
+    });
   };
 
   const Divider = ({ style = {} }) => (
@@ -382,6 +431,6 @@ const Tooltip = ({ text, children }) => {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton, useFlashOnChange,
-    Tooltip,
+    Tooltip,getGoodIcon
   });
 })();

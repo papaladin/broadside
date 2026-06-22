@@ -39,6 +39,21 @@ Trade, scheme, and fight your way to fortune... but the world keeps score.
 
 ---
 
+## Architecture at a Glance
+
+Broadside is built around four ideas that you should know before reading any code:
+
+1. **Single state tree, single reducer.** All game state lives in one object, mutated only through dispatched actions. No hidden state.
+2. **Strict layer separation.** Data → Logic → Generators → Engine → UI. Each layer only reads from the layers above it. Pure functions in `logic.js`. All randomness in `generators.js`. All state transitions in the engine reducers.
+3. **Narrative as a presentation layer.** Gossip, captain's log, crew biographies, journal — these *describe* what happened, they don't *cause* anything. Gameplay systems own the consequences.
+4. **No build step.** Everything runs in the browser via React + Babel-standalone CDN. Edit a file, refresh, see it.
+
+The dependency direction is strictly downward: `data.js → logic.js → generators.js → engine_*.js → ui.jsx → screens_*.jsx → App.jsx`.
+
+For the full picture — state shape, reducer chain mechanics, file-by-file responsibilities, and contribution patterns — see [ocs/architecture.md and the docs/.
+
+---
+
 # Tech Stack
 
 | Layer          | Technology                                      |

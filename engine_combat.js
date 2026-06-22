@@ -593,16 +593,6 @@ const handleFledMission = (currentState, battleState) => {
 
         // Victory aftermath (upset + scar)
         let currentState = applyVictoryAftermath(state, battleState);
-        // After victory, if it was the tutorial hunt, advance onboarding
-        if (battleState.phase === "victory" && currentState.activeMission?.tutorial && !currentState.activeMission?.requiredGood) {
-          currentState = {
-            ...currentState,
-            onboarding: {
-              ...currentState.onboarding,
-              stepsCompleted: { ...currentState.onboarding.stepsCompleted, tutorialHuntCompleted: true },
-            },
-          };
-        }
 
         // Patrol victory
         const patrolResult = handlePatrolVictory(currentState, battleState,heatAmount);
@@ -813,7 +803,7 @@ const handleFledMission = (currentState, battleState) => {
               const itemCond = cond.find(c => c.type === "item" && c.value === fragment);
               if (itemCond) {
                 newState.discoveredPorts = [...(newState.discoveredPorts || []), portKey];
-                newState.log = [...(newState.log || []), `⚓ New port discovered: ${port.name}. The chart reveals everything.`];
+                newState.log = [...(newState.log || []), ` New port discovered: ${port.name}. The chart reveals everything.`];
               }
             });
           }

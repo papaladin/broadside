@@ -6,17 +6,19 @@ const { useState, useEffect, useMemo } = React;
 const { SHIPS, EQUIPMENT, PORTS } = window.D;
 const L = window.L;
 const A = window.E.A;
-const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton } = window.UI;
+const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton,
+    IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip
+} = window.UI;
 const { shouldShowTutorial, markTutorialSeen } = window.L;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  CONSTANTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const SLOT_LABELS = {
-    hull:     { label: "Hull",      icon: "🛡️" },
-    armament: { label: "Armament",  icon: "💥" },
-    rigging:  { label: "Rigging",   icon: "⛵" },
-    special:  { label: "Special",   icon: "✨" },
+    hull:     { label: "Hull",      Icon: IconShield },
+    armament: { label: "Armament",  Icon: IconCannon },
+    rigging:  { label: "Rigging",   Icon: IconSailboat },
+    special:  { label: "Special",   Icon: IconSparkles },
 };
 
 const TABS = { EQUIP: "equip", SHIPS: "ships", LOCKER: "locker" };
@@ -122,7 +124,16 @@ function ShipyardScreen({ state, dispatch }) {
                 <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
                         <span style={{ color: T.gold, fontSize: 12, fontWeight: "bold" }}>
-                            {isFromLocker ? "📦 Install from Locker" : "🔧 Preview: Buy & Install"}
+                            {isFromLocker
+                                ? React.createElement(React.Fragment, null,
+                                    React.createElement(IconChest, { size: 12, color: T.gold }),
+                                    " Install from Locker"
+                                  )
+                                : React.createElement(React.Fragment, null,
+                                    React.createElement(IconHammer, { size: 12, color: T.gold }),
+                                    " Preview: Buy & Install"
+                                  )
+                            }
                         </span>
                         <Btn sm v="ghost" onClick={() => setSelectedEquip(null)} style={{ flexShrink: 0 }}>✕</Btn>
                     </div>
@@ -172,7 +183,7 @@ function ShipyardScreen({ state, dispatch }) {
                 <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
                         <span style={{ color: T.gold, fontSize: 12, fontWeight: "bold" }}>
-                            ⛵ Compare: {s.name} vs {cur.name}
+                            <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
                         </span>
                         <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
                     </div>
@@ -268,14 +279,16 @@ function ShipyardScreen({ state, dispatch }) {
                 {(isNarrow ? equippedOpen : true) && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {Object.entries(SLOT_LABELS).map(([slotKey, slotInfo]) => {
+                            const SlotIcon = slotInfo.Icon;
                             const slotMax = currentShip.slots?.[slotKey] || 0;
                             if (slotMax === 0) return null;
                             const installed = state.ship.equipment?.[slotKey] || [];
 
                             return (
                                 <div key={slotKey}>
-                                    <div style={{ color: T.gold, fontSize: 10, fontWeight: "bold", marginBottom: 2 }}>
-                                        {slotInfo.icon} {slotInfo.label} ({installed.length}/{slotMax})
+                                    <div style={{ color: T.gold, fontSize: 10, fontWeight: "bold", marginBottom: 2, display: "flex", alignItems: "center" }}>
+                                        <SlotIcon size={12} color={T.gold} style={{ marginRight: 4 }} />
+                                        {slotInfo.label} ({installed.length}/{slotMax})
                                     </div>
                                     {installed.length === 0 ? (
                                         <div style={{ color: T.textFaint, fontSize: 9, fontStyle: "italic", paddingLeft: 4 }}>empty</div>
@@ -318,10 +331,16 @@ function ShipyardScreen({ state, dispatch }) {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     const renderEquipmentTab = () => {
-        // Slot filter
+        // Slot filter buttons – using icon components
         const filterButtons = [
             { key: "all", label: "All" },
-            ...Object.entries(SLOT_LABELS).map(([k, v]) => ({ key: k, label: `${v.icon} ${v.label}` })),
+            ...Object.entries(SLOT_LABELS).map(([k, v]) => ({
+                key: k,
+                label: React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center' } },
+                    React.createElement(v.Icon, { size: 10, color: T.textDim, style: { marginRight: 3 } }),
+                    v.label
+                )
+            })),
         ];
 
         const shopItems = Object.entries(EQUIPMENT).map(([key, item]) => {
@@ -355,6 +374,7 @@ function ShipyardScreen({ state, dispatch }) {
                 }}>
                     {shopItems.map(item => {
                         const isSelected = selectedEquip === item.key;
+                        const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
                         return (
                             <div key={item.key}
                                 onClick={() => setSelectedEquip(isSelected ? null : item.key)}
@@ -374,8 +394,14 @@ function ShipyardScreen({ state, dispatch }) {
                                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
                                     {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
                                 </div>
-                                <div style={{ color: T.textFaint, fontSize: 8 }}>
-                                    {SLOT_LABELS[item.slot]?.icon} {SLOT_LABELS[item.slot]?.label} · Fame {item.requiredFame} · Hull {item.requiredHull}+
+                                <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
+                                    {SlotIcon && (
+                                        <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
+                                    )}
+                                    {SLOT_LABELS[item.slot]?.label || item.slot}
+                                    {item.requiredFame > 0 || item.requiredHull > 0 ? (
+                                        <span> · Fame {item.requiredFame} · Hull {item.requiredHull}+</span>
+                                    ) : null}
                                 </div>
                                 {!item.validation.ok && (
                                     <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
@@ -456,6 +482,7 @@ function ShipyardScreen({ state, dispatch }) {
             }}>
                 {lockerItems.map(item => {
                     const isSelected = selectedEquip === item.key;
+                    const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
                     return (
                         <div key={item.key}
                             onClick={() => setSelectedEquip(isSelected ? null : item.key)}
@@ -475,8 +502,11 @@ function ShipyardScreen({ state, dispatch }) {
                             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
                                 {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
                             </div>
-                            <div style={{ color: T.textFaint, fontSize: 8 }}>
-                                {SLOT_LABELS[item.slot]?.icon} {SLOT_LABELS[item.slot]?.label}
+                            <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
+                                {SlotIcon && (
+                                    <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
+                                )}
+                                {SLOT_LABELS[item.slot]?.label || item.slot}
                             </div>
                             {!item.validation.ok && (
                                 <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
@@ -493,12 +523,12 @@ function ShipyardScreen({ state, dispatch }) {
             {/* Tab bar */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <Btn sm v={activeTab === TABS.EQUIP ? "gold" : "ghost"}
-                    onClick={() => switchTab(TABS.EQUIP)}>⚙ Equipment</Btn>
+                    onClick={() => switchTab(TABS.EQUIP)}><IconCog size={12} color={activeTab === TABS.EQUIP ? T.gold : T.textDim} /> Equipment</Btn>
                 <Btn sm v={activeTab === TABS.SHIPS ? "gold" : "ghost"}
-                    onClick={() => switchTab(TABS.SHIPS)}>⛵ Ships</Btn>
+                    onClick={() => switchTab(TABS.SHIPS)}><IconShip size={12} color={activeTab === TABS.SHIPS ? T.gold : T.textDim} /> Ships</Btn>
                 {hasLocker && (
                     <Btn sm v={activeTab === TABS.LOCKER ? "gold" : "ghost"}
-                        onClick={() => switchTab(TABS.LOCKER)}>📦 Locker ({lockerItems.length})</Btn>
+                        onClick={() => switchTab(TABS.LOCKER)}><IconChest size={12} color={activeTab === TABS.LOCKER ? T.gold : T.textDim} /> Locker ({lockerItems.length})</Btn>
                 )}
             </div>
 

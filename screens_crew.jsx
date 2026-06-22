@@ -6,9 +6,24 @@ window.S = window.S || {};
   const { SHIPS, FACTIONS, PORTS } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip,
+    IconCheers,IconAnchor, IconCannon, IconHammer, IconChefHat, IconCompass, IconShield } = window.UI;
   const G = window.G;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
+
+  // Helper: returns an SVG icon element for the given crew role
+  const getRoleIcon = (role) => {
+    const iconProps = { size: 14, color: T.text };
+    switch (role) {
+      case "deckhand":     return <IconAnchor {...iconProps} />;
+      case "gunner":       return <IconCannon {...iconProps} />;
+      case "cook":         return <IconChefHat {...iconProps} />;
+      case "carpenter":    return <IconHammer {...iconProps} />;
+      case "navigator":    return <IconCompass {...iconProps} />;
+      case "quartermaster":return <IconShield {...iconProps} />;
+      default:             return <span>👤</span>;
+    }
+  };
 
   function CrewScreen({ state, dispatch }) {
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
@@ -80,7 +95,9 @@ window.S = window.S || {};
             })()}
 
             <div style={{ marginTop: 10 }}>
-              <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.crew.roster.length === 0 ||  state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>🍻 Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale</Btn>
+              <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.crew.roster.length === 0 ||  state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>
+                <IconCheers size={12} color={T.greenBr} /> Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale
+              </Btn>
             </div>
           </div>
 
@@ -99,21 +116,7 @@ window.S = window.S || {};
             <SectionTitle>CREW DETAILS</SectionTitle>
             {selectedMember ? (
               (() => {
-                const ALL_ICONS = {
-                  seasoned:           { icon: "⭐", label: "Seasoned: halved desertion chance" },
-                  veteran:            { icon: "🎖️", label: "Veteran: halved desertion chance" },
-                  loyal:              { icon: "👑", label: "Loyal Officer: never deserts" },
-                  upset:              { icon: "⚠️", label: "Upset: may desert at next port" },
-                  mutineer:           { icon: "⚓", label: "Mutineer: permanent; doubles desertion chance if upset" },
-                  scar_battle:        { icon: "⚔️", label: "Battle-Scarred" },
-                  scar_storm:         { icon: "🌊", label: "Storm Survivor" },
-                  scar_shipwreck:     { icon: "🚢", label: "Shipwreck Survivor" },
-                  revealed_drunkard:  { icon: "🍺", label: "Drunkard: drinks the ship's rum" },
-                  revealed_coward:    { icon: "🐔", label: "Coward: loses morale on dangerous missions" },
-                  revealed_greedy:    { icon: "💰", label: "Greedy: demands a bonus after missions" },
-                };
                 const visibleTags = (selectedMember.tags || []).filter(t => !t.startsWith("hidden_"));
-                const memberIcons = Object.entries(ALL_ICONS).filter(([tag]) => visibleTags.includes(tag));
 
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -127,13 +130,35 @@ window.S = window.S || {};
                       <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
                       <div>Role: {selectedMember.role}</div>
                       <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>
-                      {memberIcons.length > 0 && (
-                        <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {memberIcons.map(([tag, { icon, label }]) => (
-                            <span key={tag} title={label} style={{ fontSize: T.heading2FontSize }}>{icon}</span>
-                          ))}
+
+                      {visibleTags.length > 0 && (
+                        <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {visibleTags.map(tag => {
+                            const positiveTraits = ["loyal", "seasoned", "veteran"];
+                            const isPositive = positiveTraits.includes(tag);
+                            const color = isPositive ? T.greenBr : T.redBr;
+                            const displayLabels = {
+                              loyal: "Loyal Officer",
+                              scar_battle: "Battle Scarred",
+                              scar_storm: "Storm Survivor",
+                              scar_shipwreck: "Shipwrecked",
+                              seasoned: "Seasoned",
+                              veteran: "Veteran",
+                              mutineer: "Mutineer",
+                              upset: "Upset",
+                              revealed_drunkard: "Drunkard",
+                              revealed_coward: "Coward",
+                              revealed_greedy: "Greedy",
+                            };
+                            const label = displayLabels[tag] || tag
+                              .replace("revealed_", "")
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, c => c.toUpperCase());
+                            return <Pill key={tag} label={label} color={color} />;
+                          })}
                         </div>
                       )}
+
                       <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
                         {selectedMember.bio
                           ? selectedMember.bio
@@ -141,18 +166,8 @@ window.S = window.S || {};
                             ? G.generateCrewBio(selectedMember, state)
                             : `${selectedMember.firstName} is a crew member.`}
                       </div>
-                      {memberIcons.length > 0 && (
-                        <details style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
-                          <summary style={{ cursor: "pointer", color: T.gold, fontSize: 10, letterSpacing: "0.05em" }}>ICON LEGEND</summary>
-                          <div style={{ marginTop: 4, lineHeight: 1.8, paddingLeft: 4 }}>
-                            {memberIcons.map(([tag, { icon, label }]) => (
-                              <div key={tag} title={label}>{icon} {label}</div>
-                            ))}
-                          </div>
-                        </details>
-                      )}
                     </div>
-                      {!L.hasTag(selectedMember, "protected") ? (
+                    {!L.hasTag(selectedMember, "protected") ? (
                       <Tooltip text="Dismiss this crew member permanently. This cannot be undone.">
                         <Btn sm v="red" style={{ marginTop: 8 }}
                           onClick={() => {
@@ -162,10 +177,7 @@ window.S = window.S || {};
                           ✕ Dismiss
                         </Btn>
                       </Tooltip>
-                    ) : (
-                      // Placeholder for skip tutorial button (T11)
-                      null
-                    )}
+                    ) : null}
                   </div>
                 );
               })()
@@ -183,7 +195,6 @@ window.S = window.S || {};
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {state.crew.roster.map(member => {
               const visibleTags = (member.tags || []).filter(t => !t.startsWith("hidden_"));
-              const roleIcon = { deckhand: "⚓", gunner: "🗡", cook: "🍖", carpenter: "🔧", navigator: "🧭" }[member.role] ?? "👤";
               const factionColor = FACTIONS[member.faction]?.color || T.textDim;
               const isMutineer = L.hasTag(member, "mutineer");
               const tagLabels = visibleTags.map(t => {
@@ -213,7 +224,10 @@ window.S = window.S || {};
                     position: "relative",
                   }}
                 >
-                  <span>{roleIcon}</span>
+                  {/* Render role icon here */}
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {getRoleIcon(member.role)}
+                  </span>
                   <div style={{
                     position: "absolute", bottom: 2, right: 2,
                     width: 8, height: 8, borderRadius: "50%",

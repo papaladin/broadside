@@ -6,14 +6,13 @@ window.S = window.S || {};
   const { PORTS, FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES, QM_DIALOGUE } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
+    IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat } = window.UI;
 
   // ── TITLE SCREEN (moved from screens_port.jsx) ───────────────────
   function TitleScreen({ dispatch }) {
     const hasSave = L.hasSave();
     const importRef = React.useRef(null);
-    const [tutorialEnabled, setTutorialEnabled] = React.useState(() => L.loadTutorialState().enabled);
-    const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
     const localStorageWarning = React.useMemo(() => !L.checkLocalStorageAvailable(), []);
 
     const handleImport = (e) => {
@@ -25,39 +24,29 @@ window.S = window.S || {};
       e.target.value = "";
     };
 
-    const toggleTutorial = (checked) => {
-      setTutorialEnabled(checked);
-      const ts = L.loadTutorialState();
-      ts.enabled = checked;
-      if (checked) {
-        ts.seen = { ...L.getDefaultTutorialState().seen };
-      }
-      L.saveTutorialState(ts);
-    };
-
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         minHeight: "100vh", padding: T.spacing.xl,
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
-            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}>▶ New Game</Btn>
+            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}><IconPlay size={12} color={T.gold} /> New Game</Btn>
           </Tooltip>
 
           {hasSave && (
             <Tooltip text="Continue your most recent voyage from where you left off.">
-              <Btn v="ghost"  style={{ width: "100%" }} onClick={() => dispatch({ type: A.LOAD_GAME })}>↩ Continue</Btn>
+              <Btn v="ghost"  style={{ width: "100%" }} onClick={() => dispatch({ type: A.LOAD_GAME })}><IconContinue size={12} color={T.gold} /> Continue</Btn>
             </Tooltip>
           )}
 
           <input type="file" accept=".broadside" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
           <Tooltip text="Load an adventure from a saved file.">
-            <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}>📂 Import Save</Btn>
+            <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}><IconFileTransfer size={12} color={T.gold} /> Import Save</Btn>
           </Tooltip>
 
           {localStorageWarning && (
@@ -114,7 +103,7 @@ window.S = window.S || {};
         minHeight: "100vh", padding: T.spacing.xl,
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}>⚓ Broadside</div>
+        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
         <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
         <div style={{ width: 380, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: T.spacing.lg }}>
@@ -124,7 +113,7 @@ window.S = window.S || {};
             <div style={{ display: "flex", gap: T.spacing.sm }}>
               <input type="text" value={captainName} onChange={e => setCaptainName(e.target.value)}
                 style={{ flex: 1, padding: "10px 12px", background: T.panel, border: `1px solid ${T.border}`, color: T.text, fontSize: 15, fontFamily: T.font, borderRadius: 2, outline: "none" }} />
-              <Btn sm v="ghost" onClick={handleRandomName}>🎲 Random</Btn>
+              <Btn sm v="ghost" onClick={handleRandomName}><IconDice size={12} color={T.gold} /> Random</Btn>
             </div>
           </div>
 
@@ -199,7 +188,7 @@ window.S = window.S || {};
 
           {/* Set Sail */}
           <Btn v="gold" onClick={handleSetSail} disabled={!captainName.trim() || !selectedFaction} style={{ fontSize: 16, padding: "14px" }}>
-            ⛵ Set Sail
+            <IconSailboat size={16} color={T.gold} /> Set Sail
           </Btn>
         </div>
       </div>
@@ -220,7 +209,6 @@ window.S = window.S || {};
       animation: "qmSlideIn 0.3s ease-out",
     }
   },
-    React.createElement('div', { style: { fontSize: 20, flexShrink: 0 } }, '⚓'),
     React.createElement('div', { style: { flex: 1 } },
       React.createElement('div', { style: { color: T.gold, fontSize: 11, fontWeight: "bold", marginBottom: 4 } }, qmName),
       React.createElement('div', { style: { color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight } }, message),
@@ -314,9 +302,7 @@ window.S = window.S || {};
     }, [state]);  // react to any state change
 
  const handleDismiss = () => {
-    console.log('handleDismiss called, getMessage:', getMessage);
     if (getMessage?.key) {
-        console.log('Dispatching QM_SEEN for', getMessage.key);
         dispatch({ type: A.ONBOARDING_QM_SEEN, messageKey: getMessage.key });
         if (getMessage.key === 'departure') {
             dispatch({ type: A.ONBOARDING_COMPLETE });

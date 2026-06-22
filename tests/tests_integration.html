@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Broadside — Integration Load Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #1a1207;
+    --panel: #2a1f10;
+    --panel-alt: #352a18;
+    --border: #5a4a2a;
+    --border-faint: #3a2e1a;
+    --text: #d4c4a0;
+    --text-dim: #a09070;
+    --text-faint: #706050;
+    --gold: #c9a84c;
+    --gold-br: #e8d080;
+    --green: #6cbf6c;
+    --red: #d46a6a;
+    --blue: #6a8cbf;
+    --font: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  h1 { color: var(--gold-br); margin: 0 0 4px; font-size: 20px; }
+  .subtitle { color: var(--text-dim); margin-bottom: 16px; font-size: 12px; }
+  .summary {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .summary .stat { display: flex; flex-direction: column; }
+  .summary .label { color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .summary .value { color: var(--gold-br); font-size: 22px; font-weight: bold; }
+  .summary .value.green { color: var(--green); }
+  .summary .value.red { color: var(--red); }
+  button {
+    background: var(--panel-alt);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    border-radius: 3px;
+    padding: 8px 16px;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  button:hover { background: var(--gold); color: var(--bg); }
+  .group {
+    background: var(--panel);
+    border: 1px solid var(--border-faint);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+  }
+  .group h2 {
+    color: var(--gold);
+    font-size: 14px;
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--border-faint);
+    padding-bottom: 4px;
+  }
+  .test {
+    padding: 4px 0;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .test .icon { flex-shrink: 0; font-size: 14px; }
+  .test .name { color: var(--text); }
+  .test.fail .name { color: var(--red); }
+  .test .err {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-left: 8px;
+    font-style: italic;
+  }
+  .running { color: var(--text-dim); font-style: italic; padding: 8px 0; }
+  .empty { color: var(--text-faint); padding: 8px 0; font-style: italic; }
+  .footer {
+    color: var(--text-faint);
+    font-size: 11px;
+    margin-top: 16px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚓ Broadside — Integration Load Test</h1>
+<div class="subtitle">B0.5 — verifies all scripts load cleanly and core namespaces are populated. Catches LOG_ICONS-class regressions.</div>
+
+<div class="summary">
+  <div class="stat"><div class="label">Total</div><div class="value" id="total">—</div></div>
+  <div class="stat"><div class="label">Passed</div><div class="value green" id="passed">—</div></div>
+  <div class="stat"><div class="label">Failed</div><div class="value red" id="failed">—</div></div>
+  <div class="stat"><div class="label">Status</div><div class="value" id="status">—</div></div>
+  <div style="margin-left:auto;"><button onclick="location.reload()">↻ Re-run</button></div>
+</div>
+
+<div id="results"><div class="running">Loading game scripts…</div></div>
+
+<div class="footer">Tests run automatically once Babel finishes transpiling all .jsx files.</div>
+
+<!-- React & Babel (same CDN as index.html) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Game scripts in load order (../ because we are inside tests/) -->
+<script src="../data.js"></script>
+<script src="../data_text.js"></script>
+<script src="../logic.js"></script>
+<script src="../storage.js"></script>
+<script src="../generators.js"></script>
+<script src="../engine_core.js"></script>
+<script src="../engine_port.js"></script>
+<script src="../engine_voyage.js"></script>
+<script src="../engine_combat.js"></script>
+
+<script type="text/babel" src="../ui.jsx"></script>
+<script type="text/babel" src="../icons.jsx"></script>
+<script type="text/babel" src="../screens_core.jsx"></script>
+<script type="text/babel" src="../screens_port.jsx"></script>
+<script type="text/babel" src="../screens_shipyard.jsx"></script>
+<script type="text/babel" src="../screens_crew.jsx"></script>
+<script type="text/babel" src="../screens_market.jsx"></script>
+<script type="text/babel" src="../screens_voyage.jsx"></script>
+
+<script>
+(function () {
+  // Test harness
+  const results = [];
+  let currentGroup = null;
+  function group(name) {
+    currentGroup = { name, tests: [] };
+    results.push(currentGroup);
+  }
+  function test(name, fn) {
+    let ok = true, err = null;
+    try {
+      const r = fn();
+      if (r === false) { ok = false; err = "assertion returned false"; }
+    } catch (e) {
+      ok = false;
+      err = (e && e.message) ? e.message : String(e);
+    }
+    currentGroup.tests.push({ name, ok, err });
+  }
+  function assert(cond, msg) {
+    if (!cond) throw new Error(msg || "assertion failed");
+  }
+
+  function runAllTests() {
+    // ─────────────────────────────────────────────────────────────
+    // Namespace existence
+    // ─────────────────────────────────────────────────────────────
+    group("1. Global namespaces present");
+    test("window.D exists", () => assert(window.D && typeof window.D === "object", "window.D missing"));
+    test("window.L exists", () => assert(window.L && typeof window.L === "object", "window.L missing"));
+    test("window.G exists", () => assert(window.G && typeof window.G === "object", "window.G missing"));
+    test("window.E exists", () => assert(window.E && typeof window.E === "object", "window.E missing"));
+    test("window.UI exists", () => assert(window.UI && typeof window.UI === "object", "window.UI missing"));
+    test("window.S exists", () => assert(window.S && typeof window.S === "object", "window.S missing"));
+
+    // ─────────────────────────────────────────────────────────────
+    // Data (D)
+    // ─────────────────────────────────────────────────────────────
+    group("2. Data constants (window.D)");
+    const dKeys = ["PORTS","SHIPS","FACTIONS","EQUIPMENT","RESOURCES","RANDOM_EVENTS","STARTS"];
+    dKeys.forEach(k => test("D." + k + " exists", () => assert(window.D && window.D[k], "D." + k + " missing")));
+    test("D.TUTORIAL_DELIVERY exists", () => assert(window.D && window.D.TUTORIAL_DELIVERY, "D.TUTORIAL_DELIVERY missing"));
+    test("D.TUTORIAL_HUNT exists", () => assert(window.D && window.D.TUTORIAL_HUNT, "D.TUTORIAL_HUNT missing"));
+    test("D.PORTS has >= 20 entries", () => {
+      assert(window.D && window.D.PORTS, "PORTS missing");
+      assert(Object.keys(window.D.PORTS).length >= 20, "expected >=20 ports, got " + Object.keys(window.D.PORTS).length);
+    });
+    test("D.SHIPS has >= 10 entries", () => {
+      assert(Object.keys(window.D.SHIPS).length >= 10, "expected >=10 ships");
+    });
+    test("D.FACTIONS includes 5 factions (english, spanish, french, dutch, pirate)", () => {
+      ["english","spanish","french","dutch","pirate"].forEach(f =>
+        assert(window.D.FACTIONS[f], "faction missing: " + f));
+    });
+    test("D.EQUIPMENT has >= 15 items", () => {
+      assert(Object.keys(window.D.EQUIPMENT).length >= 15, "expected >=15 equipment items");
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Logic (L)
+    // ─────────────────────────────────────────────────────────────
+    group("3. Logic functions (window.L)");
+    const lFns = [
+      "getShipStats","travelDays","canReach","getRepPerk","getFameInfo",
+      "getInfamyLabel","getHeatLabel","getEffectiveMorale","getHoldCapacity","getHoldUsed",
+      "getRepairCost","getEquipmentEffect","canInstallEquipment","hasTag","addTag",
+      "removeTag","revealTag","classifyLogLine","getLogTabCategory","buildEncounterContext",
+      "canSeePort","getNPCAction","resolveCombatAction","hasSave","encodeSave",
+      "decodeSave","shouldShowTutorial","markTutorialSeen"
+    ];
+    lFns.forEach(fn => test("L." + fn + " is a function", () =>
+      assert(typeof window.L[fn] === "function", "L." + fn + " is " + (typeof window.L[fn]))
+    ));
+
+    // ─────────────────────────────────────────────────────────────
+    // Generators (G)
+    // ─────────────────────────────────────────────────────────────
+    group("4. Generators (window.G)");
+    const gFns = [
+      "generateCrewMember","generateRoster","generateCrewBio",
+      "generatePortMarket","generateEnemyCargo","generateMissions",
+      "generatePortGossip","generateEnemy"
+    ];
+    gFns.forEach(fn => test("G." + fn + " is a function", () =>
+      assert(typeof window.G[fn] === "function", "G." + fn + " missing or not a function")
+    ));
+
+    // ─────────────────────────────────────────────────────────────
+    // Engine (E)
+    // ─────────────────────────────────────────────────────────────
+    group("5. Engine (window.E)");
+    test("E.A actions table exists", () => assert(window.E.A && typeof window.E.A === "object", "E.A missing"));
+    test("E.A has >= 30 action types", () => {
+      const n = Object.keys(window.E.A).length;
+      assert(n >= 30, "expected >=30 actions, got " + n);
+    });
+    test("every E.A entry is a non-empty string", () => {
+      for (const k of Object.keys(window.E.A)) {
+        const v = window.E.A[k];
+        assert(typeof v === "string" && v.length > 0, "E.A." + k + " is " + JSON.stringify(v));
+      }
+    });
+    test("E.reducer is a function", () => assert(typeof window.E.reducer === "function"));
+    test("E.initialState exists with key fields", () => {
+      const s = window.E.initialState;
+      assert(s, "initialState missing");
+      ["screen","day","gold","fame","infamy","ship","crew","hold","reputation"].forEach(k =>
+        assert(k in s, "initialState missing field: " + k));
+    });
+    test("E.initialState.ship has equipment shape (not legacy 'upgrades')", () => {
+      const s = window.E.initialState.ship;
+      assert(s.equipment, "ship.equipment missing");
+      ["hull","armament","rigging","special"].forEach(slot =>
+        assert(Array.isArray(s.equipment[slot]), "ship.equipment." + slot + " not an array"));
+      assert(!("upgrades" in s), "initialState.ship still contains legacy 'upgrades' field");
+    });
+    test("E.autoSave is a function", () => assert(typeof window.E.autoSave === "function"));
+    test("E.migrateState is a function", () => assert(typeof window.E.migrateState === "function"));
+
+    // ─────────────────────────────────────────────────────────────
+    // UI (theme + components)
+    // ─────────────────────────────────────────────────────────────
+    group("6. UI primitives (window.UI)");
+    test("UI.T theme tokens exist", () => {
+      assert(window.UI.T, "UI.T missing");
+      ["bg","panel","border","text","gold","green","red","font","btnMinHeight"].forEach(k =>
+        assert(k in window.UI.T, "UI.T." + k + " missing"));
+    });
+    test("UI.panelStyle is a function", () => assert(typeof window.UI.panelStyle === "function"));
+    const uiComponents = ["Btn","Bar","Pill","StatBlock","SectionTitle","ScreenHeader","LogList","Divider","EmptyState","BackButton","NarrativePanel","NarrativeLine","TutorialPopup","FactionPill","RepPill","ShipSprite"];
+    uiComponents.forEach(c => test("UI." + c + " component exists", () =>
+      assert(typeof window.UI[c] === "function", "UI." + c + " is " + (typeof window.UI[c]))
+    ));
+
+    // ─────────────────────────────────────────────────────────────
+    // Icons + LOG_ICONS (the regression we just fixed)
+    // ─────────────────────────────────────────────────────────────
+    group("7. Icons & LOG_ICONS mapping");
+    test("UI.LOG_ICONS exists and is an object", () => {
+      assert(window.UI.LOG_ICONS && typeof window.UI.LOG_ICONS === "object",
+        "UI.LOG_ICONS missing — icons.jsx likely failed to load (load order or IIFE scope issue)");
+    });
+    test("UI.LOG_ICONS has at least one entry", () => {
+      const n = Object.keys(window.UI.LOG_ICONS || {}).length;
+      assert(n > 0, "LOG_ICONS is empty");
+    });
+    test("every LOG_ICONS entry is a function (React component)", () => {
+      const m = window.UI.LOG_ICONS || {};
+      for (const k of Object.keys(m)) {
+        assert(typeof m[k] === "function", "LOG_ICONS." + k + " is " + (typeof m[k]));
+      }
+    });
+    test("at least one named icon is exposed on window.UI (e.g. IconAnchor)", () => {
+      const someIconExists = Object.keys(window.UI).some(k => /^Icon[A-Z]/.test(k));
+      assert(someIconExists, "no Icon* component found on window.UI");
+    });
+    test("classifyLogLine categories all have an icon", () => {
+      const sampleLines = [
+        "Arrived at Port Royal","Set sail for Havana","Hired 3 new crew",
+        "Sank the Black Serpent","Sold 10 sugar for 80g","Mission complete",
+        "Discovered Roatán","Infamy rises","Patrol seized 5 tobacco"
+      ];
+      const cats = new Set();
+      sampleLines.forEach(l => {
+        const c = window.L.classifyLogLine(l);
+        if (c) cats.add(c);
+      });
+      const missing = [];
+      cats.forEach(c => { if (!window.UI.LOG_ICONS[c]) missing.push(c); });
+      assert(missing.length === 0, "categories without icon: " + missing.join(", "));
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Screens (S)
+    // ─────────────────────────────────────────────────────────────
+    group("8. Screens (window.S)");
+    const screens = [
+      "TitleScreen","PortScreen","StatusScreen","JournalScreen",
+      "ShipyardScreen","CrewScreen","MarketScreen",
+      "MapScreen","SailingScreen","EventScreen","InterceptScreen","BattleScreen","PlunderScreen"
+    ];
+    screens.forEach(s => test("S." + s + " component exists", () =>
+      assert(typeof window.S[s] === "function", "S." + s + " is " + (typeof window.S[s]))
+    ));
+
+    // ─────────────────────────────────────────────────────────────
+    // Functional smoke tests
+    // ─────────────────────────────────────────────────────────────
+    group("9. Functional smoke tests");
+    test("L.classifyLogLine('Arrived at Port Royal') returns a string category", () => {
+      const c = window.L.classifyLogLine("Arrived at Port Royal");
+      assert(typeof c === "string" && c.length > 0, "got: " + JSON.stringify(c));
+    });
+    test("L.classifyLogLine('totally unrelated text') returns null or 'other'", () => {
+      const c = window.L.classifyLogLine("totally unrelated text");
+      assert(c === null || c === undefined || typeof c === "string", "unexpected: " + JSON.stringify(c));
+    });
+    test("L.getFameInfo(0) returns { label, tier }", () => {
+      const r = window.L.getFameInfo(0);
+      assert(r && typeof r.label === "string" && typeof r.tier === "number",
+        "got: " + JSON.stringify(r));
+    });
+    test("L.getFameInfo(350) returns tier 4 (Immortal)", () => {
+      const r = window.L.getFameInfo(350);
+      assert(r.tier === 4, "tier was " + r.tier);
+    });
+    test("E.reducer(initialState, { type: '__NOOP__' }) returns state unchanged", () => {
+      const s1 = window.E.initialState;
+      const s2 = window.E.reducer(s1, { type: "__NOOP__" });
+      assert(s2 === s1 || JSON.stringify(s2) === JSON.stringify(s1),
+        "reducer mutated state on noop action");
+    });
+    test("L.encodeSave + L.decodeSave round-trip preserves gold and fame", () => {
+      const s = JSON.parse(JSON.stringify(window.E.initialState));
+      s.gold = 1234;
+      s.fame = 56;
+      const enc = window.L.encodeSave(s);
+      const dec = window.L.decodeSave(enc);
+      const state = (dec && dec.state) ? dec.state : dec;
+      assert(state && state.gold === 1234, "gold not preserved: " + JSON.stringify(state && state.gold));
+      assert(state && state.fame === 56, "fame not preserved: " + JSON.stringify(state && state.fame));
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Data integrity
+    // ─────────────────────────────────────────────────────────────
+    group("10. Data integrity");
+    test("every PORT has required fields (name, faction, x, y, services, desc)", () => {
+      const missing = [];
+      for (const k of Object.keys(window.D.PORTS)) {
+        const p = window.D.PORTS[k];
+        ["name","faction","x","y","services","desc"].forEach(f => {
+          if (!(f in p)) missing.push(k + "." + f);
+        });
+      }
+      assert(missing.length === 0, "missing fields: " + missing.slice(0,5).join(", "));
+    });
+    test("every PORT.faction references an existing FACTION", () => {
+      const bad = [];
+      for (const k of Object.keys(window.D.PORTS)) {
+        const f = window.D.PORTS[k].faction;
+        if (!window.D.FACTIONS[f]) bad.push(k + " -> " + f);
+      }
+      assert(bad.length === 0, "bad faction refs: " + bad.join(", "));
+    });
+    test("every SHIP has slots object with hull/armament/rigging/special", () => {
+      const bad = [];
+      for (const k of Object.keys(window.D.SHIPS)) {
+        const sh = window.D.SHIPS[k];
+        if (!sh.slots) { bad.push(k + " (no slots)"); continue; }
+        ["hull","armament","rigging","special"].forEach(s => {
+          if (typeof sh.slots[s] !== "number") bad.push(k + "." + s);
+        });
+      }
+      assert(bad.length === 0, "bad ships: " + bad.slice(0,5).join(", "));
+    });
+    test("every EQUIPMENT slot value is one of hull/armament/rigging/special", () => {
+      const bad = [];
+      const valid = new Set(["hull","armament","rigging","special"]);
+      for (const k of Object.keys(window.D.EQUIPMENT)) {
+        const e = window.D.EQUIPMENT[k];
+        if (!valid.has(e.slot)) bad.push(k + " -> " + e.slot);
+      }
+      assert(bad.length === 0, "bad slots: " + bad.join(", "));
+    });
+    test("every STARTS entry references a real ship and start port", () => {
+      const bad = [];
+      for (const k of Object.keys(window.D.STARTS)) {
+        const s = window.D.STARTS[k];
+        if (s.ship && !window.D.SHIPS[s.ship]) bad.push(k + " ship " + s.ship);
+        if (s.startPort && !window.D.PORTS[s.startPort]) bad.push(k + " port " + s.startPort);
+      }
+      assert(bad.length === 0, "bad refs: " + bad.join(", "));
+    });
+
+    render();
+  }
+
+  function render() {
+    const root = document.getElementById("results");
+    root.innerHTML = "";
+    let total = 0, passed = 0, failed = 0;
+    results.forEach(g => {
+      const sec = document.createElement("div");
+      sec.className = "group";
+      const h = document.createElement("h2");
+      h.textContent = g.name;
+      sec.appendChild(h);
+      if (g.tests.length === 0) {
+        const e = document.createElement("div");
+        e.className = "empty"; e.textContent = "(no tests)";
+        sec.appendChild(e);
+      } else {
+        g.tests.forEach(t => {
+          total++;
+          if (t.ok) passed++; else failed++;
+          const row = document.createElement("div");
+          row.className = "test" + (t.ok ? " pass" : " fail");
+          const ico = document.createElement("span");
+          ico.className = "icon";
+          ico.textContent = t.ok ? "✅" : "❌";
+          const nm = document.createElement("span");
+          nm.className = "name";
+          nm.textContent = t.name;
+          row.appendChild(ico);
+          row.appendChild(nm);
+          if (!t.ok && t.err) {
+            const er = document.createElement("span");
+            er.className = "err";
+            er.textContent = "— " + t.err;
+            row.appendChild(er);
+          }
+          sec.appendChild(row);
+        });
+      }
+      root.appendChild(sec);
+    });
+    document.getElementById("total").textContent = total;
+    document.getElementById("passed").textContent = passed;
+    document.getElementById("failed").textContent = failed;
+    const status = document.getElementById("status");
+    if (failed === 0) {
+      status.textContent = "ALL GREEN";
+      status.className = "value green";
+    } else {
+      status.textContent = failed + " FAILED";
+      status.className = "value red";
+    }
+  }
+
+  // Wait long enough for all Babel-transpiled <script type="text/babel"> blocks
+  // to finish executing. Babel-standalone transpiles + executes asynchronously
+  // after the DOM is ready. We poll for window.S being populated as a signal.
+  function waitForReady(attempt) {
+    attempt = attempt || 0;
+    const ready = window.D && window.L && window.G && window.E
+                  && window.UI && window.S && window.S.TitleScreen;
+    if (ready || attempt > 50) {
+      runAllTests();
+    } else {
+      setTimeout(() => waitForReady(attempt + 1), 100);
+    }
+  }
+  window.addEventListener("load", () => waitForReady(0));
+})();
+</script>
+</body>
+</html>

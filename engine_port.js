@@ -49,12 +49,12 @@
 
 // ── Arrival message picker ──────────────────────────────────
 const arrivalMessages = [
-  name => `⚓ Arrived at ${name}.`,
-  name => `⚓ Dropped anchor at ${name}.`,
-  name => `⚓ Made port at ${name}.`,
-  name => `⚓ The harbour of ${name} comes into view.`,
-  name => `⚓ ${name} at last. The crew is glad to see land.`,
-  name => `⚓ ${name} welcomes you, for now.`,
+  name => ` Arrived at ${name}.`,
+  name => ` Dropped anchor at ${name}.`,
+  name => ` Made port at ${name}.`,
+  name => ` The harbour of ${name} comes into view.`,
+  name => ` ${name} at last. The crew is glad to see land.`,
+  name => ` ${name} welcomes you, for now.`,
 ];
 
 const pickArrivalMessage = (portName) => {
@@ -235,7 +235,7 @@ case A.START_GAME: {
     name: shipData.name,
     hull: shipData.maxHull,
     cannons: shipData.cannons,
-    upgrades: [],
+    equipment: { hull: [], armament: [], rigging: [], special: []},
   };
 
   // ── Hold ────────────────────────────────────────────────────
@@ -308,37 +308,13 @@ case A.START_GAME: {
   newState.portGossip = G.generatePortGossip(newState, startPort);
   newState.missions = G.generateMissions(startPort, newState);
 
-
-  console.log('START_GAME stepsCompleted', newState.onboarding.stepsCompleted);
-
   return newState;
 }
 
       // --- NAVIGATION ---
-      case A.NAVIGATE: {
-  let nextState = { ...state, screen: action.screen };
-
-  // Onboarding screen‑based step advances
-  const screenSteps = {
-    market: 'marketOpened',
-    map: 'mapOpened',
-    crew: 'crewOpened',
-    shipyard: 'shipyardOpened',
-    journal: 'journalOpened',
-  };
-  const step = screenSteps[action.screen];
-  if (step && nextState.onboarding?.enabled && !nextState.onboarding.completed) {
-    nextState = {
-      ...nextState,
-      onboarding: {
-        ...nextState.onboarding,
-        stepsCompleted: { ...nextState.onboarding.stepsCompleted, [step]: true },
-      },
-    };
-  } 
-
-  return nextState;
-}
+    case A.NAVIGATE: {
+      return { ...state, screen: action.screen };
+    }
 
       // --- SAIL_TO ---
       case A.SAIL_TO: {
@@ -379,68 +355,38 @@ case A.START_GAME: {
             },
           };
 
-          // Onboarding: advance mapOpened + firstVoyageStarted
-          if (newState.onboarding?.enabled && !newState.onboarding.completed) {
-            newState = {
-              ...newState,
-              onboarding: {
-                ...newState.onboarding,
-                stepsCompleted: {
-                  ...newState.onboarding.stepsCompleted,
-                  mapOpened: true,
-                  firstVoyageStarted: true,
-                },
-              },
-            };
-          }
-
           return newState;
         }
 
-    // ── Normal port departure ─────────────────────────────────
-    const days = L.travelDays(state.currentPort, action.port, state);
-    const originPort = PORTS[state.currentPort];
-    const shipStats = L.getShipStats(state);
+        // ── Normal port departure ─────────────────────────────────
+        const days = L.travelDays(state.currentPort, action.port, state);
+        const originPort = PORTS[state.currentPort];
+        const shipStats = L.getShipStats(state);
 
-    let newState = {
-      ...state,
-      previousPort: state.currentPort,
-      destination: action.port,
-      sailingDaysLeft: days,
-      sailingDaysTotal: days,
-      screen: "sailing",
-      portGossip: [],
-      log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
-      route: {
-        originPort: state.currentPort,
-        destinationPort: action.port,
-        originPos: { x: originPort.x, y: originPort.y },
-        destinationPos: { x: destPort.x, y: destPort.y },
-        progressDays: 0,
-        totalDays: days,
-        seaPosition: { x: originPort.x, y: originPort.y },
-        enduranceBudget: shipStats.maxDays,
-        enduranceSpent: 0,
-      },
-    };
-
-    // Onboarding: advance mapOpened + firstVoyageStarted
-    if (newState.onboarding?.enabled && !newState.onboarding.completed) {
-      newState = {
-        ...newState,
-        onboarding: {
-          ...newState.onboarding,
-          stepsCompleted: {
-            ...newState.onboarding.stepsCompleted,
-            mapOpened: true,
-            firstVoyageStarted: true,
+        let newState = {
+          ...state,
+          previousPort: state.currentPort,
+          destination: action.port,
+          sailingDaysLeft: days,
+          sailingDaysTotal: days,
+          screen: "sailing",
+          portGossip: [],
+          log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
+          route: {
+            originPort: state.currentPort,
+            destinationPort: action.port,
+            originPos: { x: originPort.x, y: originPort.y },
+            destinationPos: { x: destPort.x, y: destPort.y },
+            progressDays: 0,
+            totalDays: days,
+            seaPosition: { x: originPort.x, y: originPort.y },
+            enduranceBudget: shipStats.maxDays,
+            enduranceSpent: 0,
           },
-        },
-      };
-    }
+        };
 
-    return newState;
-}
+        return newState;
+    }
 
 // ------------ ENTER PORT ------------------------------
 case A.ENTER_PORT: {
@@ -509,22 +455,6 @@ case A.ENTER_PORT: {
 
   nextState.portGossip = G.generatePortGossip(nextState, nextState.currentPort);
 
-  // ── Onboarding step advances ──────────────────────────
-  // Onboarding step advances – direct immutable update
-if (nextState.onboarding?.enabled && !nextState.onboarding.completed) {
-  nextState = {
-    ...nextState,
-    onboarding: {
-      ...nextState.onboarding,
-      stepsCompleted: {
-        ...nextState.onboarding.stepsCompleted,
-        contractsOpened: true,
-        firstArrival: true,
-      },
-    },
-  };
-}
-
 // Inject tutorial hunt mission after player has hired crew
 const huntData = D.TUTORIAL_HUNT;
 if (
@@ -563,16 +493,6 @@ if (
             ship: { ...state.ship, hull: shipStats.maxHull },
             log: [...state.log, `Repaired ship for ${cost}g${discountNote}${eqPenaltyNote}.`]
           };
-          // Advance onboarding step: ship repaired
-          if (s.onboarding?.enabled && !s.onboarding.completed) {
-            s = {
-              ...s,
-              onboarding: {
-                ...s.onboarding,
-                stepsCompleted: { ...s.onboarding.stepsCompleted, shipRepaired: true },
-              },
-            };
-          }
           return s;
         }
 
@@ -688,47 +608,36 @@ if (
         };
       }
 
-   case A.HIRE_CREW: {
-  const blocked = checkServicesBlocked(state);
-  if (blocked) return blocked;
-  const cost = action.count * 50;
-  if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
-  const portFaction = PORTS[state.currentPort]?.faction || "pirate";
-  const newMembers = G.generateRoster(action.count, portFaction);
-  let s = {
-    ...state,
-    gold: state.gold - cost,
-    crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
-    log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
-  };
 
-  // Advance onboarding step: first crew hired
-  if (s.onboarding?.enabled && !s.onboarding.completed) {
-    s = {
-      ...s,
-      onboarding: {
-        ...s.onboarding,
-        stepsCompleted: { ...s.onboarding.stepsCompleted, firstCrewHired: true },
-      },
-    };
-  }
-
-  // Inject tutorial hunt into the board (but do NOT auto‑accept)
-  const huntData = D.TUTORIAL_HUNT;
-  if (
-    huntData &&
-    s.onboarding?.enabled &&
-    !s.onboarding.completed &&
-    s.onboarding.stepsCompleted.firstCrewHired &&
-    !s.onboarding.stepsCompleted.tutorialHuntAccepted
-  ) {
-    if (!s.missions.some(m => m?.tutorial && !m.requiredGood)) {
-      s = { ...s, missions: [huntData, ...s.missions] };
-    }
-  }
-
-  return s;
-}
+      case A.HIRE_CREW: {
+        const blocked = checkServicesBlocked(state);
+        if (blocked) return blocked;
+        const cost = action.count * 50;
+        if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
+        const portFaction = PORTS[state.currentPort]?.faction || "pirate";
+        const newMembers = G.generateRoster(action.count, portFaction);
+        let s = {
+          ...state,
+          gold: state.gold - cost,
+          crew: { ...state.crew, roster: [...state.crew.roster, ...newMembers] },
+          log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
+        };
+        // Inject tutorial hunt into the board (but do NOT auto-accept)
+        // Note: firstCrewHired is now set by the onboarding middleware AFTER this reducer runs,
+        // so we check the post-hire condition directly (roster grew this turn).
+        const huntData = D.TUTORIAL_HUNT;
+        if (
+          huntData &&
+          s.onboarding?.enabled &&
+          !s.onboarding.completed &&
+          !s.onboarding.stepsCompleted.tutorialHuntAccepted
+        ) {
+          if (!s.missions.some(m => m?.tutorial && !m.requiredGood)) {
+            s = { ...s, missions: [huntData, ...s.missions] };
+          }
+        }
+        return s;
+      }
       
       case A.DISMISS_CREW: {
         const memberId = action.memberId;
@@ -786,44 +695,15 @@ if (
         const mission = action.mission;
         if (!mission) return state;
 
-        // Helper: mark hunt messages as seen when accepting the tutorial hunt
-        const markHuntMessagesSeen = (s) => {
-          if (
-            mission.tutorial &&
-            !mission.requiredGood &&
-            s.onboarding?.enabled &&
-            !s.onboarding.completed
-          ) {
-            return {
-              ...s,
-              onboarding: {
-                ...s.onboarding,
-                qmMessagesSeen: {
-                  ...s.onboarding.qmMessagesSeen,
-                  crewHired: true,
-                  huntAccepted: true,
-                },
-              },
-            };
-          }
-          return s;
+       if (mission.type === "combat" && mission.enemy) {
+        return {
+          ...state,
+          activeMission: mission,
+          encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
+          screen: "intercept",
+          log: [...state.log, `Accepted mission: ${mission.name}.`],
         };
-
-        if (mission.type === "combat" && mission.enemy) {
-          return markHuntMessagesSeen({
-            ...state,
-            activeMission: mission,
-            encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
-            screen: "intercept",
-            log: [...state.log, `Accepted mission: ${mission.name}.`],
-            onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
-              ? {
-                  ...state.onboarding,
-                  stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
-                }
-              : state.onboarding,
-          });
-        }
+      }
 
         // ── Coward trait: fear on dangerous missions ─────────────────
         const isDangerous = (mission) => mission.risk === "high" || mission.type === "assault";
@@ -841,32 +721,20 @@ if (
               ? `${firstCoward.firstName} ${updatedCoward.lastName} is visibly shaking. He didn't sign up for this kind of work.`
               : `${firstCoward.firstName} ${updatedCoward.lastName} looks terrified. Again.`;
 
-            return markHuntMessagesSeen({
+            return {
               ...state,
               activeMission: { ...mission, encounterOccurred: false },
               crew: { ...state.crew, roster: newRoster, morale: newMorale },
               log: [...state.log, logLine],
-              onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
-                ? {
-                    ...state.onboarding,
-                    stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
-                  }
-                : state.onboarding,
-            });
+            };
           }
         }
 
-        return markHuntMessagesSeen({
-          ...state,
-          activeMission: { ...mission, encounterOccurred: false },
-          log: [...state.log, `Accepted mission: ${mission.name}.`],
-          onboarding: (mission.tutorial && !mission.requiredGood && state.onboarding?.enabled && !state.onboarding.completed)
-            ? {
-                ...state.onboarding,
-                stepsCompleted: { ...state.onboarding.stepsCompleted, tutorialHuntAccepted: true },
-              }
-            : state.onboarding,
-        });
+          return {
+            ...state,
+            activeMission: { ...mission, encounterOccurred: false },
+            log: [...state.log, `Accepted mission: ${mission.name}.`],
+          };
       }
 
        case A.COMPLETE_MISSION: {
@@ -966,20 +834,6 @@ if (
           log: newLog,
         };
 
-        // Onboarding: mark delivery delivered
-        if (mission.tutorial && mission.requiredGood) {
-          nextState = {
-            ...nextState,
-            onboarding: {
-              ...nextState.onboarding,
-              stepsCompleted: {
-                ...nextState.onboarding.stepsCompleted,
-                firstContractDelivered: true,
-              },
-            },
-          };
-        }
-
         // ── Smuggle mission: add heat to target faction ────────────
         if (mission.type === "smuggle" && mission.targetPort) {
           const targetFaction = PORTS[mission.targetPort]?.faction;
@@ -1020,20 +874,6 @@ if (
                 : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
             ];
           }
-        }
-
-        // Onboarding: mark hunt completed
-        if (mission.tutorial && !mission.requiredGood) { // hunt missions have no requiredGood
-          nextState = {
-            ...nextState,
-            onboarding: {
-              ...nextState.onboarding,
-              stepsCompleted: {
-                ...nextState.onboarding.stepsCompleted,
-                tutorialHuntCompleted: true,
-              },
-            },
-          };
         }
 
         autoSave(nextState);
@@ -1125,31 +965,6 @@ if (
           infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
           log: [...state.log, ...logLines],
         };
-
-        // Onboarding advancement: if tutorial mission goods and provisions are now in hold, mark provisionsAndGoodsBought
-        if (
-          newState.onboarding?.enabled &&
-          !newState.onboarding.completed &&
-          newState.activeMission?.tutorial &&
-          newState.activeMission?.requiredGood
-        ) {
-          const requiredGood = newState.activeMission.requiredGood;
-          const requiredQty = newState.activeMission.requiredQty;
-          const holdItems = newState.hold?.items || {};
-          if (
-            (holdItems[requiredGood] || 0) >= requiredQty &&
-            (holdItems.food || 0) > 0 &&
-            (holdItems.water || 0) > 0
-          ) {
-            newState.onboarding = {
-              ...newState.onboarding,
-              stepsCompleted: {
-                ...newState.onboarding.stepsCompleted,
-                provisionsAndGoodsBought: true,
-              },
-            };
-          }
-        }
 
         return newState;
       }

@@ -1,6 +1,9 @@
 // icons.jsx — ALL SVG ICON COMPONENTS
 // Extends window.UI (must be loaded after ui.jsx)
 
+
+
+
 window.UI = window.UI || {};
 
 (() => {
@@ -852,9 +855,28 @@ const IconSparkles = ({ size = 14, color = "currentColor" }) => (
     strokeLinejoin="round"
     style={{ display: "inline-block", verticalAlign: "middle" }}
   >
-    <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.378a1 1 0 0 0 .846.73l5.39.605a1 1 0 0 1 .56 1.728l-4.011 3.88a1 1 0 0 0-.316.91l1.08 5.64a1 1 0 0 1-1.471 1.06l-4.75-2.64a1 1 0 0 0-.96 0l-4.75 2.64a1 1 0 0 1-1.472-1.06l1.08-5.64a1 1 0 0 0-.315-.91l-4.011-3.88a1 1 0 0 1 .56-1.728l5.39-.605a1 1 0 0 0 .846-.73z" />
+    <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+    <path d="M20 2v4" />
+    <path d="M22 4h-4" />
+    <circle cx="4" cy="20" r="2" />
   </svg>
 );
+
+
+
+//  identify wich log category will get wich icon
+window.UI.LOG_ICONS = {
+  arrival:   IconAnchor,
+  sailing:   IconSailboat,
+  crew:      IconCrew,
+  combat:    IconSwords,
+  trade:     IconGold,
+  mission:   IconParchment,
+  discovery: IconMap,
+  infamy:    IconSkull,
+  warning:   IconTalking,
+};
+
 
   // ── Attach all icon components to window.UI ──────────────────
   Object.assign(window.UI, {
@@ -863,7 +885,6 @@ const IconSparkles = ({ size = 14, color = "currentColor" }) => (
     IconSwords, IconSailboat, IconWind, IconParchment, IconCloth, IconTimber, IconCoffee, IconRhum, IconSugar, IconSpice,
     IconTobacco, IconSilk, IconShip, IconGoldBag, IconCocoa, IconPerson, IconGoblet,
     IconGrapple, IconSpear, IconCog, IconCompass, IconPlay, IconCheers, IconCannon, IconChefHat, IconHammer, IconTalking,
-    IconBarChart, IconDice, IconContinue, IconFileTransfer, IconFlame, IconTarget,
-    IconHandshake, IconSparkles, IconSearch,
+    IconBarChart, IconDice, IconContinue, IconFileTransfer, IconFlame, IconTarget,IconHandshake, IconSparkles, IconSearch,
   });
 })();

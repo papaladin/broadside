@@ -6,7 +6,8 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, QMPopup  } = window.UI;
+  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, QMPopup,
+  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -45,8 +46,6 @@ function PortScreen({ state, dispatch }) {
   const canCrew = L.isFeatureUnlocked(state, 'crew');
   const canShipyard = L.isFeatureUnlocked(state, 'shipyard');
   const canJournal = L.isFeatureUnlocked(state, 'journal');
-
-  console.log('canMarket', canMarket, 'qmMessagesSeen', state.onboarding.qmMessagesSeen);
 
   return (
     <div style={{
@@ -104,8 +103,7 @@ function PortScreen({ state, dispatch }) {
           </p>
 
           {state.portGossip?.length > 0 && (
-            <NarrativePanel title="🗣 WORD ON THE DOCKS" variant="gossip">
-              {state.portGossip.map((line, i) => (
+<NarrativePanel title={<><IconTalking size={14} color={T.gold} /> WORD ON THE DOCKS</>} variant="gossip">              {state.portGossip.map((line, i) => (
                 <NarrativeLine key={i}>{line}</NarrativeLine>
               ))}
             </NarrativePanel>
@@ -122,20 +120,20 @@ function PortScreen({ state, dispatch }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           {canNavigation && (
             <Tooltip text="Open your chart and choose your next destination.">
-              <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}>🗺 World Map</PulseBtn>
+              <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}><IconMap size={12} color={T.text} /> World Map</PulseBtn>
             </Tooltip>
           )}
           <Tooltip text="Review your standing with the factions of the Caribbean.">
-            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>📊 Status</Btn>
+            <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}><IconBarChart size={12} color={T.text} /> Status</Btn>
           </Tooltip>
           {canMarket && (
             <Tooltip text="Buy, sell, and trade goods in the port market.">
-              <PulseBtn visible={canMarket} pulseKey="market"  onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}>📦 Market</PulseBtn>
+              <PulseBtn visible={canMarket} pulseKey="market"  onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}><IconMarket size={12} color={T.text} /> Market</PulseBtn>
             </Tooltip>
           )}
           {canJournal && (
             <Tooltip text="Read the log of your voyages, battles, and discoveries.">
-              <PulseBtn visible={canJournal} pulseKey="journal" onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}>📖 Journal</PulseBtn>
+              <PulseBtn visible={canJournal} pulseKey="journal" onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}><IconJournal size={12} color={T.text} /> Journal</PulseBtn>
             </Tooltip>
           )}
         </div>
@@ -144,12 +142,12 @@ function PortScreen({ state, dispatch }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
               {port.services.includes("shipyard") && (
                 <Tooltip text="Repair, upgrade, or purchase a new vessel.">
-                  <PulseBtn visible={canShipyard} pulseKey="shipyard" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>⚓ Shipyard</PulseBtn>
+                  <PulseBtn visible={canShipyard} pulseKey="shipyard" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}><IconAnchor size={12} color={T.text} /> Shipyard</PulseBtn>
                 </Tooltip>
               )}
               {port.services.includes("crew") && (
                 <Tooltip text="Hire new hands or boost morale with a round of drinks.">
-                  <PulseBtn visible={canCrew} pulseKey="crew" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>👥 Crew</PulseBtn>
+                  <PulseBtn visible={canCrew} pulseKey="crew" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}><IconCrew size={12} color={T.text} /> Crew</PulseBtn>
                 </Tooltip>
               )}
             </div>
@@ -165,22 +163,22 @@ function PortScreen({ state, dispatch }) {
         {/* Save/Load/Export/Import — not gated, normal Btn */}
         <div style={{ marginTop: 8 }}>
           <Tooltip text="Record your progress against the perils of the sea.">
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}>💾 Save Game</Btn>
+            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}><IconFloppy size={12} color={T.text} /> Save Game</Btn>
           </Tooltip>
         </div>
         {L.hasSave() && (
           <Tooltip text="Return to a previous record of your journey.">
             <Btn v="ghost" sm onClick={() => dispatch({ type: A.LOAD_GAME })} style={{ marginTop: 4 }}>
-              💾 Load Game
+              <IconFloppy size={12} color={T.text} /> Load Game
             </Btn>
           </Tooltip>
         )}
         <div style={{ marginTop: 8 }}>
           <Tooltip text="Save your adventure to a file for safekeeping.">
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}>📤 Export Save</Btn>
+            <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}><IconFileTransfer size={12} color={T.text} /> Export Save</Btn>
           </Tooltip>
           <Tooltip text="Load an adventure from a file.">
-            <Btn v="ghost" sm onClick={() => importRef.current?.click()}>📥 Import Save</Btn>
+            <Btn v="ghost" sm onClick={() => importRef.current?.click()}><IconFileTransfer size={12} color={T.text} /> Import Save</Btn>
           </Tooltip>
         </div>
         <input
@@ -408,7 +406,9 @@ function PortScreen({ state, dispatch }) {
               <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameInfo(state.fame).label}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: T.heading1FontSize }}>☠ {state.infamy ?? 0}</div>
+              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: T.heading1FontSize }}>
+  <IconSkull size={24} color={(state.infamy ?? 0) > 0 ? T.red : T.textFaint} /> {state.infamy ?? 0}
+</div>
               <div style={{ color: T.textDim, fontSize: 12 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
               {(state.infamy ?? 0) >= 10 && (
                 <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4, maxWidth: 200 }}>
@@ -422,7 +422,7 @@ function PortScreen({ state, dispatch }) {
           </div>
         </div>
         <div style={panelStyle()}>
-          <SectionTitle>🤝 FACTION RELATIONS</SectionTitle>
+          <SectionTitle><IconHandshake size={14} color={T.gold} /> FACTION RELATIONS</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
             {Object.entries(FACTIONS).map(([factionKey, fac]) => (
                 <div key={factionKey} style={panelStyle({ background: T.panelAlt, padding: T.spacing.sm, borderLeft: `3px solid ${fac.color}` })}>
@@ -551,7 +551,7 @@ function PortScreen({ state, dispatch }) {
           </TutorialPopup>
         )}
 
-        <SectionTitle>📖 CAPTAIN'S JOURNAL</SectionTitle>
+        <SectionTitle><IconJournal size={16} color={T.gold} />  CAPTAIN'S JOURNAL</SectionTitle>
         <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 8 }}>
         Every storm, every battle, every whispered secret—recorded here for posterity.
       </p>
@@ -573,7 +573,7 @@ function PortScreen({ state, dispatch }) {
         <div style={{ marginBottom: 12 }}>
           <input
             type="text"
-            placeholder="🔍 Search journal..."
+            placeholder=" Search journal..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -626,10 +626,17 @@ function PortScreen({ state, dispatch }) {
                     alignItems: "baseline",
                     gap: 6,
                   }}>
-                    {(() => {
-                      const cat = L.classifyLogLine(entry.text);
-                      return cat.icon ? <span style={{ flexShrink: 0, fontSize: T.narrativeFontSize }}>{cat.icon}</span> : null;
-                    })()}
+                    
+{(() => {
+  const categoryKey = L.classifyLogLine(entry.text);
+  const LOG_ICONS = window.UI.LOG_ICONS || {};
+  const IconComponent = categoryKey ? LOG_ICONS[categoryKey] : null;
+  return IconComponent ? (
+    <IconComponent size={12} color={T.textDim}
+      style={{ marginRight: 6, flexShrink: 0, verticalAlign: "middle" }} />
+  ) : null;
+})()}
+
                     <span>{entry.text}</span>
                   </div>
                 </React.Fragment>

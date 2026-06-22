@@ -171,7 +171,7 @@
       const unlocked = operator === "all" ? results.every(Boolean) : results.some(Boolean);
       if (unlocked) {
         autoDiscovered.push(key);
-        autoDiscoveryLog.push(`⚓ New port discovered: ${port.name}. Mark it on your charts.`);
+        autoDiscoveryLog.push(` New port discovered: ${port.name}. Mark it on your charts.`);
       }
     });
     return { discoveredPorts: autoDiscovered, log: autoDiscoveryLog };
@@ -318,7 +318,7 @@
         return {
           ...state,
           discoveredPorts: [...state.discoveredPorts, portKey],
-          log: [...state.log, `⚓ New port discovered: ${portName}. Mark it on your charts.`],
+          log: [...state.log, ` New port discovered: ${portName}. Mark it on your charts.`],
         };
       }
 
