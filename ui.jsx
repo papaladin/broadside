@@ -82,18 +82,24 @@ const panelStyle = (overrides = {}) => {
   };
 };
 
-  const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {}, className = ""  }) => {
-    const variants = {
-      default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },
-      gold:    { bg: "linear-gradient(180deg, #4a3926, #32271c)", border: T.gold, color: T.gold },
-      ghost:   { bg: T.panel, border: T.gold, color: T.gold },
-      green:   { bg: "linear-gradient(180deg, #2a3a22, #1e2a18)", border: T.greenBr, color: T.greenBr },
-      red:     { bg: "linear-gradient(180deg, #3a2220, #2a1a18)", border: T.redBr, color: T.redBr },
-      blue:    { bg: "linear-gradient(180deg, #243948, #1d2d38)", border: T.blueBr, color: T.blueBr },
-    };
-    const { bg, border, color } = variants[v] || variants.default;
-    return (
-      <button onClick={onClick} disabled={disabled} className={className} style={{
+const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {}, className = "", glowColor, ...rest }) => {
+  const variants = {
+    default: { bg: "linear-gradient(180deg, #3a3024, #2a221a)", border: T.border, color: T.text },
+    gold:    { bg: "linear-gradient(180deg, #4a3926, #32271c)", border: T.gold, color: T.gold },
+    ghost:   { bg: T.panel, border: T.gold, color: T.gold },
+    green:   { bg: "linear-gradient(180deg, #2a3a22, #1e2a18)", border: T.greenBr, color: T.greenBr },
+    red:     { bg: "linear-gradient(180deg, #3a2220, #2a1a18)", border: T.redBr, color: T.redBr },
+    blue:    { bg: "linear-gradient(180deg, #243948, #1d2d38)", border: T.blueBr, color: T.blueBr },
+  };
+  const { bg, border, color } = variants[v] || variants.default;
+  const glow = glowColor || T.gold;   // default glow = gold
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${className} btn-hover-glow btn-click-pulse`}
+      style={{
         background: bg, border: `1px solid ${border}`, color: color,
         padding: sm ? "4px 8px" : "8px 12px", borderRadius: 2,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -101,10 +107,16 @@ const panelStyle = (overrides = {}) => {
         fontFamily: T.font, minHeight: T.btnMinHeight,
         touchAction: 'manipulation',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-        letterSpacing: '0.2px', ...style
-      }}>{children}</button>
-    );
-  };
+        letterSpacing: '0.2px',
+        '--btn-glow': `rgba(${parseInt(glow.slice(1,3),16)}, ${parseInt(glow.slice(3,5),16)}, ${parseInt(glow.slice(5,7),16)}, 0.4)`,
+        ...style
+      }}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+};
 
 window.__pulsedButtons = window.__pulsedButtons || {};
 
@@ -426,11 +438,41 @@ const Tooltip = ({ text, children }) => {
   );
 };
 
+const TransferLayout = ({ 
+  leftTitle, leftContent, leftFooter,
+  rightTitle, rightContent, rightFooter,
+  style = {}
+}) => (
+  <div style={{ display: "flex", gap: T.spacing.md, alignItems: "stretch", ...style }}>
+    {/* Left panel */}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
+        {leftTitle && <SectionTitle>{leftTitle}</SectionTitle>}
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+          {leftContent}
+        </div>
+        {leftFooter}
+      </div>
+    </div>
+
+    {/* Right panel */}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
+        {rightTitle && <SectionTitle>{rightTitle}</SectionTitle>}
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+          {rightContent}
+        </div>
+        {rightFooter}
+      </div>
+    </div>
+  </div>
+);
+
   // ── Attach all public primitives to window.UI (icons live in icons.jsx) ──
   Object.assign(window.UI, {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, BackButton, useFlashOnChange,
-    Tooltip,getGoodIcon
+    Tooltip,getGoodIcon,TransferLayout,
   });
 })();

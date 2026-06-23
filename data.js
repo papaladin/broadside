@@ -366,6 +366,192 @@ const SHIPS = {
   }
 };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  SHIP_VISUALS: Visual configurations for each ship type.
+//  Used by ship-sprite.js to render SVG silhouettes.
+//  Each ship references one of 4 hull shapes (open / lowSloop / military / galleon).
+//  Sizes are relative units; the renderer scales to its canvas.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SHIP_VISUALS = {
+
+  // ── Tier 0: Starter craft ──────────────────────────────
+  dinghy: {
+    hullShape: "open",
+    hullLength: 200,           // relative units
+    hullHeight: 28,
+    gunDecks: 0,
+    gunPortsLower: 0,
+    masts: [
+      { x: 0.50, rig: "lateen" }
+    ],
+    bowsprit: "none",
+  },
+
+  cutter: {
+    hullShape: "lowSloop",
+    hullLength: 320,
+    hullHeight: 42,
+    gunDecks: 1,
+    gunPortsLower: 6,
+    masts: [
+      { x: 0.50, rig: "gaff", sails: { main: true, topsail: true } }
+    ],
+    bowsprit: "oneJib",
+  },
+
+  // ── Tier 1: First real ship ────────────────────────────
+  sloop: {
+    hullShape: "lowSloop",
+    hullLength: 380,
+    hullHeight: 50,
+    hasQuarterdeck: true,      // the "cheat" — larger than cutter, raised stern
+    gunDecks: 1,
+    gunPortsLower: 9,
+    masts: [
+      { x: 0.50, rig: "gaff", sails: { main: true, topsail: false } }
+    ],
+    bowsprit: "twoJibs",
+  },
+
+  // ── Tier 2: Specialization ─────────────────────────────
+  schooner: {
+    hullShape: "lowSloop",
+    hullLength: 420,
+    hullHeight: 52,
+    hasQuarterdeck: true,
+    gunDecks: 1,
+    gunPortsLower: 11,
+    masts: [
+      { x: 0.35, rig: "gaff", sails: { main: true, topsail: false } },
+      { x: 0.70, rig: "gaff", sails: { main: true, topsail: true } }
+    ],
+    bowsprit: "twoJibs",
+  },
+
+  merchantman: {
+    hullShape: "galleon",       // tall fat hull approximation; revisit if too military-looking
+    hullLength: 520,
+    hullHeight: 88,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    hasSternGallery: true,
+    gunDecks: 1,
+    gunPortsLower: 5,           // visibly under-armed for its size
+    masts: [
+      { x: 0.30, rig: "square", sails: { course: true, topsail: true } },
+      { x: 0.55, rig: "square", sails: { course: true, topsail: true } },
+      { x: 0.80, rig: "lateen" }
+    ],
+    bowsprit: "oneJib",
+  },
+
+  brigantine: {
+    hullShape: "military",
+    hullLength: 520,
+    hullHeight: 72,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    gunDecks: 1,
+    gunPortsLower: 14,
+    masts: [
+      { x: 0.35, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.70, rig: "gaff",   sails: { main: true, topsail: true } }
+    ],
+    bowsprit: "oneJib",
+  },
+
+  // ── Tier 3: Real warships ──────────────────────────────
+  corvette: {
+    hullShape: "military",
+    hullLength: 620,
+    hullHeight: 86,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    hasSternGallery: true,
+    gunDecks: 1,
+    gunPortsLower: 17,
+    masts: [
+      { x: 0.25, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.50, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.75, rig: "squareWithLateen", sails: { topsail: true, mizzen: true } }
+    ],
+    bowsprit: "oneJib",
+  },
+
+  frigate: {
+    hullShape: "military",
+    hullLength: 720,
+    hullHeight: 96,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    hasSternGallery: true,
+    gunDecks: 1,
+    gunPortsLower: 23,
+    masts: [
+      { x: 0.25, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.50, rig: "square", sails: { course: true, topsail: true, topgallant: true, royal: true } },
+      { x: 0.75, rig: "squareWithLateen", sails: { topsail: true, mizzen: true } }
+    ],
+    staysails: ["main", "mizzen"],
+    bowsprit: "twoJibs",
+  },
+
+  fluyt: {
+    hullShape: "galleon",       // round/fat hull approximation; flag as candidate for own shape later
+    hullLength: 540,
+    hullHeight: 90,
+    hasForecastle: false,       // fluyt was famously narrow on top
+    hasQuarterdeck: true,
+    hasSternGallery: true,
+    gunDecks: 1,
+    gunPortsLower: 6,
+    masts: [
+      { x: 0.30, rig: "square", sails: { course: true, topsail: true } },
+      { x: 0.55, rig: "square", sails: { course: true, topsail: true } },
+      { x: 0.80, rig: "lateen" }
+    ],
+    bowsprit: "oneJib",
+  },
+
+  // ── Tier 4: Endgame ────────────────────────────────────
+  galleon: {
+    hullShape: "galleon",
+    hullLength: 820,
+    hullHeight: 130,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    hasPoopDeck: true,          // galleons typically had this
+    hasSternGallery: true,
+    gunDecks: 2,
+    gunPortsLower: 15,
+    gunPortsUpper: 15,
+    masts: [
+      { x: 0.28, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.55, rig: "square", sails: { course: true, topsail: true, topgallant: true } },
+      { x: 0.78, rig: "lateen" }
+    ],
+    bowsprit: "squareSpritsail",
+  },
+
+  ship_of_the_line: {
+    hullShape: "military",      // bigger but not "galleon-tall"; matches later-period warship design
+    hullLength: 980,
+    hullHeight: 158,
+    hasForecastle: true,
+    hasQuarterdeck: true,
+    hasSternGallery: true,
+    gunDecks: 2,
+    gunPortsLower: 25,
+    gunPortsUpper: 25,
+    masts: [
+      { x: 0.25, rig: "square", sails: { course: true, topsail: true, topgallant: true, royal: true } },
+      { x: 0.50, rig: "square", sails: { course: true, topsail: true, topgallant: true, royal: true } },
+      { x: 0.75, rig: "squareWithLateen", sails: { topsail: true, mizzen: true } }
+    ],
+    staysails: ["main", "mainTopmast", "mizzen", "mizzenTopmast"],
+    bowsprit: "twoJibs",
+  },
+};
 
 const EQUIPMENT = {
   // ── Hull (all structural) ──────────────────────────────────
@@ -1254,6 +1440,7 @@ const TUTORIAL_HUNT = {
     FACTIONS,
     PORTS,
     SHIPS,
+    SHIP_VISUALS,
     EQUIPMENT,
     RESOURCES,
     GOODS_AVAILABILITY,

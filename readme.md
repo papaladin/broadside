@@ -1,7 +1,7 @@
 # Broadside
-**A turn-based pirate strategy game set in the 17th-century Caribbean.**
-Trade, scheme, and fight your way to fortune... but the world keeps score.
 
+**A pirate game set in the 17th-century Caribbean.**
+Trade, scheme, and fight your way to fortune... but your crew has opinions, and the world keeps score.
 ---
 
 ## Features
@@ -36,6 +36,19 @@ Trade, scheme, and fight your way to fortune... but the world keeps score.
 - **17 equipment items across 4 slot types:**  Hull, armament, rigging, and special equipment let you customise your ship's identity. Fast raider, armoured trader, balanced warship -- your build defines your strategy.
 - **5 starting scenarios:**  Different factions, starting ports, and opening problems. Each drops you into a different corner of the Caribbean with a different hand to play.
 - **Random events at sea:**  Storms, shipwrecks, distressed merchants, mutinies, treasure maps. About one in ten days at sea brings something unplanned.
+
+### On the Roadmap
+
+Broadside is in active development. Major upcoming additions include:
+
+- **Crew councils** — periodic moments where the crew weighs in on your decisions, with their observations shaped by what you've actually done.
+- **Ship's articles** — the rules of your ship (share splits, treatment of prisoners, mandatory shore leave), amendable through crew vote.
+- **Shore leave** — port stays that surface what your crew does ashore, not just what you do.
+- **World events** — famines, blockades, and faction wars that shift the Caribbean around you.
+- **Story arcs** — rival captains who remember you across encounters, governor quest chains, the legend of Libertalia.
+- **Endgame and legacy** — captains retire, or the sea takes them. Either way, the next captain inherits something.
+
+See [the full roadmap](docs/roadmap.md) for the complete plan.
 
 ---
 
@@ -116,15 +129,18 @@ Broadside/
 +-- storage.js              # Save/load encoding, tutorial state (extends window.L)
 +-- generators.js           # Runtime content generators (crew, missions, market, gossip, bios)
 +-- engine_core.js          # Core engine: action constants, initial state, reducer chain, auto-save, state migration
++-- engine_onboarding.js    # Onboarding engine: toast style indication, menu unlocking, onboarding mission injection, etc..
 +-- engine_port.js          # Port engine: reducers for port actions (REPAIR, BUY_SHIP, BUY_EQUIPMENT, HIRE_CREW, MISSIONS, SAVE/LOAD)
 +-- engine_voyage.js        # Voyage engine: reducers for sailing (ADVANCE_DAY, DISCOVER_PORT, random events, patrols)
 +-- engine_combat.js        # Combat engine: reducers for intercepts, battles, plunder, and events
 +-- ui.jsx                  # Reusable UI components & theme tokens
++-- icons.jsx               # svg path Icons pack.
 +-- screens_port.jsx        # Port-zone screens (Title, Scenario, Port, Status, Journal)
 +-- screens_shipyard.jsx    # Shipyard screen (Ships, Equipment, Locker tabs)
 +-- screens_crew.jsx        # Crew screen (roster, bios, hiring)
 +-- screens_market.jsx      # Market screen (buy/sell goods)
-+-- screens_voyage.jsx      # Voyage-zone screens (Map, Sailing, Event, Intercept, Battle, Plunder)
++-- screens_voyage.jsx      # Voyage-zone screens (Map, Sailing)
++-- screens_combat.jsx      # Combat and event related screens (Event, Intercept, Battle, Plunder)
 +-- App.jsx                 # Root React component (router + HUD)
 +-- docs/
 |   +-- architecture.md     # Full architecture documentation
@@ -146,12 +162,14 @@ Broadside/
 |   +-- tests_engine.js     # Reducer tests
 |   +-- tests_flows.js      # Integration & scenario tests
 |   +-- tests_ui.js         # UI smoke & edge case tests
++-- tools/
+    +-- index.html          # Screenshot generator for itch.io assets
 |   +-- sim.html            # Economy playtest simulator
+|   +-- icon_preview.html            # Preview svg icon result before adding them.
+|   +-- pirate_sound_tester.html      # Tool to prepare for sound addition
 |   +-- crew_sim.html       # Crew lifecycle simulator
 |   +-- crew_bio_log_sim.html # Bio/log redundancy analyser
 |   +-- equipment_combo_analyzer.html # Equipment combination analyser
-+-- screenshots/
-    +-- index.html          # Screenshot generator for itch.io assets
 ```
 
 ---

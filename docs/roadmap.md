@@ -81,13 +81,13 @@ Broadside is fully playable with rich narrative systems:
 
 **Goal**: remove friction for both day-to-day development and any future contributor. Nothing else ships before this is done.
 
-#### B0.2 — README + CONTRIBUTING
+#### B0.2 — README + CONTRIBUTING --> contributing parked.
 - [X] Short architecture overview at the top of README
 - [ ] CONTRIBUTING.md with how to run, how to test, file responsibility map
 - [ ] Three-pillar test for proposed features
 - [ ] GitHub good-first-issue labels prepared (for B13)
 
-#### B0.3 — Dependency comments at the top of each file
+#### B0.3 — Dependency comments at the top of each file --> skip until it causes an issue. archi + readme + load order should be enough.
 - [ ] Declare "depends on" and "exposes" as comment headers
 - [ ] Convention catches load-order bugs before runtime (the LOG_ICONS class of issue)
 
@@ -118,11 +118,12 @@ Broadside is fully playable with rich narrative systems:
 - **Pillar**: Discovery (for contributors)
 
 #### B1.3 — Discovery: encounter vs activeMission vs battleState architecture
-- [ ] Map current state interactions across encounter types (8 types, overlapping option matrices)
-- [ ] Identify duplication and ad-hoc conditionals (especially around tutorial hunt, patrol inspection, escort defend)
-- [ ] Propose unified model and migration path
+- [X] Map current state interactions across encounter types (8 types, overlapping option matrices)
+- [X] Identify duplication and ad-hoc conditionals (especially around tutorial hunt, patrol inspection, escort defend)
+- [X] Propose unified model and migration path
+- [X] task list created
 
-#### B1.4 — Implement encounter architecture refactor (placeholder)
+#### B1.4 — Implement encounter architecture refactor (placeholder) --> to be postponed to before combat rework or addition or new events
 - [ ] Apply the model chosen in B1.3
 - **Pillar**: Consequence (every new encounter type should be a data addition, not a code conditional)
 
@@ -224,6 +225,46 @@ Broadside is fully playable with rich narrative systems:
 #### B4.4 — Synthesise findings
 - [ ] Group feedback by block (onboarding, combat, sailing, UI, mobile)
 - [ ] Document which findings inform which downstream block
+
+
+## B15 — Role-based Captain's Log entries
+
+**Goal**: surface named crew members in routine log entries so the player sees their crew *doing things*, not just dying or being hired. Cheapest path to making the crew feel populated by people.
+
+**Pairs naturally with**: B2 (Identity & Feedback). Could be done any time, no prerequisites.
+
+### B15.1 — Log template expansion by role
+
+* [ ] Identify all log-generating moments where a crew member's *role* could plausibly be invoked: combat shots, food/water depletion, storms, voyage events, repair moments, scouting/arrivals
+* [ ] Write 8-15 template variants per role (gunner, cook, carpenter, navigator, deckhand) for each applicable moment
+* [ ] Templates use the `{name}`, `{role}`, `{daysAboard}` slots that the bio generator already uses for consistency
+* [ ] Store in `data_text.js` alongside existing log templates
+
+### B15.2 — Picker logic
+
+* [ ] Helper function: `pickCrewMemberByRole(state, role)` returns a random crew member with the given role, or null if none aboard
+* [ ] Helper: `formatNamedLogLine(template, member)` does template substitution
+* [ ] Lives in `generators.js` (uses Math.random, picks from existing crew)
+
+### B15.3 — Inject into existing log sites
+
+* [ ] `BATTLE_ACTION` — when player lands hits, occasionally name the gunner: "Maria opens up the gun deck..."
+* [ ] `ADVANCE_DAY` provision depletion — name the cook: "Pedro stretches the last of the rations..."
+* [ ] `ADVANCE_DAY` arrival proximity — name the navigator: "Inès reads the stars and points to land..."
+* [ ] `RESOLVE_EVENT` storm hull damage — name the carpenter: "Anders patches the worst of it overnight..."
+* [ ] `REPAIR` action — name the carpenter: "Anders leads the repair work..."
+* [ ] `ENTER_PORT` — occasionally name the navigator: "Inès calls the harbor approach..."
+* [ ] Frequency cap: maybe 1-in-3 chance of naming someone, otherwise generic log. Avoid making every line feel "narratorial."
+
+### B15.4 — Test pass
+
+* [ ] Play through a full QM tutorial flow + a few normal voyages
+* [ ] Verify named crew appear in logs across at least 5 different event types
+* [ ] Verify the same crew member doesn't get named twice in close succession (run a small dedupe check in the picker)
+* [ ] Verify no errors when the relevant role isn't represented in the crew
+
+**Pillar**: Consequence (named individuals visibly contribute to the story being told)
+
 
 ### B5 — Player Trust & Resilience
 
@@ -413,6 +454,207 @@ Broadside is fully playable with rich narrative systems:
 
 #### B12.6 — Polish graceful career end from B5
 - [ ] If softlock detection has been driving the player to a career end screen, make sure it integrates cleanly with retirement flow
+
+
+## B16 — Shore Leave System
+
+**Goal**: convert port-time from "instant transactional space" to a place where named crew members live and small events occur. Give the player a meaningful duration choice on arrival.
+
+**Pairs naturally with**: B8 (Sailing Enrichment). Provides the port-side equivalent to sailing micro-loop improvements. Prerequisites: none structurally, but writing is heavier so probably after B4 playtesting confirms the crew direction matters to players.
+
+### B16.1 — Discovery: shore leave mechanics
+
+* [ ] Decide: is shore leave a *duration choice* on arrival, or a *separate action* at port?
+* [ ] Decide: what's the morale recovery rate per day on leave vs current "Buy Drinks" gold cost?
+* [ ] Decide: do wages accrue normally during shore leave, or at a reduced rate, or not at all?
+* [ ] Decide: does the player choose total duration upfront, or extend day-by-day?
+* [ ] Decide: what's the trigger frequency for crew events during leave? (One roll per day? Tier by member traits?)
+* [ ] Decide: do harbor-side events affect things outside the crew (port reputation, gold, gossip pool)?
+* [ ] Decide: can shore leave be force-shortened if an emergency happens (faction war declared, mission urgency)?
+
+### B16.2 — Implement: duration UI and core loop
+
+* [ ] Add a "Shore Leave" panel/screen accessed from the port screen
+* [ ] Duration selector or day-by-day extension button
+* [ ] Per-day cost calculation (wages, possibly minus discount)
+* [ ] Per-day morale recovery applied to crew
+* [ ] Port reputation/gossip refresh during/after leave
+
+### B16.3 — Implement: event pool
+
+* [ ] New event type `port_event` (separate from `RANDOM_EVENTS` for sea)
+* [ ] Event generator that picks events based on the named crew aboard, the port faction, and ongoing world state (heat, infamy, etc.)
+* [ ] Event resolution: dispatch through the same `RESOLVE_EVENT` flow or a parallel one (decide in B16.1)
+
+### B16.4 — Writing: 20-30 port event templates
+
+* [ ] Cost events: tavern brawls, jail fines, lost crew (passed out and missed roll-call)
+* [ ] Benefit events: map fragments overheard, gossip leads, found goods, recruited skilled crew
+* [ ] Trait-revealing events: drunkard caught red-handed, coward backs out of barfight, greedy fights over share
+* [ ] Faction-flavor events: Spanish religious processions if Spanish crew, French market festivals, etc.
+* [ ] Possible: events that consume specific cargo for benefits ("trade rum for tavern story leads")
+
+### B16.5 — Integration with existing systems
+
+* [ ] Shore leave should NOT trigger random sea events (different event pool)
+* [ ] Shore leave SHOULD trigger faction heat decay normally
+* [ ] Shore leave SHOULD trigger reputation decay normally
+* [ ] Shore leave should respect tutorial onboarding (no shore leave events during the QM phase, or suppress until first contract complete)
+* [ ] Mid-leave emergencies (e.g., heat spike, world event) might shorten leave
+
+### B16.6 — Test pass
+
+* [ ] Full playthrough with shore leave at multiple ports
+* [ ] Verify cost/morale balance feels right
+* [ ] Verify event frequency feels right (\~1 per 2-3 days?)
+* [ ] Verify named crew appear in events
+
+**Pillar**: Discovery (port becomes a place, not a transaction)
+
+**Risk**: Medium. The discovery questions in B16.1 must produce a coherent mechanic before implementation; if shore leave costs > rewards, players will skip it.
+
+**Dependency**: Best done after B4 playtest confirms players engage with named crew enough to justify the writing investment.
+
+***
+
+## B17 — Crew Council System
+
+**Goal**: a periodic, gated mechanism for the crew to weigh in on the captain's decisions. Historically grounded in pirate-era democracy. Outputs range from narrative observation to demands the player must respond to. The defining mechanic of "crew are people who run this ship with you."
+
+**Pairs naturally with**: B11 (Hidden Ports & Story Arc). Critical dependency on B2.3 (Career Stats Tracking).
+
+**Implemented in phases**: narrative output first (lowest risk), then meaningful choices, then demands/quests.
+
+### B17.1 — Discovery: council mechanics
+
+* [ ] **Trigger conditions**: time-based (every N days at sea), fame-based (each tier unlock), event-based (after major incidents), player-initiated (button, but rate-limited)? Probably combination.
+* [ ] **Frequency caps**: minimum days between councils to prevent spam (e.g., 30 days)
+* [ ] **Convening cost**: does calling a council cost morale/gold/time? Is there a cost to *not* calling one occasionally?
+* [ ] **Outputs structure**: pure observation? observation + advice? advice + demand?
+* [ ] **Data sources**: which career stats does the council read? Which crew composition data? Which event history?
+* [ ] **Failure modes**: what if the council's content is repetitive? What if the player ignores it?
+
+### B17.2 — Implement: career stats data layer (B2.3 prerequisite)
+
+* [ ] **Note**: this depends on B2.3 being done. The council needs missions completed, ships sunk, factions attacked, days at sea, gold flow, crew turnover, etc., already being tracked.
+* [ ] Verify B2.3 data is accessible from the council generator
+* [ ] If gaps exist (specific stats the council needs that B2.3 doesn't track), add them as a B17 prerequisite task
+
+### B17.3 — Phase 1: narrative output only
+
+* [ ] UI for the council screen — list of named crew speaking, each with a short observation
+* [ ] Generator picks 3-5 crew members based on relevance (faction alignment to recent actions, role to recent events, traits)
+* [ ] Each speaker says one thing drawn from a template pool
+* [ ] At end of council: morale shift based on whether speakers' concerns align with captain's recent actions
+* [ ] **Templates needed**: 30-40 observation templates covering all major career-stat conditions (heavy combat, heavy trade, faction bias, contraband, neglected crew, etc.)
+* [ ] No player choices yet. Player closes council, gets the morale outcome, moves on.
+
+### B17.4 — Phase 2: meaningful choices
+
+* [ ] At end of observation phase, present 2-4 player choices: "Agree with crew" / "Disagree" / "Acknowledge but defer" / etc.
+* [ ] Each choice has direct consequences: morale change, reputation shift, faction heat, internal upset/loyal tagging
+* [ ] **Templates needed**: choice text + consequence definitions for each council scenario
+* [ ] UI updates: choice buttons under each speaker, or a single resolution choice at the bottom
+
+### B17.5 — Phase 3: requests and quest hooks
+
+* [ ] Some council outcomes generate **crew requests**: "We want shore leave in Tortuga" / "We want a share of next prize" / "We want to sail to a specific port"
+* [ ] Player can accept (cost) or refuse (morale cost)
+* [ ] Some council outcomes generate **personal quests**: a specific named crew member gets a quest hook ("Maria wants to find her uncle's ship near Trinidad")
+* [ ] Quest hooks live as a new mission type or as story flags
+* [ ] **This phase absorbs the "personal quests" idea from earlier brainstorming**
+
+### B17.6 — Phase 4: council convening UX
+
+* [ ] Add a "Convene Council" button accessible from the Crew screen
+* [ ] Show next-available date based on cooldown
+* [ ] Optional: auto-convene at significant career milestones (first 100 days at sea, first 100 ships defeated, etc.)
+* [ ] Council history visible in the Journal under a new "Councils" tab
+
+### B17.7 — Test pass
+
+* [ ] Trigger councils in various game states to verify content is contextually relevant
+* [ ] Verify the player isn't getting the same observation twice in close succession
+* [ ] Verify quest hooks generate sensible missions
+* [ ] Balance test: are players actually using councils, or ignoring them?
+
+**Pillar**: Consequence (the crew has agency and a voice; the captain isn't a dictator)
+
+**Risk**: Medium-high. The council needs to feel meaningful, not repetitive. Quality of writing in observation templates is the make-or-break factor. Phase it carefully — ship Phase 1 first and gauge engagement before committing to Phases 2-4.
+
+**Dependency**: B2.3 (Career Stats Tracking) is hard prerequisite. B4 playtest data should inform whether to invest in Phases 2-4.
+
+***
+
+## B18 — Pirate Articles System
+
+**Goal**: a small set of player-editable ship's articles (rules) that affect gameplay. The articles can be amended through crew council outcomes, giving the council a tangible mechanism for crew influence on the ship's direction. Disguises some gameplay settings (difficulty modifiers, share splits, behavioral tendencies) as in-world contracts.
+
+**Pairs naturally with**: B17 (Crew Council). Hard prerequisite: B17 must exist for articles to be amendable through it.
+
+**Could ship in two parts**: static articles set at game start (Phase 1), then dynamic amendment via council (Phase 2).
+
+### B18.1 — Discovery: articles design
+
+* [ ] **What rules become articles?** Candidates:
+  * Gold share split (Captain takes X%, crew gets rest)
+  * Combat preference (Hunt all merchants / Spare neutrals / Only legitimate prey)
+  * Crew share-out timing (Per-port / Per-mission / End-of-voyage)
+  * Mandatory shore leave (Every X days / At captain's discretion)
+  * Punishment severity (Lenient / Severe / Marooning)
+  * Loot distribution rules (Equal shares / By rank / By role)
+  * Mutiny conditions (At what morale level does crew act?)
+* [ ] **How many articles?** 4-7 seems right; fewer feels thin, more becomes a spreadsheet
+* [ ] **Mechanical effects per article**: each article toggle should produce a visible gameplay change (morale modifier, reputation shift, mission availability, faction reactions, internal crew dynamics)
+* [ ] **Starting articles**: each faction start (English, Spanish, etc.) begins with default articles consistent with their backstory. Pirate start has the most flexible articles; English start has the most rigid.
+
+### B18.2 — Implement: static articles at game start
+
+* [ ] New screen: "Ship's Articles" accessible from Crew screen or Status screen
+* [ ] Visual: looks like a parchment contract, not a settings menu
+* [ ] Articles displayed as checkboxes / radio buttons / sliders dressed up as period-appropriate rules
+* [ ] At game start: articles are set by faction default, locked from player edit (Phase 1)
+* [ ] Each article displays its gameplay effect inline ("Captain takes 30% → +20% personal gold gain, -10 crew morale on prize")
+
+### B18.3 — Implement: article effects on gameplay
+
+* [ ] Each article toggle reads/affects relevant state
+  * Share split affects gold distribution in `COMPLETE_MISSION` and plunder
+  * Combat preference affects encounter generation (or just mission availability)
+  * Punishment severity affects mutiny/desertion probabilities
+* [ ] Effects must be balanced so no single article is dominant or trivial
+* [ ] Balance pass: economy simulator (tests/sim.html) updated to model article effects
+
+### B18.4 — Phase 2: dynamic amendment via council
+
+* [ ] Crew council outcomes can propose article amendments (B17 Phase 3 request mechanism)
+* [ ] Player can accept (article changes, crew morale +) or refuse (no change, possible upset/desertion)
+* [ ] Some amendments require council vote — multiple crew members must agree before the player can ratify
+* [ ] Failed ratification creates crew upset
+* [ ] Player can also propose amendments themselves (with crew approval check, gated by morale)
+
+### B18.5 — Phase 3: world-event amendment hooks
+
+* [ ] Some world events propose article changes ("After repeated mutinies, the crew demands stricter punishment articles")
+* [ ] Some story events lock or unlock article options ("After reaching Libertalia, you may add the 'Equal Shares for All' article")
+* [ ] Articles become part of the player's identity that the world reacts to ("This captain is known for fair shares" → reputation shift)
+
+### B18.6 — UI polish: parchment aesthetic
+
+* [ ] Articles screen should look in-period — parchment background, gold ink, signatures
+* [ ] Each amendment is added as an addendum, dated to the day it was made
+* [ ] Full articles document persists as part of the save and shows up in the Journal under a new "Articles" tab
+
+### B18.7 — Test pass
+
+* [ ] Articles work mechanically across all faction starts
+* [ ] Council amendments flow correctly
+* [ ] Effects balance out (no broken combinations)
+* [ ] Visual feels period-appropriate, not modern-UI
+
+**Pillar**: Freedom (the player shapes the kind of captain they are through real rules, not menu settings) + Consequence (rules have visible mechanical and social effects)
+
+
 
 ### B13 — Promotion & Web Presence
 

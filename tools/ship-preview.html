@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Broadside — Ship Sprite Preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #1a1207;
+    --bg-deep: #0f0a04;
+    --panel: #2a1f10;
+    --panel-alt: #352a18;
+    --panel-light: #3d2f1a;
+    --border: #5a4a2a;
+    --border-faint: #3a2e1a;
+    --border-bright: #8a7a50;
+    --text: #d4c4a0;
+    --text-dim: #a09070;
+    --text-faint: #706050;
+    --gold: #c9a84c;
+    --gold-bright: #e8d080;
+    --gold-dim: #8a7530;
+    --green: #6cbf6c;
+    --red: #d46a6a;
+    --blue: #6a8cbf;
+    --font: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  h1 {
+    color: var(--gold-bright);
+    margin: 0 0 4px 0;
+    font-size: 20px;
+    letter-spacing: 0.04em;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin: 0;
+  }
+
+  /* Control bar */
+  .controls {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 12px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .control-label {
+    color: var(--text-faint);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .control-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    background: var(--panel);
+    color: var(--gold);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 10px;
+    font-family: var(--font);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-height: 28px;
+  }
+  .btn:hover {
+    border-color: var(--gold);
+    background: var(--panel-light);
+  }
+  .btn.active {
+    background: var(--gold);
+    color: var(--bg-deep);
+    border-color: var(--gold-bright);
+  }
+  .checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--panel);
+    transition: all 0.15s;
+  }
+  .checkbox:hover {
+    border-color: var(--gold);
+  }
+  .checkbox input { margin: 0; cursor: pointer; }
+  .reset-btn {
+    background: var(--panel);
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 3px;
+    padding: 5px 12px;
+    font-family: var(--font);
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .reset-btn:hover {
+    background: var(--red);
+    color: var(--bg-deep);
+  }
+
+  /* Ship grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 16px;
+    padding: 0 24px 24px;
+  }
+  .ship-card {
+    background: var(--panel);
+    border: 1px solid var(--border-faint);
+    border-radius: 4px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s;
+  }
+  .ship-card:hover {
+    border-color: var(--gold-dim);
+  }
+  .ship-name {
+    color: var(--gold);
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0 0 4px 0;
+    text-transform: capitalize;
+    letter-spacing: 0.04em;
+  }
+  .ship-tier {
+    color: var(--text-faint);
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  .sprite-wrap {
+    background: radial-gradient(ellipse at center, #2d3845 0%, #1a2230 100%);
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+    padding: 8px;
+    margin: 0 auto 10px;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 260px;
+  }
+  .sprite-wrap svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .config-block {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-faint);
+    border-radius: 3px;
+    padding: 8px 10px;
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .config-block strong {
+    color: var(--gold);
+    font-weight: normal;
+  }
+  .error {
+    color: var(--red);
+    background: rgba(212, 106, 106, 0.1);
+    border: 1px solid var(--red);
+    border-radius: 3px;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  /* Footer */
+  footer {
+    color: var(--text-faint);
+    font-size: 10px;
+    padding: 14px 24px 20px;
+    text-align: center;
+    border-top: 1px solid var(--border-faint);
+    background: var(--bg-deep);
+  }
+
+  /* Loading state */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚓ Ship Sprite Preview</h1>
+  <p class="subtitle">B2.1 — Visual verification of all 11 ship configurations</p>
+</header>
+
+<div class="controls" id="controls">
+  <div class="control-group">
+    <span class="control-label">Faction (flag)</span>
+    <div class="control-row" id="factionRow">
+      <button class="btn active" data-faction="none">Player (no flag)</button>
+      <button class="btn" data-faction="english">English</button>
+      <button class="btn" data-faction="spanish">Spanish</button>
+      <button class="btn" data-faction="french">French</button>
+      <button class="btn" data-faction="dutch">Dutch</button>
+      <button class="btn" data-faction="pirate">Pirate</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Facing</span>
+    <div class="control-row" id="facingRow">
+      <button class="btn active" data-facing="left">◀ Left</button>
+      <button class="btn" data-facing="right">Right ▶</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Equipment</span>
+    <div class="control-row" id="equipmentRow">
+      <label class="checkbox"><input type="checkbox" data-equip="war_pennants" /> War Pennants</label>
+      <label class="checkbox"><input type="checkbox" data-equip="extra_sails" /> Extra Sails</label>
+      <label class="checkbox"><input type="checkbox" data-equip="lateen_rig" /> Lateen Rig</label>
+      <label class="checkbox"><input type="checkbox" data-equip="copper_plating" /> Copper Plating</label>
+      <label class="checkbox"><input type="checkbox" data-equip="ornate_figurehead" /> Ornate Figurehead</label>
+    </div>
+  </div>
+
+  <button class="reset-btn" id="resetBtn">↻ Reset</button>
+</div>
+
+<div id="grid" class="grid">
+  <div class="loading">Loading ship configurations...</div>
+</div>
+
+<footer>
+  Tweak <code>SHIP_VISUALS</code> in <code>../data.js</code> and refresh this page to see changes. <br/>
+  Renderer source: <code>../ship-sprite.js</code>
+</footer>
+
+<!-- Load game data and renderer -->
+<script src="../data.js"></script>
+<script src="../ship-sprite.js"></script>
+
+<script>
+(function () {
+  // ── Display order (matches the tiers from data) ────────────
+  const SHIP_ORDER = [
+    { key: "dinghy",            tier: "Tier 0 — Starter" },
+    { key: "cutter",            tier: "Tier 0 — Starter" },
+    { key: "sloop",             tier: "Tier 1 — First real ship" },
+    { key: "schooner",          tier: "Tier 2 — Specialization" },
+    { key: "merchantman",       tier: "Tier 2 — Specialization" },
+    { key: "brigantine",        tier: "Tier 2 — Specialization" },
+    { key: "corvette",          tier: "Tier 3 — Warship" },
+    { key: "frigate",           tier: "Tier 3 — Warship" },
+    { key: "fluyt",             tier: "Tier 3 — Warship" },
+    { key: "galleon",           tier: "Tier 4 — Endgame" },
+    { key: "ship_of_the_line",  tier: "Tier 4 — Endgame" },
+  ];
+
+  // ── Current state of controls ──────────────────────────────
+  const state = {
+    faction: "none",          // "none" or faction key
+    facing: "left",
+    equipment: new Set(),
+  };
+
+  // ── Wait for data.js + ship-sprite.js to load ─────────────
+  function waitForReady(attempt) {
+    attempt = attempt || 0;
+    const ready = window.D && window.D.SHIP_VISUALS && window.ShipSprite && window.ShipSprite.render;
+    if (ready) {
+      initControls();
+      renderAll();
+    } else if (attempt > 50) {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = '<div class="error">Failed to load ../data.js or ../ship-sprite.js. Make sure SHIP_VISUALS is defined in data.js and the file paths are correct.</div>';
+    } else {
+      setTimeout(() => waitForReady(attempt + 1), 100);
+    }
+  }
+
+  // ── Wire up control buttons ────────────────────────────────
+  function initControls() {
+    document.querySelectorAll("#factionRow .btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#factionRow .btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.faction = btn.dataset.faction;
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll("#facingRow .btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#facingRow .btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.facing = btn.dataset.facing;
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll("#equipmentRow input[type=checkbox]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        if (cb.checked) state.equipment.add(cb.dataset.equip);
+        else state.equipment.delete(cb.dataset.equip);
+        renderAll();
+      });
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      // Reset state
+      state.faction = "none";
+      state.facing = "left";
+      state.equipment.clear();
+      // Reset UI
+      document.querySelectorAll("#factionRow .btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.faction === "none");
+      });
+      document.querySelectorAll("#facingRow .btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.facing === "left");
+      });
+      document.querySelectorAll("#equipmentRow input[type=checkbox]").forEach(cb => {
+        cb.checked = false;
+      });
+      renderAll();
+    });
+  }
+
+  // ── Build a single ship card ───────────────────────────────
+  function buildCard(shipKey, tier) {
+    const card = document.createElement("div");
+    card.className = "ship-card";
+
+    const config = window.D.SHIP_VISUALS[shipKey];
+    if (!config) {
+      card.innerHTML = `
+        <h2 class="ship-name">${shipKey}</h2>
+        <div class="error">No SHIP_VISUALS config found for "${shipKey}"</div>
+      `;
+      return card;
+    }
+
+    // Name
+    const name = document.createElement("h2");
+    name.className = "ship-name";
+    name.textContent = shipKey.replace(/_/g, " ");
+    card.appendChild(name);
+
+    // Tier subtitle
+    const tierDiv = document.createElement("div");
+    tierDiv.className = "ship-tier";
+    tierDiv.textContent = tier;
+    card.appendChild(tierDiv);
+
+    // Sprite
+    const wrap = document.createElement("div");
+    wrap.className = "sprite-wrap";
+    card.appendChild(wrap);
+
+    try {
+      const svg = window.ShipSprite.render(shipKey, {
+        faction: state.faction === "none" ? null : state.faction,
+        equipment: Array.from(state.equipment),
+        width: 400,
+        height: 280,
+        facing: state.facing,
+        showFlag: state.faction !== "none",
+      });
+      if (svg) {
+        wrap.appendChild(svg);
+      } else {
+        wrap.innerHTML = '<div class="error">Renderer returned null</div>';
+      }
+    } catch (err) {
+      wrap.innerHTML = '<div class="error">Render error: ' + (err.message || err) + '</div>';
+    }
+
+    // Config block
+    const cfgBlock = document.createElement("div");
+    cfgBlock.className = "config-block";
+    cfgBlock.innerHTML = buildConfigSummary(shipKey, config);
+    card.appendChild(cfgBlock);
+
+    return card;
+  }
+
+  // ── Build a human-readable config summary ──────────────────
+  function buildConfigSummary(shipKey, config) {
+    const lines = [];
+    lines.push(`<strong>shape:</strong> ${config.hullShape} &nbsp; <strong>length:</strong> ${config.hullLength} &nbsp; <strong>height:</strong> ${config.hullHeight}`);
+
+    const decks = [];
+    if (config.hasForecastle) decks.push("forecastle");
+    if (config.hasQuarterdeck) decks.push("quarterdeck");
+    if (config.hasPoopDeck) decks.push("poop");
+    if (config.hasSternGallery) decks.push("stern gallery");
+    if (decks.length) {
+      lines.push(`<strong>decks:</strong> ${decks.join(", ")}`);
+    }
+
+    const mastDesc = config.masts.map((m, i) => {
+      const sails = m.sails ? Object.keys(m.sails).filter(k => m.sails[k]).join("+") : "—";
+      return `${i+1}. ${m.rig} [${sails || "—"}]`;
+    }).join(" · ");
+    lines.push(`<strong>masts (${config.masts.length}):</strong> ${mastDesc}`);
+
+    lines.push(`<strong>guns:</strong> ${config.gunDecks} deck${config.gunDecks === 1 ? "" : "s"}, ${config.gunPortsLower || 0}${config.gunPortsUpper ? " + " + config.gunPortsUpper : ""} ports`);
+    lines.push(`<strong>bowsprit:</strong> ${config.bowsprit}`);
+    if (config.staysails) {
+      lines.push(`<strong>staysails:</strong> ${config.staysails.join(", ")}`);
+    }
+    return lines.join("<br/>");
+  }
+
+  // ── Render all ships ───────────────────────────────────────
+  function renderAll() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    SHIP_ORDER.forEach(({ key, tier }) => {
+      grid.appendChild(buildCard(key, tier));
+    });
+  }
+
+  // ── Bootstrap ──────────────────────────────────────────────
+  window.addEventListener("load", () => waitForReady(0));
+})();
+</script>
+
+</body>
+</html>
