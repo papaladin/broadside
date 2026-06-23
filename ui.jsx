@@ -380,6 +380,50 @@ const LogList = ({ entries, maxEntries = 20 }) => {
     );
   };
 
+  const ShipSideSprite = ({
+  type,
+  faction = null,
+  equipment = [],
+  width = 300,
+  height = 210,
+  facing = "left",
+}) => {
+  const containerRef = React.useRef(null);
+
+  // Stringify equipment array for stable dependency comparison
+  const equipKey = Array.isArray(equipment) ? equipment.join(",") : "";
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    if (!window.ShipSprite || typeof window.ShipSprite.render !== "function") {
+      containerRef.current.innerHTML = "";
+      return;
+    }
+    const svg = window.ShipSprite.render(type, {
+      faction,
+      equipment: Array.isArray(equipment) ? equipment : [],
+      width,
+      height,
+      facing,
+    });
+    containerRef.current.innerHTML = "";
+    if (svg) {
+      containerRef.current.appendChild(svg);
+    }
+  }, [type, faction, equipKey, width, height, facing]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width,
+        height,
+        display: "inline-block",
+      }}
+    />
+  );
+};
+
   const BackButton = ({ dispatch, screen = "port", label = "← Back to Port" }) => (
     React.createElement(Btn, {
       v: "ghost",
@@ -472,7 +516,7 @@ const TransferLayout = ({
   Object.assign(window.UI, {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
-    FactionPill, RepPill, ShipSprite, BackButton, useFlashOnChange,
+    FactionPill, RepPill, ShipSprite, ShipSideSprite, BackButton, useFlashOnChange,
     Tooltip,getGoodIcon,TransferLayout,
   });
 })();

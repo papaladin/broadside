@@ -155,19 +155,19 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: make the game feel like itself in the first 30 seconds, not a generic Pirates! clone. Visible feedback is what keeps a new player from quitting.
 
 #### B2.1 — Ship visual identity
-- [ ] Unique ship silhouettes per ship type (currently ShipSprite renders identically for all ships)
-- [ ] Ship name visible on sailing screen / HUD
-- [ ] Equipment visually reflected on ship where reasonable (extra sails, visible cannons)
+- [X] Unique ship silhouettes per ship type (currently ShipSprite renders identically for all ships) 
+- [ ] Ship name visible on sailing screen / HUD -
+- [ ] Equipment visually reflected on ship where reasonable (extra sails, visible cannons) -> partial
 - [ ] Port arrival illustration or vignette per faction
 - **Pillar**: Discovery
 
 #### B2.2 — UI juice & immediate feedback
 - [X] CSS transitions on gold gain/loss (flash green/red in HUD) — partly done via useFlashOnChange, audit completeness
-- [ ] Hull bar pulse on damage taken
+- [X] Hull bar pulse on damage taken -> rejected
 - [X] Morale indicator flash on morale shift
-- [ ] Screen tint / brief overlay on combat damage
-- [ ] Battle log entries animate in (slide/fade)
-- [ ] "Loot gained" summary with visual pop after plunder
+- [X] Screen tint / brief overlay on combat damage -> pannel glow
+- [X] Battle log entries animate in (slide/fade)
+- [X] "Loot gained" summary with visual pop after plunder
 - **Pillar**: Consequence (make every impact feel real, not just read real)
 
 #### B2.3 — Career stats tracking

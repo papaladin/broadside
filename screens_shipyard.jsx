@@ -7,13 +7,29 @@ const { SHIPS, EQUIPMENT, PORTS } = window.D;
 const L = window.L;
 const A = window.E.A;
 const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton,
-    IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip
+    IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip,ShipSideSprite,
 } = window.UI;
 const { shouldShowTutorial, markTutorialSeen } = window.L;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  CONSTANTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ── Visual equipment helper ──────────────────────────────────────────
+// Only these equipment items have a visible effect on the ship sprite.
+// When more equipment gets visual effects, add the keys here.
+const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
+
+const getVisualEquipment = (state) => {
+  const allEquipped = [
+    ...(state.ship.equipment?.hull || []),
+    ...(state.ship.equipment?.armament || []),
+    ...(state.ship.equipment?.rigging || []),
+    ...(state.ship.equipment?.special || []),
+  ];
+  return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
+};
+
 const SLOT_LABELS = {
     hull:     { label: "Hull",      Icon: IconShield },
     armament: { label: "Armament",  Icon: IconCannon },
@@ -171,7 +187,7 @@ function ShipyardScreen({ state, dispatch }) {
             );
         }
 
-        // --- Ship comparison preview ---
+// --- Ship comparison preview ---
         if (selectedShip && selectedShip !== state.ship.type) {
             const s = SHIPS[selectedShip];
             const cur = currentShip;
@@ -186,6 +202,27 @@ function ShipyardScreen({ state, dispatch }) {
                             <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
                         </span>
                         <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
+                    </div>
+
+                    {/* Selected ship sprite */}
+                    <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 10,
+                        padding: 6,
+                        background: T.bgDeep,
+                        borderRadius: 3,
+                        border: `1px solid ${T.borderFaint}`,
+                    }}>
+                        <ShipSideSprite
+                            type={selectedShip}
+                            faction={null}
+                            equipment={[]}
+                            width={isNarrow ? 240 : 300}
+                            height={isNarrow ? 170 : 210}
+                            facing="left"
+                        />
                     </div>
 
                     <div style={{ marginBottom: 8 }}>
@@ -232,6 +269,26 @@ function ShipyardScreen({ state, dispatch }) {
             }),
             display: "flex", flexDirection: "column", gap: 10,
         }}>
+            {/* Ship sprite */}
+            <div style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 10,
+            padding: 6,
+            background: T.bgDeep,
+            borderRadius: 3,
+            border: `1px solid ${T.borderFaint}`,
+            }}>
+            <ShipSideSprite
+                type={state.ship.type}
+                faction={null}
+                equipment={getVisualEquipment(state)}
+                width={isNarrow ? 260 : 340}
+                height={isNarrow ? 180 : 230}
+                facing="left"
+            />
+            </div>
             {/* Current Vessel Stats */}
             <div style={panelStyle()}>
                 <SectionTitle>CURRENT VESSEL — {currentShip.name}</SectionTitle>

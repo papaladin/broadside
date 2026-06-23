@@ -796,9 +796,10 @@ const guessShipType = (enemy) => {
   if (cannons >= 24) return "frigate";            // speed 12
   if (cannons >= 18) return "corvette";           // speed 15
   if (cannons >= 14) return "brigantine";         // speed 14
-  if (cannons >= 10) return "sloop";              // speed 18
-  if (cannons >=  6) return "schooner";           // speed 19
-  return "cutter";                                // speed 20
+  if (cannons >= 10) return "schooner";              // speed 18
+  if (cannons >=  6) return "sloop";           // speed 19
+  if (cannons >=  3) return "cutter";           /
+  return "dinghy";                                
 };
 
 function buildEncounterContext(state, type, enemy) {
@@ -1068,6 +1069,7 @@ const applyLoseContraband = (holdItems) => {
     // Combat
     getNPCAction,
     resolveCombatAction,
+    guessShipType,
 
 
     // Resource & trade

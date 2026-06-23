@@ -19,9 +19,10 @@ window.S = window.S || {};
     TutorialPopup, BackButton,
     IconSailboat, IconAnchor, IconSwords, IconCannon, IconTarget,
     IconGrapple, IconWind, IconSkull,
-    getGoodIcon, useFlashOnChange,TransferLayout,
+    getGoodIcon, useFlashOnChange,
+    TransferLayout, ShipSideSprite,
+    FactionPill, ShipSprite,
   } = window.UI;
-  const { FactionPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
 // -- HELPERS ----------------
@@ -42,7 +43,18 @@ const isPlayerMissOrFail = (text) => {
   return MISS_PHRASES.some(phrase => text.includes(phrase));
 };
 
+// Equipment that has visual representation on the ship sprite
+const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
 
+const getVisualEquipment = (state) => {
+  const allEquipped = [
+    ...(state.ship.equipment?.hull || []),
+    ...(state.ship.equipment?.armament || []),
+    ...(state.ship.equipment?.rigging || []),
+    ...(state.ship.equipment?.special || []),
+  ];
+  return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
+};
 
   // ── EVENT SCREEN ─────────────────────────────────────────────────────
   function EventScreen({ state, dispatch }) {
@@ -202,6 +214,13 @@ const isPlayerMissOrFail = (text) => {
       prevLogLen.current = newLen;
     }, [state.battleState?.log?.length]);
 
+    // ── Responsive breakpoint for sprites ────────────────────────
+    const [isNarrowBattle, setIsNarrowBattle] = React.useState(window.innerWidth < 700);
+    React.useEffect(() => {
+      const handle = () => setIsNarrowBattle(window.innerWidth < 700);
+      window.addEventListener("resize", handle);
+      return () => window.removeEventListener("resize", handle);
+    }, []);
 
     return (
       <div style={{
@@ -235,54 +254,109 @@ const isPlayerMissOrFail = (text) => {
           <IconSwords size={22} color={T.redBr} /> NAVAL BATTLE — ROUND {bs.round}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 36px 1fr", gap: 10, alignItems: "center" }}>
-          <div style={panelStyle({ borderColor: T.blueBr })}>
-            <div style={{ color: T.blueBr, fontSize: 10, marginBottom: 4 }}>{state.ship.name}</div>
-            <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>
-              Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}
+        {/* ── Ship panels with sprites ────────────────────────────── */}
+        {(() => {
+          // Resolve ship types and visual configs for proportional sizing
+          const playerType = state.ship.type;
+          const enemyType = L.guessShipType(bs.enemy);
+          const playerVisual = window.D.SHIP_VISUALS?.[playerType];
+          const enemyVisual = window.D.SHIP_VISUALS?.[enemyType];
+
+          const playerLen = playerVisual?.hullLength || 400;
+          const enemyLen = enemyVisual?.hullLength || 400;
+          const maxLen = Math.max(playerLen, enemyLen);
+          const playerSize = playerLen / maxLen;
+          const enemySize = enemyLen / maxLen;
+
+          // Responsive sprite canvas size
+          const baseW = isNarrowBattle ? 150 : 270;
+          const baseH = isNarrowBattle ? 100 : 175;
+
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "center" }}>
+              {/* Player ship panel */}
+              <div style={panelStyle({ borderColor: T.blueBr, padding: 8 })}>
+                <div style={{
+                  background: T.bgDeep,
+                  borderRadius: 3,
+                  border: `1px solid ${T.borderFaint}`,
+                  padding: 4,
+                  marginBottom: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: baseH + 8,
+                }}>
+                  <ShipSideSprite
+                    type={playerType}
+                    faction={null}
+                    equipment={getVisualEquipment(state)}
+                    width={Math.round(baseW * playerSize)}
+                    height={Math.round(baseH * playerSize)}
+                    facing="right"
+                  />
+                </div>
+                <div style={{ color: T.blueBr, fontSize: 10, marginBottom: 4 }}>{state.ship.name}</div>
+                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
+                <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                {bs.convoyHull !== undefined && (
+                  <>
+                    <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {bs.convoyHull} / 50</div>
+                    <Bar value={bs.convoyHull} max={50} color={bs.convoyHull / 50 >= 0.6 ? T.greenBr : bs.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
+                  </>
+                )}
+                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
+              </div>
+
+              {/* Lightning bolt center */}
+              <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
+
+              {/* Enemy ship panel */}
+              <div style={panelStyle({ borderColor: T.red, padding: 8 })}>
+                <div style={{
+                  background: T.bgDeep,
+                  borderRadius: 3,
+                  border: `1px solid ${T.borderFaint}`,
+                  padding: 4,
+                  marginBottom: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: baseH + 8,
+                }}>
+                  <ShipSideSprite
+                    type={enemyType}
+                    faction={bs.enemy.faction}
+                    equipment={[]}
+                    width={Math.round(baseW * enemySize)}
+                    height={Math.round(baseH * enemySize)}
+                    facing="left"
+                  />
+                </div>
+                <div style={{ color: T.redBr, fontSize: 10, marginBottom: 4 }}>{bs.enemy.name}</div>
+                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.enemyHull} / {bs.enemy.hull}</div>
+                <Bar value={bs.enemyHull} max={bs.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
+                <div style={{ marginTop: 5 }}><FactionPill faction={bs.enemy.faction} /></div>
+              </div>
             </div>
-            <Bar
-              value={bs.playerHull}
-              max={SHIPS[state.ship.type].maxHull}
-              color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr}
-              h={10}
-            />
-            {bs.convoyHull !== undefined && (
-              <>
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {bs.convoyHull} / 50</div>
-                <Bar
-                  value={bs.convoyHull}
-                  max={50}
-                  color={bs.convoyHull / 50 >= 0.6 ? T.greenBr : bs.convoyHull / 50 >= 0.3 ? T.gold : T.redBr}
-                  h={8}
-                />
-              </>
-            )}
-            <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
-              {state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons
-            </div>
+          );
+        })()}
+
+        {/* Landscape suggestion for very narrow screens */}
+        {isNarrowBattle && window.innerWidth < 400 && (
+          <div style={{
+            fontSize: 9,
+            color: T.textFaint,
+            textAlign: "center",
+            fontStyle: "italic",
+            margin: "2px 0 6px"
+          }}>
+            Tip: rotate your phone to landscape for a better battle view
           </div>
+        )}
 
-          <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
-
-          <div style={panelStyle({ borderColor: T.red })}>
-            <div style={{ color: T.redBr, fontSize: 10, marginBottom: 4 }}>{bs.enemy.name}</div>
-            <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>
-              Hull: {bs.enemyHull} / {bs.enemy.hull}
-            </div>
-            <Bar
-              value={bs.enemyHull}
-              max={bs.enemy.hull}
-              color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr}
-              h={10}
-            />
-            <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
-              {bs.enemyCrew} crew · {bs.enemy.cannons} cannons
-            </div>
-            <div style={{ marginTop: 5 }}><FactionPill faction={bs.enemy.faction} /></div>
-          </div>
-        </div>
-
+        {/* ── Log panel ──────────────────────────────────────────── */}
         <div className={missFlash ? 'miss-flash-border' : ''} style={{
           ...panelStyle({ background: T.bgDeep, height: 130, overflowY: "auto" }),
         }}>
@@ -327,7 +401,7 @@ const isPlayerMissOrFail = (text) => {
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = T.borderBr;
-                    e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;   // 33% opacity
+                    e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
                     e.currentTarget.style.transform = "scale(1.03)";
                   }}
                   onMouseLeave={e => {
@@ -389,189 +463,185 @@ const isPlayerMissOrFail = (text) => {
   }
 
   // ── PLUNDER SCREEN ────────────────────────────────────────────────────
-function PlunderScreen({ state, dispatch }) {
-  const bs = state.battleState;
-  if (!bs || !bs.canPlunder) return null;
+  function PlunderScreen({ state, dispatch }) {
+    const bs = state.battleState;
+    if (!bs || !bs.canPlunder) return null;
 
-  const enemyCargo = bs.enemyCargo || {};
-  const goldReward = bs.goldReward || 0;
-  const holdCapacity = L.getHoldCapacity(state) || 200;
+    const enemyCargo = bs.enemyCargo || {};
+    const goldReward = bs.goldReward || 0;
+    const holdCapacity = L.getHoldCapacity(state) || 200;
 
-  const [playerItems, setPlayerItems] = React.useState({ ...(state.hold?.items || {}) });
-  const [enemyItems, setEnemyItems] = React.useState({ ...enemyCargo });
+    const [playerItems, setPlayerItems] = React.useState({ ...(state.hold?.items || {}) });
+    const [enemyItems, setEnemyItems] = React.useState({ ...enemyCargo });
 
-  const used = Object.values(playerItems).reduce((s, q) => s + q, 0);
-  const free = Math.max(0, holdCapacity - used);
+    const used = Object.values(playerItems).reduce((s, q) => s + q, 0);
+    const free = Math.max(0, holdCapacity - used);
 
-  // ── Compute total value ───────────────────────────────────────
-  const goodsValue = Object.entries(enemyItems).reduce((sum, [good, qty]) => {
-    const res = window.D.RESOURCES[good];
-    const price = res?.basePrice ?? 0;
-    return sum + price * (qty || 0);
-  }, 0);
-  const totalValue = goldReward + goodsValue;
+    // ── Compute total value ───────────────────────────────────────
+    const goodsValue = Object.entries(enemyItems).reduce((sum, [good, qty]) => {
+      const res = window.D.RESOURCES[good];
+      const price = res?.basePrice ?? 0;
+      return sum + price * (qty || 0);
+    }, 0);
+    const totalValue = goldReward + goodsValue;
 
-  const totalFlash = useFlashOnChange(totalValue, { direction: 'up' });
+    const totalFlash = useFlashOnChange(totalValue, { direction: 'up' });
 
-  // Illegal goods warning
-  const hasIllegal = Object.keys(enemyItems).some(
-    g => window.D.RESOURCES[g]?.illegal
-  );
+    // Illegal goods warning
+    const hasIllegal = Object.keys(enemyItems).some(
+      g => window.D.RESOURCES[g]?.illegal
+    );
 
-  const enemyTotal = Object.values(enemyItems).reduce((s, q) => s + q, 0);
+    const enemyTotal = Object.values(enemyItems).reduce((s, q) => s + q, 0);
 
-  // ── Move helpers ──────────────────────────────────────────────
-  const moveToPlayer = (good) => {
-    const available = enemyItems[good] || 0;
-    if (available <= 0 || free < 1) return;
-    setEnemyItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
-    setPlayerItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
-  };
+    const moveToPlayer = (good) => {
+      const available = enemyItems[good] || 0;
+      if (available <= 0 || free < 1) return;
+      setEnemyItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
+      setPlayerItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
+    };
 
-  const moveToEnemy = (good) => {
-    const available = playerItems[good] || 0;
-    if (available <= 0) return;
-    setPlayerItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
-    setEnemyItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
-  };
+    const moveToEnemy = (good) => {
+      const available = playerItems[good] || 0;
+      if (available <= 0) return;
+      setPlayerItems(prev => ({ ...prev, [good]: prev[good] - 1 }));
+      setEnemyItems(prev => ({ ...prev, [good]: (prev[good] || 0) + 1 }));
+    };
 
-  // ── Take All (best value first, then confirm) ─────────────────
-  const takeAll = () => {
-    const priority = Object.entries(enemyItems)
-      .map(([good, qty]) => ({ good, qty, price: window.D.RESOURCES[good]?.basePrice ?? 0 }))
-      .filter(g => g.qty > 0)
-      .sort((a, b) => b.price - a.price);
+    const takeAll = () => {
+      const priority = Object.entries(enemyItems)
+        .map(([good, qty]) => ({ good, qty, price: window.D.RESOURCES[good]?.basePrice ?? 0 }))
+        .filter(g => g.qty > 0)
+        .sort((a, b) => b.price - a.price);
 
-    let remainingFree = free;
-    const newPlayer = { ...playerItems };
+      let remainingFree = free;
+      const newPlayer = { ...playerItems };
 
-    for (const { good, qty } of priority) {
-      const takeQty = Math.min(qty, remainingFree);
-      if (takeQty > 0) {
-        newPlayer[good] = (newPlayer[good] || 0) + takeQty;
-        remainingFree -= takeQty;
-      }
-    }
-
-    dispatch({ type: window.E.A.TAKE_PLUNDER, holdItems: newPlayer });
-  };
-
-  // ── Confirm plunder ───────────────────────────────────────────
-  const handleConfirm = () => {
-    dispatch({ type: window.E.A.TAKE_PLUNDER, holdItems: playerItems });
-  };
-
-  return (
-    <div style={{ padding: T.spacing.xl, maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* ── Heading ────────────────────────────────────────────── */}
-      <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold", textAlign: "center" }}>
-        <IconAnchor size={24} color={T.gold} /> Plunder the <span style={{ color: T.redBr }}>{bs.enemy.name}</span>
-      </div>
-
-      {/* ── Top summary panel ──────────────────────────────────── */}
-      <div style={panelStyle()}>
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Plunder gold</div>
-            <div style={{ color: T.gold, fontSize: T.heading3FontSize }}>+{goldReward}g</div>
-          </div>
-          <div>
-            <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Cargo value</div>
-            <div style={{ color: T.text, fontSize: T.heading3FontSize }}>{goodsValue}g</div>
-          </div>
-          <div>
-            <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Total haul</div>
-            <div className={totalFlash} style={{ color: T.goldBr, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
-              {totalValue}g
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Btn v="gold" onClick={takeAll} disabled={free < 1 || enemyTotal === 0}>
-               Take All and Sail Away
-            </Btn>
-          </div>
-        </div>
-        {hasIllegal && (
-          <div style={{ marginTop: 8, color: T.red, fontSize: 10 }}>
-            ⚠ Illegal goods detected — patrols may inspect
-          </div>
-        )}
-      </div>
-
-      {/* ── Two‑column transfer layout ─────────────────────────── */}
-      <TransferLayout
-        leftTitle={`YOUR HOLD (${used}/${holdCapacity})`}
-        leftContent={
-          <div>
-            <Bar value={used} max={holdCapacity} color={used > holdCapacity * 0.8 ? T.redBr : T.greenBr} h={8} />
-            <div style={{ marginTop: 8 }}>
-              {Object.keys(playerItems).length === 0 ? (
-                <EmptyState message="Your hold is empty." />
-              ) : (
-                Object.entries(playerItems).map(([good, qty]) => (
-                  <div key={good} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ color: T.text, fontSize: 12 }}>
-                      {getGoodIcon(good)}
-                      {window.D.RESOURCES[good]?.name || good}
-                      <span style={{ color: T.textDim }}> ×{qty}</span>
-                    </span>
-                    <Btn sm v="ghost" onClick={() => moveToEnemy(good)}>Jettison</Btn>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+      for (const { good, qty } of priority) {
+        const takeQty = Math.min(qty, remainingFree);
+        if (takeQty > 0) {
+          newPlayer[good] = (newPlayer[good] || 0) + takeQty;
+          remainingFree -= takeQty;
         }
-        rightTitle="ENEMY CARGO"
-                rightContent={
-          Object.keys(enemyItems).length === 0 ? (
-            <EmptyState message="No cargo remaining." />
-          ) : (
-            (() => {
-              let illegalDividerShown = false;
-              return Object.entries(enemyItems).map(([good, qty]) => {
-                const isIllegal = window.D.RESOURCES[good]?.illegal;
-                const showDivider = isIllegal && !illegalDividerShown;
-                if (showDivider) illegalDividerShown = true;
+      }
 
-                return (
-                  <React.Fragment key={good}>
-                    {showDivider && (
-                      <div style={{
-                        borderTop: `1px solid ${T.redBr}`,
-                        margin: "4px 0",
-                        opacity: 0.5,
-                      }} />
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      dispatch({ type: window.E.A.TAKE_PLUNDER, holdItems: newPlayer });
+    };
+
+    const handleConfirm = () => {
+      dispatch({ type: window.E.A.TAKE_PLUNDER, holdItems: playerItems });
+    };
+
+    return (
+      <div style={{ padding: T.spacing.xl, maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold", textAlign: "center" }}>
+          <IconAnchor size={24} color={T.gold} /> Plunder the <span style={{ color: T.redBr }}>{bs.enemy.name}</span>
+        </div>
+
+        {/* ── Top summary panel ──────────────────────────────────── */}
+        <div style={panelStyle()}>
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Plunder gold</div>
+              <div style={{ color: T.gold, fontSize: T.heading3FontSize }}>+{goldReward}g</div>
+            </div>
+            <div>
+              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Cargo value</div>
+              <div style={{ color: T.text, fontSize: T.heading3FontSize }}>{goodsValue}g</div>
+            </div>
+            <div>
+              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Total haul</div>
+              <div className={totalFlash} style={{ color: T.goldBr, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
+                {totalValue}g
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Btn v="gold" onClick={takeAll} disabled={free < 1 || enemyTotal === 0}>
+                Take All
+              </Btn>
+            </div>
+          </div>
+          {hasIllegal && (
+            <div style={{ marginTop: 8, color: T.red, fontSize: 10 }}>
+              ⚠ Illegal goods detected — patrols may inspect
+            </div>
+          )}
+        </div>
+
+        {/* ── Two‑column transfer layout ─────────────────────────── */}
+        <TransferLayout
+          leftTitle={`YOUR HOLD (${used}/${holdCapacity})`}
+          leftContent={
+            <div>
+              <Bar value={used} max={holdCapacity} color={used > holdCapacity * 0.8 ? T.redBr : T.greenBr} h={8} />
+              <div style={{ marginTop: 8 }}>
+                {Object.keys(playerItems).length === 0 ? (
+                  <EmptyState message="Your hold is empty." />
+                ) : (
+                  Object.entries(playerItems).map(([good, qty]) => (
+                    <div key={good} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ color: T.text, fontSize: 12 }}>
                         {getGoodIcon(good)}
                         {window.D.RESOURCES[good]?.name || good}
-                        {isIllegal && <span style={{ color: T.redBr }}> ⚠</span>}
-                        <span style={{ color: T.textDim, marginLeft: 6 }}>×{qty}</span>
+                        <span style={{ color: T.textDim }}> ×{qty}</span>
                       </span>
-                      <Btn sm onClick={() => moveToPlayer(good)} disabled={free < 1}>+ Take</Btn>
+                      <Btn sm v="ghost" onClick={() => moveToEnemy(good)}>Jettison</Btn>
                     </div>
-                  </React.Fragment>
-                );
-              });
-            })()
-          )
-        }
-      />
+                  ))
+                )}
+              </div>
+            </div>
+          }
+          rightTitle="ENEMY CARGO"
+          rightContent={
+            Object.keys(enemyItems).length === 0 ? (
+              <EmptyState message="No cargo remaining." />
+            ) : (
+              (() => {
+                let illegalDividerShown = false;
+                return Object.entries(enemyItems).map(([good, qty]) => {
+                  const isIllegal = window.D.RESOURCES[good]?.illegal;
+                  const showDivider = isIllegal && !illegalDividerShown;
+                  if (showDivider) illegalDividerShown = true;
 
-      {/* ── Confirm ────────────────────────────────────────────── */}
-      <div style={panelStyle({ textAlign: "center" })}>
-        <div style={{ color: T.gold, fontSize: T.heading3FontSize, marginBottom: 10 }}>
-          Plunder gold: +{goldReward}g
+                  return (
+                    <React.Fragment key={good}>
+                      {showDivider && (
+                        <div style={{
+                          borderTop: `1px solid ${T.redBr}`,
+                          margin: "4px 0",
+                          opacity: 0.5,
+                        }} />
+                      )}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ color: T.text, fontSize: 12 }}>
+                          {getGoodIcon(good)}
+                          {window.D.RESOURCES[good]?.name || good}
+                          {isIllegal && <span style={{ color: T.redBr }}> ⚠</span>}
+                          <span style={{ color: T.textDim, marginLeft: 6 }}>×{qty}</span>
+                        </span>
+                        <Btn sm onClick={() => moveToPlayer(good)} disabled={free < 1}>+ Take</Btn>
+                      </div>
+                    </React.Fragment>
+                  );
+                });
+              })()
+            )
+          }
+        />
+
+        {/* ── Confirm ────────────────────────────────────────────── */}
+        <div style={panelStyle({ textAlign: "center" })}>
+          <div style={{ color: T.gold, fontSize: T.heading3FontSize, marginBottom: 10 }}>
+            Plunder gold: +{goldReward}g
+          </div>
+          <Btn v="gold" onClick={handleConfirm} style={{ fontSize: T.heading3FontSize, padding: "8px 20px" }}>
+            Confirm Plunder
+          </Btn>
         </div>
-        <Btn v="gold" onClick={handleConfirm} style={{ fontSize: T.heading3FontSize, padding: "8px 20px" }}>
-          Confirm Plunder
-        </Btn>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   Object.assign(window.S, { EventScreen, InterceptScreen, BattleScreen, PlunderScreen });
 })();

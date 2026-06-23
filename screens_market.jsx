@@ -2,7 +2,7 @@
 window.S = window.S || {};
 
 (() => {
-  const { useState } = React;
+  const { useState, useMemo } = React;
   const { PORTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
@@ -52,7 +52,10 @@ const MarketScreen = ({ state, dispatch }) => {
       </div>
     );
 
-    const flavourLines = G.generateMarketFlavour(state, state.currentPort);
+    const flavourLines = useMemo(
+      () => G.generateMarketFlavour(state, state.currentPort),
+      [state.currentPort]
+    );
 
     const holdItems = state.hold?.items || {};
     const capacity = state.hold?.capacity || 0;
@@ -211,7 +214,12 @@ const MarketScreen = ({ state, dispatch }) => {
                             style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
                           />
                           <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= max}>+</Btn>
-                          <span style={{ color: T.gold, fontSize: 10, minWidth: 36, textAlign:"right" }}>{price}g</span>
+                          <span style={{ color: T.gold, fontSize: 10, minWidth: 48, textAlign:"right" }}>
+                          {price}g
+                          <div style={{ color: T.textFaint, fontSize: 8 }}>
+                            (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
+                          </div>
+                        </span>
                         </div>
                       </div>
                     );
@@ -264,7 +272,12 @@ const MarketScreen = ({ state, dispatch }) => {
                             style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
                           />
                           <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
-                          <span style={{ color: T.gold, fontSize: 10, minWidth: 36, textAlign:"right" }}>{price}g</span>
+                          <span style={{ color: T.gold, fontSize: 10, minWidth: 48, textAlign:"right" }}>
+                            {price}g
+                            <div style={{ color: T.textFaint, fontSize: 8 }}>
+                              (Base: {pg.basePrice}g)
+                            </div>
+                          </span>
                         </div>
                       </div>
                     </React.Fragment>

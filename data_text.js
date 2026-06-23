@@ -512,7 +512,7 @@ const COMBAT_LOG_TEMPLATES = {
       "The enemy grapples and boards! They kill {crew} of your crew.",
       "They latch on and swarm your deck, cutting down {crew} sailors.",
       "Enemy boarders pour over the rail. {crew} crew lost in the melee.",
-      "They take your ship by force, killing {crew} of your men.",
+      "They try to take your ship by force, killing {crew} of your men.",
     ],
     grapple_fail: [
       "The enemy's grapple fails. They lose {crew} crew in the attempt.",
