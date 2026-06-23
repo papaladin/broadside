@@ -1424,6 +1424,24 @@ const TUTORIAL_HUNT = {
   },
 };
 
+const DEFAULT_CAREER = {
+  goldEarned: 0,
+  goldSpent: 0,
+  battles: { won: 0, lost: 0, fled: 0 },
+  shipsSunk: 0,
+  shipsPlundered: 0,
+  crewHired: 0,
+  crewLost: { inBattle: 0, inStorm: 0, deserted: 0, other: 0 },
+  crewDismissed: 0,
+  longestCrewTenure: 0,
+  portsVisited: [],
+  shipsOwned: [],
+  stormsSurvived: 0,
+  contrabandSeized: 0,
+  missionLog: [],
+  combatLog: [],
+};
+
 
   const SURRENDER_CONSEQUENCE = {
     patrol:                   { loseCargoPercent: 30, moralePenalty: 10 },
@@ -1459,6 +1477,7 @@ const TUTORIAL_HUNT = {
     STARTS,
     TUTORIAL_DELIVERY,
     TUTORIAL_HUNT,
+    DEFAULT_CAREER,
     SURRENDER_CONSEQUENCE,
   };
 })();

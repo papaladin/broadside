@@ -369,14 +369,156 @@ function PortScreen({ state, dispatch }) {
 
 
   // ── STATUS SCREEN ────────────────────────────────────────────────────
+ // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"status"));
-    const portsByFaction = Object.entries(PORTS).reduce((acc, [key, p]) => { if (!acc[p.faction]) acc[p.faction] = []; acc[p.faction].push({ key, ...p }); return acc; }, {});
+    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state, "status"));
+    const [showFullLedger, setShowFullLedger] = React.useState(false);
+    const [isNarrowStatus, setIsNarrowStatus] = React.useState(window.innerWidth < 700);
+
+    React.useEffect(() => {
+      const handle = () => setIsNarrowStatus(window.innerWidth < 700);
+      window.addEventListener("resize", handle);
+      return () => window.removeEventListener("resize", handle);
+    }, []);
+
+    // ── Derived values ─────────────────────────────────────────────
+    const career = state.career || {};
+    const daysSurvived = state.day;
+    const portsTotal = Object.keys(PORTS).length;
+    const portsVisitedCount = (career.portsVisited || []).length;
+    const totalBattles = (career.battles?.won || 0) + (career.battles?.lost || 0) + (career.battles?.fled || 0);
+    const totalCrewLost = (career.crewLost?.inBattle || 0) + (career.crewLost?.inStorm || 0)
+                       + (career.crewLost?.deserted || 0) + (career.crewLost?.other || 0);
+
+    // Headline identity tag
+    const getCaptainTag = () => {
+      const fame = state.fame || 0;
+      const infamy = state.infamy || 0;
+      if (infamy >= 100) return { text: "Legendary Outlaw of the Caribbean", color: T.redBr };
+      if (infamy >= 50)  return { text: "Notorious Across the Caribbean", color: T.redBr };
+      if (fame >= 200)   return { text: "A Legend of the Caribbean", color: T.gold };
+      if (fame >= 100)   return { text: "A Notorious Captain", color: T.gold };
+      if (fame >= 50)    return { text: "A Recognised Captain", color: T.gold };
+      if (infamy >= 25)  return { text: "Wanted by the Law", color: T.redBr };
+      if (infamy >= 10)  return { text: "A Suspect in Several Ports", color: T.gold };
+      return { text: "An Unknown Captain", color: T.textDim };
+    };
+    const captainTag = getCaptainTag();
+
+    // ── Career narrative highlights ────────────────────────────────
+    const getHighlights = () => {
+      const lines = [];
+
+      // Sea time
+      lines.push(`You have sailed for ${daysSurvived} day${daysSurvived === 1 ? "" : "s"}.`);
+
+      // Combat summary
+      if (totalBattles > 0) {
+        const sunk = career.shipsSunk || 0;
+        const plundered = career.shipsPlundered || 0;
+        if (sunk > 0 || plundered > 0) {
+          const parts = [];
+          if (sunk > 0) parts.push(`sunk ${sunk}`);
+          if (plundered > 0) parts.push(`plundered ${plundered}`);
+          lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(" and ")}.`);
+        } else {
+          lines.push(`You have fought ${totalBattles} battle${totalBattles === 1 ? "" : "s"}.`);
+        }
+      }
+
+      // Crew losses (the human cost)
+      if (totalCrewLost > 0) {
+        const inBattle = career.crewLost?.inBattle || 0;
+        const inStorm = career.crewLost?.inStorm || 0;
+        const deserted = career.crewLost?.deserted || 0;
+        const parts = [];
+        if (inBattle > 0) parts.push(`${inBattle} to combat`);
+        if (inStorm > 0) parts.push(`${inStorm} to the storms`);
+        if (deserted > 0) parts.push(`${deserted} who walked away`);
+        if (parts.length > 0) {
+          lines.push(`You have lost ${totalCrewLost} crew: ${parts.join(", ")}.`);
+        }
+      }
+
+      // Longest tenure
+      if (career.longestCrewTenure && career.longestCrewTenure >= 50) {
+        lines.push(`Your longest-serving crew member sailed with you for ${career.longestCrewTenure} days.`);
+      }
+
+      // Exploration
+      if (portsVisitedCount > 0) {
+        lines.push(`You have made landfall at ${portsVisitedCount} of ${portsTotal} ports across the Caribbean.`);
+      }
+
+      // Economic
+      const earned = career.goldEarned || 0;
+      const spent = career.goldSpent || 0;
+      if (earned > 0 || spent > 0) {
+        lines.push(`You have earned ${earned.toLocaleString()}g and spent ${spent.toLocaleString()}g.`);
+      }
+
+      // Storms
+      if (career.stormsSurvived > 0) {
+        lines.push(`You have weathered ${career.stormsSurvived} storm${career.stormsSurvived === 1 ? "" : "s"}.`);
+      }
+
+      // Ships
+      const ships = (career.shipsOwned || []).length;
+      if (ships > 1) {
+        lines.push(`You have commanded ${ships} ship${ships === 1 ? "" : "s"} over your career.`);
+      }
+
+      // Contraband caught
+      if (career.contrabandSeized > 0) {
+        lines.push(`You have been caught smuggling contraband ${career.contrabandSeized} time${career.contrabandSeized === 1 ? "" : "s"}.`);
+      }
+
+      return lines;
+    };
+    const highlights = getHighlights();
+
+    // ── Per-faction summary ────────────────────────────────────────
+    const getFactionSummary = (factionKey) => {
+      const ports = Object.entries(PORTS).filter(([_, p]) => p.faction === factionKey);
+      if (ports.length === 0) return null;
+      const avgRep = Math.round(
+        ports.reduce((sum, [k]) => sum + (state.reputation[k] ?? 50), 0) / ports.length
+      );
+      const repLabel = L.reputationLabel(avgRep);
+      const heat = state.factionAlerts?.[factionKey] || 0;
+      const heatLabel = L.getHeatLabel(heat);
+
+      // Crew alignment
+      const crewOfFaction = (state.crew?.roster || []).filter(m => m.faction === factionKey).length;
+      const totalCrew = (state.crew?.roster || []).length;
+      const crewPct = totalCrew > 0 ? Math.round((crewOfFaction / totalCrew) * 100) : 0;
+
+      return { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct };
+    };
+
+    // Service description from rep
+    const getServiceNote = (rep) => {
+      if (rep >= 80) return "−20% repair · +20% missions";
+      if (rep >= 50) return "−10% repair · +10% missions";
+      if (rep >= 30) return "Standard prices";
+      if (rep >= 10) return "−25% missions";
+      return "No services available";
+    };
+
+    // ── Render ─────────────────────────────────────────────────────
     return (
-      <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
+      <div style={{
+        padding: T.spacing.lg,
+        display: "flex",
+        flexDirection: "column",
+        gap: T.spacing.md,
+        overflowY: "auto",
+        flex: 1
+      }}>
         <Tooltip text="Return to the harbour.">
-        <BackButton dispatch={dispatch} />
+          <BackButton dispatch={dispatch} />
         </Tooltip>
+
         {showTutorial && (
           <TutorialPopup
             title="Your Standing"
@@ -385,104 +527,251 @@ function PortScreen({ state, dispatch }) {
               setShowTutorial(false);
             }}
           >
-            <p>This is where your reputation is tracked — with factions, ports, and the law.</p>
+            <p>This is where your career is tracked — your identity, your deeds, and your standing with the powers of the Caribbean.</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-              <li><strong>Fame</strong> — earned through missions. Gates better ships, equipments, and hidden port discoveries.</li>
+              <li><strong>Fame</strong> — earned through missions. Gates better ships, equipment, and hidden ports.</li>
               <li><strong>Infamy</strong> — earned through crime. High infamy blocks bribes and attracts bounty hunters.</li>
-              <li><strong>Faction Alerts</strong> — short‑term heat from combat and smuggling. Decays over time.</li>
-              <li><strong>Port Reputation</strong> — per‑port standing from Allied to At War. Affects prices and services.</li>
+              <li><strong>Career</strong> — what you've actually done at sea.</li>
+              <li><strong>Factions</strong> — how each rival power sees you, and how your crew aligns.</li>
             </ul>
-            <p>The Caribbean remembers what you do.</p>
+            <p>The Caribbean keeps a ledger. Your name is written in it.</p>
           </TutorialPopup>
         )}
-        <div style={panelStyle()}>
-          <SectionTitle>CAPTAIN'S STANDING</SectionTitle>
-          <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 8 }}>
-            The Caribbean keeps a ledger. Your name is written in it—for better or worse.
-          </p>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ color: T.gold, fontSize: T.heading1FontSize }}>★ {state.fame}</div>
-              <div style={{ color: T.textDim, fontSize: 12 }}>{L.getFameInfo(state.fame).label}</div>
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 1: CAPTAIN IDENTITY (Hero panel)                         */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        <div style={panelStyle({ borderColor: T.gold })}>
+          <div style={{ display: "flex", flexDirection: isNarrowStatus ? "column" : "row", gap: T.spacing.md, alignItems: isNarrowStatus ? "flex-start" : "center" }}>
+
+            {/* Left: Captain name + faction + tag */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Captain
+              </div>
+              <div style={{ color: T.text, fontSize: 22, fontWeight: "bold", marginTop: 2 }}>
+                {state.captainName || "Unknown"}
+              </div>
+              <div style={{
+                color: FACTIONS[state.faction]?.color || T.textDim,
+                fontSize: 11,
+                marginTop: 4,
+                letterSpacing: "0.06em"
+              }}>
+                {FACTIONS[state.faction]?.label || "No faction"}
+              </div>
+              <div style={{ color: captainTag.color, fontSize: 13, marginTop: 8, fontStyle: "italic" }}>
+                {captainTag.text}
+              </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: T.heading1FontSize }}>
-  <IconSkull size={24} color={(state.infamy ?? 0) > 0 ? T.red : T.textFaint} /> {state.infamy ?? 0}
-</div>
-              <div style={{ color: T.textDim, fontSize: 12 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
-              {(state.infamy ?? 0) >= 10 && (
-                <div style={{ color: T.textFaint, fontSize: 10, marginTop: 4, maxWidth: 200 }}>
-                  {(state.infamy ?? 0) >= 100 ? "Every colonial faction considers you an enemy of civilisation." :
-                   (state.infamy ?? 0) >= 50 ? "You cannot bribe your way past patrols." :
-                   (state.infamy ?? 0) >= 25 ? "Bribe option will be unavailable above 50 infamy." :
-                   "Coastal patrols are watching you more closely."}
+
+            {/* Right: Fame / Infamy / Days */}
+            <div style={{
+              display: "flex",
+              gap: T.spacing.lg,
+              flexWrap: "wrap",
+              justifyContent: isNarrowStatus ? "flex-start" : "flex-end",
+              alignItems: "flex-start",
+            }}>
+              <div style={{ textAlign: "center", minWidth: 60 }}>
+                <div style={{ color: T.gold, fontSize: 22, fontWeight: "bold" }}>★ {state.fame}</div>
+                <div style={{ color: T.textDim, fontSize: 10 }}>{L.getFameInfo(state.fame).label}</div>
+                <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Fame</div>
+              </div>
+
+              <div style={{ textAlign: "center", minWidth: 60 }}>
+                <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 22, fontWeight: "bold" }}>
+                  <IconSkull size={18} color={(state.infamy ?? 0) > 0 ? T.red : T.textFaint} /> {state.infamy ?? 0}
                 </div>
-              )}
+                <div style={{ color: T.textDim, fontSize: 10 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
+                <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Infamy</div>
+              </div>
+
+              <div style={{ textAlign: "center", minWidth: 60 }}>
+                <div style={{ color: T.text, fontSize: 22, fontWeight: "bold" }}>{daysSurvived}</div>
+                <div style={{ color: T.textDim, fontSize: 10 }}>days at sea</div>
+                <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Tenure</div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 2: CAREER HIGHLIGHTS (Narrative)                         */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
         <div style={panelStyle()}>
-          <SectionTitle><IconHandshake size={14} color={T.gold} /> FACTION RELATIONS</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-            {Object.entries(FACTIONS).map(([factionKey, fac]) => (
-                <div key={factionKey} style={panelStyle({ background: T.panelAlt, padding: T.spacing.sm, borderLeft: `3px solid ${fac.color}` })}>
-                <div style={{ color: fac.color, fontSize: 12, fontWeight: "bold", marginBottom: 4 }}>{fac.label}</div>
-                <div style={{ color: T.textDim, fontSize: 10 }}>{fac.rivalFactions?.length ? `Rivals: ${fac.rivalFactions.map(r => FACTIONS[r]?.label ?? r).join(", ")}` : "No known rivals"}</div>
+          <SectionTitle>CAREER</SectionTitle>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {highlights.map((line, i) => (
+              <div key={i} style={{
+                color: T.text,
+                fontSize: T.narrativeFontSize,
+                lineHeight: T.narrativeLineHeight,
+                paddingLeft: 10,
+                borderLeft: `2px solid ${T.borderFaint}`,
+              }}>
+                {line}
               </div>
             ))}
           </div>
-        </div>
-        <div style={panelStyle()}>
-          <SectionTitle>⚠ FACTION ALERT STATUS</SectionTitle>
-          {Object.entries(FACTIONS).map(([factionKey, fac]) => {
-            const level = state.factionAlerts?.[factionKey] || 0;
-            if (level === 0) return null;
-            const label = L.getHeatLabel(level);
-            return (
-              <div key={factionKey} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ color: fac.color, fontSize: 12 }}>
-                  {fac.label}
-                </span>
-                <span style={{ color: T.redBr, fontSize: 12, fontWeight: "bold" }}>
-                  {label} ({level}/10)
-                </span>
-                <div style={{ flex: 1, marginLeft: 10 }}>
-                  <Bar value={level} max={10} color={fac.color} h={8} />
-                </div>
+
+          {/* Toggle for full ledger */}
+          <div
+            onClick={() => setShowFullLedger(v => !v)}
+            style={{
+              color: T.textFaint,
+              fontSize: 10,
+              cursor: "pointer",
+              marginTop: 4,
+              padding: 4,
+              borderTop: `1px solid ${T.borderFaint}`,
+            }}
+          >
+            {showFullLedger ? "▾ Hide full ledger" : "▸ Show full ledger"}
+          </div>
+
+          {showFullLedger && (
+            <div style={{ marginTop: 10, padding: 8, background: T.bgDeep, borderRadius: 3 }}>
+              {/* Economic */}
+              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                Economic
               </div>
-            );
-          })}
-          {Object.values(state.factionAlerts || {}).every(v => v === 0) && (
-            <div style={{ color: T.textDim, fontSize: 11 }}>No factions are actively hunting you.</div>
+              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                <StatBlock label="Gold Earned" value={`${(career.goldEarned || 0).toLocaleString()}g`} color={T.gold} />
+                <StatBlock label="Gold Spent"  value={`${(career.goldSpent || 0).toLocaleString()}g`} color={T.redBr} />
+                <StatBlock label="Storms Survived" value={career.stormsSurvived || 0} />
+                <StatBlock label="Contraband Seized" value={career.contrabandSeized || 0} color={T.redBr} />
+              </div>
+
+              {/* Combat */}
+              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                Combat
+              </div>
+              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                <StatBlock label="Battles Won"  value={career.battles?.won || 0} color={T.greenBr} />
+                <StatBlock label="Battles Lost" value={career.battles?.lost || 0} color={T.redBr} />
+                <StatBlock label="Battles Fled" value={career.battles?.fled || 0} color={T.textDim} />
+                <StatBlock label="Ships Sunk"   value={career.shipsSunk || 0} />
+                <StatBlock label="Ships Plundered" value={career.shipsPlundered || 0} color={T.gold} />
+              </div>
+
+              {/* Crew */}
+              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                Crew
+              </div>
+              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                <StatBlock label="Hired"     value={career.crewHired || 0} color={T.greenBr} />
+                <StatBlock label="Dismissed" value={career.crewDismissed || 0} />
+                <StatBlock label="Lost in Battle" value={career.crewLost?.inBattle || 0} color={T.redBr} />
+                <StatBlock label="Lost in Storm"  value={career.crewLost?.inStorm || 0} color={T.redBr} />
+                <StatBlock label="Deserted"       value={career.crewLost?.deserted || 0} color={T.redBr} />
+                <StatBlock label="Other Losses"   value={career.crewLost?.other || 0} color={T.redBr} />
+                <StatBlock label="Longest Tenure" value={`${career.longestCrewTenure || 0}d`} color={T.blueBr} />
+              </div>
+
+              {/* World */}
+              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                World
+              </div>
+              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap" }}>
+                <StatBlock label="Ports Visited" value={`${portsVisitedCount} / ${portsTotal}`} />
+                <StatBlock label="Ships Owned"   value={(career.shipsOwned || []).length} />
+              </div>
+            </div>
           )}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: T.spacing.md }}>
-          {Object.entries(portsByFaction).map(([faction, ports]) => {
-            const fac = FACTIONS[faction];
-            const avgRep = Math.round(ports.reduce((s, p) => s + (state.reputation[p.key] ?? 20), 0) / ports.length);
-            return (
-              <div key={faction} style={panelStyle({ borderColor: fac.color + "60" })}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ color: fac.color, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{fac.label}</span>
-                  <RepPill rep={avgRep} />
-                </div>
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 2 }}>
-                  {avgRep >= 80 ? "20% repair · +20% missions" : avgRep >= 50 ? "10% repair · +10% missions" : avgRep >= 30 ? "−10% missions" : avgRep >= 10 ? "−25% missions" : "No services"}
-                </div>
-                {ports.map(p => {
-                  const rep = state.reputation[p.key] ?? 20;
-                  return (
-                    <div key={p.key} style={{ marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ color: T.text, fontSize: 11 }}>{p.name}</span><span style={{ color: rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr, fontSize: 10 }}>{rep}</span></div>
-                      <Bar value={rep} max={100} color={rep >= 60 ? T.greenBr : rep >= 30 ? T.gold : T.redBr} h={10} />
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 3: THE WORLD'S VIEW (Per-faction unified)                */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        <div style={panelStyle()}>
+          <SectionTitle>
+            <IconHandshake size={14} color={T.gold} /> THE WORLD'S VIEW
+          </SectionTitle>
+          <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 10 }}>
+            How each faction sees you, and how your crew aligns with them.
+          </p>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isNarrowStatus ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: T.spacing.md,
+          }}>
+            {Object.entries(FACTIONS).map(([factionKey, fac]) => {
+              const summary = getFactionSummary(factionKey);
+              if (!summary) return null;
+              const { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct } = summary;
+              const repColor = avgRep >= 60 ? T.greenBr : avgRep >= 30 ? T.gold : T.redBr;
+
+              return (
+                <div key={factionKey} style={panelStyle({
+                  background: T.panelAlt,
+                  borderLeft: `3px solid ${fac.color}`,
+                  padding: T.spacing.md,
+                })}>
+                  {/* Header: faction name + rivals */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div>
+                      <div style={{ color: fac.color, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
+                        {fac.label}
+                      </div>
+                      <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>
+                        {fac.rivalFactions?.length
+                          ? `Rivals: ${fac.rivalFactions.map(r => FACTIONS[r]?.label ?? r).join(", ")}`
+                          : "No known rivals"}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                    <RepPill rep={avgRep} />
+                  </div>
+
+                  {/* Reputation bar */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ color: T.textDim, fontSize: 10 }}>Standing</span>
+                      <span style={{ color: repColor, fontSize: 10, fontWeight: "bold" }}>
+                        {repLabel} ({avgRep})
+                      </span>
+                    </div>
+                    <Bar value={avgRep} max={100} color={repColor} h={8} />
+                    <div style={{ color: T.textFaint, fontSize: 9, marginTop: 3 }}>
+                      {getServiceNote(avgRep)}
+                    </div>
+                  </div>
+
+                  {/* Heat (only if non-zero) */}
+                  {heat > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ color: T.textDim, fontSize: 10 }}>Heat</span>
+                        <span style={{ color: T.redBr, fontSize: 10, fontWeight: "bold" }}>
+                          {heatLabel} ({heat}/10)
+                        </span>
+                      </div>
+                      <Bar value={heat} max={10} color={T.redBr} h={6} />
+                    </div>
+                  )}
+
+                  {/* Crew alignment */}
+                  {totalCrew > 0 && (
+                    <div style={{ color: T.textFaint, fontSize: 9, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.borderFaint}` }}>
+                      {crewOfFaction === 0
+                        ? `None of your crew are ${fac.label}.`
+                        : crewOfFaction === totalCrew
+                          ? `Your entire crew is ${fac.label}.`
+                          : `${crewOfFaction} of ${totalCrew} crew (${crewPct}%) are ${fac.label}.`
+                      }
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p style={{ color: T.textDim, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
+            Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction. Heat decays naturally as you stay clear of trouble.
+          </p>
         </div>
-        <p style={{ color: T.textDim, fontSize: 10, lineHeight: 1.6 }}>Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction.</p>
       </div>
     );
   }

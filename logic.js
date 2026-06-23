@@ -798,7 +798,7 @@ const guessShipType = (enemy) => {
   if (cannons >= 14) return "brigantine";         // speed 14
   if (cannons >= 10) return "schooner";              // speed 18
   if (cannons >=  6) return "sloop";           // speed 19
-  if (cannons >=  3) return "cutter";           /
+  if (cannons >=  3) return "cutter";           
   return "dinghy";                                
 };
 

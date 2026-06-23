@@ -699,6 +699,7 @@ if (
         return {
           ...state,
           activeMission: mission,
+          acceptedDay: state.day,
           encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
           screen: "intercept",
           log: [...state.log, `Accepted mission: ${mission.name}.`],
@@ -724,6 +725,7 @@ if (
             return {
               ...state,
               activeMission: { ...mission, encounterOccurred: false },
+              acceptedDay: state.day,
               crew: { ...state.crew, roster: newRoster, morale: newMorale },
               log: [...state.log, logLine],
             };
@@ -733,6 +735,7 @@ if (
           return {
             ...state,
             activeMission: { ...mission, encounterOccurred: false },
+            acceptedDay: state.day,
             log: [...state.log, `Accepted mission: ${mission.name}.`],
           };
       }

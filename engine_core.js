@@ -119,8 +119,12 @@ window.E = window.E || {};
     if (!s.captainName) s.captainName = "";
     if (!s.faction) s.faction = null;
     if (!s.tutorialMode) {
-  s.tutorialMode = s.onboarding?.completed ? "light" : "full";   // guess from existing state
-}
+      s.tutorialMode = s.onboarding?.completed ? "light" : "full";   // guess from existing state
+    }
+    if (!s.career) {
+      s.career = { ...window.D.DEFAULT_CAREER };
+  
+    }
     return s;
   };
 
@@ -217,6 +221,7 @@ window.E = window.E || {};
     battleState: null,
     activeEvent: null,
     encounterContext: null,
+    career: window.D.DEFAULT_CAREER
   };
 
   Object.keys(PORTS).forEach(portKey => {
