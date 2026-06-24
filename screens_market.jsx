@@ -67,7 +67,7 @@ const MarketScreen = ({ state, dispatch }) => {
     );
 
     const holdItems = state.hold?.items || {};
-    const capacity = state.hold?.capacity || 0;
+    const capacity = L.getHoldCapacity(state) || 0;
     const previewItems = { ...holdItems };
     Object.entries(buyPending).forEach(([good, qty]) => { previewItems[good] = (previewItems[good] || 0) + (qty || 0); });
     Object.entries(sellPending).forEach(([good, qty]) => { previewItems[good] = (previewItems[good] || 0) - (qty || 0); });

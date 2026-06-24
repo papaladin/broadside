@@ -156,9 +156,9 @@ Broadside is fully playable with rich narrative systems:
 
 #### B2.1 — Ship visual identity
 - [X] Unique ship silhouettes per ship type (currently ShipSprite renders identically for all ships) 
-- [ ] Ship name visible on sailing screen / HUD -
-- [ ] Equipment visually reflected on ship where reasonable (extra sails, visible cannons) -> partial
-- [ ] Port arrival illustration or vignette per faction
+- [ ] Ship name visible on sailing screen / HUD 
+- [X] Equipment visually reflected on ship where reasonable (extra sails, visible cannons) -> partial
+- [X] Port arrival illustration or vignette per faction
 - **Pillar**: Discovery
 
 #### B2.2 — UI juice & immediate feedback

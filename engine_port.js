@@ -516,7 +516,7 @@ if (
             equipment: { hull: [], armament: [], rigging: [], special: [] },  // NEW
           },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
-          hold: { ...state.hold },
+          hold: { ...state.hold, capacity: ship.holdCapacity  },
           log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`],
         };
       }
