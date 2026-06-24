@@ -7,7 +7,7 @@ window.S = window.S || {};
   const L = window.L;
   const A = window.E.A;
   const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, QMPopup,
-  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch } = window.UI;
+  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -97,6 +97,7 @@ function PortScreen({ state, dispatch }) {
             </div>
             <RepPill rep={rep} />
           </div>
+          <PortSilhouette portKey={state.currentPort} />
 
           <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, margin: "0 0 10px", lineHeight: T.narrativeLineHeight }}>
             {port.desc}

@@ -512,11 +512,44 @@ const TransferLayout = ({
   </div>
 );
 
+const PortSilhouette = ({ portKey }) => {
+  const port = window.D.PORTS?.[portKey];
+  const factionKey = port?.faction;
+  
+  if (!factionKey) return null;
+  
+const src = `port-${factionKey}.svg`;
+  
+  return (
+    <div style={{
+      width: "100%",
+      maxHeight: 280,
+      overflow: "hidden",
+      borderRadius: 3,
+      marginBottom: T.spacing.md,
+      lineHeight: 0,
+    }}>
+      <img
+        src={src}
+        alt={`${port?.name || "Port"} silhouette`}
+        style={{
+          width: "100%",
+          height: "auto",
+          display: "block",
+        }}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+    </div>
+  );
+};
+
   // ── Attach all public primitives to window.UI (icons live in icons.jsx) ──
   Object.assign(window.UI, {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, ShipSideSprite, BackButton, useFlashOnChange,
-    Tooltip,getGoodIcon,TransferLayout,
+    Tooltip,getGoodIcon,TransferLayout,PortSilhouette,
   });
 })();

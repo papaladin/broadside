@@ -9,14 +9,14 @@ window.UI = window.UI || {};
 (() => {
 
   const IconStar = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg width={size} height={size} aria-hidden="true" viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M8 1.5l2 4.1 4.5.6-3.3 3.2.8 4.5L8 11.7 3.9 13.9l.8-4.5L1.5 6.2l4.5-.6z"
         stroke={color} strokeWidth="1.2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 
 const IconSkull = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }}>
+  <svg width={size} height={size} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }}>
     <path d="m12.5 17-.5-1-.5 1h1z"/>
     <path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/>
     <circle cx="15" cy="12" r="1"/>
@@ -25,21 +25,21 @@ const IconSkull = ({ size = 14, color = "currentColor" }) => (
 );
 
   const IconShield = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg width={size} height={size} aria-hidden="true" viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M8 1.5L3 4v4c0 3.2 2.2 5.8 5 6.5 2.8-.7 5-3.3 5-6.5V4z"
         stroke={color} strokeWidth="1.2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 
   const IconHeart = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg width={size} height={size} aria-hidden="true" viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M8 13.5C6 12 2 9 2 5.5A3 3 0 018 3.5a3 3 0 016 2c0 3.5-4 6.5-6 8z"
         stroke={color} strokeWidth="1.2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 
   const IconCrew = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg width={size} height={size} aria-hidden="true" viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
       <circle cx="6" cy="5" r="2.2" stroke={color} strokeWidth="1.1" fill="none" />
       <path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke={color} strokeWidth="1.1" fill="none" />
       <circle cx="11" cy="5.5" r="1.6" stroke={color} strokeWidth="0.9" fill="none" />
@@ -53,6 +53,7 @@ const IconFood = ({ size = 14, color = "currentColor" }) => (
     height={size}
     viewBox="0 0 24 24"
     fill="none"
+     aria-hidden="true" 
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"
@@ -65,14 +66,14 @@ const IconFood = ({ size = 14, color = "currentColor" }) => (
 );
 
   const IconWater = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true"  style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M8 2.5C8 2.5 4 7 4 10a4 4 0 108 0c0-3-4-7.5-4-7.5z"
         stroke={color} strokeWidth="1.2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 
 const IconGold = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none"
+  <svg width={size} height={size}  aria-hidden="true" viewBox="0 0 20 20" fill="none"
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <path d="M 3 6 C 3 3 17 3 17 6 C 17 9 3 9 3 6 Z"
           stroke={color} strokeWidth="1.3" fill="none" />
@@ -88,7 +89,7 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
   // ── New icons (19) ───────────────────────────────────────────────────────
 
   const IconBarrel = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size}  aria-hidden="true" viewBox="0 0 16 16" fill="none"
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M3 1.5 C1 4.5 1 11.5 3 14.5 L13 14.5 C15 11.5 15 4.5 13 1.5 Z"
             stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
@@ -105,6 +106,7 @@ const IconCoins = ({ size = 14, color = "currentColor" }) => (
     height={size}
     viewBox="0 0 24 24"
     fill="none"
+     aria-hidden="true" 
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"
@@ -124,6 +126,7 @@ const IconFruit = ({ size = 14, color = "currentColor" }) => (
     height={size}
     viewBox="0 0 24 24"
     fill="none"
+     aria-hidden="true" 
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"
@@ -136,7 +139,7 @@ const IconFruit = ({ size = 14, color = "currentColor" }) => (
 );
 
   const IconPirate = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <path d="M4 8.5 C4 4.5 12 4.5 12 8.5 C12 10 10.5 10.5 10.5 12 L5.5 12 C5.5 10.5 4 10 4 8.5 Z"
             stroke={color} strokeWidth="1.1" fill="none" strokeLinejoin="round" />
@@ -148,7 +151,7 @@ const IconFruit = ({ size = 14, color = "currentColor" }) => (
   );
 
   const IconCalendar = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <rect x="1.5" y="2.5" width="13" height="12" rx="0.5" stroke={color} strokeWidth="1.1" />
       <line x1="1.5" y1="6" x2="14.5" y2="6" stroke={color} strokeWidth="1" />
@@ -160,7 +163,7 @@ const IconFruit = ({ size = 14, color = "currentColor" }) => (
   );
 
   const IconChest = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <rect x="1.5" y="7.5" width="13" height="7" rx="0.5" stroke={color} strokeWidth="1.1" />
       <path d="M1.5 7.5 L1.5 5 C1.5 3 14.5 3 14.5 5 L14.5 7.5"
@@ -178,6 +181,7 @@ const IconMarket = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -196,6 +200,7 @@ const IconMap = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -214,6 +219,7 @@ const IconFloppy = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -232,6 +238,7 @@ const IconJournal = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -253,6 +260,7 @@ const IconAnchor = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -273,6 +281,7 @@ const IconAnchor = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -290,7 +299,7 @@ const IconAnchor = ({ size = 14, color = "currentColor" }) => (
 );
 
   const IconSailboat = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <line x1="8" y1="1.5" x2="8" y2="11" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
       <path d="M8 2 L2 11 L8 11 Z" stroke={color} strokeWidth="1" fill="none" strokeLinejoin="round" />
@@ -307,6 +316,7 @@ const IconWind = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -324,6 +334,7 @@ const IconParchment = ({ size = 14, color = "currentColor" }) => (
     height={size}
     viewBox="0 0 24 24"
     fill="none"
+     aria-hidden="true" 
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"
@@ -342,6 +353,7 @@ const IconCloth = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -360,6 +372,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke={color}
+     aria-hidden="true" 
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -371,7 +384,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
 );
 
   const IconCoffee = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       <ellipse cx="8" cy="8" rx="4" ry="6.5" transform="rotate(30 8 8)"
                stroke={color} strokeWidth="1.1" />
@@ -384,6 +397,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -399,7 +413,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
  
  
   const IconSugar = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       {/* Top face */}
       <polygon points="8,2 14,5 8,8 2,5"
@@ -414,7 +428,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
   );
  
   const IconSpice = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       {/* Jar body (tapers toward base) */}
       <path d="M4.5 5.5 C3 6 2.5 8 2.5 10 C2.5 12.5 4 14.5 8 14.5 C12 14.5 13.5 12.5 13.5 10 C13.5 8 13 6 11.5 5.5 Z"
@@ -431,7 +445,7 @@ const IconTimber = ({ size = 14, color = "currentColor" }) => (
   );
  
 const IconTobacco = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <path d="M2 14 L5 11.3 C6.2 10.4 7.8 10.4 9 9.8" stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M9 9.8 C8.8 7 10.3 5.3 12.3 5.3 C14 5.3 14.6 7 13.4 8.2 C12.6 9 11 9.6 9 9.8 Z"
@@ -448,6 +462,7 @@ const IconSilk = ({ size = 14, color = "currentColor" }) => (
     height={size}
     viewBox="0 0 24 24"
     fill="none"
+     aria-hidden="true" 
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"
@@ -461,7 +476,7 @@ const IconSilk = ({ size = 14, color = "currentColor" }) => (
 
  
   const IconShip = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       {/* Mast */}
       <line x1="8" y1="1" x2="8" y2="9.5" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
@@ -488,6 +503,7 @@ const IconGoldBag = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -504,7 +520,7 @@ const IconGoldBag = ({ size = 14, color = "currentColor" }) => (
 );
  
   const IconCocoa = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       {/* Pod outline */}
       <ellipse cx="8" cy="8.5" rx="5" ry="6.5" stroke={color} strokeWidth="1.1" />
@@ -533,7 +549,7 @@ const IconGoldBag = ({ size = 14, color = "currentColor" }) => (
   );
  
   const IconGoblet = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
          style={{ display: "inline-block", verticalAlign: "middle" }}>
       {/* Cup bowl */}
       <path d="M4 2 L5.5 9 C5.5 11 6.5 12 8 12 C9.5 12 10.5 11 10.5 9 L12 2 Z"
@@ -556,6 +572,7 @@ const IconGrapple = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -574,7 +591,7 @@ const IconGrapple = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconSpear = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <line x1="3" y1="14" x2="12.5" y2="2.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
     <polygon points="12.5,2.5 9.8,4.3 11.6,5.3" stroke={color} strokeWidth="0.8" fill="none" strokeLinejoin="round" />
@@ -590,6 +607,7 @@ const IconCog = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -607,6 +625,7 @@ const IconCompass = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -624,6 +643,7 @@ const IconPlay = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -641,6 +661,7 @@ const IconCheers = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -661,6 +682,7 @@ const IconCannon = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -679,6 +701,7 @@ const IconChefHat = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -692,7 +715,7 @@ const IconChefHat = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconHammer = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <g transform="rotate(45 8 8)">
       <rect x="5" y="2" width="6" height="3" rx="0.5" stroke={color} strokeWidth="1.1" />
@@ -705,7 +728,7 @@ const IconTalking = ({ size = 14, color = "currentColor" }) => (
   <svg
     width={size}
     height={size}
-    viewBox="0 0 24 24"
+    viewBox="0 0 24 24"  aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -721,7 +744,7 @@ const IconTalking = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconBarChart = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <line x1="2" y1="14" x2="14" y2="14" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
     <rect x="3.5" y="9" width="2.3" height="5" stroke={color} strokeWidth="1" />
@@ -731,7 +754,7 @@ const IconBarChart = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconDice = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke={color} strokeWidth="1.1" />
     <circle cx="5" cy="5" r="1" fill={color} />
@@ -747,6 +770,7 @@ const IconContinue = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -764,6 +788,7 @@ const IconFileTransfer = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -784,6 +809,7 @@ const IconFlame = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -796,7 +822,7 @@ const IconFlame = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconTarget = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none"  aria-hidden="true" 
        style={{ display: "inline-block", verticalAlign: "middle" }}>
     <circle cx="8" cy="8" r="6.3" stroke={color} strokeWidth="1.1" />
     <circle cx="8" cy="8" r="4.2" stroke={color} strokeWidth="1" />
@@ -811,6 +837,7 @@ const IconHandshake = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -831,6 +858,7 @@ const IconSearch = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
     stroke={color}
     strokeWidth="2"
@@ -848,7 +876,9 @@ const IconSparkles = ({ size = 14, color = "currentColor" }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
+     aria-hidden="true" 
     fill="none"
+    aria-hidden="true"
     stroke={color}
     strokeWidth="2"
     strokeLinecap="round"

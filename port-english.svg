@@ -1,0 +1,294 @@
+<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <!-- Cooler blue daytime sky with high sun -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4a6890" />
+      <stop offset="50%"  stop-color="#7898b8" />
+      <stop offset="85%"  stop-color="#a8c0d4" />
+      <stop offset="100%" stop-color="#c8d8e0" />
+    </linearGradient>
+
+    <!-- Atlantic gray-blue sea -->
+    <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a7888" />
+      <stop offset="50%"  stop-color="#2a4858" />
+      <stop offset="100%" stop-color="#152838" />
+    </linearGradient>
+
+    <!-- High sun glow -->
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.7" />
+      <stop offset="50%"  stop-color="#e0e8f0" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#e0e8f0" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Pasture/woodland green -->
+    <linearGradient id="vegGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#4a6028" />
+      <stop offset="50%"  stop-color="#3a5020" />
+      <stop offset="100%" stop-color="#2a3818" />
+    </linearGradient>
+
+    <radialGradient id="vegHighlight" cx="0.5" cy="0.3" r="0.7">
+      <stop offset="0%"   stop-color="#6a8038" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#6a8038" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- House gradient: subtle lighter top, darker bottom -->
+    <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a5854" />
+      <stop offset="100%" stop-color="#3a3834" />
+    </linearGradient>
+
+    <!-- Fort gradient: darker, also lighter top -->
+    <linearGradient id="fortGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4a4848" />
+      <stop offset="100%" stop-color="#2a2828" />
+    </linearGradient>
+
+    <!-- Jetty/port gradient: dark warm brown, slightly lighter top -->
+    <linearGradient id="jettyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a3a20" />
+      <stop offset="100%" stop-color="#2a1808" />
+    </linearGradient>
+  </defs>
+
+  <!-- SKY -->
+  <rect x="0" y="0" width="1200" height="280" fill="url(#skyGrad)" />
+
+  <!-- High sun on the right -->
+  <circle cx="950" cy="80" r="60" fill="url(#sunGlow)" />
+  <circle cx="950" cy="80" r="18" fill="#fdf8e8" opacity="0.95" />
+
+  <!-- Distant haze -->
+  <path d="M 0 250 Q 200 245 400 248 Q 600 252 800 248 Q 1000 244 1200 248 L 1200 280 L 0 280 Z"
+        fill="#7a8898" opacity="0.4" />
+
+  <!-- High thin clouds -->
+  <ellipse cx="350" cy="100" rx="120" ry="4" fill="#ffffff" opacity="0.5" />
+  <ellipse cx="600" cy="140" rx="180" ry="5" fill="#ffffff" opacity="0.4" />
+  <ellipse cx="220" cy="180" rx="100" ry="3" fill="#ffffff" opacity="0.3" />
+
+  <!-- MAIN LAND MASS - left side, flatter coastline, greener -->
+  <path d="M 0 250
+           Q 50 245 100 240
+           Q 180 230 260 225
+           Q 340 222 400 230
+           Q 470 240 520 255
+           Q 560 268 595 285
+           L 0 285
+           Z"
+        fill="#5a6238" />
+
+  <!-- Sun-side highlight (sun is on right) -->
+  <path d="M 340 222 Q 400 230 470 240 Q 520 252 560 268
+           L 560 278
+           Q 520 262 470 250
+           Q 400 240 340 232 Z"
+        fill="#6a7448" opacity="0.55" />
+
+  <!-- Shadow on water-facing edge -->
+  <path d="M 520 255 Q 560 268 595 285
+           L 595 290 L 520 270 Z"
+        fill="#3a4220" opacity="0.7" />
+
+  <!-- Pasture/woodland vegetation -->
+  <path d="M 60 232
+           Q 120 224 180 226
+           Q 260 222 340 224
+           Q 400 226 440 232
+           Q 460 236 470 240
+           L 460 248
+           Q 420 244 360 246
+           Q 280 248 200 246
+           Q 130 244 70 248
+           Z"
+        fill="url(#vegGrad)" />
+
+  <path d="M 280 226
+           Q 340 222 400 226
+           Q 430 230 450 236
+           L 440 244
+           Q 400 238 340 240
+           Q 290 240 270 242
+           Z"
+        fill="url(#vegHighlight)" />
+
+  <path d="M 60 232 Q 80 226 100 230 Q 130 224 160 228 Q 200 222 240 226 Q 280 222 320 226 Q 360 224 400 228 Q 430 226 460 232"
+        fill="none" stroke="#2a3818" stroke-width="2" opacity="0.7" />
+
+  <!-- Foreground pasture patches -->
+  <path d="M 100 270 Q 150 264 200 268 Q 250 266 280 272 L 280 286 L 100 286 Z"
+        fill="url(#vegGrad)" opacity="0.9" />
+
+  <!-- ========== HIGHEST: small inland buildings ========== -->
+  <g fill="url(#houseGrad)">
+    <rect x="245" y="218" width="16" height="18" />
+    <polygon points="243,218 263,218 253,210" fill="#3a3a3a" />
+    <rect x="250" y="200" width="6" height="20" />
+    <polygon points="248,200 258,200 253,192" fill="#3a3a3a" />
+
+    <rect x="265" y="225" width="13" height="14" />
+    <rect x="225" y="226" width="12" height="13" />
+    <rect x="282" y="230" width="11" height="12" />
+    <rect x="215" y="232" width="10" height="11" />
+  </g>
+
+  <!-- ========== FORT: gradient applied ========== -->
+  <g fill="url(#fortGrad)">
+    <!-- Main fort wall block -->
+    <rect x="320" y="225" width="130" height="55" />
+    <!-- Top crenellations -->
+    <rect x="320" y="218" width="10" height="9" />
+    <rect x="334" y="218" width="10" height="9" />
+    <rect x="348" y="218" width="10" height="9" />
+    <rect x="362" y="218" width="10" height="9" />
+    <rect x="376" y="218" width="10" height="9" />
+    <rect x="390" y="218" width="10" height="9" />
+    <rect x="404" y="218" width="10" height="9" />
+    <rect x="418" y="218" width="10" height="9" />
+    <rect x="432" y="218" width="10" height="9" />
+
+    <!-- Inner keep tower -->
+    <rect x="365" y="180" width="32" height="45" />
+    <rect x="365" y="172" width="8" height="9" />
+    <rect x="377" y="172" width="8" height="9" />
+    <rect x="389" y="172" width="8" height="9" />
+  </g>
+
+  <!-- English flag on the keep -->
+  <line x1="381" y1="172" x2="381" y2="152" stroke="#3a3838" stroke-width="1.5" />
+  <rect x="381" y="152" width="16" height="10" fill="#cc1f1f" />
+
+  <!-- Single rampart section climbing from fort (the floating one removed) -->
+  <g fill="url(#fortGrad)">
+    <polygon points="320,235 285,212 285,228 320,253" />
+    <polygon points="320,235 310,229 310,237 320,245" />
+    <polygon points="305,226 295,220 295,228 305,234" />
+    <polygon points="290,217 285,212 285,220 290,225" />
+  </g>
+
+  <!-- ========== HOUSES IN FRONT of fort ========== -->
+  <g fill="url(#houseGrad)">
+    <rect x="325" y="252" width="14" height="22" />
+    <rect x="339" y="248" width="13" height="26" />
+    <rect x="352" y="252" width="14" height="22" />
+    <rect x="366" y="248" width="12" height="26" />
+    <rect x="378" y="252" width="14" height="22" />
+    <rect x="392" y="248" width="13" height="26" />
+    <rect x="405" y="252" width="14" height="22" />
+    <rect x="419" y="248" width="12" height="26" />
+    <rect x="431" y="252" width="14" height="22" />
+
+    <rect x="335" y="265" width="9" height="11" />
+    <rect x="362" y="267" width="10" height="10" />
+    <rect x="390" y="265" width="9" height="11" />
+    <rect x="415" y="267" width="10" height="10" />
+    <rect x="440" y="265" width="9" height="11" />
+  </g>
+
+  <!-- ========== Side houses ========== -->
+  <g fill="url(#houseGrad)">
+    <rect x="295" y="248" width="13" height="24" />
+    <rect x="308" y="252" width="11" height="20" />
+    <rect x="285" y="256" width="10" height="18" />
+
+    <rect x="455" y="248" width="14" height="22" />
+    <rect x="469" y="252" width="12" height="22" />
+    <rect x="481" y="255" width="11" height="20" />
+    <rect x="492" y="258" width="10" height="18" />
+  </g>
+
+  <!-- ========== Warehouses near the water ========== -->
+  <g fill="url(#houseGrad)">
+    <rect x="330" y="270" width="28" height="14" />
+    <rect x="360" y="271" width="32" height="13" />
+    <rect x="394" y="270" width="26" height="14" />
+    <rect x="422" y="271" width="30" height="13" />
+
+    <rect x="465" y="270" width="24" height="14" />
+    <rect x="491" y="271" width="22" height="13" />
+    <rect x="515" y="272" width="20" height="12" />
+    <rect x="537" y="273" width="18" height="11" />
+  </g>
+
+  <!-- Slate gray roof accents -->
+  <g fill="#3a3a3a" opacity="0.85">
+    <polygon points="339,248 352,248 346,242" />
+    <polygon points="366,248 378,248 372,242" />
+    <polygon points="392,248 405,248 399,242" />
+    <polygon points="419,248 431,248 425,242" />
+    <polygon points="330,270 358,270 344,264" />
+    <polygon points="394,270 420,270 407,264" />
+  </g>
+
+  
+ 
+
+  <!-- ── SEA ── -->
+  <rect x="0" y="280" width="1200" height="120" fill="url(#seaGrad)" />
+
+  <!-- Sun reflection on water -->
+  <ellipse cx="950" cy="305" rx="160" ry="10" fill="#ffffff" opacity="0.18" />
+  <ellipse cx="950" cy="312" rx="120" ry="4" fill="#ffffff" opacity="0.12" />
+
+   <!-- ── SHORELINE / BEACH ── -->
+  <path d="M 555 276
+         Q 575 278 590 281
+         L 595 286
+         Q 580 284 555 281
+         Z"
+      fill="#b89888" opacity="0.85" />
+
+<!-- ── PORT / JETTY: brown horizontal mass at waterline ── -->
+  <!-- Main port platform extending into the water in front of the city -->
+  <rect x="370" y="280" width="180" height="9" fill="url(#jettyGrad)" />
+
+  <!-- Jetty extending further out into the water -->
+  <rect x="500" y="283" width="55" height="5" fill="url(#jettyGrad)" />
+
+  <!-- Small jetty support piles in the water -->
+  <rect x="510" y="288" width="2" height="6" fill="#2a1808" />
+  <rect x="525" y="288" width="2" height="6" fill="#2a1808" />
+  <rect x="540" y="288" width="2" height="6" fill="#2a1808" />
+
+  <!-- Highlight on top of port platform (where sun catches it) -->
+  <rect x="370" y="284" width="180" height="2" fill="#7a5a30" opacity="0.6" />
+
+
+
+
+  <!-- Wave lines -->
+  <g stroke="#7a98a8" stroke-width="0.7" opacity="0.45" fill="none">
+    <path d="M 600 320 Q 660 318 720 320 Q 780 322 840 320" />
+    <path d="M 700 345 Q 760 343 820 345 Q 880 347 940 345" />
+    <path d="M 800 365 Q 860 363 920 365 Q 980 367 1040 365" />
+    <path d="M 50 360 Q 110 358 170 360 Q 230 362 290 360" />
+    <path d="M 400 380 Q 460 378 520 380 Q 580 382 640 380" />
+  </g>
+
+  <!-- Distant ships -->
+  <g>
+    <g transform="translate(700 300)">
+      <ellipse cx="0" cy="0" rx="14" ry="3" fill="#2a1808" />
+      <line x1="-2" y1="-1" x2="-2" y2="-18" stroke="#2a1808" stroke-width="1.2" />
+      <line x1="4" y1="-1" x2="4" y2="-22" stroke="#2a1808" stroke-width="1.2" />
+      <polygon points="-4,-18 -4,-6 4,-6 4,-22" fill="#5a4530" opacity="0.85" />
+      <polygon points="-2,-14 -2,-4 8,-4 8,-18" fill="#5a4530" opacity="0.85" />
+    </g>
+    <g transform="translate(880 340)">
+      <ellipse cx="0" cy="0" rx="22" ry="4" fill="#2a1808" />
+      <line x1="-3" y1="-1" x2="-3" y2="-26" stroke="#2a1808" stroke-width="1.5" />
+      <line x1="6" y1="-1" x2="6" y2="-32" stroke="#2a1808" stroke-width="1.5" />
+      <polygon points="-7,-26 -7,-8 6,-8 6,-32" fill="#5a4530" />
+      <polygon points="-3,-22 -3,-6 13,-6 13,-26" fill="#5a4530" />
+    </g>
+    <g transform="translate(620 305)">
+      <ellipse cx="0" cy="0" rx="10" ry="2" fill="#2a1808" />
+      <line x1="0" y1="-1" x2="0" y2="-14" stroke="#2a1808" stroke-width="1" />
+      <polygon points="-3,-13 -3,-4 4,-4 4,-14" fill="#5a4530" opacity="0.8" />
+    </g>
+  </g>
+
+</svg>

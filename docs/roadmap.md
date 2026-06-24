@@ -171,7 +171,7 @@ Broadside is fully playable with rich narrative systems:
 - **Pillar**: Consequence (make every impact feel real, not just read real)
 
 #### B2.3 — Career stats tracking
-- [ ] Add persistent career stats to state: days survived, total gold earned/spent, ships sunk, crew lost, crew hired, ports visited, missions completed/failed, goods traded, contraband seized, battles won/lost/fled
+- [X] Add persistent career stats to state: days survived, total gold earned/spent, ships sunk, crew lost, crew hired, ports visited, missions completed/failed, goods traded, contraband seized, battles won/lost/fled
 - [X] Display on revamped Status screen as "Captain\'s Career" section
 - [X] Track per-run and cumulative (for future multi-run legacy) -_> rejected. this is not a roguelite/roguelike.
 - **Prerequisite for B12 (retirement / score / legacy screen).** Build the data layer early to avoid retrofitting.
@@ -188,16 +188,16 @@ Broadside is fully playable with rich narrative systems:
 - [X] Note: swipe gestures parked (see Parked Concepts)
 
 #### B3.2 — Visual theme refinement
-- [ ] Consistent spacing, typography, and panel styling across all screens
-- [ ] Improve color contrast for accessibility
+- [O] Consistent spacing, typography, and panel styling across all screens --> will be done over time. not breaking, nothing visually "odd".
+- [X] Improve color contrast for accessibility --> rejected
 - [X] Subtle hover/focus states on all interactive elements
-- [ ] Consider high-contrast / colorblind-safe palette option
+- [X] Consider high-contrast / colorblind-safe palette option --> rejected
 
 #### B3.3 — Accessibility pass
-- [ ] ARIA labels on all interactive elements
-- [ ] Alt text on SVG icons
+- [X] ARIA labels on all interactive elements ->hidden for icons
+- [X] Alt text on SVG icons -> rejected, all button have text
 - [X] Keyboard navigation support --> parked
-- [ ] Screen reader compatibility for HUD, combat, journal
+- [X] Screen reader compatibility for HUD, combat, journal --> rejected for now until there is proper feedback
 
 ### B4 — Playtest Wave 1
 

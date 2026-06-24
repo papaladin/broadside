@@ -1,0 +1,456 @@
+<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <!-- Storm-approaching sky: heavy gray-blue with patches of late gold -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#3a4858" />
+      <stop offset="40%"  stop-color="#586878" />
+      <stop offset="75%"  stop-color="#88726a" />
+      <stop offset="100%" stop-color="#b8987a" />
+    </linearGradient>
+
+    <!-- Choppy darker sea -->
+    <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a7080" />
+      <stop offset="30%"  stop-color="#3a5060" />
+      <stop offset="100%" stop-color="#102028" />
+    </linearGradient>
+
+    <!-- Dense jungle - very dark green -->
+    <linearGradient id="vegGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#1a2810" />
+      <stop offset="50%"  stop-color="#2a3818" />
+      <stop offset="100%" stop-color="#1a2810" />
+    </linearGradient>
+
+    <radialGradient id="vegHighlight" cx="0.5" cy="0.3" r="0.7">
+      <stop offset="0%"   stop-color="#3a5020" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#3a5020" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Cliff face: weathered brown-gray -->
+    <linearGradient id="cliffGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#3a3028" />
+      <stop offset="100%" stop-color="#2a2018" />
+    </linearGradient>
+
+    <!-- Cliff highlight where late sun catches it -->
+    <linearGradient id="cliffHighlight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#6a4838" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#6a4838" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Rock outcrops in sea -->
+    <linearGradient id="rockGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4a3a30" />
+      <stop offset="100%" stop-color="#2a1a10" />
+    </linearGradient>
+
+    <!-- Base building wood tone -->
+    <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#6a4530" />
+      <stop offset="100%" stop-color="#3a2010" />
+    </linearGradient>
+
+    <!-- Wreck wood, very weathered -->
+    <linearGradient id="wreckGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4a3528" />
+      <stop offset="100%" stop-color="#2a1810" />
+    </linearGradient>
+
+    <!-- Jetty/dock wood -->
+    <linearGradient id="jettyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a3a20" />
+      <stop offset="100%" stop-color="#2a1808" />
+    </linearGradient>
+
+    <!-- Wave foam -->
+    <radialGradient id="foamGrad" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- ═══ LAYER 1: SKY ═══ -->
+  <rect x="0" y="0" width="1200" height="300" fill="url(#skyGrad)" />
+
+  <!-- Patches of late afternoon gold breaking through (dramatic lighting) -->
+  <ellipse cx="350" cy="170" rx="250" ry="40" fill="#d8a878" opacity="0.35" />
+  <ellipse cx="450" cy="200" rx="180" ry="25" fill="#e8b890" opacity="0.3" />
+
+  <!-- Heavy storm clouds rolling in from the right -->
+  <ellipse cx="950" cy="60" rx="200" ry="22" fill="#2a3848" opacity="0.85" />
+  <ellipse cx="1050" cy="50" rx="150" ry="18" fill="#1a2838" opacity="0.9" />
+  <ellipse cx="1100" cy="90" rx="180" ry="20" fill="#3a4858" opacity="0.75" />
+  <ellipse cx="850" cy="110" rx="160" ry="16" fill="#4a5868" opacity="0.7" />
+  <ellipse cx="700" cy="80" rx="180" ry="18" fill="#586878" opacity="0.65" />
+
+
+<!-- Additional dark clouds rolling in -->
+<ellipse cx="1150" cy="30" rx="160" ry="16" fill="#1a2838" opacity="0.9" />
+<ellipse cx="900" cy="150" rx="220" ry="18" fill="#2a3848" opacity="0.7" />
+<ellipse cx="600" cy="130" rx="240" ry="20" fill="#3a4858" opacity="0.6" />
+<ellipse cx="350" cy="50" rx="200" ry="15" fill="#3a4858" opacity="0.55" />
+<ellipse cx="500" cy="170" rx="180" ry="14" fill="#4a5868" opacity="0.5" />
+<ellipse cx="780" cy="180" rx="220" ry="18" fill="#586878" opacity="0.55" />
+
+
+  <!-- Lighter clouds on the left side -->
+  <ellipse cx="200" cy="120" rx="140" ry="10" fill="#7888a0" opacity="0.5" />
+  <ellipse cx="400" cy="100" rx="120" ry="8" fill="#7888a0" opacity="0.45" />
+
+  <!-- Birds circling (small atmospheric dots) -->
+  <g fill="#1a1010" opacity="0.7">
+    <path d="M 380 95 q 3 -3 6 0 q 3 -3 6 0" fill="none" stroke="#1a1010" stroke-width="0.8" />
+    <path d="M 420 110 q 2 -2 4 0 q 2 -2 4 0" fill="none" stroke="#1a1010" stroke-width="0.7" />
+    <path d="M 500 80 q 3 -3 6 0 q 3 -3 6 0" fill="none" stroke="#1a1010" stroke-width="0.8" />
+    <path d="M 600 130 q 2 -2 4 0 q 2 -2 4 0" fill="none" stroke="#1a1010" stroke-width="0.6" />
+  </g>
+
+  <!-- Distant haze at horizon -->
+  <path d="M 0 250 Q 300 245 600 248 Q 900 244 1200 240 L 1200 280 L 0 280 Z"
+        fill="#586068" opacity="0.5" />
+
+  <!-- ═══ LAYER 2: LAND MASS - cliffs rising on the right ═══ -->
+
+  <!-- Left lower coastline (flatter, where the settlement sits) -->
+  <path d="M 0 290
+           Q 80 285 160 282
+           Q 240 280 320 282
+           Q 400 285 480 287
+           Q 540 290 580 295
+           L 580 400 L 0 400 Z"
+        fill="#5a4838" />
+
+  <!-- Main cliff mass on the right - dramatic vertical rise -->
+  <path d="M 580 295
+           Q 600 280 620 250
+           Q 640 220 660 200
+           Q 690 180 720 175
+           Q 770 170 820 175
+           Q 880 180 930 185
+           Q 990 192 1050 200
+           Q 1110 210 1160 218
+           Q 1185 222 1200 225
+           L 1200 400 L 580 400 Z"
+        fill="url(#cliffGrad)" />
+
+  <!-- Cliff highlight (late sun catches the seaward face) -->
+  <path d="M 620 250 Q 640 220 660 200 Q 690 180 720 175 Q 770 170 820 175
+           L 820 188 Q 770 182 720 188 Q 690 195 660 215 Q 640 235 620 265 Z"
+        fill="url(#cliffHighlight)" />
+
+  <!-- Cliff shadow on water-facing side -->
+  <path d="M 580 295 Q 600 280 620 250 L 620 290 L 580 305 Z"
+        fill="#1a1410" opacity="0.7" />
+
+  <!-- Cliff face vertical streaks (weathering) -->
+  <g stroke="#1a1208" stroke-width="0.8" opacity="0.5">
+    <line x1="650" y1="200" x2="654" y2="280" />
+    <line x1="700" y1="180" x2="704" y2="275" />
+    <line x1="780" y1="175" x2="783" y2="270" />
+    <line x1="900" y1="185" x2="903" y2="280" />
+    <line x1="1000" y1="200" x2="1003" y2="285" />
+  </g>
+
+  <!-- ═══ LAYER 3: DENSE JUNGLE on top of cliffs ═══ -->
+
+  <!-- Main jungle mass covering cliff top -->
+  <path d="M 600 250
+           Q 640 215 680 195
+           Q 720 175 770 168
+           Q 830 162 890 170
+           Q 950 175 1010 185
+           Q 1070 195 1130 205
+           Q 1170 210 1200 215
+           L 1200 230
+           Q 1130 218 1060 213
+           Q 990 205 920 198
+           Q 850 192 780 195
+           Q 720 200 670 215
+           Q 630 235 605 265 Z"
+        fill="url(#vegGrad)" />
+
+  <!-- Jungle highlight where sun catches it -->
+  <path d="M 700 195 Q 750 180 800 175 Q 850 170 900 175 Q 950 180 1000 185
+           L 1000 198 Q 950 192 900 188 Q 850 184 800 188 Q 750 192 700 208 Z"
+        fill="url(#vegHighlight)" />
+
+  <!-- Inner darker jungle shadow -->
+  <path d="M 900 195 Q 950 200 1010 210 Q 1070 220 1130 232
+           L 1140 248 L 920 215 Z"
+        fill="#0a1408" opacity="0.7" />
+
+  <!-- Organic bumpy treeline edge -->
+  <path d="M 640 215 Q 660 205 685 200 Q 720 190 760 188 Q 800 182 845 184
+           Q 890 186 935 192 Q 980 198 1020 205 Q 1060 210 1100 215"
+        fill="none" stroke="#0a1408" stroke-width="2" opacity="0.7" />
+
+  <!-- Vegetation spilling down the cliff edge on the seaward side -->
+  <path d="M 620 250 Q 615 270 622 285 L 632 285 Q 628 270 632 252 Z"
+        fill="url(#vegGrad)" opacity="0.85" />
+  <path d="M 660 215 Q 658 235 663 248 L 672 248 Q 668 232 672 217 Z"
+        fill="url(#vegGrad)" opacity="0.85" />
+
+
+  <!-- ═══ LAYER 4: SETTLEMENT - compact, chaotic, colorful ═══ -->
+  <!-- Built at the cliff base, hugging the shore. Rendered top-down. -->
+
+  <!-- Watchtower on the cliff edge (small focal element, anchored, with black flag) -->
+  <g>
+    <rect x="595" y="248" width="14" height="42" fill="url(#houseGrad)" />
+    <polygon points="593,248 611,248 602,242" fill="#3a2010" />
+    <!-- Black flag pole -->
+    <line x1="602" y1="242" x2="602" y2="222" stroke="#1a1010" stroke-width="1.2" />
+    <!-- Pirate black flag -->
+    <rect x="602" y="222" width="14" height="9" fill="#1a1010" />
+    <!-- Tiny skull on flag -->
+    <circle cx="608" cy="226" r="1.5" fill="#d4c4a0" />
+  </g>
+
+  <!-- Upper row houses, irregular heights, leaning slightly -->
+  <g>
+    <!-- House 1: red painted -->
+    <rect x="170" y="262" width="22" height="28" fill="url(#houseGrad)" />
+    <rect x="170" y="262" width="22" height="28" fill="#9a3020" opacity="0.55" />
+    <polygon points="168,262 194,262 181,255" fill="#3a1810" />
+
+    <!-- House 2: teal painted, slightly leaning -->
+    <polygon points="200,290 198,260 222,258 224,290" fill="url(#houseGrad)" />
+    <polygon points="200,290 198,260 222,258 224,290" fill="#3a6878" opacity="0.5" />
+    <polygon points="196,260 224,258 211,250" fill="#3a1810" />
+
+    <!-- House 3: ochre yellow -->
+    <rect x="230" y="258" width="24" height="32" fill="url(#houseGrad)" />
+    <rect x="230" y="258" width="24" height="32" fill="#a87830" opacity="0.5" />
+    <polygon points="228,258 256,258 242,250" fill="#3a1810" />
+
+    <!-- House 4: pink/coral, leaning the other way -->
+    <polygon points="262,290 264,258 286,260 284,290" fill="url(#houseGrad)" />
+    <polygon points="262,290 264,258 286,260 284,290" fill="#a85060" opacity="0.45" />
+    <polygon points="262,258 286,260 274,252" fill="#3a1810" />
+
+    <!-- House 5: dull blue/navy -->
+    <rect x="295" y="260" width="22" height="30" fill="url(#houseGrad)" />
+    <rect x="295" y="260" width="22" height="30" fill="#384858" opacity="0.55" />
+    <polygon points="293,260 319,260 306,252" fill="#3a1810" />
+
+    <!-- House 6: green tinted, leaning -->
+    <polygon points="325,290 323,260 348,262 350,290" fill="url(#houseGrad)" />
+    <polygon points="325,290 323,260 348,262 350,290" fill="#4a6838" opacity="0.5" />
+    <polygon points="321,260 350,262 336,253" fill="#3a1810" />
+
+    <!-- House 7: red, slightly taller -->
+    <rect x="358" y="256" width="22" height="34" fill="url(#houseGrad)" />
+    <rect x="358" y="256" width="22" height="34" fill="#9a3020" opacity="0.5" />
+    <polygon points="356,256 382,256 369,248" fill="#3a1810" />
+
+    <!-- House 8: ochre -->
+    <rect x="388" y="262" width="20" height="28" fill="url(#houseGrad)" />
+    <rect x="388" y="262" width="20" height="28" fill="#a87830" opacity="0.5" />
+    <polygon points="386,262 410,262 398,255" fill="#3a1810" />
+
+    <!-- House 9: teal -->
+    <polygon points="418,290 416,262 438,260 440,290" fill="url(#houseGrad)" />
+    <polygon points="418,290 416,262 438,260 440,290" fill="#3a6878" opacity="0.5" />
+    <polygon points="414,262 440,260 427,253" fill="#3a1810" />
+
+    <!-- House 10: pink -->
+    <rect x="448" y="263" width="22" height="27" fill="url(#houseGrad)" />
+    <rect x="448" y="263" width="22" height="27" fill="#a85060" opacity="0.45" />
+    <polygon points="446,263 472,263 459,256" fill="#3a1810" />
+
+    <!-- House 11: blue -->
+    <rect x="478" y="260" width="20" height="30" fill="url(#houseGrad)" />
+    <rect x="478" y="260" width="20" height="30" fill="#384858" opacity="0.55" />
+    <polygon points="476,260 500,260 488,253" fill="#3a1810" />
+
+    <!-- House 12: red (tucked at cliff base) -->
+    <rect x="508" y="265" width="20" height="25" fill="url(#houseGrad)" />
+    <rect x="508" y="265" width="20" height="25" fill="#9a3020" opacity="0.5" />
+    <polygon points="506,265 530,265 518,258" fill="#3a1810" />
+
+    <!-- House 13: ochre, against the cliff -->
+    <rect x="538" y="263" width="18" height="27" fill="url(#houseGrad)" />
+    <rect x="538" y="263" width="18" height="27" fill="#a87830" opacity="0.5" />
+    <polygon points="536,263 558,263 547,256" fill="#3a1810" />
+
+    <!-- House 14: green, far right against cliff -->
+    <rect x="566" y="265" width="18" height="25" fill="url(#houseGrad)" />
+    <rect x="566" y="265" width="18" height="25" fill="#4a6838" opacity="0.45" />
+    <polygon points="564,265 586,265 575,258" fill="#3a1810" />
+  </g>
+
+  <!-- Smaller front row (closer to water) -->
+  <g>
+    <rect x="180" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="180" y="278" width="14" height="12" fill="#a87830" opacity="0.5" />
+
+    <rect x="215" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="215" y="280" width="13" height="10" fill="#384858" opacity="0.5" />
+
+    <rect x="248" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="248" y="278" width="14" height="12" fill="#9a3020" opacity="0.5" />
+
+    <rect x="280" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="280" y="280" width="13" height="10" fill="#4a6838" opacity="0.5" />
+
+    <rect x="315" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="315" y="278" width="14" height="12" fill="#a85060" opacity="0.5" />
+
+    <rect x="350" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="350" y="280" width="13" height="10" fill="#3a6878" opacity="0.5" />
+
+    <rect x="380" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="380" y="278" width="14" height="12" fill="#a87830" opacity="0.5" />
+
+    <rect x="412" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="412" y="280" width="13" height="10" fill="#9a3020" opacity="0.5" />
+
+    <rect x="445" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="445" y="278" width="14" height="12" fill="#384858" opacity="0.5" />
+
+    <rect x="480" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="480" y="280" width="13" height="10" fill="#4a6838" opacity="0.5" />
+
+    <rect x="515" y="278" width="14" height="12" fill="url(#houseGrad)" />
+    <rect x="515" y="278" width="14" height="12" fill="#a87830" opacity="0.5" />
+
+    <rect x="548" y="280" width="13" height="10" fill="url(#houseGrad)" />
+    <rect x="548" y="280" width="13" height="10" fill="#9a3020" opacity="0.5" />
+  </g>
+
+  <!-- Thin chimney smoke columns rising from rooftops -->
+  <g fill="#9aa0a8" opacity="0.5">
+    <ellipse cx="240" cy="245" rx="2" ry="8" />
+    <ellipse cx="240" cy="232" rx="3" ry="6" />
+    <ellipse cx="240" cy="222" rx="3.5" ry="5" />
+
+    <ellipse cx="395" cy="247" rx="2" ry="7" />
+    <ellipse cx="395" cy="236" rx="2.5" ry="5" />
+
+    <ellipse cx="490" cy="248" rx="2" ry="6" />
+  </g>
+
+  <!-- ═══ LAYER 5: SEA - choppy ═══ -->
+  <rect x="0" y="290" width="1200" height="110" fill="url(#seaGrad)" />
+
+<!-- ═══ LAYER 6: ROCK OUTCROPS in the sea (front of cliff only) ═══ -->
+
+<!-- Big rock at cliff base (was there already) -->
+<path d="M 590 305 Q 595 298 605 300 Q 615 302 618 310 Q 612 318 600 316 Q 590 314 588 308 Z"
+      fill="url(#rockGrad)" />
+
+<!-- Cluster of rocks in front of cliff -->
+<path d="M 640 318 Q 655 308 670 310 Q 685 314 695 322 Q 692 330 678 332 Q 660 332 640 328 Z"
+      fill="url(#rockGrad)" />
+
+<!-- Medium rock cluster -->
+<path d="M 730 332 Q 745 322 760 325 Q 775 330 780 338 Q 772 344 758 342 Q 738 340 730 336 Z"
+      fill="url(#rockGrad)" />
+
+<!-- Smaller rocks in front of cliff -->
+<ellipse cx="820" cy="320" rx="11" ry="4" fill="url(#rockGrad)" />
+<ellipse cx="880" cy="340" rx="14" ry="5" fill="url(#rockGrad)" />
+<ellipse cx="950" cy="328" rx="10" ry="4" fill="url(#rockGrad)" />
+<ellipse cx="1020" cy="345" rx="12" ry="4" fill="url(#rockGrad)" />
+<ellipse cx="1090" cy="335" rx="11" ry="4" fill="url(#rockGrad)" />
+
+<!-- ═══ LAYER 7: WRECK - beached on far left shore ═══ -->
+<g opacity="0.92" transform="translate(110 308) rotate(-18)">
+  <!-- Hull -->
+  <path d="M -40 0 Q -30 -6 0 -8 Q 30 -8 45 -3 L 42 8 Q 25 12 0 11 Q -30 8 -42 5 Z"
+        fill="url(#wreckGrad)" />
+  <!-- Hull weathering -->
+  <line x1="-35" y1="-2" x2="40" y2="0" stroke="#1a0a04" stroke-width="0.6" />
+  <line x1="-32" y1="4" x2="38" y2="6" stroke="#1a0a04" stroke-width="0.5" />
+  <!-- Broken stub of mast -->
+  <line x1="0" y1="-8" x2="-3" y2="-30" stroke="#3a2010" stroke-width="2.5" />
+  <!-- Frayed mast top -->
+  <line x1="-3" y1="-30" x2="-7" y2="-35" stroke="#3a2010" stroke-width="1.5" />
+  <line x1="-3" y1="-30" x2="0" y2="-34" stroke="#3a2010" stroke-width="1.2" />
+  <!-- Hole in hull -->
+  <ellipse cx="-15" cy="0" rx="6" ry="3" fill="#1a0a04" />
+  <!-- Tattered sail remnant -->
+  <path d="M -2 -28 Q 8 -25 12 -18 L 10 -14 Q 0 -16 -3 -20 Z" fill="#a89c80" opacity="0.45" />
+</g>
+
+  <!-- ═══ LAYER 8: WAVE FOAM and choppy waves ═══ -->
+
+<!-- Foam at rocks (where waves break, all in front of cliff) -->
+<ellipse cx="600" cy="312" rx="22" ry="3" fill="url(#foamGrad)" opacity="0.55" />
+<ellipse cx="668" cy="320" rx="22" ry="3" fill="url(#foamGrad)" opacity="0.6" />
+<ellipse cx="758" cy="333" rx="20" ry="3" fill="url(#foamGrad)" opacity="0.55" />
+<ellipse cx="820" cy="320" rx="14" ry="2.5" fill="url(#foamGrad)" opacity="0.5" />
+<ellipse cx="880" cy="340" rx="16" ry="2.5" fill="url(#foamGrad)" opacity="0.5" />
+<ellipse cx="950" cy="328" rx="12" ry="2" fill="url(#foamGrad)" opacity="0.45" />
+<ellipse cx="1020" cy="345" rx="14" ry="2.5" fill="url(#foamGrad)" opacity="0.5" />
+<ellipse cx="1090" cy="335" rx="12" ry="2" fill="url(#foamGrad)" opacity="0.45" />
+
+  <!-- Foam along the shoreline (where waves crash on the cliff base) -->
+  <ellipse cx="620" cy="300" rx="40" ry="2" fill="url(#foamGrad)" opacity="0.5" />
+
+  <!-- Bigger choppy waves (visible peaks) -->
+  <g fill="none" stroke="#88a0b0" stroke-width="1.2" opacity="0.5">
+    <path d="M 50 340 Q 80 333 110 340 Q 140 347 170 340" />
+    <path d="M 220 360 Q 250 353 280 360 Q 310 367 340 360" />
+    <path d="M 450 350 Q 480 343 510 350 Q 540 357 570 350" />
+    <path d="M 770 365 Q 800 358 830 365 Q 860 372 890 365" />
+    <path d="M 1000 375 Q 1030 368 1060 375 Q 1090 382 1120 375" />
+  </g>
+
+  <!-- Smaller wave lines (texture) -->
+  <g stroke="#5a7080" stroke-width="0.5" opacity="0.4" fill="none">
+    <path d="M 100 380 Q 160 378 220 380" />
+    <path d="M 350 385 Q 410 383 470 385" />
+    <path d="M 600 388 Q 660 386 720 388" />
+    <path d="M 850 392 Q 910 390 970 392" />
+  </g>
+
+<!-- ═══ LAYER 9: JETTY - rough wooden dock ═══ -->
+<rect x="250" y="290" width="180" height="5" fill="url(#jettyGrad)" />
+<rect x="380" y="293" width="55" height="4" fill="url(#jettyGrad)" />
+<!-- Pier supports -->
+<rect x="280" y="295" width="2" height="6" fill="#1a0a04" />
+<rect x="320" y="295" width="2" height="6" fill="#1a0a04" />
+<rect x="360" y="295" width="2" height="6" fill="#1a0a04" />
+<rect x="395" y="297" width="2" height="6" fill="#1a0a04" />
+<rect x="420" y="297" width="2" height="6" fill="#1a0a04" />
+<!-- Sun highlight on top -->
+<rect x="250" y="290" width="180" height="1" fill="#8a5a30" opacity="0.6" />
+  <!-- ═══ LAYER 10: SHIPS - mismatched, irregular, pirate vessels ═══ -->
+
+  <!-- Small pirate sloop at the jetty -->
+  <g transform="translate(330 290)">
+    <ellipse cx="0" cy="0" rx="13" ry="3" fill="#2a1808" />
+    <line x1="0" y1="-1" x2="0" y2="-22" stroke="#2a1808" stroke-width="1.5" />
+    <polygon points="-4,-21 -4,-4 8,-4 8,-22" fill="#9a8868" opacity="0.85" />
+    <!-- Small flag on top -->
+    <rect x="0" y="-22" width="5" height="3" fill="#1a1010" />
+  </g>
+
+  <!-- Mid-distance brigantine/sloop -->
+  <g transform="translate(460 315)">
+    <ellipse cx="0" cy="0" rx="16" ry="3.5" fill="#2a1808" />
+    <line x1="-3" y1="-1" x2="-3" y2="-22" stroke="#2a1808" stroke-width="1.3" />
+    <line x1="5" y1="-1" x2="5" y2="-26" stroke="#2a1808" stroke-width="1.5" />
+    <polygon points="-7,-22 -7,-4 5,-4 5,-26" fill="#a89878" opacity="0.85" />
+    <polygon points="-3,-19 -3,-3 11,-3 11,-22" fill="#a89878" opacity="0.85" />
+    <rect x="5" y="-26" width="4" height="3" fill="#1a1010" />
+  </g>
+
+  <!-- Foreground small boat -->
+  <g transform="translate(150 365)">
+    <ellipse cx="0" cy="0" rx="10" ry="2" fill="#2a1808" />
+    <line x1="0" y1="-1" x2="0" y2="-14" stroke="#2a1808" stroke-width="1" />
+    <polygon points="-3,-13 -3,-4 4,-4 4,-14" fill="#9a8868" opacity="0.8" />
+  </g>
+
+  <!-- Distant ship near the wreck -->
+  <g transform="translate(950 345)">
+    <ellipse cx="0" cy="0" rx="11" ry="2" fill="#2a1808" />
+    <line x1="0" y1="-1" x2="0" y2="-18" stroke="#2a1808" stroke-width="1.2" />
+    <polygon points="-4,-17 -4,-4 5,-4 5,-18" fill="#9a8868" opacity="0.75" />
+  </g>
+
+</svg>

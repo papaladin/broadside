@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Dutch Port Silhouette</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #1a1207;
+    --panel: #2a1f10;
+    --border-faint: #3a2e1a;
+    --text: #d4c4a0;
+    --text-dim: #a09070;
+    --text-faint: #706050;
+    --gold: #c9a84c;
+    --gold-bright: #e8d080;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  header {
+    text-align: center;
+    padding: 16px 0 24px;
+    border-bottom: 1px solid var(--border-faint);
+    margin-bottom: 24px;
+    max-width: 1300px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h1 {
+    color: var(--gold-bright);
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 0.04em;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .card {
+    max-width: 1300px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--border-faint);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-faint);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .faction-stripe {
+    width: 5px;
+    height: 24px;
+    border-radius: 2px;
+    background: #ffcc00;
+  }
+  .faction-name {
+    color: var(--gold);
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .faction-flavor {
+    color: var(--text-faint);
+    font-size: 12px;
+    font-style: italic;
+    margin-left: auto;
+  }
+  .silhouette-stage {
+    padding: 0;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .silhouette-stage svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 1200px;
+  }
+  .notes {
+    padding: 18px 22px;
+    color: var(--text-dim);
+    font-size: 13px;
+    border-top: 1px solid var(--border-faint);
+  }
+  .notes h3 {
+    color: var(--gold);
+    font-size: 14px;
+    margin: 16px 0 6px;
+    letter-spacing: 0.04em;
+  }
+  .notes h3:first-child { margin-top: 0; }
+  .notes ul {
+    margin: 0 0 10px 18px;
+    padding: 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dutch Offshore View</h1>
+  <div class="subtitle">Fort-dominated, horizontal mercantile city, slate roofs.</div>
+</header>
+
+<div class="card">
+  <div class="card-header">
+<div class="faction-stripe" style="background: #ffae00;"></div>
+<div class="faction-name">Dutch port</div>
+<div class="faction-flavor">Fort-dominated, mercantile, slate roofs</div>
+</div>
+
+  <div class="silhouette-stage">
+<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <!-- Bright Caribbean midday sky -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5890c8" />
+      <stop offset="60%"  stop-color="#88b0d8" />
+      <stop offset="100%" stop-color="#b8d4e8" />
+    </linearGradient>
+
+    <!-- Tropical Caribbean sea, brighter than the others -->
+    <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a98a8" />
+      <stop offset="40%"  stop-color="#2a708a" />
+      <stop offset="100%" stop-color="#0a3850" />
+    </linearGradient>
+
+    <!-- Salt pans / shallow water near shore -->
+    <linearGradient id="saltGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#c8d4d0" />
+      <stop offset="100%" stop-color="#98a8a8" />
+    </linearGradient>
+
+    <!-- Field / pasture green - drier than Caribbean jungle -->
+    <linearGradient id="fieldGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#8a9858" />
+      <stop offset="100%" stop-color="#6a7848" />
+    </linearGradient>
+
+    <!-- Vegetation: scrubby Caribbean dry brush, not tropical jungle -->
+    <linearGradient id="vegGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#5a6838" />
+      <stop offset="100%" stop-color="#3a4828" />
+    </linearGradient>
+
+    <!-- Dutch warehouse: warm red-brown brick -->
+    <linearGradient id="warehouseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#9a5238" />
+      <stop offset="100%" stop-color="#6a3220" />
+    </linearGradient>
+
+    <!-- House: stepped gable Dutch brick, slightly lighter than warehouse -->
+    <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#a86048" />
+      <stop offset="100%" stop-color="#783828" />
+    </linearGradient>
+
+    <!-- Jetty wood -->
+    <linearGradient id="jettyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a3a20" />
+      <stop offset="100%" stop-color="#2a1808" />
+    </linearGradient>
+
+    <!-- Square sail of merchant ships -->
+    <linearGradient id="sailGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#e8d8b8" />
+      <stop offset="100%" stop-color="#b8a878" />
+    </linearGradient>
+  </defs>
+
+  <!-- ═══ LAYER 1: SKY ═══ -->
+  <rect x="0" y="0" width="1200" height="270" fill="url(#skyGrad)" />
+
+  <!-- High sun (overhead position) -->
+  <circle cx="600" cy="60" r="35" fill="#ffffff" opacity="0.4" />
+  <circle cx="600" cy="60" r="14" fill="#fffae0" opacity="0.95" />
+
+  <!-- Bright midday cumulus clouds -->
+  <ellipse cx="200" cy="90" rx="80" ry="14" fill="#ffffff" opacity="0.85" />
+  <ellipse cx="220" cy="86" rx="50" ry="10" fill="#ffffff" opacity="0.9" />
+  <ellipse cx="400" cy="120" rx="100" ry="16" fill="#ffffff" opacity="0.75" />
+  <ellipse cx="420" cy="116" rx="60" ry="11" fill="#ffffff" opacity="0.85" />
+  <ellipse cx="850" cy="100" rx="90" ry="14" fill="#ffffff" opacity="0.8" />
+  <ellipse cx="870" cy="96" rx="55" ry="10" fill="#ffffff" opacity="0.9" />
+  <ellipse cx="1050" cy="140" rx="70" ry="11" fill="#ffffff" opacity="0.7" />
+
+  <!-- Distant haze at horizon -->
+  <path d="M 0 245 Q 300 240 600 243 Q 900 247 1200 240 L 1200 270 L 0 270 Z"
+        fill="#b8c8d8" opacity="0.5" />
+
+  <!-- ═══ LAYER 2: LANDMASS (flat, horizontal, dominant) ═══ -->
+
+  <!-- Main land: flat horizon line stretching across the full width -->
+  <path d="M 0 268
+           Q 80 264 160 263
+           Q 240 262 320 264
+           Q 400 263 480 265
+           Q 560 266 640 264
+           Q 720 263 800 265
+           Q 880 266 960 264
+           Q 1040 263 1120 264
+           Q 1170 265 1200 266
+           L 1200 400 L 0 400 Z"
+        fill="#a89058" />
+
+  <!-- Sun-side highlight on the land (sun overhead, lights the top edge) -->
+  <path d="M 80 264 Q 160 263 240 262 Q 320 264 400 263 Q 480 265 560 266
+           Q 640 264 720 263 Q 800 265 880 266 Q 960 264 1040 263 Q 1120 264 1170 265
+           L 1170 270 Q 1080 268 1000 270 Q 920 268 840 270 Q 760 268 680 270
+           Q 600 268 520 270 Q 440 268 360 270 Q 280 268 200 270 Q 130 268 80 270 Z"
+        fill="#c8a868" opacity="0.6" />
+
+  <!-- ═══ LAYER 3: FIELDS / SALT PANS to the LEFT ═══ -->
+
+  <!-- Fields/cleared land mass on the left side (pasture-like) -->
+  <path d="M 0 268
+           Q 50 266 100 268
+           Q 150 270 200 268
+           Q 250 270 300 269
+           Q 320 272 320 280
+           Q 250 282 200 280 Q 150 282 100 280 Q 50 282 0 280 Z"
+        fill="url(#fieldGrad)" />
+
+  <!-- Small grid lines suggesting cultivated fields or salt pans -->
+  <g stroke="#5a6838" stroke-width="0.8" opacity="0.5">
+    <line x1="60" y1="272" x2="60" y2="280" />
+    <line x1="120" y1="270" x2="120" y2="280" />
+    <line x1="180" y1="270" x2="180" y2="280" />
+    <line x1="240" y1="271" x2="240" y2="280" />
+  </g>
+  <g stroke="#5a6838" stroke-width="0.6" opacity="0.4">
+    <line x1="20" y1="275" x2="280" y2="275" />
+  </g>
+
+  <!-- Small scrub vegetation patches scattered across the land -->
+  <ellipse cx="380" cy="266" rx="14" ry="3" fill="url(#vegGrad)" opacity="0.85" />
+  <ellipse cx="950" cy="266" rx="18" ry="3" fill="url(#vegGrad)" opacity="0.85" />
+  <ellipse cx="1080" cy="266" rx="14" ry="3" fill="url(#vegGrad)" opacity="0.85" />
+  <ellipse cx="50" cy="266" rx="12" ry="3" fill="url(#vegGrad)" opacity="0.85" />
+
+  <!-- ═══ LAYER 4: TOWN - dense flat layout, horizontal extent ═══ -->
+
+  <!-- ── Residential cluster (behind the market square) ── -->
+
+  <!-- Stepped gable houses, drawn first (highest at top) -->
+  <g fill="url(#houseGrad)">
+    <!-- Most prominent stepped-gable house (anchor building) -->
+    <rect x="555" y="215" width="22" height="48" />
+    <!-- Step gable on top -->
+    <polygon points="553,215 553,210 562,210 562,205 568,205 568,200 575,200 575,205 580,205 580,210 579,215" />
+    <polygon points="566,200 574,200 570,193" fill="#5a2818" />
+
+    <!-- Another tall stepped gable house adjacent -->
+    <rect x="580" y="220" width="20" height="43" />
+    <polygon points="578,220 578,215 586,215 586,210 593,210 593,215 600,215 600,220" />
+
+    <!-- A third stepped gable -->
+    <rect x="535" y="222" width="18" height="41" />
+    <polygon points="533,222 533,218 540,218 540,214 547,214 547,218 553,218 553,222" />
+
+    <!-- A few more stepped gables for the cluster -->
+    <rect x="605" y="225" width="18" height="38" />
+    <polygon points="603,225 603,221 610,221 610,217 617,217 617,221 623,221 623,225" />
+
+    <rect x="515" y="226" width="16" height="37" />
+    <polygon points="513,226 513,223 519,223 519,219 525,219 525,223 531,223 531,226" />
+
+    <rect x="625" y="228" width="16" height="35" />
+    <polygon points="623,228 623,225 629,225 629,222 635,222 635,225 641,225 641,228" />
+  </g>
+
+  <!-- Roof accents (dark slate) -->
+  <g fill="#3a2010" opacity="0.85">
+    <polygon points="555,215 577,215 566,209" />
+    <polygon points="580,220 600,220 590,214" />
+    <polygon points="535,222 553,222 544,216" />
+    <polygon points="605,225 623,225 614,219" />
+    <polygon points="515,226 531,226 523,221" />
+    <polygon points="625,228 641,228 633,222" />
+  </g>
+
+<!-- Gap-filler buildings to close central city gaps -->
+<g fill="url(#houseGrad)">
+  <!-- Left gap fillers (between x=505 and x=515 anchor cluster) -->
+  <rect x="505" y="232" width="11" height="31" />
+  <polygon points="503,232 503,229 509,229 509,227 514,227 514,229 516,229 516,232" />
+
+  <!-- Between anchor cluster pieces (x=531-535 gap) -->
+  <rect x="531" y="228" width="6" height="35" />
+
+  <!-- Between x=555 anchor and x=580 second gable -->
+  <rect x="577" y="220" width="5" height="43" />
+
+  <!-- Between x=600 second gable and x=605 third gable -->
+  <rect x="600" y="225" width="6" height="38" />
+
+  <!-- Between x=623 (right of third gable) and x=625 (start of fourth) -->
+  <rect x="623" y="226" width="4" height="37" />
+
+  <!-- Right gap filler (between x=641 anchor and x=645 wing) -->
+  <rect x="641" y="234" width="6" height="29" />
+
+  <!-- Between x=660 wing and x=665 next -->
+  <rect x="660" y="236" width="6" height="27" />
+
+  <!-- Between x=679 and x=685 -->
+  <rect x="679" y="239" width="7" height="24" />
+
+  <!-- Between x=699 and x=705 -->
+  <rect x="699" y="241" width="7" height="22" />
+</g>
+
+<!-- Filler roof accents -->
+<g fill="#3a2010" opacity="0.85">
+  <polygon points="505,232 516,232 510,228" />
+  <polygon points="641,234 647,234 644,231" />
+  <polygon points="660,236 666,236 663,233" />
+</g>
+
+  <!-- More residential houses spreading horizontally -->
+  <g fill="url(#houseGrad)">
+    <rect x="490" y="234" width="15" height="29" />
+    <polygon points="488,234 488,231 494,231 494,229 500,229 500,231 505,231 505,234" />
+
+    <rect x="470" y="238" width="14" height="25" />
+    <polygon points="468,238 468,236 473,236 473,234 478,234 478,236 484,236 484,238" />
+
+    <rect x="450" y="240" width="13" height="23" />
+    <polygon points="448,240 448,238 453,238 453,237 458,237 458,238 463,238 463,240" />
+
+    <rect x="645" y="234" width="15" height="29" />
+    <polygon points="643,234 643,231 649,231 649,229 655,229 655,231 660,231 660,234" />
+
+    <rect x="665" y="238" width="14" height="25" />
+    <polygon points="663,238 663,236 668,236 668,234 673,234 673,236 679,236 679,238" />
+
+    <rect x="685" y="240" width="14" height="23" />
+    <polygon points="683,240 683,237 690,237 690,235 695,235 695,237 699,237 699,240" />
+
+    <rect x="705" y="242" width="12" height="21" />
+    <polygon points="703,242 703,239 710,239 710,237 715,237 715,239 717,239 717,242" />
+  </g>
+
+  <!-- Roof accents -->
+  <g fill="#3a2010" opacity="0.85">
+    <polygon points="490,234 505,234 497,229" />
+    <polygon points="470,238 484,238 477,233" />
+    <polygon points="450,240 463,240 456,236" />
+    <polygon points="645,234 660,234 652,229" />
+    <polygon points="665,238 679,238 672,233" />
+    <polygon points="685,240 699,240 692,236" />
+  </g>
+
+  <!-- ── Long warehouse rows flanking the market square ── -->
+
+  <!-- LEFT warehouse complex - long horizontal buildings -->
+  <g fill="url(#warehouseGrad)">
+    <!-- Big warehouse 1 -->
+    <rect x="370" y="240" width="65" height="28" />
+    <polygon points="368,240 368,235 380,235 380,232 405,232 405,235 437,235 437,240" />
+
+    <!-- Big warehouse 2, parallel -->
+    <rect x="305" y="245" width="60" height="23" />
+    <polygon points="303,245 303,241 315,241 315,238 350,238 350,241 367,241 367,245" />
+
+    <!-- Smaller warehouse -->
+    <rect x="270" y="248" width="32" height="20" />
+    <polygon points="268,248 268,245 286,245 286,243 302,243 302,245 304,245 304,248" />
+  </g>
+
+  <!-- Warehouse loading doors (tall arched dark openings) -->
+  <g fill="#2a1408">
+    <rect x="378" y="253" width="9" height="15" />
+    <rect x="395" y="253" width="9" height="15" />
+    <rect x="412" y="253" width="9" height="15" />
+    <rect x="313" y="256" width="8" height="12" />
+    <rect x="328" y="256" width="8" height="12" />
+    <rect x="343" y="256" width="8" height="12" />
+    <rect x="278" y="258" width="7" height="10" />
+    <rect x="290" y="258" width="7" height="10" />
+  </g>
+
+  <!-- Roof accents on warehouses -->
+  <g fill="#3a1808" opacity="0.85">
+    <polygon points="370,240 435,240 402,234" />
+    <polygon points="305,245 365,245 335,239" />
+    <polygon points="270,248 302,248 286,245" />
+  </g>
+
+  <!-- RIGHT warehouse complex - parallel rows -->
+  <g fill="url(#warehouseGrad)">
+    <rect x="730" y="240" width="65" height="28" />
+    <polygon points="728,240 728,235 740,235 740,232 760,232 760,235 795,235 795,240" />
+
+    <rect x="800" y="245" width="60" height="23" />
+    <polygon points="798,245 798,241 810,241 810,238 845,238 845,241 862,241 862,245" />
+
+    <rect x="865" y="248" width="35" height="20" />
+    <polygon points="863,248 863,245 880,245 880,243 898,243 898,245 902,245 902,248" />
+  </g>
+
+  <!-- Loading doors right -->
+  <g fill="#2a1408">
+    <rect x="738" y="253" width="9" height="15" />
+    <rect x="755" y="253" width="9" height="15" />
+    <rect x="772" y="253" width="9" height="15" />
+    <rect x="808" y="256" width="8" height="12" />
+    <rect x="823" y="256" width="8" height="12" />
+    <rect x="838" y="256" width="8" height="12" />
+    <rect x="872" y="258" width="7" height="10" />
+    <rect x="885" y="258" width="7" height="10" />
+  </g>
+
+  <!-- Roof accents on right warehouses -->
+  <g fill="#3a1808" opacity="0.85">
+    <polygon points="730,240 795,240 762,234" />
+    <polygon points="800,245 860,245 830,239" />
+    <polygon points="865,248 900,248 882,245" />
+  </g>
+
+  <!-- ── Market square: open paved area in front of houses, between warehouses ── -->
+  <!-- The paved square is a rectangle of light tan stone at ground level -->
+  <rect x="436" y="263" width="293" height="5" fill="#c4a880" />
+  <!-- Subtle paved texture lines -->
+  <g stroke="#a08858" stroke-width="0.4" opacity="0.5">
+    <line x1="450" y1="266" x2="715" y2="266" />
+  </g>
+
+  <!-- Few small market stalls in the square (tiny buildings) -->
+  <g fill="#7a4530">
+    <rect x="500" y="258" width="12" height="5" />
+    <rect x="540" y="258" width="14" height="5" />
+    <rect x="600" y="258" width="12" height="5" />
+    <rect x="650" y="258" width="14" height="5" />
+    <rect x="690" y="258" width="12" height="5" />
+  </g>
+  <!-- Stall awnings -->
+  <g fill="#9a5838" opacity="0.85">
+    <polygon points="498,258 514,258 506,255" />
+    <polygon points="538,258 556,258 547,255" />
+    <polygon points="598,258 614,258 606,255" />
+    <polygon points="648,258 666,258 657,255" />
+    <polygon points="688,258 704,258 696,255" />
+  </g>
+
+  <!-- ═══ LAYER 5: SEA ═══ -->
+  <rect x="0" y="268" width="1200" height="132" fill="url(#seaGrad)" />
+
+  <!-- Shallow turquoise band near the shore (Caribbean tropical signature) -->
+  <ellipse cx="600" cy="278" rx="700" ry="6" fill="#a8d8c8" opacity="0.45" />
+
+  <!-- Sun glare on water -->
+  <ellipse cx="600" cy="290" rx="350" ry="8" fill="#ffffff" opacity="0.25" />
+  <ellipse cx="600" cy="298" rx="200" ry="4" fill="#ffffff" opacity="0.15" />
+
+  <!-- Wave lines (gentle, sunny day) -->
+  <g stroke="#a0c8d8" stroke-width="0.7" opacity="0.5" fill="none">
+    <path d="M 100 320 Q 160 318 220 320 Q 280 322 340 320" />
+    <path d="M 400 340 Q 460 338 520 340 Q 580 342 640 340" />
+    <path d="M 700 360 Q 760 358 820 360 Q 880 362 940 360" />
+    <path d="M 200 380 Q 260 378 320 380 Q 380 382 440 380" />
+    <path d="M 900 330 Q 960 328 1020 330 Q 1080 332 1140 330" />
+  </g>
+
+  <!-- ═══ LAYER 6: JETTY extending into the water in front of warehouses ═══ -->
+  <!-- Main pier extending out from the shore -->
+  <rect x="420" y="270" width="280" height="6" fill="url(#jettyGrad)" />
+  <rect x="660" y="276" width="80" height="5" fill="url(#jettyGrad)" />
+
+  <!-- Pier support piles -->
+  <rect x="450" y="276" width="2" height="6" fill="#2a1808" />
+  <rect x="510" y="276" width="2" height="6" fill="#2a1808" />
+  <rect x="570" y="276" width="2" height="6" fill="#2a1808" />
+  <rect x="630" y="276" width="2" height="6" fill="#2a1808" />
+  <rect x="680" y="281" width="2" height="5" fill="#2a1808" />
+  <rect x="710" y="281" width="2" height="5" fill="#2a1808" />
+
+  <!-- Sun highlight on top of pier -->
+  <rect x="420" y="270" width="280" height="1" fill="#9a6840" opacity="0.7" />
+
+  <!-- ═══ LAYER 7: MERCHANT SHIPS - larger, square-rigged ═══ -->
+
+  <!-- Big fluyt anchored offshore left -->
+  <g transform="translate(180 305)">
+    <!-- Wide round hull -->
+    <ellipse cx="0" cy="0" rx="36" ry="6" fill="#3a2510" />
+    <!-- Three masts -->
+    <line x1="-18" y1="-2" x2="-18" y2="-50" stroke="#3a2510" stroke-width="2" />
+    <line x1="0" y1="-3" x2="0" y2="-62" stroke="#3a2510" stroke-width="2.5" />
+    <line x1="18" y1="-2" x2="18" y2="-48" stroke="#3a2510" stroke-width="2" />
+
+    <!-- Foremast: lower square sail + upper square sail -->
+    <rect x="-30" y="-25" width="24" height="22" fill="url(#sailGrad)" />
+    <rect x="-28" y="-44" width="20" height="18" fill="url(#sailGrad)" />
+
+    <!-- Mainmast: lower sail + upper sail (taller) -->
+    <rect x="-15" y="-28" width="30" height="24" fill="url(#sailGrad)" />
+    <rect x="-13" y="-50" width="26" height="20" fill="url(#sailGrad)" />
+    <rect x="-10" y="-62" width="20" height="12" fill="url(#sailGrad)" />
+
+    <!-- Mizzen: square sail -->
+    <rect x="6" y="-22" width="24" height="18" fill="url(#sailGrad)" />
+    <rect x="8" y="-40" width="20" height="16" fill="url(#sailGrad)" />
+
+    <!-- Bowsprit -->
+    <line x1="32" y1="-2" x2="50" y2="-8" stroke="#3a2510" stroke-width="2" />
+    <!-- Jib sail -->
+    <polygon points="32,-3 50,-8 38,-15" fill="url(#sailGrad)" />
+
+    <!-- Hull details: subtle gun deck line -->
+    <line x1="-30" y1="-2" x2="30" y2="-2" stroke="#1a0a04" stroke-width="0.5" />
+  </g>
+
+  <!-- Another merchant ship, mid-distance right -->
+  <g transform="translate(900 320)">
+    <ellipse cx="0" cy="0" rx="32" ry="5" fill="#3a2510" />
+    <line x1="-15" y1="-2" x2="-15" y2="-44" stroke="#3a2510" stroke-width="2" />
+    <line x1="0" y1="-3" x2="0" y2="-54" stroke="#3a2510" stroke-width="2.5" />
+    <line x1="14" y1="-2" x2="14" y2="-42" stroke="#3a2510" stroke-width="2" />
+
+    <rect x="-25" y="-22" width="20" height="18" fill="url(#sailGrad)" />
+    <rect x="-23" y="-38" width="16" height="14" fill="url(#sailGrad)" />
+
+    <rect x="-12" y="-25" width="24" height="20" fill="url(#sailGrad)" />
+    <rect x="-10" y="-42" width="20" height="16" fill="url(#sailGrad)" />
+    <rect x="-8" y="-54" width="16" height="10" fill="url(#sailGrad)" />
+
+    <rect x="5" y="-20" width="20" height="16" fill="url(#sailGrad)" />
+    <rect x="7" y="-35" width="16" height="13" fill="url(#sailGrad)" />
+
+    <line x1="28" y1="-2" x2="44" y2="-6" stroke="#3a2510" stroke-width="2" />
+    <polygon points="28,-3 44,-6 34,-13" fill="url(#sailGrad)" />
+
+    <line x1="-25" y1="-2" x2="25" y2="-2" stroke="#1a0a04" stroke-width="0.5" />
+  </g>
+
+  <!-- A smaller merchant moored at the jetty -->
+  <g transform="translate(720 295)">
+    <ellipse cx="0" cy="0" rx="24" ry="4" fill="#3a2510" />
+    <line x1="-10" y1="-2" x2="-10" y2="-32" stroke="#3a2510" stroke-width="1.8" />
+    <line x1="0" y1="-3" x2="0" y2="-40" stroke="#3a2510" stroke-width="2" />
+    <line x1="10" y1="-2" x2="10" y2="-30" stroke="#3a2510" stroke-width="1.8" />
+
+    <rect x="-18" y="-16" width="16" height="14" fill="url(#sailGrad)" />
+    <rect x="-16" y="-28" width="13" height="10" fill="url(#sailGrad)" />
+
+    <rect x="-9" y="-18" width="18" height="15" fill="url(#sailGrad)" />
+    <rect x="-7" y="-32" width="14" height="12" fill="url(#sailGrad)" />
+
+    <rect x="3" y="-15" width="14" height="13" fill="url(#sailGrad)" />
+
+    <line x1="22" y1="-2" x2="32" y2="-5" stroke="#3a2510" stroke-width="1.5" />
+  </g>
+
+  <!-- Small fishing boat near the shore -->
+  <g transform="translate(380 290)">
+    <ellipse cx="0" cy="0" rx="11" ry="2" fill="#2a1808" />
+    <line x1="0" y1="-1" x2="0" y2="-14" stroke="#2a1808" stroke-width="1" />
+    <polygon points="-4,-13 -4,-4 5,-4 5,-14" fill="url(#sailGrad)" opacity="0.85" />
+  </g>
+
+</svg>
+  </div>
+
+  <div class="notes">
+    <h3>What changed in v4</h3>
+    <ul>
+      <li><strong>City reverted to v1-style organic layout</strong> with irregular vertical positions and varied sizes, but with ~15 more buildings filling the gaps for density.</li>
+      <li><strong>Render order strictly top-down</strong>: cathedral and summit cluster first, then upper hill, then mid hill, then lower hill. Each tier covers the bases of buildings above.</li>
+      <li><strong>Single brown tone (#3a2818) for ALL buildings</strong> including cathedral, bell tower, fortress, ramparts. No more darker tone for summit buildings.</li>
+      <li><strong>Steeper rampart slope</strong>: sections now rise from y=240 at fortress to y=185 at the top of section 2 - aggressive upward climb instead of the previous gentle angle.</li>
+      <li><strong>Floating summit buildings removed</strong>: the right-of-cathedral cluster that was floating in space is gone.</li>
+      <li><strong>Jungle kept as-is</strong> per feedback.</li>
+    </ul>
+
+    <h3>Final assessment questions</h3>
+    <ul>
+      <li>Does the city layout finally feel organic rather than grid-aligned?</li>
+      <li>Do the steeper ramparts read as walls climbing the hill?</li>
+      <li>Is the cathedral still the focal point even with unified building tone?</li>
+      <li>Anything else needed before we apply this template to the other 4 factions?</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

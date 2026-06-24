@@ -1,0 +1,295 @@
+<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#2a2848" />
+      <stop offset="30%"  stop-color="#4a3858" />
+      <stop offset="60%"  stop-color="#8a5060" />
+      <stop offset="80%"  stop-color="#d47858" />
+      <stop offset="100%" stop-color="#e89858" />
+    </linearGradient>
+
+    <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#9a6858" />
+      <stop offset="15%"  stop-color="#5a4858" />
+      <stop offset="50%"  stop-color="#2a3848" />
+      <stop offset="100%" stop-color="#101820" />
+    </linearGradient>
+
+    <linearGradient id="vegGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#2a3820" />
+      <stop offset="100%" stop-color="#1a2818" />
+    </linearGradient>
+
+    <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#4a4858" />
+      <stop offset="100%" stop-color="#2a2838" />
+    </linearGradient>
+
+    <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0%"   stop-color="#fff8d0" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#fff8d0" stop-opacity="0" />
+    </linearGradient>
+
+    <radialGradient id="lighthouseGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#fff8d0" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#fff8d0" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="jettyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#5a3a20" />
+      <stop offset="100%" stop-color="#2a1808" />
+    </linearGradient>
+  </defs>
+
+  <!-- ═══ LAYER 1: SKY ═══ -->
+  <rect x="0" y="0" width="1200" height="280" fill="url(#skyGrad)" />
+
+  <!-- Setting sun glow -->
+  <ellipse cx="600" cy="270" rx="500" ry="30" fill="#f8a060" opacity="0.4" />
+  <ellipse cx="600" cy="278" rx="350" ry="15" fill="#f8c878" opacity="0.5" />
+
+  <!-- Dusky clouds -->
+  <ellipse cx="200" cy="80" rx="120" ry="4" fill="#6a4a58" opacity="0.7" />
+  <ellipse cx="450" cy="120" rx="160" ry="5" fill="#7a5868" opacity="0.6" />
+  <ellipse cx="850" cy="100" rx="140" ry="4" fill="#6a4a58" opacity="0.7" />
+  <ellipse cx="1050" cy="160" rx="100" ry="3" fill="#8a6878" opacity="0.5" />
+
+  <!-- Evening star -->
+  <circle cx="320" cy="50" r="1.5" fill="#fff8d0" opacity="0.8" />
+
+  <!-- Distant haze at horizon -->
+  <path d="M 0 250 Q 300 245 600 248 Q 900 252 1200 245 L 1200 280 L 0 280 Z"
+        fill="#5a4858" opacity="0.5" />
+
+  <!-- ═══ LAYER 2: LANDMASSES (drawn over sky, before sea) ═══ -->
+
+  <!-- LEFT HEADLAND -->
+  <path d="M 0 285
+           Q 50 280 100 270
+           Q 160 258 220 256
+           Q 270 258 310 268
+           Q 340 278 360 290
+           L 360 400 L 0 400 Z"
+        fill="#3a3848" />
+
+  <!-- Left headland sunset highlight -->
+  <path d="M 100 270 Q 160 258 220 256 Q 270 258 310 268 L 310 278
+           Q 270 268 220 266 Q 160 268 100 278 Z"
+        fill="#5a4858" opacity="0.6" />
+
+ <!-- CENTRAL COASTLINE: extended to support the right-side house cluster -->
+<path d="M 350 290
+         Q 400 287 460 285
+         Q 520 283 580 282
+         Q 640 282 700 284
+         Q 760 285 800 285
+         Q 830 286 860 290
+         Q 890 295 920 298
+         L 920 400 L 350 400 Z"
+      fill="#3a3848" />
+
+<!-- Central coastline sunset highlight -->
+<path d="M 460 285 Q 520 283 580 282 Q 640 282 700 284 Q 760 285 800 285
+         L 800 291 Q 760 290 700 290 Q 640 288 580 288 Q 520 289 460 291 Z"
+      fill="#5a4858" opacity="0.6" />
+
+  <!-- RIGHT HEADLAND -->
+  <path d="M 920 290
+           Q 970 282 1020 276
+           Q 1070 274 1120 278
+           Q 1160 282 1200 288
+           L 1200 400 L 920 400 Z"
+        fill="#3a3848" />
+
+  <!-- Right headland sunset highlight -->
+  <path d="M 970 282 Q 1020 276 1070 274 Q 1120 278 1160 282
+           L 1160 290 Q 1120 284 1070 282 Q 1020 284 970 290 Z"
+        fill="#5a4858" opacity="0.6" />
+
+  <!-- ═══ LAYER 3: LIGHTHOUSE (drawn before vegetation so trees appear in front of its base) ═══ -->
+
+ <!-- Light beam -->
+<polygon points="240,190 1200,270 1200,340 240,220"
+         fill="url(#beamGrad)" opacity="0.55" />
+
+<!-- Lighthouse base / cottage -->
+<rect x="225" y="242" width="32" height="22" fill="#3a3848" />
+<polygon points="223,242 259,242 241,234" fill="#2a2838" />
+
+<!-- Lighthouse tower -->
+<polygon points="234,185 248,185 250,242 232,242" fill="#3a3848" />
+<polygon points="234,185 238,185 240,242 232,242" fill="#5a4858" opacity="0.5" />
+
+<!-- Lighthouse top -->
+<rect x="230" y="176" width="22" height="10" fill="#3a3848" />
+<circle cx="241" cy="181" r="6" fill="url(#lighthouseGlow)" />
+<circle cx="241" cy="181" r="3" fill="#fff8d0" />
+<polygon points="227,176 255,176 241,166" fill="#2a2838" />
+<rect x="240" y="158" width="2" height="10" fill="#2a2838" />
+
+  <!-- ═══ LAYER 4: VEGETATION (over headlands and lighthouse base) ═══ -->
+
+  <!-- Left headland vegetation: extended to wrap around lighthouse base -->
+<path d="M 30 268 Q 80 262 130 264 Q 180 260 220 256
+         Q 230 254 245 256 Q 260 258 275 262 Q 295 265 320 270
+         L 320 284 Q 295 280 270 280 Q 245 280 220 280
+         Q 180 280 140 282 Q 80 282 30 282 Z"
+      fill="url(#vegGrad)" />
+
+  <!-- Right headland vegetation: pushed lower to sit on its land -->
+  <path d="M 940 282 Q 980 276 1020 278 Q 1070 276 1110 280 Q 1150 282 1180 286
+           L 1180 294 Q 1140 288 1090 288 Q 1030 290 980 288 Z"
+        fill="url(#vegGrad)" />
+
+  <!-- ═══ LAYER 5: CITY in the bay center ═══ -->
+
+  <!-- Highest first: church and spire -->
+  <g fill="url(#houseGrad)">
+    <rect x="600" y="225" width="18" height="22" />
+    <polygon points="597,225 621,225 609,217" fill="#2a2838" />
+    <rect x="606" y="200" width="6" height="26" />
+    <polygon points="603,200 615,200 609,188" fill="#2a2838" />
+    <rect x="608" y="180" width="2" height="9" fill="#2a2838" />
+    <rect x="605" y="183" width="8" height="2" fill="#2a2838" />
+  </g>
+
+  <!-- Upper city -->
+  <g fill="url(#houseGrad)">
+    <rect x="560" y="235" width="14" height="22" />
+    <rect x="575" y="232" width="13" height="25" />
+    <rect x="588" y="235" width="12" height="22" />
+    <rect x="620" y="232" width="13" height="25" />
+    <rect x="633" y="235" width="14" height="22" />
+    <rect x="647" y="232" width="12" height="25" />
+    <rect x="659" y="235" width="13" height="22" />
+  </g>
+
+  <g fill="#1a1828" opacity="0.85">
+    <polygon points="560,235 574,235 567,228" />
+    <polygon points="575,232 588,232 581,224" />
+    <polygon points="620,232 633,232 626,224" />
+    <polygon points="647,232 659,232 653,224" />
+  </g>
+
+  <!-- Mid-city -->
+  <g fill="url(#houseGrad)">
+    <rect x="530" y="248" width="13" height="22" />
+    <rect x="543" y="250" width="12" height="22" />
+    <rect x="555" y="248" width="14" height="24" />
+    <rect x="569" y="252" width="11" height="22" />
+    <rect x="580" y="248" width="13" height="26" />
+    <rect x="593" y="250" width="12" height="24" />
+    <rect x="605" y="248" width="14" height="26" />
+    <rect x="619" y="252" width="12" height="22" />
+    <rect x="631" y="248" width="14" height="26" />
+    <rect x="645" y="250" width="12" height="24" />
+    <rect x="657" y="248" width="13" height="26" />
+    <rect x="670" y="252" width="14" height="22" />
+    <rect x="684" y="248" width="12" height="24" />
+    <rect x="696" y="252" width="13" height="22" />
+    <rect x="709" y="250" width="14" height="22" />
+    <rect x="723" y="252" width="12" height="20" />
+    <rect x="735" y="254" width="13" height="18" />
+  </g>
+
+  <g fill="#1a1828" opacity="0.85">
+    <polygon points="543,250 555,250 549,243" />
+    <polygon points="569,252 580,252 574,245" />
+    <polygon points="593,250 605,250 599,243" />
+    <polygon points="619,252 631,252 625,245" />
+    <polygon points="645,250 657,250 651,243" />
+    <polygon points="670,252 684,252 677,245" />
+    <polygon points="696,252 709,252 702,245" />
+  </g>
+
+  <!-- Lower city -->
+  <g fill="url(#houseGrad)">
+    <rect x="510" y="265" width="14" height="18" />
+    <rect x="524" y="268" width="12" height="16" />
+    <rect x="536" y="265" width="13" height="20" />
+    <rect x="549" y="268" width="14" height="18" />
+    <rect x="563" y="265" width="12" height="20" />
+    <rect x="575" y="268" width="13" height="18" />
+    <rect x="588" y="265" width="14" height="20" />
+    <rect x="602" y="268" width="12" height="18" />
+    <rect x="614" y="265" width="14" height="20" />
+    <rect x="628" y="268" width="13" height="18" />
+    <rect x="641" y="265" width="12" height="20" />
+    <rect x="653" y="268" width="14" height="18" />
+    <rect x="667" y="265" width="13" height="20" />
+    <rect x="680" y="268" width="14" height="18" />
+    <rect x="694" y="270" width="12" height="16" />
+    <rect x="706" y="268" width="13" height="18" />
+    <rect x="719" y="270" width="12" height="16" />
+    <rect x="731" y="272" width="14" height="14" />
+    <rect x="745" y="274" width="12" height="12" />
+    <rect x="757" y="276" width="11" height="10" />
+
+    <rect x="515" y="277" width="9" height="8" />
+    <rect x="545" y="278" width="8" height="7" />
+    <rect x="600" y="277" width="9" height="8" />
+    <rect x="660" y="278" width="9" height="7" />
+    <rect x="710" y="278" width="8" height="7" />
+  </g>
+
+  <!-- Buildings extending toward right headland -->
+  <g fill="url(#houseGrad)">
+    <rect x="780" y="265" width="13" height="20" />
+    <rect x="793" y="268" width="11" height="18" />
+    <rect x="804" y="270" width="12" height="16" />
+    <rect x="816" y="272" width="10" height="14" />
+  </g>
+
+  <!-- ═══ LAYER 6: SEA (covers everything below horizon) ═══ -->
+  <rect x="0" y="298" width="1200" height="102" fill="url(#seaGrad)" />
+
+  <!-- Sunset reflection on water -->
+  <ellipse cx="600" cy="305" rx="500" ry="6" fill="#f8a060" opacity="0.4" />
+  <ellipse cx="600" cy="312" rx="350" ry="3" fill="#f8c878" opacity="0.35" />
+
+  <!-- Lighthouse light reflection -->
+  <ellipse cx="240" cy="315" rx="20" ry="8" fill="#fff8d0" opacity="0.3" />
+  <ellipse cx="241" cy="327" rx="14" ry="5" fill="#fff8d0" opacity="0.2" />
+  <ellipse cx="241" cy="339" rx="10" ry="3" fill="#fff8d0" opacity="0.15" />
+
+  <!-- Wave lines -->
+  <g stroke="#5a6878" stroke-width="0.6" opacity="0.35" fill="none">
+    <path d="M 400 330 Q 460 328 520 330 Q 580 332 640 330" />
+    <path d="M 750 345 Q 810 343 870 345 Q 930 347 990 345" />
+    <path d="M 100 365 Q 160 363 220 365 Q 280 367 340 365" />
+    <path d="M 600 380 Q 660 378 720 380 Q 780 382 840 380" />
+  </g>
+
+<!-- ═══ LAYER 7: JETTY ═══ -->
+<rect x="520" y="298" width="180" height="8" fill="url(#jettyGrad)" />
+<rect x="650" y="301" width="60" height="5" fill="url(#jettyGrad)" />
+<rect x="665" y="306" width="2" height="6" fill="#2a1808" />
+<rect x="680" y="306" width="2" height="6" fill="#2a1808" />
+<rect x="695" y="306" width="2" height="6" fill="#2a1808" />
+<rect x="520" y="298" width="180" height="2" fill="#7a5a30" opacity="0.5" />
+
+  <!-- ═══ LAYER 8: SHIPS ═══ -->
+  <g>
+    <g transform="translate(820 325)">
+      <ellipse cx="0" cy="0" rx="14" ry="3" fill="#1a1010" />
+      <line x1="-2" y1="-1" x2="-2" y2="-18" stroke="#1a1010" stroke-width="1.2" />
+      <line x1="4" y1="-1" x2="4" y2="-22" stroke="#1a1010" stroke-width="1.2" />
+      <polygon points="-4,-18 -4,-6 4,-6 4,-22" fill="#4a3848" opacity="0.85" />
+      <polygon points="-2,-14 -2,-4 8,-4 8,-18" fill="#4a3848" opacity="0.85" />
+    </g>
+    <g transform="translate(460 345)">
+      <ellipse cx="0" cy="0" rx="22" ry="4" fill="#1a1010" />
+      <line x1="-3" y1="-1" x2="-3" y2="-26" stroke="#1a1010" stroke-width="1.5" />
+      <line x1="6" y1="-1" x2="6" y2="-32" stroke="#1a1010" stroke-width="1.5" />
+      <polygon points="-7,-26 -7,-8 6,-8 6,-32" fill="#4a3848" />
+      <polygon points="-3,-22 -3,-6 13,-6 13,-26" fill="#4a3848" />
+    </g>
+    <g transform="translate(720 320)">
+      <ellipse cx="0" cy="0" rx="10" ry="2" fill="#1a1010" />
+      <line x1="0" y1="-1" x2="0" y2="-14" stroke="#1a1010" stroke-width="1" />
+      <polygon points="-3,-13 -3,-4 4,-4 4,-14" fill="#4a3848" opacity="0.8" />
+    </g>
+  </g>
+
+</svg>
