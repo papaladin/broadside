@@ -306,7 +306,7 @@ const generateCrewBio = (member, state) => {
 // ---- MARKET GENRATORS ---------------------------------
 
   // ── port market generator ─────────────────────────────────────
-  const generatePortMarket = (portKey, state) => {
+const generatePortMarket = (portKey, state) => {
     const resources   = window.D.RESOURCES;
     const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
 
@@ -336,30 +336,31 @@ const generateCrewBio = (member, state) => {
     const goods = {};
 
     colOrder.forEach((good, idx) => {
-      const tier = availability[idx] || "never";
-      const chance = tierChance[tier] ?? 0;
-      if (chance === 0 || Math.random() > chance) return; // didn't appear this visit
-
       const res = resources[good];
-      const isFixed = res.variance === 0;
+      if (!res) return;
 
-      // Roll market price (basePrice ± variance)
+      // ── Always generate price (independent of availability) ────────
+      const isFixed = res.variance === 0;
       const variance = res.basePrice * res.variance;
       const marketPrice = isFixed
         ? res.basePrice
         : Math.round(res.basePrice + randBetween(-variance, variance));
 
       // Buy from port (player pays) and sell to port (player receives)
-      const buyFromPort  = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
-      const sellToPort   = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
+      const buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
+      const sellToPort  = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
 
-      // Quantity – tier-based for trade goods, 999 for food/water
-      let available;
-      if (good === "food" || good === "water") {
-        available = 999;
-      } else {
-        const range = tierQtyRanges[tier];
-        available = range ? randInt(range.min, range.max) : 0;
+      // ── Roll availability separately ───────────────────────────────
+      const tier = availability[idx] || "never";
+      const chance = tierChance[tier] ?? 0;
+      let available = 0;
+      if (chance > 0 && Math.random() <= chance) {
+        if (good === "food" || good === "water") {
+          available = 999;
+        } else {
+          const range = tierQtyRanges[tier];
+          available = range ? randInt(range.min, range.max) : 0;
+        }
       }
 
       goods[good] = {
@@ -371,19 +372,11 @@ const generateCrewBio = (member, state) => {
     });
 
     // Force‑stock tutorial goods during onboarding
+    // (Entry now always exists, so we just bump availability if it's zero)
     if (state?.onboarding?.enabled && !state?.onboarding?.completed && state?.activeMission?.tutorial) {
       const requiredGood = state.activeMission.requiredGood;
-      if (requiredGood && !goods[requiredGood]) {
-        const res = resources[requiredGood];
-        if (res) {
-          const buyPrice = Math.round(res.basePrice * (1 + (Math.random() * 0.1 - 0.05)));
-          goods[requiredGood] = {
-            basePrice: res.basePrice,
-            buyFromPort: buyPrice,
-            sellToPort: Math.round(buyPrice * 0.85),
-            available: 20,
-          };
-        }
+      if (requiredGood && goods[requiredGood] && goods[requiredGood].available === 0) {
+        goods[requiredGood].available = 20;
       }
     }
 
@@ -879,6 +872,7 @@ const generateLocalMarketGossip = (state) => {
 
   Object.entries(market.goods).forEach(([good, data]) => {
     if (good === "food" || good === "water"  || good === "slaves") return;
+    if (data.available <= 0) return;
     const extreme = isExtremePrice(good, data.buyFromPort);
     if (!extreme) return;
     if (!best || extreme.deviation > best.deviation) {
@@ -1037,6 +1031,7 @@ const generateMarketFlavour = (state, portKey) => {
   if (market?.goods) {
     Object.entries(market.goods).forEach(([good, data]) => {
       if (good === "food" || good === "water" || good === "slaves") return;
+      if (data.available <= 0) return; 
       const res = window.D.RESOURCES[good];
       if (!res || res.variance === 0) return;
       const min = res.basePrice * (1 - res.variance);
@@ -1070,12 +1065,12 @@ const generateMarketFlavour = (state, portKey) => {
   }
 
   // ── Specific goods ───────────────────────────────────────────
-  if (market?.goods?.tobacco) {
-    pools.push({ priority: 3, category: "tobacco_present", text: pickRandom(T.tobacco_present) });
-  }
-  if (market?.goods?.slaves) {
-    pools.push({ priority: 3, category: "slaves_present", text: pickRandom(T.slaves_present) });
-  }
+if (market?.goods?.tobacco?.available > 0) {
+  pools.push({ priority: 3, category: "tobacco_present", text: pickRandom(T.tobacco_present) });
+}
+if (market?.goods?.slaves?.available > 0) {
+  pools.push({ priority: 3, category: "slaves_present", text: pickRandom(T.slaves_present) });
+}
 
   // ── Fame ─────────────────────────────────────────────────────
   const fameInfo = window.L.getFameInfo(state.fame ?? 0);

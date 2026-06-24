@@ -91,7 +91,7 @@ function PortScreen({ state, dispatch }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
             <div>
               <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold" }}>{port.name}</div>
-              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: 10, letterSpacing: "0.1em" }}>
+              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: T.captionFontSize, letterSpacing: "0.1em" }}>
                 {FACTIONS[port.faction]?.label.toUpperCase()} PORT
               </div>
             </div>
@@ -202,7 +202,7 @@ function PortScreen({ state, dispatch }) {
             MISSION BOARD
           </SectionTitle>
           {perk.tier !== "neutral" && (
-            <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: 10, marginBottom: 8 }}>
+            <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: T.captionFontSize, marginBottom: 8 }}>
               {perk.missionMult > 1
                 ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
                 : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
@@ -211,19 +211,19 @@ function PortScreen({ state, dispatch }) {
           {state.activeMission && (
             <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, marginTop: 6 })}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ color: T.greenBr, fontSize: 11, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
+                <span style={{ color: T.greenBr, fontSize: T.metadataFontSize, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
                 <div style={{ display: "flex", gap: 4 }}>
                   <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
                   <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
                 </div>
               </div>
-              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8, lineHeight: 1.4 }}>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8, lineHeight: 1.4 }}>
                 {state.activeMission.description}
               </div>
-              <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
               <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 8 }}>
-                <span style={{ color: T.gold, fontSize: 11 }}>💰 {state.activeMission.gold}</span>
-                <span style={{ color: T.blueBr, fontSize: 11 }}>★ {state.activeMission.fame}</span>
+                <span style={{ color: T.gold, fontSize: T.metadataFontSize }}>💰 {state.activeMission.gold}</span>
+                <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {state.activeMission.fame}</span>
               </div>
               {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
                 const res = window.D.RESOURCES[state.activeMission.requiredGood];
@@ -231,7 +231,7 @@ function PortScreen({ state, dispatch }) {
                 const hasGoods = inHold >= state.activeMission.requiredQty;
                 const goodName = res?.name || state.activeMission.requiredGood;
                 return (
-                  <div style={{ marginBottom: 8, fontSize: 10 }}>
+                  <div style={{ marginBottom: 8, fontSize: T.captionFontSize }}>
                     <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
                       {hasGoods
                         ? `✓ ${inHold} ${goodName} in hold — ready`
@@ -254,7 +254,7 @@ function PortScreen({ state, dispatch }) {
                 </Tooltip>
               </div>
               {!canFinish && (
-                <div style={{ color: T.textDim, fontSize: 10, marginTop: 6 }}>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 6 }}>
                   Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
                 </div>
               )}
@@ -269,15 +269,15 @@ function PortScreen({ state, dispatch }) {
               {state.missions.map((m, i) => (
                 <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{m.name}</span>
+                    <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{m.name}</span>
                     <div style={{ display: "flex", gap: 4 }}>
                       <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
                       <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
                     </div>
                   </div>
-                  <p style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
+                  <p style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
                   {m.enemy && (
-                    <div style={{ color: T.textDim, fontSize: 10, margin: "0 0 6px" }}>
+                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px" }}>
                       Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
                     </div>
                   )}
@@ -295,14 +295,14 @@ function PortScreen({ state, dispatch }) {
                         background: T.bgDeep,
                         border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
                       }}>
-                        <div style={{ fontSize: 10, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
+                        <div style={{ fontSize: T.captionFontSize, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
                           {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
                         </div>
-                        <div style={{ fontSize: 11, color: isIllegal ? T.red : T.text }}>
+                        <div style={{ fontSize: T.metadataFontSize, color: isIllegal ? T.red : T.text }}>
                           {m.requiredQty} × {res?.name || m.requiredGood}
-                          {isIllegal && <span style={{ color: T.red, fontSize: 10 }}> (Illegal)</span>}
+                          {isIllegal && <span style={{ color: T.red, fontSize: T.captionFontSize }}> (Illegal)</span>}
                         </div>
-                        <div style={{ fontSize: 10, marginTop: 3 }}>
+                        <div style={{ fontSize: T.captionFontSize, marginTop: 3 }}>
                           {alreadyHave
                             ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
                             : partialHave
@@ -311,24 +311,24 @@ function PortScreen({ state, dispatch }) {
                           }
                         </div>
                         {!alreadyHave && !canFit && (
-                          <div style={{ fontSize: 10, color: T.redBr, marginTop: 2 }}>
+                          <div style={{ fontSize: T.captionFontSize, color: T.redBr, marginTop: 2 }}>
                             ⚠ Only {holdFree} hold space free — sell cargo first
                           </div>
                         )}
                         {m.type === "smuggle" && res?.sourceHint && (
-                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
+                          <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
                             {res.sourceHint}
                           </div>
                         )}
                         {m.type === "trade" && (
-                          <div style={{ fontSize: 10, color: T.textFaint, marginTop: 2 }}>
+                          <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
                             Est. cost: ~{res?.basePrice * m.requiredQty}g
                             · Payment on delivery: {m.gold}g
                             · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
                           </div>
                         )}
                         {m.type === "smuggle" && (
-                          <div style={{ fontSize: 10, color: T.red, marginTop: 2 }}>
+                          <div style={{ fontSize: T.captionFontSize, color: T.red, marginTop: 2 }}>
                             +{m.infamyGain} infamy on completion
                             {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
                           </div>
@@ -337,9 +337,9 @@ function PortScreen({ state, dispatch }) {
                     );
                   })()}
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ color: T.gold, fontSize: 11 }}>💰 {m.gold}</span>
-                    <span style={{ color: T.blueBr, fontSize: 11 }}>★ {m.fame}</span>
-                    <span style={{ color: T.textDim, fontSize: 10 }}>→ {PORTS[m.targetPort]?.name}</span>
+                    <span style={{ color: T.gold, fontSize: T.metadataFontSize }}>💰 {m.gold}</span>
+                    <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {m.fame}</span>
+                    <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
                     <Tooltip text="Take this mission as your active objective.">
                       <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
                     </Tooltip>
@@ -414,15 +414,27 @@ function PortScreen({ state, dispatch }) {
 
       // Combat summary
       if (totalBattles > 0) {
+        const won = career.battles?.won || 0;
+        const lost = career.battles?.lost || 0;
+        const fled = career.battles?.fled || 0;
+
+        const parts = [];
+        if (won > 0) parts.push(`won ${won}`);
+        if (lost > 0) parts.push(`lost ${lost}`);
+        if (fled > 0) parts.push(`fled ${fled}`);
+
+        lines.push(
+          `Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(", ")}.`
+        );
+
         const sunk = career.shipsSunk || 0;
         const plundered = career.shipsPlundered || 0;
+        
         if (sunk > 0 || plundered > 0) {
-          const parts = [];
-          if (sunk > 0) parts.push(`sunk ${sunk}`);
-          if (plundered > 0) parts.push(`plundered ${plundered}`);
-          lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(" and ")}.`);
-        } else {
-          lines.push(`You have fought ${totalBattles} battle${totalBattles === 1 ? "" : "s"}.`);
+          const detailParts = [];
+          if (sunk > 0) detailParts.push(`sunk ${sunk}`);
+          if (plundered > 0) detailParts.push(`boarded and plundered ${plundered}`);
+          lines.push(`Of those, you ${detailParts.join(" and ")}.`);
         }
       }
 
@@ -546,7 +558,7 @@ function PortScreen({ state, dispatch }) {
 
             {/* Left: Captain name + faction + tag */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 Captain
               </div>
               <div style={{ color: T.text, fontSize: 22, fontWeight: "bold", marginTop: 2 }}>
@@ -554,7 +566,7 @@ function PortScreen({ state, dispatch }) {
               </div>
               <div style={{
                 color: FACTIONS[state.faction]?.color || T.textDim,
-                fontSize: 11,
+                fontSize: T.metadataFontSize,
                 marginTop: 4,
                 letterSpacing: "0.06em"
               }}>
@@ -575,7 +587,7 @@ function PortScreen({ state, dispatch }) {
             }}>
               <div style={{ textAlign: "center", minWidth: 60 }}>
                 <div style={{ color: T.gold, fontSize: 22, fontWeight: "bold" }}>★ {state.fame}</div>
-                <div style={{ color: T.textDim, fontSize: 10 }}>{L.getFameInfo(state.fame).label}</div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{L.getFameInfo(state.fame).label}</div>
                 <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Fame</div>
               </div>
 
@@ -583,13 +595,13 @@ function PortScreen({ state, dispatch }) {
                 <div style={{ color: (state.infamy ?? 0) > 0 ? T.red : T.textFaint, fontSize: 22, fontWeight: "bold" }}>
                   <IconSkull size={18} color={(state.infamy ?? 0) > 0 ? T.red : T.textFaint} /> {state.infamy ?? 0}
                 </div>
-                <div style={{ color: T.textDim, fontSize: 10 }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{L.getInfamyLabel(state.infamy ?? 0)}</div>
                 <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Infamy</div>
               </div>
 
               <div style={{ textAlign: "center", minWidth: 60 }}>
                 <div style={{ color: T.text, fontSize: 22, fontWeight: "bold" }}>{daysSurvived}</div>
-                <div style={{ color: T.textDim, fontSize: 10 }}>days at sea</div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>days at sea</div>
                 <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>Tenure</div>
               </div>
             </div>
@@ -621,7 +633,7 @@ function PortScreen({ state, dispatch }) {
             onClick={() => setShowFullLedger(v => !v)}
             style={{
               color: T.textFaint,
-              fontSize: 10,
+              fontSize: T.captionFontSize,
               cursor: "pointer",
               marginTop: 4,
               padding: 4,
@@ -728,8 +740,8 @@ function PortScreen({ state, dispatch }) {
                   {/* Reputation bar */}
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ color: T.textDim, fontSize: 10 }}>Standing</span>
-                      <span style={{ color: repColor, fontSize: 10, fontWeight: "bold" }}>
+                      <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Standing</span>
+                      <span style={{ color: repColor, fontSize: T.captionFontSize, fontWeight: "bold" }}>
                         {repLabel} ({avgRep})
                       </span>
                     </div>
@@ -743,8 +755,8 @@ function PortScreen({ state, dispatch }) {
                   {heat > 0 && (
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                        <span style={{ color: T.textDim, fontSize: 10 }}>Heat</span>
-                        <span style={{ color: T.redBr, fontSize: 10, fontWeight: "bold" }}>
+                        <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Heat</span>
+                        <span style={{ color: T.redBr, fontSize: T.captionFontSize, fontWeight: "bold" }}>
                           {heatLabel} ({heat}/10)
                         </span>
                       </div>
@@ -768,7 +780,7 @@ function PortScreen({ state, dispatch }) {
             })}
           </div>
 
-          <p style={{ color: T.textDim, fontSize: 10, lineHeight: 1.6, marginTop: 10 }}>
+          <p style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.6, marginTop: 10 }}>
             Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction. Heat decays naturally as you stay clear of trouble.
           </p>
         </div>
@@ -872,7 +884,7 @@ function PortScreen({ state, dispatch }) {
               border: `1px solid ${T.border}`,
               color: T.text,
               borderRadius: 3,
-              fontSize: 11,
+              fontSize: T.metadataFontSize,
               fontFamily: T.font,
               outline: "none",
             }}

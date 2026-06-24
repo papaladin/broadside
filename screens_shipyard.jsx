@@ -47,7 +47,7 @@ function StatDelta({ label, before, after }) {
     const arrow = diff > 0 ? " ↑" : diff < 0 ? " ↓" : " =";
     const color = diff > 0 ? T.greenBr : diff < 0 ? T.redBr : T.textDim;
     return (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11, marginBottom: 3, gap: T.spacing.md }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: T.metadataFontSize, marginBottom: 3, gap: T.spacing.md }}>
             <span style={{ color: T.textDim, minWidth: 70, flexShrink: 0 }}>{label}</span>
             <span style={{ color, textAlign: "right", whiteSpace: "nowrap" }}>
                 {before} → {after}{arrow}
@@ -139,7 +139,7 @@ function ShipyardScreen({ state, dispatch }) {
             return (
                 <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
-                        <span style={{ color: T.gold, fontSize: 12, fontWeight: "bold" }}>
+                        <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
                             {isFromLocker
                                 ? React.createElement(React.Fragment, null,
                                     React.createElement(IconChest, { size: 12, color: T.gold }),
@@ -154,7 +154,7 @@ function ShipyardScreen({ state, dispatch }) {
                         <Btn sm v="ghost" onClick={() => setSelectedEquip(null)} style={{ flexShrink: 0 }}>✕</Btn>
                     </div>
                     <div style={{ color: T.text, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 4 }}>{item.name}</div>
-                    <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
+                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
                         {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
                     </div>
 
@@ -168,9 +168,9 @@ function ShipyardScreen({ state, dispatch }) {
                     </div>
 
                     {!validation.ok ? (
-                        <div style={{ color: T.gold, fontSize: 10 }}>🔒 {validation.reason}</div>
+                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}>🔒 {validation.reason}</div>
                     ) : !canAfford ? (
-                        <div style={{ color: T.redBr, fontSize: 10 }}>Need {totalCost - state.gold}g more</div>
+                        <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {totalCost - state.gold}g more</div>
                     ) : (
                         <Btn v="gold" onClick={() => {
                             if (isFromLocker) {
@@ -198,7 +198,7 @@ function ShipyardScreen({ state, dispatch }) {
             return (
                 <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
-                        <span style={{ color: T.gold, fontSize: 12, fontWeight: "bold" }}>
+                        <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
                             <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
                         </span>
                         <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
@@ -234,14 +234,14 @@ function ShipyardScreen({ state, dispatch }) {
                         <StatDelta label="Max Days"  before={cur.maxDays}     after={s.maxDays} />
                     </div>
 
-                    <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>
+                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
                         ⚠ Buying a new ship clears all installed equipment. Remove items to your locker first.
                     </div>
 
                     {!shipReq.allowed ? (
-                        <div style={{ color: T.gold, fontSize: 10 }}>🔒 {shipReq.reason}</div>
+                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}>🔒 {shipReq.reason}</div>
                     ) : lack > 0 ? (
-                        <div style={{ color: T.redBr, fontSize: 10 }}>Need {lack.toLocaleString()}g more</div>
+                        <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {lack.toLocaleString()}g more</div>
                     ) : (
                         <Btn v="gold" onClick={() => {
                             dispatch({ type: A.BUY_SHIP, shipType: selectedShip });
@@ -304,7 +304,7 @@ function ShipyardScreen({ state, dispatch }) {
 
             {/* Repair */}
             <div style={panelStyle()}>
-                <div style={{ color: T.textDim, fontSize: 10, marginBottom: 4 }}>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
                     Hull: {state.ship.hull} / {effectiveStats.maxHull}
                 </div>
                 <Bar value={state.ship.hull} max={effectiveStats.maxHull}
@@ -330,7 +330,7 @@ function ShipyardScreen({ state, dispatch }) {
                     onClick={() => isNarrow && setEquippedOpen(v => !v)}
                 >
                     <SectionTitle>EQUIPPED</SectionTitle>
-                    {isNarrow && <span style={{ color: T.textDim, fontSize: 12 }}>{equippedOpen ? "▾" : "▸"}</span>}
+                    {isNarrow && <span style={{ color: T.textDim, fontSize: T.narrativeFontSize }}>{equippedOpen ? "▾" : "▸"}</span>}
                 </div>
 
                 {(isNarrow ? equippedOpen : true) && (
@@ -343,7 +343,7 @@ function ShipyardScreen({ state, dispatch }) {
 
                             return (
                                 <div key={slotKey}>
-                                    <div style={{ color: T.gold, fontSize: 10, fontWeight: "bold", marginBottom: 2, display: "flex", alignItems: "center" }}>
+                                    <div style={{ color: T.gold, fontSize: T.captionFontSize, fontWeight: "bold", marginBottom: 2, display: "flex", alignItems: "center" }}>
                                         <SlotIcon size={12} color={T.gold} style={{ marginRight: 4 }} />
                                         {slotInfo.label} ({installed.length}/{slotMax})
                                     </div>
@@ -358,7 +358,7 @@ function ShipyardScreen({ state, dispatch }) {
                                                 background: T.panelAlt, padding: "4px 6px", borderRadius: 3, marginBottom: 2,
                                             }}>
                                                 <div>
-                                                    <div style={{ color: T.text, fontSize: 10 }}>
+                                                    <div style={{ color: T.text, fontSize: T.captionFontSize }}>
                                                         {item.name}
                                                         {!item.removable && <span style={{ color: T.gold, fontSize: 8, marginLeft: 4 }}>(Struct.)</span>}
                                                     </div>
@@ -445,8 +445,8 @@ function ShipyardScreen({ state, dispatch }) {
                                     opacity: item.validation.ok ? 1 : 0.55,
                                 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                    <span style={{ color: T.text, fontSize: 11, fontWeight: "bold" }}>{item.name}</span>
-                                    <span style={{ color: T.gold, fontSize: 10 }}>{item.totalCost}g</span>
+                                    <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
+                                    <span style={{ color: T.gold, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
                                 </div>
                                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
                                     {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
@@ -501,10 +501,10 @@ function ShipyardScreen({ state, dispatch }) {
                                 opacity: shipReq.allowed ? 1 : 0.55,
                             }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{s.name}</span>
+                                <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{s.name}</span>
                                 {isCur
                                     ? <Pill label="Current" color={T.greenBr} />
-                                    : <span style={{ color: T.gold, fontSize: 10 }}>{s.cost.toLocaleString()}g</span>
+                                    : <span style={{ color: T.gold, fontSize: T.captionFontSize }}>{s.cost.toLocaleString()}g</span>
                                 }
                             </div>
                             <p style={{ color: T.textDim, fontSize: 9, margin: "0 0 6px", lineHeight: 1.4 }}>{s.desc}</p>
@@ -553,7 +553,7 @@ function ShipyardScreen({ state, dispatch }) {
                                 opacity: item.validation.ok ? 1 : 0.55,
                             }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ color: T.text, fontSize: 11, fontWeight: "bold" }}>{item.name}</span>
+                                <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
                                 <span style={{ color: T.textDim, fontSize: 9 }}>Install: {item.installFee}g</span>
                             </div>
                             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>

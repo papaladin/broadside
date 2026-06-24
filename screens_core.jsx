@@ -31,7 +31,7 @@ window.S = window.S || {};
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
         <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
-        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+        <div style={{ color: T.textDim, fontSize: T.metadataFontSize, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
@@ -104,12 +104,12 @@ window.S = window.S || {};
         background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
       }}>
         <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
-        <div style={{ color: T.textDim, fontSize: 11, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+        <div style={{ color: T.textDim, fontSize: T.metadataFontSize, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
 
         <div style={{ width: 380, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: T.spacing.lg }}>
           {/* Captain Name */}
           <div>
-            <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Captain's Name</div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Captain's Name</div>
             <div style={{ display: "flex", gap: T.spacing.sm }}>
               <input type="text" value={captainName} onChange={e => setCaptainName(e.target.value)}
                 style={{ flex: 1, padding: "10px 12px", background: T.panel, border: `1px solid ${T.border}`, color: T.text, fontSize: 15, fontFamily: T.font, borderRadius: 2, outline: "none" }} />
@@ -119,7 +119,7 @@ window.S = window.S || {};
 
           {/* Faction Selection */}
           <div>
-            <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Choose your allegiance</div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Choose your allegiance</div>
             <div style={{ display: "flex", gap: T.spacing.sm }}>
               {Object.entries(FACTIONS).map(([key, fac]) => (
                 <div key={key} onClick={() => setSelectedFaction(key)}
@@ -127,7 +127,7 @@ window.S = window.S || {};
                     background: selectedFaction === key ? (fac.color + "20") : T.panel,
                     border: `2px solid ${selectedFaction === key ? fac.color : T.border}`,
                     borderRadius: 2, transition: "border-color 0.15s" }}>
-                  <div style={{ color: fac.color, fontSize: 10, fontWeight: "bold", letterSpacing: "0.05em" }}>{fac.label.substring(0,3).toUpperCase()}</div>
+                  <div style={{ color: fac.color, fontSize: T.captionFontSize, fontWeight: "bold", letterSpacing: "0.05em" }}>{fac.label.substring(0,3).toUpperCase()}</div>
                   <div style={{ color: T.textDim, fontSize: 8 }}>{fac.label}</div>
                 </div>
               ))}
@@ -152,7 +152,7 @@ window.S = window.S || {};
           {/* Onboarding toggle */}
           {/* Tutorial choice */}
 <div>
-  <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+  <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
     Tutorial style
   </div>
   <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
@@ -178,7 +178,7 @@ window.S = window.S || {};
           style={{ accentColor: T.gold }}
         />
         <div>
-          <div style={{ color: T.text, fontSize: 12, fontWeight: "bold" }}>{opt.label}</div>
+          <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{opt.label}</div>
           <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
         </div>
       </label>
@@ -216,7 +216,7 @@ window.S = window.S || {};
         React.createElement(Btn, { sm: true, v: "gold", onClick: onDismiss }, "Got it"),
         React.createElement('div', {
           onClick: onSkip,
-          style: { color: T.textFaint, fontSize: 10, cursor: "pointer", textDecoration: "underline", alignSelf: "center" }
+          style: { color: T.textFaint, fontSize: T.captionFontSize, cursor: "pointer", textDecoration: "underline", alignSelf: "center" }
         }, "I'll take it from here"),
       ),
     ),

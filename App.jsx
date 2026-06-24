@@ -160,7 +160,7 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
               <button onClick={() => setDebugOpen(v => !v)}
                 style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
                   padding: "2px 6px", borderRadius: 2, cursor: "pointer",
-                  fontSize: 10, fontFamily: T.fontMono }}>
+                  fontSize: T.captionFontSize, fontFamily: T.fontMono }}>
                 ⚙
               </button>
             </div>
@@ -176,7 +176,7 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
               <button onClick={() => setDebugOpen(v => !v)}
                 style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
                   padding: "2px 6px", borderRadius: 2, cursor: "pointer",
-                  fontSize: 10, fontFamily: T.fontMono, width: "100%", height: "100%" }}>
+                  fontSize: T.captionFontSize, fontFamily: T.fontMono, width: "100%", height: "100%" }}>
                 ⚙
               </button>
             </div>
@@ -185,7 +185,7 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
       )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginTop: 3, fontSize: 10, color: T.textDim, paddingLeft: 2 }}>
+        marginTop: 3, fontSize: T.captionFontSize, color: T.textDim, paddingLeft: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
           {currentPort && (
             <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
@@ -265,7 +265,7 @@ const DebugPanel = ({ state, dispatch }) => {
   const { FACTIONS } = window.D;
   const btnStyle = {
     background: T.panel, border: `1px solid ${T.border}`, color: T.textDim,
-    padding: "3px 6px", borderRadius: 2, cursor: "pointer", fontSize: 10, fontFamily: T.fontMono,
+    padding: "3px 6px", borderRadius: 2, cursor: "pointer", fontSize: T.captionFontSize, fontFamily: T.fontMono,
   };
   return (
       <div style={{
@@ -301,7 +301,7 @@ const DebugPanel = ({ state, dispatch }) => {
         const fac = FACTIONS[faction];
         return (
           <div key={faction} style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
-            <span style={{ color: fac?.color || T.textDim, fontSize: 10, width: 50 }}>{fac?.label || faction}</span>
+            <span style={{ color: fac?.color || T.textDim, fontSize: T.captionFontSize, width: 50 }}>{fac?.label || faction}</span>
             {[5, 10].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_HEAT, faction, amount: n })} style={btnStyle}>{n}</button>))}
           </div>);
       })}

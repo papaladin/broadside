@@ -38,6 +38,15 @@ window.S = window.S || {};
     return React.createElement(IconComponent, { size: 14, color: T.textDim, style: { marginRight: 8 } });
   };
 
+  // ── Sort helper: groups legal goods first, illegal goods last.
+  // Array.prototype.sort is stable in modern JS, so within each group
+  // the original colOrder is preserved.
+  const sortLegalFirst = (a, b) => {
+    const aIllegal = RESOURCES[a]?.illegal ? 1 : 0;
+    const bIllegal = RESOURCES[b]?.illegal ? 1 : 0;
+    return aIllegal - bIllegal;
+  };
+
 const MarketScreen = ({ state, dispatch }) => {
     const market = state.portMarket;
     const portName = PORTS[state.currentPort]?.name || "Port";
@@ -65,11 +74,27 @@ const MarketScreen = ({ state, dispatch }) => {
     const used = L.getHoldUsed(previewItems);
     const loadPct = L.getHoldLoadPct(previewItems, capacity);
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
-    const goldDelta = Object.keys(market.goods).reduce((sum, good) => {
-      const pg = market.goods[good];
-      if (!pg) return sum;
-      return sum + (sellPending[good] || 0) * pg.sellToPort - (buyPending[good] || 0) * pg.buyFromPort;
-    }, 0);
+
+    // ── Gold delta: iterate from pending sets (not market.goods) ──
+    // After the generator fix, market.goods has all 14 goods with real prices,
+    // so selling a good the port doesn't stock now contributes correctly.
+    const goldDelta = (() => {
+      let total = 0;
+      Object.entries(sellPending).forEach(([good, qty]) => {
+        if (!qty || qty <= 0) return;
+        const pg = market.goods[good];
+        if (!pg) return;
+        total += qty * pg.sellToPort;
+      });
+      Object.entries(buyPending).forEach(([good, qty]) => {
+        if (!qty || qty <= 0) return;
+        const pg = market.goods[good];
+        if (!pg) return;
+        total -= qty * pg.buyFromPort;
+      });
+      return total;
+    })();
+
     const hasPending = Object.values(buyPending).some(v => (v || 0) > 0) || Object.values(sellPending).some(v => (v || 0) > 0);
 
     const confirmTrade = () => {
@@ -147,7 +172,7 @@ const MarketScreen = ({ state, dispatch }) => {
           </div>
           <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={10} />
           {speedMult > 1 && (
-            <div style={{ color: T.gold, fontSize: 10, marginTop: 4 }}>
+            <div style={{ color: T.gold, fontSize: T.captionFontSize, marginTop: 4 }}>
               ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
             </div>
           )}
@@ -156,7 +181,7 @@ const MarketScreen = ({ state, dispatch }) => {
           {(pendingBuyGoods.length > 0 || pendingSellGoods.length > 0) && (
             <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {pendingBuyGoods.map(good => (
-                <span key={good} style={{ color: T.text, fontSize: 11, display: "flex", alignItems: "center", gap: 2 }}>
+                <span key={good} style={{ color: T.text, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 2 }}>
                   {getGoodIcon(good, { size: 12, style: { marginRight: 2 } })}
                   +{buyPending[good]} {window.D.RESOURCES[good]?.name || good}
                 </span>
@@ -167,7 +192,7 @@ const MarketScreen = ({ state, dispatch }) => {
                   -{sellPending[good]} {window.D.RESOURCES[good]?.name || good}
                 </span>
               ))}
-              <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize: 12, fontWeight: "bold", marginLeft: 8 }}>
+              <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginLeft: 8 }}>
                 {goldDelta >= 0 ? "+" : ""}{goldDelta}g
               </span>
             </div>
@@ -190,16 +215,19 @@ const MarketScreen = ({ state, dispatch }) => {
               <div>
                 {Object.keys(holdItems)
                   .filter(good => (holdItems[good]||0) > 0 || (sellPending[good]||0) > 0)
+                  .sort(sortLegalFirst)
                   .map(good => {
-                    const pg = market.goods[good];   // may be undefined if port doesn't trade this good
-                    const price = pg ? pg.sellToPort : (window.D.RESOURCES[good]?.basePrice || 0);
+                    const pg = market.goods[good];
+                    // After generator fix, pg always exists for any of the 14 goods.
+                    // The fallback is defensive only.
+                    const price = pg ? pg.sellToPort : 0;
                     const inHold = holdItems[good] || 0;
                     const pending = sellPending[good] || 0;
                     const max = inHold + (buyPending[good] || 0);
 
                     return (
                       <div key={good} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 6, flexWrap:"wrap" }}>
-                        <span style={{ color: T.text, fontSize: 12, display:"flex", alignItems:"center" }}>
+                        <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
                           {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
                           {window.D.RESOURCES[good]?.name || good}
                           <span style={{ color: T.textDim, marginLeft: 6 }}>×{inHold}</span>
@@ -214,7 +242,7 @@ const MarketScreen = ({ state, dispatch }) => {
                             style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
                           />
                           <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= max}>+</Btn>
-                          <span style={{ color: T.gold, fontSize: 10, minWidth: 48, textAlign:"right" }}>
+                          <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
                           {price}g
                           <div style={{ color: T.textFaint, fontSize: 8 }}>
                             (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
@@ -229,12 +257,19 @@ const MarketScreen = ({ state, dispatch }) => {
           }
           rightTitle="PORT MARKET"
                     rightContent={
-            Object.keys(market.goods).length === 0 ? (
-              <EmptyState message="No goods available." />
+            Object.keys(market.goods).filter(g => market.goods[g].available > 0).length === 0 ? (
+              <EmptyState message="No goods available for purchase." />
             ) : (
               (() => {
                 let illegalDividerShown = false;
-                return Object.keys(market.goods).map(good => {
+                // Filter to only goods the port actually has stock of.
+                // After the generator fix, all 14 goods are in market.goods,
+                // but many have available: 0 (port doesn't trade them).
+                // Sort puts illegal goods last so the divider correctly separates them.
+                return Object.keys(market.goods)
+                  .filter(good => market.goods[good].available > 0)
+                  .sort(sortLegalFirst)
+                  .map(good => {
                   const pg = market.goods[good];
                   const price = pg.buyFromPort;
                   const available = pg.available;
@@ -255,10 +290,10 @@ const MarketScreen = ({ state, dispatch }) => {
                         }} />
                       )}
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 6, flexWrap:"wrap" }}>
-                        <span style={{ color: T.text, fontSize: 12, display:"flex", alignItems:"center" }}>
+                        <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
                           {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
                           {RESOURCES[good]?.name || good}
-                          {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: 10 }}>(Illegal)</span>}
+                          {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: T.captionFontSize }}>(Illegal)</span>}
                           <span style={{ color: T.textDim, marginLeft: 6 }}>×{available}</span>
                         </span>
                         {/* buy controls unchanged */}
@@ -272,7 +307,7 @@ const MarketScreen = ({ state, dispatch }) => {
                             style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
                           />
                           <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
-                          <span style={{ color: T.gold, fontSize: 10, minWidth: 48, textAlign:"right" }}>
+                          <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
                             {price}g
                             <div style={{ color: T.textFaint, fontSize: 8 }}>
                               (Base: {pg.basePrice}g)

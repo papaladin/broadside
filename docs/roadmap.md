@@ -172,8 +172,8 @@ Broadside is fully playable with rich narrative systems:
 
 #### B2.3 — Career stats tracking
 - [ ] Add persistent career stats to state: days survived, total gold earned/spent, ships sunk, crew lost, crew hired, ports visited, missions completed/failed, goods traded, contraband seized, battles won/lost/fled
-- [ ] Display on revamped Status screen as "Captain\'s Career" section
-- [ ] Track per-run and cumulative (for future multi-run legacy)
+- [X] Display on revamped Status screen as "Captain\'s Career" section
+- [X] Track per-run and cumulative (for future multi-run legacy) -_> rejected. this is not a roguelite/roguelike.
 - **Prerequisite for B12 (retirement / score / legacy screen).** Build the data layer early to avoid retrofitting.
 - **Pillar**: Consequence (the Caribbean keeps score)
 
@@ -190,13 +190,13 @@ Broadside is fully playable with rich narrative systems:
 #### B3.2 — Visual theme refinement
 - [ ] Consistent spacing, typography, and panel styling across all screens
 - [ ] Improve color contrast for accessibility
-- [ ] Subtle hover/focus states on all interactive elements
+- [X] Subtle hover/focus states on all interactive elements
 - [ ] Consider high-contrast / colorblind-safe palette option
 
 #### B3.3 — Accessibility pass
 - [ ] ARIA labels on all interactive elements
 - [ ] Alt text on SVG icons
-- [ ] Keyboard navigation support
+- [X] Keyboard navigation support --> parked
 - [ ] Screen reader compatibility for HUD, combat, journal
 
 ### B4 — Playtest Wave 1

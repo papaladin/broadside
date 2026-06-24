@@ -79,7 +79,7 @@ const getVisualEquipment = (state) => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Pill label={ev.type} color={typeColor[ev.type] ?? T.textDim} />
-            <span style={{ color: T.textDim, fontSize: 10 }}>Day {state.day}</span>
+            <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Day {state.day}</span>
           </div>
           <div style={{
             color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold", marginBottom: 8,
@@ -97,8 +97,8 @@ const getVisualEquipment = (state) => {
                 onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr}
                 onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
               >
-                <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 3 }}>{c.label}</div>
-                <div style={{ color: T.textDim, fontSize: 10 }}>{c.outcome.log}</div>
+                <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 3 }}>{c.label}</div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{c.outcome.log}</div>
               </div>
             ))}
           </div>
@@ -121,13 +121,13 @@ const getVisualEquipment = (state) => {
         </div>
 
         <div style={panelStyle({ borderColor: T.borderBr })}>
-          <p style={{ color: T.text, fontSize: 12, lineHeight: 1.6 }}>{flavourText}</p>
+          <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{flavourText}</p>
         </div>
 
         <div style={panelStyle()}>
-          <div style={{ color: T.redBr, fontSize: 12, fontWeight: "bold", marginBottom: 8 }}>
+          <div style={{ color: T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 8 }}>
             {enemy.name}
-            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: 10 }}>
+            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.captionFontSize }}>
               {enemyShip.name ?? enemy.ship}
             </span>
           </div>
@@ -150,7 +150,7 @@ const getVisualEquipment = (state) => {
         </div>
 
         <div style={panelStyle()}>
-          <div style={{ color: T.textDim, fontSize: 10, marginBottom: 10, letterSpacing: "0.08em" }}>
+          <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, letterSpacing: "0.08em" }}>
             CHOOSE YOUR RESPONSE:
           </div>
           {options.map(opt => (
@@ -168,12 +168,12 @@ const getVisualEquipment = (state) => {
                 {opt.label}
               </Btn>
               {!opt.available && opt.reason && (
-                <div style={{ color: T.textFaint, fontSize: 10, marginTop: 2, marginLeft: 4 }}>
+                <div style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 2, marginLeft: 4 }}>
                   ✗ {opt.reason}
                 </div>
               )}
               {opt.id === "flee" && opt.available && opt.speedCheck && (
-                <div style={{ color: T.textDim, fontSize: 10, marginTop: 2, paddingLeft: 4 }}>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 2, paddingLeft: 4 }}>
                   Speed check: your {opt.speedCheck.player} vs their {opt.speedCheck.enemy}
                 </div>
               )}
@@ -273,7 +273,7 @@ const getVisualEquipment = (state) => {
           const baseH = isNarrowBattle ? 100 : 175;
 
           return (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "stretch" }}>
               {/* Player ship panel */}
               <div style={panelStyle({ borderColor: T.blueBr, padding: 8 })}>
                 <div style={{
@@ -296,7 +296,7 @@ const getVisualEquipment = (state) => {
                     facing="right"
                   />
                 </div>
-                <div style={{ color: T.blueBr, fontSize: 10, marginBottom: 4 }}>{state.ship.name}</div>
+                <div style={{ color: T.blueBr, fontSize: T.captionFontSize, marginBottom: 4 }}>{state.ship.name}</div>
                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
                 <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
                 {bs.convoyHull !== undefined && (
@@ -333,7 +333,7 @@ const getVisualEquipment = (state) => {
                     facing="left"
                   />
                 </div>
-                <div style={{ color: T.redBr, fontSize: 10, marginBottom: 4 }}>{bs.enemy.name}</div>
+                <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginBottom: 4 }}>{bs.enemy.name}</div>
                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.enemyHull} / {bs.enemy.hull}</div>
                 <Bar value={bs.enemyHull} max={bs.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
@@ -376,7 +376,7 @@ const getVisualEquipment = (state) => {
 
         {!done ? (
           <div>
-            <div style={{ color: T.textDim, fontSize: 10, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
             <div style={{
               display: "grid",
               gridTemplateColumns: window.innerWidth < 480 ? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
@@ -410,10 +410,10 @@ const getVisualEquipment = (state) => {
                     e.currentTarget.style.transform = "scale(1)";
                   }}
                 >
-                  <div style={{ color: T.text, fontSize: 12, fontWeight: "bold", marginBottom: 2 }}>
+                  <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
                     {label}{lbl}
                   </div>
-                  <div style={{ color: T.textDim, fontSize: 10 }}>{desc}</div>
+                  <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
                 </div>
               ))}
             </div>
@@ -542,15 +542,15 @@ const getVisualEquipment = (state) => {
         <div style={panelStyle()}>
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
-              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Plunder gold</div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase" }}>Plunder gold</div>
               <div style={{ color: T.gold, fontSize: T.heading3FontSize }}>+{goldReward}g</div>
             </div>
             <div>
-              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Cargo value</div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase" }}>Cargo value</div>
               <div style={{ color: T.text, fontSize: T.heading3FontSize }}>{goodsValue}g</div>
             </div>
             <div>
-              <div style={{ color: T.textDim, fontSize: 10, textTransform: "uppercase" }}>Total haul</div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase" }}>Total haul</div>
               <div className={totalFlash} style={{ color: T.goldBr, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
                 {totalValue}g
               </div>
@@ -562,7 +562,7 @@ const getVisualEquipment = (state) => {
             </div>
           </div>
           {hasIllegal && (
-            <div style={{ marginTop: 8, color: T.red, fontSize: 10 }}>
+            <div style={{ marginTop: 8, color: T.red, fontSize: T.captionFontSize }}>
               ⚠ Illegal goods detected — patrols may inspect
             </div>
           )}
@@ -580,7 +580,7 @@ const getVisualEquipment = (state) => {
                 ) : (
                   Object.entries(playerItems).map(([good, qty]) => (
                     <div key={good} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ color: T.text, fontSize: 12 }}>
+                      <span style={{ color: T.text, fontSize: T.narrativeFontSize }}>
                         {getGoodIcon(good)}
                         {window.D.RESOURCES[good]?.name || good}
                         <span style={{ color: T.textDim }}> ×{qty}</span>
@@ -614,7 +614,7 @@ const getVisualEquipment = (state) => {
                         }} />
                       )}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ color: T.text, fontSize: 12 }}>
+                        <span style={{ color: T.text, fontSize: T.narrativeFontSize }}>
                           {getGoodIcon(good)}
                           {window.D.RESOURCES[good]?.name || good}
                           {isIllegal && <span style={{ color: T.redBr }}> ⚠</span>}

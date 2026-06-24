@@ -46,13 +46,13 @@ const T = {
     fontMono: "'Courier New', monospace",
     fontSize: 'max(11px, min(1.2vw, 14px))',
     btnMinHeight: 44,
-    narrativefontSize: 12, // body text, flavour, mission descriptions
     narrativeLineHeight: 1.55,
-    metadataFontSize: 11, // costs, dates, faction labels
     captionFontSize: 10, // fine print, gossip details, small hints
-    heading1FontSize: 18,    // screen titles, port name, victory/defeat text
-    heading2FontSize: 16,    // section headings, encounter title, battle round
+    metadataFontSize: 11, // costs, dates, faction labels
+    narrativefontSize: 12, // body text, flavour, mission descriptions
     heading3FontSize: 14,    // enemy name, active mission title, crew member name
+    heading2FontSize: 16,    // section headings, encounter title, battle round
+    heading1FontSize: 18,    // screen titles, port name, victory/defeat text
     spacing: {
       xs: 4,
       sm: 8,
@@ -192,7 +192,7 @@ const Pill = ({ label, color = T.textDim, style = {} }) => (
 
   const StatBlock = ({ label, value, color }) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <span style={{ color: T.textDim, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
+      <span style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
       <span style={{ color: color || T.text, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{value}</span>
     </div>
   );
@@ -237,7 +237,7 @@ const Pill = ({ label, color = T.textDim, style = {} }) => (
   ...(v.bgStyle || {}),
   ...style,
 }}>
-        {title && <div style={{ color: v.titleColor, fontSize: 12, fontWeight: 'bold',
+        {title && <div style={{ color: v.titleColor, fontSize: T.narrativeFontSize, fontWeight: 'bold',
           letterSpacing: '0.08em', marginBottom: 8 }}>
           {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{title}
         </div>}
@@ -261,7 +261,7 @@ const TutorialPopup = ({ title, children, onDismiss }) => {
     style: { ...panelStyle({ maxWidth: 460, width: "90%" }), borderColor: T.gold }
   },
     React.createElement('div', { style: { color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 10 } }, title),
-    React.createElement('div', { style: { color: T.text, fontSize: 12, lineHeight: 1.6, marginBottom: 16 } }, children),
+    React.createElement('div', { style: { color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6, marginBottom: 16 } }, children),
     React.createElement('div', { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
       React.createElement('label', { style: { color: T.textDim, fontSize: 11, cursor: "pointer" } },
         React.createElement('input', { type: "checkbox", checked: dontShowAgain,

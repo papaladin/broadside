@@ -73,7 +73,7 @@ window.S = window.S || {};
             </div>
             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>MORALE</div>
             <Bar value={state.crew.morale} max={100} color={state.crew.morale > 60 ? T.greenBr : state.crew.morale > 30 ? T.gold : T.redBr} h={10} />
-            {state.crew.morale < 50 && <div style={{ color: T.redBr, fontSize: 10, marginTop: 6 }}>⚠ Low morale weakens combat effectiveness</div>}
+            {state.crew.morale < 50 && <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 6 }}>⚠ Low morale weakens combat effectiveness</div>}
 
             {(() => {
               const counts = {};
@@ -81,7 +81,7 @@ window.S = window.S || {};
                 counts[m.faction] = (counts[m.faction] || 0) + 1;
               });
               return (
-                <div style={{ fontSize: 10, color: T.textDim, marginTop: 10 }}>
+                <div style={{ fontSize: T.captionFontSize, color: T.textDim, marginTop: 10 }}>
                   {Object.entries(counts).map(([faction, count]) => {
                     const fac = FACTIONS[faction];
                     return (
@@ -104,7 +104,7 @@ window.S = window.S || {};
           {/* ── HIRE PANEL ────────────────────────────────── */}
           <div style={panelStyle()}>
             <SectionTitle>HIRE</SectionTitle>
-            <p style={{ color: T.textDim, fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
+            <p style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
             {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
             </div>
@@ -237,7 +237,7 @@ window.S = window.S || {};
                   {isMutineer && (
                     <span style={{
                       position: "absolute", top: -2, right: -2,
-                      fontSize: 10, color: T.purpleBr,
+                      fontSize: T.captionFontSize, color: T.purpleBr,
                     }}>⚠</span>
                   )}
                 </div>
