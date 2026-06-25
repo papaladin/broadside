@@ -2,7 +2,7 @@
 window.S = window.S || {};
 
 (() => {
-  const { useState } = React;
+  const { useState, useMemo } = React;
   const { SHIPS, FACTIONS, PORTS } = window.D;
   const L = window.L;
   const A = window.E.A;
@@ -38,6 +38,28 @@ window.S = window.S || {};
     const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
     const [selectedMember, setSelectedMember] = React.useState(null);
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"crew"));
+
+  // ── Bio cache: generated once per port visit, keyed by crew member id ──
+  const bioCache = React.useRef({});
+
+  // Clear the cache when the port changes
+  React.useEffect(() => {
+    bioCache.current = {};
+  }, [state.currentPort]);
+
+  // Get bio for a member (cached per port visit)
+  const getCrewBio = (member) => {
+    if (!member) return "";
+    if (member.bio) return member.bio;
+    if (bioCache.current[member.id]) return bioCache.current[member.id];
+    if (typeof G.generateCrewBio === 'function') {
+      const newBio = G.generateCrewBio(member, state);
+      bioCache.current[member.id] = newBio;
+      return newBio;
+    }
+    return `${member.firstName} is a crew member.`;
+  };
+
 
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
@@ -160,11 +182,7 @@ window.S = window.S || {};
                       )}
 
                       <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
-                        {selectedMember.bio
-                          ? selectedMember.bio
-                          : typeof G.generateCrewBio === 'function'
-                            ? G.generateCrewBio(selectedMember, state)
-                            : `${selectedMember.firstName} is a crew member.`}
+                        {getCrewBio(selectedMember)}
                       </div>
                     </div>
                     {!L.hasTag(selectedMember, "protected") ? (

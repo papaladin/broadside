@@ -1,0 +1,631 @@
+<!-- @ts-nocheck -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broadside — Screenshot Generator</title>
+
+<script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1622; color: #e2d6be; font-family: Georgia, 'Times New Roman', serif; font-size: 12px; padding: 20px; }
+  h1 { color: #c9aa6e; font-size: 22px; letter-spacing: 0.15em; margin-bottom: 4px; text-align: center; }
+  h2 { color: #c9aa6e; font-size: 16px; margin: 30px 0 10px; border-bottom: 1px solid #5a4a32; padding-bottom: 6px; }
+  .subtitle { color: #b0a48c; font-size: 11px; margin-bottom: 20px; text-align: center; }
+  nav { text-align: center; margin: 16px 0 30px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  nav a { color: #c9aa6e; text-decoration: none; padding: 6px 14px; border: 1px solid #5a4a32; border-radius: 3px; font-size: 11px; font-family: inherit; }
+  nav a:hover { background: #1c3450; }
+  .export-all { background: #c9aa6e; border: 1px solid #dfc080; color: #000; padding: 10px 24px; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: bold; display: block; margin: 0 auto 20px; }
+  .export-all:hover { background: #dfc080; }
+  .size-block { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 12px 16px 0; vertical-align: top; }
+  .size-label { color: #b0a48c; font-size: 10px; }
+  .export-btn { background: #221d16; border: 1px solid #5a4a32; color: #c9aa6e; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 10px; }
+  .export-btn:hover { background: #2a1a08; }
+  .scene { overflow: hidden; position: relative; }
+  .scene *, .scene { font-family: Georgia, 'Times New Roman', serif; }
+  .loading { text-align: center; padding: 80px; color: #b0a48c; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Broadside Screenshot Generator</h1>
+<div class="subtitle">Uses real game UI components — scenes reflect current theme, icons, and palette</div>
+<button class="export-all" onclick="exportAll()">Export All</button>
+<nav>
+  <a href="#sceneA">Cover</a>
+  <a href="#sceneB">Log</a>
+  <a href="#sceneC">Combat</a>
+  <a href="#sceneD">Port</a>
+  <a href="#sceneE">Crew</a>
+  <a href="#sceneF">F: itch.io Assets</a>
+</nav>
+
+<script>
+  window.E = window.E || { A: {}, _reducers: [], logEntry: (s, m) => `[${(s && s.day) || 1}] ${m}`, createBattleState: () => ({}) };
+  window.S = window.S || {};
+  window.L = window.L || {};
+  window.G = window.G || {};
+  window.D = window.D || {};
+  window.UI = window.UI || {};
+</script>
+
+<script src="../data.js"></script>
+<script src="../data_text.js"></script>
+<script src="../logic.js"></script>
+<script src="../storage.js"></script>
+<script src="../ship-sprite.js"></script>
+
+<script type="text/babel" data-presets="react" src="../icons.jsx"></script>
+<script type="text/babel" data-presets="react" src="../ui.jsx"></script>
+
+<div id="scenes-root"><div class="loading">Loading game UI…</div></div>
+
+<script>
+function exportScene(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  // Wait for all images inside this element to be complete
+  const imgs = el.querySelectorAll('img');
+  const wait = Promise.all(Array.from(imgs).map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise(resolve => {
+      img.onload = resolve;
+      img.onerror = resolve; // don't block on error
+    });
+  }));
+
+  wait.then(() => {
+    html2canvas(el, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,   // safer for toDataURL
+    }).then(c => {
+      const a = document.createElement("a");
+      a.download = fn;
+      a.href = c.toDataURL("image/png");
+      a.click();
+    }).catch(err => console.error("Export failed:", err));
+  });
+}
+</script>
+
+<script type="text/babel" data-presets="react">
+function waitReady(cb, attempt) {
+  attempt = attempt || 0;
+  const ready = window.UI && window.UI.T && window.UI.Btn && window.UI.LogList
+             && window.D && window.D.FACTIONS && window.D.SHIP_VISUALS
+             && window.L && window.L.classifyLogLine;
+  if (ready) cb();
+  else if (attempt < 80) setTimeout(() => waitReady(cb, attempt + 1), 100);
+  else document.getElementById('scenes-root').innerHTML =
+    '<div class="loading" style="color:#d06a58">Failed to load game UI. Verify ../data.js, ../ui.jsx, ../icons.jsx, ../logic.js, ../ship-sprite.js all exist and load successfully.</div>';
+}
+
+waitReady(() => {
+  const UI = window.UI;
+  const T = UI.T;
+  const { panelStyle, Btn, Bar, Pill, SectionTitle,
+          LogList, FactionPill, RepPill, NarrativePanel, NarrativeLine,
+          ShipSideSprite } = UI;
+  const Icon = (n) => UI[n] || (() => null);
+  const IconAnchor   = Icon('IconAnchor');
+  const IconJournal  = Icon('IconJournal');
+  const IconCrew     = Icon('IconCrew');
+  const IconTalking  = Icon('IconTalking');
+  const IconSkull    = Icon('IconSkull');
+  const IconSwords   = Icon('IconSwords');
+  const IconCannon   = Icon('IconCannon');
+  const IconTarget   = Icon('IconTarget');
+  const IconGrapple  = Icon('IconGrapple');
+  const IconWind     = Icon('IconWind');
+  const IconMap      = Icon('IconMap');
+  const IconBarChart = Icon('IconBarChart');
+  const IconMarket   = Icon('IconMarket');
+
+  const { FACTIONS: FC, PORTS, SHIPS, RESOURCES } = window.D;
+
+  const SIZES = [
+    { w: 315, h: 250, l: "315x250" },
+    { w: 630, h: 500, l: "630x500" },
+    { w: 1280, h: 640, l: "1280x640" },
+  ];
+
+  const SceneBox = ({ id, w, h, children }) => (
+    <div className="scene" id={id} style={{
+      width: w, height: h, background: T.bg, position: "relative",
+      color: T.text, fontFamily: T.font || "Georgia, serif",
+    }}>{children}</div>
+  );
+
+  const SectionHeader = ({ children }) => (
+    <h2 style={{ color: T.gold, fontSize: 16, margin: "30px 0 10px",
+      borderBottom: `1px solid ${T.border}`, paddingBottom: 6 }}>{children}</h2>
+  );
+
+  // ── SCENE A: Cover ───────────────────────────────────────────
+  const SceneA = ({ size, sid }) => {
+    const sz = size;
+    const ts = sz.w >= 1000 ? 48 : sz.w >= 500 ? 36 : 24;
+    const ss = sz.w >= 1000 ? 20 : sz.w >= 500 ? 15 : 12;
+    const tg = sz.w >= 1000 ? 13 : sz.w >= 500 ? 10 : 0;
+    const an = sz.w >= 1000 ? 60 : sz.w >= 500 ? 44 : 28;
+    const dt = sz.w >= 1000 ? 8 : sz.w >= 500 ? 6 : 4;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04}}
+             viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70"
+                fill="none" stroke={T.gold} strokeWidth="1.5" />
+          <path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90"
+                fill="none" stroke={T.gold} strokeWidth="1" />
+          <ellipse cx="160" cy="90" rx="8" ry="4" fill={T.gold} opacity="0.3" />
+          <ellipse cx="250" cy="78" rx="12" ry="5" fill={T.gold} opacity="0.2" />
+        </svg>
+        <div style={{position:"absolute", inset:8, border:`1px solid ${T.border}`, borderRadius:4}} />
+        <div style={{position:"absolute", inset:0, display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center", zIndex:1}}>
+          <div style={{marginBottom: sz.w >= 500 ? 12 : 6}}>
+            <IconAnchor size={an} color={T.gold} />
+          </div>
+          <div style={{color:T.gold, fontSize:ts, fontWeight:"bold",
+            letterSpacing:"0.2em", textShadow:`0 0 30px ${T.goldDim}`}}>BROADSIDE</div>
+          <div style={{color:T.textDim, fontSize:ss, letterSpacing:"0.15em",
+            marginTop: sz.w >= 500 ? 8 : 4}}>CARIBBEAN · 1695</div>
+          {tg > 0 && (
+            <div style={{color:T.textFaint, fontSize:tg,
+              marginTop: sz.w >= 1000 ? 16 : 10, fontStyle:"italic"}}>
+              A turn-based, narrative pirate strategy game
+            </div>
+          )}
+        </div>
+        <div style={{position:"absolute", bottom: sz.w >= 500 ? 16 : 8,
+          left:0, right:0, display:"flex", gap:dt, justifyContent:"center", zIndex:1}}>
+          {Object.values(FC).map((f, i) => (
+            <div key={i} style={{width:dt, height:dt, borderRadius:"50%",
+              background:f.color, opacity:0.6}} />
+          ))}
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE B: Captain's Log ──────────────────────────────────
+  const LOG_ENTRIES = [
+    "[47] Arrived at Havana.",
+    "[47] Soldiers patrol the docks. The garrison has been reinforced.",
+    "[48] Accepted mission: Hunt down The Scarlet Fortune.",
+    "[50] A squall hits without warning. The ship takes damage.",
+    "[50] Pedro García was lost in the storm.",
+    "[52] The Scarlet Fortune strikes her colours. Victory!",
+    "[52] Lost crew: Henri Dubois, Cornelis de Vries.",
+    "[52] Maria Navarro is disturbed by the attack on Spanish ships.",
+    "[53] Made port at Tortuga. The crew is glad to see land.",
+    "[53] Completed: Hunt down The Scarlet Fortune. +375g, +2 fame.",
+    "[53] Sold 3 Rum for 99g.",
+    "[53] Bought 5 Sugar for 210g.",
+    "[53] Bought drinks for the crew: -50g. Morale +5.",
+    "[53] Willem de Boer joins the crew as carpenter.",
+  ];
+  const SceneB = ({ size, sid }) => {
+    const sz = size;
+    const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
+    const p = sz.w >= 1000 ? 20 : sz.w >= 500 ? 14 : 8;
+    const mx = sz.h < 300 ? 7 : sz.w >= 1000 ? 14 : 10;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex", flexDirection:"column"}}>
+          <div style={{color:T.gold, fontSize:fs+2, fontWeight:"bold",
+            marginBottom:p/2, letterSpacing:"0.08em",
+            display:"flex", alignItems:"center", gap:6}}>
+            <IconJournal size={fs+4} color={T.gold} />
+            CAPTAIN'S LOG
+          </div>
+          <div style={{...panelStyle({padding:p-2}), flex:1, overflow:"hidden"}}>
+            <LogList entries={LOG_ENTRIES} maxEntries={mx} />
+          </div>
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE C: Combat ─────────────────────────────────────────
+  const SceneC = ({ size, sid }) => {
+    const sz = size;
+    const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
+    const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
+    const isNarrow = sz.w < 700;
+    const spriteW = isNarrow ? (sz.w < 400 ? 110 : 180) : 240;
+    const spriteH = isNarrow ? (sz.w < 400 ? 75 : 120) : 160;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex", flexDirection:"column", gap:p/2}}>
+          <div style={{textAlign:"center", color:T.redBr, fontSize:fs+3,
+            fontWeight:"bold", letterSpacing:"0.1em",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:6}}>
+            <IconSwords size={fs+4} color={T.redBr} />
+            NAVAL BATTLE — ROUND 4
+          </div>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 26px 1fr",
+            gap:4, alignItems:"stretch"}}>
+            {/* Player ship — schooner, pirate, war pennants */}
+            <div style={panelStyle({borderColor:T.blueBr, padding:8})}>
+              <div style={{background:T.bgDeep, borderRadius:3,
+                border:`1px solid ${T.borderFaint}`, padding:4, marginBottom:6,
+                display:"flex", justifyContent:"center", alignItems:"center",
+                minHeight: spriteH + 8}}>
+                <ShipSideSprite type="schooner" faction="pirate" equipment={["war_pennants"]}
+                  width={spriteW} height={spriteH} facing="right" />
+              </div>
+              <div style={{color:T.blueBr, fontSize:fs, fontWeight:"bold"}}>Cartographer's Folly</div>
+              <div style={{color:T.textDim, fontSize:fs-2, marginBottom:4}}>Hull: 98 / 150</div>
+              <Bar value={98} max={150} color={T.greenBr} h={10} />
+              <div style={{color:T.textDim, fontSize:fs-2, marginTop:4}}>12 crew · 15 cannons</div>
+            </div>
+            <div style={{textAlign:"center", color:T.redBr, fontSize:22}}>⚡</div>
+            {/* Enemy ship — frigate, Spanish */}
+            <div style={panelStyle({borderColor:T.red, padding:8})}>
+              <div style={{background:T.bgDeep, borderRadius:3,
+                border:`1px solid ${T.borderFaint}`, padding:4, marginBottom:6,
+                display:"flex", justifyContent:"center", alignItems:"center",
+                minHeight: spriteH + 8}}>
+                <ShipSideSprite type="frigate" faction="spanish" width={spriteW} height={spriteH} facing="left" />
+              </div>
+              <div style={{color:T.redBr, fontSize:fs, fontWeight:"bold"}}>The Scarlet Fortune</div>
+              <div style={{color:T.textDim, fontSize:fs-2, marginBottom:4}}>Hull: 42 / 120</div>
+              <Bar value={42} max={120} color={T.redBr} h={10} />
+              <div style={{color:T.textDim, fontSize:fs-2, marginTop:4}}>18 crew · 20 cannons</div>
+              <div style={{marginTop:5}}><FactionPill faction="spanish" /></div>
+            </div>
+          </div>
+          {sz.h > 300 && (
+            <div style={{...panelStyle({background:T.bgDeep, padding:p-4}),
+              fontSize:fs-1, maxHeight:sz.h*0.18, overflow:"hidden"}}>
+              <div style={{color:T.text, marginBottom:3, lineHeight:1.5}}>
+                Round 4: Your broadside tears into the enemy hull. -18 damage.
+                The enemy answers with precision fire. -12 damage.
+              </div>
+              <div style={{color:T.redBr, lineHeight:1.5}}>Lost 1 crew: François Bonnet.</div>
+            </div>
+          )}
+          <div style={{display:"grid",
+            gridTemplateColumns: sz.w < 480 ? "1fr 1fr" : "repeat(4, 1fr)",
+            gap:8}}>
+            {[
+              { lbl:"Broadside", desc:"Full cannon volley", icon:<IconCannon size={14} color={T.redBr}/>, c:T.redBr },
+              { lbl:"Precision", desc:"Aimed shot",        icon:<IconTarget size={14} color={T.yellow}/>, c:T.yellow },
+              { lbl:"Grapple",   desc:"Board them",         icon:<IconGrapple size={14} color={T.blueBr}/>, c:T.blueBr },
+              { lbl:"Evade",     desc:"Flee battle",        icon:<IconWind size={14} color={T.greenBr}/>, c:T.greenBr },
+            ].map((b, i) => (
+              <div key={i} style={panelStyle({background:T.panelAlt, padding:p/2})}>
+                <div style={{color:T.text, fontSize:fs, fontWeight:"bold",
+                  marginBottom:2, display:"flex", alignItems:"center", gap:4}}>
+                  {b.icon} {b.lbl}
+                </div>
+                {sz.w >= 500 && (
+                  <div style={{color:T.textDim, fontSize:fs-2}}>{b.desc}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE D: Port (with silhouette) ─────────────────────────
+  const GOSSIP = [
+    "The tavern is already loud, and the sun hasn't set yet.",
+    "A merchant claims Spices sell well at Curaçao. He seems unreliable.",
+    "Children point at your flag. Sailors trade stories about you, and some of them are true.",
+  ];
+  const SceneD = ({ size, sid }) => {
+    const sz = size;
+    const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
+    const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex",
+          flexDirection:"column", gap:p/2, overflow:"hidden"}}>
+          <div style={panelStyle({padding:p})}>
+            <div style={{display:"flex", justifyContent:"space-between",
+              alignItems:"flex-start", marginBottom:8}}>
+              <div>
+                <div style={{color:T.gold, fontSize:fs+4, fontWeight:"bold"}}>Tortuga</div>
+                <div style={{color:FC.pirate.color, fontSize:fs-1, letterSpacing:"0.1em"}}>
+                  PIRATE PORT
+                </div>
+              </div>
+              <RepPill rep={82} />
+            </div>
+            <div style={{width:"100%",
+              overflow:"hidden", borderRadius:3,
+              marginBottom: p/2, lineHeight:0}}>
+              <img src="../port-pirate.svg" alt="Tortuga silhouette"
+                crossOrigin="anonymous"
+                style={{width:"100%", height:"auto", display:"block"}} />
+            </div>
+            {sz.w >= 500 && (
+              <p style={{color:T.textDim, fontSize:fs-1, lineHeight:1.5}}>
+                A lawless haven for pirates and buccaneers.
+                The most notorious port in the Caribbean.
+              </p>
+            )}
+          </div>
+          {sz.h > 350 && (
+            <NarrativePanel
+              title={<><IconTalking size={fs} color={T.gold} /> WORD ON THE DOCKS</>}
+              variant="gossip">
+              {GOSSIP.map((g, i) => <NarrativeLine key={i}>"{g}"</NarrativeLine>)}
+            </NarrativePanel>
+          )}
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE E: Crew ───────────────────────────────────────────
+  const CREW_TRAIT_LABELS = {
+    loyal: "Loyal Officer",
+    scar_battle: "Battle Scarred",
+    scar_storm: "Storm Survivor",
+    scar_shipwreck: "Shipwreck Survivor",
+  };
+
+  const CREW = [
+    { name:"Juan Rodríguez", faction:"spanish", role:"gunner", days:147,
+      tags:["veteran","scar_battle","scar_storm","revealed_drunkard"],
+      bio:"Juan is a veteran of 147 days. The crew looks up to them. They survived a deadly battle and a violent storm. Has a fondness for the bottle." },
+    { name:"Katherine Brown", faction:"english", role:"navigator", days:203,
+      tags:["loyal","scar_battle"],
+      bio:"Katherine has served 203 days. This ship is their life now. Loyal to the ship and the captain. They will never leave." },
+    { name:"Calico Rackham", faction:"pirate", role:"deckhand", days:34,
+      tags:["mutineer","scar_shipwreck"],
+      bio:"Calico, the Pirate deckhand, has been here 34 days. Survived a shipwreck. Was part of a mutiny once." },
+    { name:"Marie Fontaine", faction:"french", role:"cook", days:88,
+      tags:["seasoned","revealed_coward"],
+      bio:"Marie is a seasoned hand with 88 days at sea. Not the bravest soul aboard." },
+    { name:"Pieter van Dijk", faction:"dutch", role:"carpenter", days:12,
+      tags:["revealed_greedy"],
+      bio:"Pieter asked about the pay structure before anything else. Time will tell." },
+  ];
+  const tagColor = (tag) => {
+    if (["loyal","veteran","seasoned"].includes(tag)) return T.greenBr;
+    if (tag === "mutineer") return T.purpleBr;
+    if (tag.startsWith("scar_")) return T.blueBr;
+    if (tag.startsWith("revealed_")) return T.redBr;
+    return T.textDim;
+  };
+  const tagLabelRaw = (tag) => tag.replace(/^revealed_/, "").replace(/_/g, " ");
+  const SceneE = ({ size, sid }) => {
+    const sz = size;
+    const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
+    const fs = sz.w >= 1000 ? 12 : sz.w >= 500 ? 10 : 8;
+    const mc = sz.h < 300 ? 3 : sz.w >= 630 ? 5 : 4;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex",
+          flexDirection:"column", gap:p/2}}>
+          <div style={{color:T.gold, fontSize:fs+3, fontWeight:"bold",
+            letterSpacing:"0.08em", display:"flex", alignItems:"center", gap:6}}>
+            <IconCrew size={fs+4} color={T.gold} />
+            CREW MANIFEST
+          </div>
+          <div style={{color:T.textDim, fontSize:fs-1, marginBottom:4,
+            display:"flex", gap:10, flexWrap:"wrap"}}>
+            {Object.entries(FC).map(([k, f]) => (
+              <span key={k} style={{display:"inline-flex", alignItems:"center", gap:4}}>
+                <span style={{color:f.color}}>●</span>
+                {f.label}: 1
+              </span>
+            ))}
+          </div>
+          <div style={{display:"flex", flexDirection:"column",
+            gap:p/2, flex:1, overflow:"hidden"}}>
+            {CREW.slice(0, mc).map((c, i) => {
+              const fColor = FC[c.faction]?.color || T.textDim;
+              return (
+                <div key={i} style={{...panelStyle({padding:p}),
+                  display:"flex", gap:p, alignItems:"flex-start"}}>
+                  <div style={{flexShrink:0, width: sz.w >= 500 ? 200 : 140}}>
+                    <div style={{color:T.text, fontSize:fs+1, fontWeight:"bold"}}>
+                      {c.name}
+                    </div>
+                    <div style={{color:fColor, fontSize:fs-1}}>
+                      {FC[c.faction].label} {c.role} — {c.days}d
+                    </div>
+                    {c.tags.length > 0 && (
+                      <div style={{marginTop:3, display:"flex",
+                        flexWrap:"wrap", gap:3}}>
+                        {c.tags.map((tag, ti) => (
+                          <Pill key={ti}
+                            label={CREW_TRAIT_LABELS[tag] || tagLabelRaw(tag)}
+                            color={tagColor(tag)}
+                            style={{fontSize:fs-3, padding:"1px 4px"}} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {sz.w >= 500 && (
+                    <div style={{flex:1, color:T.textDim, fontSize:fs-1,
+                      lineHeight:1.5, fontStyle:"italic"}}>
+                      "{c.bio}"
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE F: itch.io Assets ─────────────────────────────────
+  const SceneFBanner = ({ sid }) => (
+    <SceneBox id={sid} w={960} h={480}>
+      <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04}}
+           viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+        <path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70"
+              fill="none" stroke={T.gold} strokeWidth="1.5" />
+        <path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90"
+              fill="none" stroke={T.gold} strokeWidth="1" />
+      </svg>
+      <div style={{position:"absolute", inset:8, border:`1px solid ${T.border}`, borderRadius:4}} />
+      <div style={{position:"absolute", inset:0, display:"flex",
+        flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1}}>
+        <div style={{marginBottom:10}}><IconAnchor size={50} color={T.gold} /></div>
+        <div style={{color:T.gold, fontSize:42, fontWeight:"bold",
+          letterSpacing:"0.2em", textShadow:`0 0 30px ${T.goldDim}`}}>BROADSIDE</div>
+        <div style={{color:T.textDim, fontSize:18, letterSpacing:"0.15em",
+          marginTop:8}}>CARIBBEAN · 1695</div>
+        <div style={{color:T.textFaint, fontSize:12, marginTop:14, fontStyle:"italic"}}>
+          A turn-based, narrative pirate strategy game
+        </div>
+      </div>
+      <div style={{position:"absolute", bottom:14, left:0, right:0,
+        display:"flex", gap:6, justifyContent:"center", zIndex:1}}>
+        {Object.values(FC).map((f, i) => (
+          <div key={i} style={{width:6, height:6, borderRadius:"50%",
+            background:f.color, opacity:0.6}} />
+        ))}
+      </div>
+    </SceneBox>
+  );
+
+  const SceneFBackground = ({ sid }) => (
+    <SceneBox id={sid} w={1920} h={1080}>
+      <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.03}}
+           viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+        <path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70"
+              fill="none" stroke={T.gold} strokeWidth="1.5" />
+        <path d="M60,100 Q90,90 130,95 T190,88 Q220,85 250,92 T310,87 Q340,82 370,90"
+              fill="none" stroke={T.gold} strokeWidth="1" />
+        <ellipse cx="160" cy="90" rx="8" ry="4" fill={T.gold} opacity="0.3" />
+        <ellipse cx="250" cy="78" rx="12" ry="5" fill={T.gold} opacity="0.2" />
+      </svg>
+    </SceneBox>
+  );
+
+  const SceneFEmbed = ({ sid }) => (
+    <SceneBox id={sid} w={640} h={480}>
+      <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04}}
+           viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
+        <path d="M50,80 Q80,60 120,70 T180,65 Q200,60 220,68 T280,62 Q310,55 340,65 T380,70"
+              fill="none" stroke={T.gold} strokeWidth="1.5" />
+        <path d="M60,100 Q90,90 130,95 T190,88" fill="none" stroke={T.gold} strokeWidth="1" />
+      </svg>
+      <div style={{position:"absolute", inset:8, border:`1px solid ${T.border}`, borderRadius:4}} />
+      <div style={{position:"absolute", inset:0, display:"flex",
+        flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:1}}>
+        <div style={{marginBottom:10}}><IconAnchor size={44} color={T.gold} /></div>
+        <div style={{color:T.gold, fontSize:36, fontWeight:"bold",
+          letterSpacing:"0.2em", textShadow:`0 0 30px ${T.goldDim}`}}>BROADSIDE</div>
+        <div style={{color:T.textDim, fontSize:15, letterSpacing:"0.15em",
+          marginTop:6}}>CARIBBEAN · 1695</div>
+        <div style={{color:T.textFaint, fontSize:10, marginTop:12, fontStyle:"italic"}}>
+          A turn-based, narrative pirate strategy game
+        </div>
+      </div>
+      <div style={{position:"absolute", bottom:12, left:0, right:0,
+        display:"flex", gap:5, justifyContent:"center", zIndex:1}}>
+        {Object.values(FC).map((f, i) => (
+          <div key={i} style={{width:5, height:5, borderRadius:"50%",
+            background:f.color, opacity:0.6}} />
+        ))}
+      </div>
+    </SceneBox>
+  );
+
+  const SizeBlock = ({ label, exportName, sid, children }) => (
+    <div className="size-block">
+      <div className="size-label">{label}</div>
+      {children}
+      <button className="export-btn" onClick={() => exportScene(sid, exportName)}>
+        Export {label}
+      </button>
+    </div>
+  );
+
+  const Page = () => (
+    <>
+      <div id="sceneA">
+        <SectionHeader>Scene A — Cover</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sA${i}`}
+            exportName={`broadside-cover-${sz.l}.png`}>
+            <SceneA size={sz} sid={`sA${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneB">
+        <SectionHeader>Scene B — Captain's Log</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sB${i}`}
+            exportName={`broadside-log-${sz.l}.png`}>
+            <SceneB size={sz} sid={`sB${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneC">
+        <SectionHeader>Scene C — Combat (with real ship sprites)</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sC${i}`}
+            exportName={`broadside-combat-${sz.l}.png`}>
+            <SceneC size={sz} sid={`sC${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneD">
+        <SectionHeader>Scene D — Port (with silhouette)</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sD${i}`}
+            exportName={`broadside-port-${sz.l}.png`}>
+            <SceneD size={sz} sid={`sD${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneE">
+        <SectionHeader>Scene E — Crew</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sE${i}`}
+            exportName={`broadside-crew-${sz.l}.png`}>
+            <SceneE size={sz} sid={`sE${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneF">
+        <SectionHeader>Scene F — itch.io Page Assets</SectionHeader>
+        <SizeBlock label="Banner 960×480" sid="sF0"
+          exportName="broadside-banner-960x480.png">
+          <SceneFBanner sid="sF0" />
+        </SizeBlock>
+        <SizeBlock label="Background 1920×1080" sid="sF1"
+          exportName="broadside-background-1920x1080.png">
+          <SceneFBackground sid="sF1" />
+        </SizeBlock>
+        <SizeBlock label="Embed BG 640×480" sid="sF2"
+          exportName="broadside-embed-640x480.png">
+          <SceneFEmbed sid="sF2" />
+        </SizeBlock>
+      </div>
+    </>
+  );
+
+  ReactDOM.createRoot(document.getElementById('scenes-root'))
+    .render(<Page />);
+});
+</script>
+
+</body>
+</html>
