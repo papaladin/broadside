@@ -202,7 +202,7 @@ Each crew member has a **generated biography** that reflects their accumulated h
 |---|---|---|
 | **Escort** | Protect a merchant ship to destination | +2/+3/+4 |
 | **Patrol** | Clear a region of hostiles | +2/+3/+4 |
-| **Combat** | Hunt down and sink a specific enemy | +3/+4/+5 |
+| **Combat** | Hunt down and sink a specific enemy | +3/+4/+5, -5 indirectly due to sunk ship. |
 | **Trade** | Deliver goods to a port (source them yourself) | +2/+3/+4 |
 | **Smuggle** | Deliver contraband (high risk from patrols) | +2 pirate, -3 target |
 | **Assault** | Attack a port's defences | +5 pirate, -8 target |
