@@ -59,11 +59,11 @@ Broadside is fully playable with rich narrative systems:
 
 | Block | Theme | Status |
 |---|---|---|
-| **B0** | Foundation cleanup: docs sync, README, debug noise removal | 🔲 Next |
-| **B1** | Codebase architectural cleanup: onboarding middleware, reducer helpers, encounter discovery, file splits | 🔲 Planned |
-| **B2** | Identity & feedback: ship visuals, UI juice, career stats display | 🔲 Planned |
-| **B3** | UI polish & mobile: responsive overhaul, accessibility | 🔲 Planned |
-| **B4** | Playtest Wave 1: first impressions, UX, mobile, onboarding modes | 🔲 Planned |
+| **B0** | Foundation cleanup: docs sync, README, debug noise removal | 🔲 In progress |
+| **B1** | Codebase architectural cleanup: onboarding middleware, reducer helpers, encounter discovery, file splits | 🔲 In progress |
+| **B2** | Identity & feedback: ship visuals, UI juice, career stats display | 🔲 In progress |
+| **B3** | UI polish & mobile: responsive overhaul, accessibility | 🔲 In progress |
+| **B4** | Playtest Wave 1: first impressions, UX, mobile, onboarding modes | 🔲 In progress |
 | **B5** | Player trust & resilience: graceful career end on unrecoverable states | 🔲 Planned |
 | **B6** | Onboarding decision: keep, kill, or refine QM mode based on B4 data | 🔲 Planned |
 | **B7** | Combat depth rework: discovery + implementation, informed by B4 | 🔲 Planned |
@@ -140,14 +140,14 @@ Broadside is fully playable with rich narrative systems:
 - [X] data.js (~15k tokens — likely split data into multiple thematic files)
 
 #### B1.7 — Documentation refresh pass
-- [ ] Sync wiki specs with current code state
-- [ ] Document screens_core.jsx (TitleScreen, NewGameScreen, OnboardingPopup, QMPopup)
-- [ ] Document icons.jsx and the LOG_ICONS lookup map
-- [ ] Document the QM onboarding system (qmMessagesSeen, stepsCompleted, dialogue flow)
-- [ ] Update STARTS shape in specs_data.md (factionPorts, factionBackstory, factionQM, factionRepAdjust)
-- [ ] Document TUTORIAL_DELIVERY and TUTORIAL_HUNT constants
-- [ ] Document the captain name + faction selection flow
-- [ ] Document the market flavour generator alongside the gossip generator
+- [X] Sync wiki specs with current code state
+- [X] Document screens_core.jsx (TitleScreen, NewGameScreen, OnboardingPopup, QMPopup)
+- [X] Document icons.jsx and the LOG_ICONS lookup map
+- [X] Document the QM onboarding system (qmMessagesSeen, stepsCompleted, dialogue flow)
+- [X] Update STARTS shape in specs_data.md (factionPorts, factionBackstory, factionQM, factionRepAdjust)
+- [X] Document TUTORIAL_DELIVERY and TUTORIAL_HUNT constants
+- [X] Document the captain name + faction selection flow
+- [X] Document the market flavour generator alongside the gossip generator
 - **Pillar**: Discovery (for contributors)
 
 ### B2 — Identity & Feedback
@@ -204,9 +204,9 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: gather real data on first impressions, UX, mobile, and the three onboarding modes. Decisions about onboarding (B6), combat depth (B7), and sailing enrichment (B8) all flow from this.
 
 #### B4.1 — Recruit playtesters
-- [ ] 3-5 testers minimum
-- [ ] Mix of phone and desktop
-- [ ] Mix of game familiarity (some who know Pirates!-likes, some who don\'t)
+- [X] 3-5 testers minimum
+- [X] Mix of phone and desktop
+- [X] Mix of game familiarity (some who know Pirates!-likes, some who don\'t)
 
 #### B4.2 — Define success metrics before testing
 - [ ] Completion rate of first contract
@@ -224,7 +224,7 @@ Broadside is fully playable with rich narrative systems:
 
 #### B4.4 — Synthesise findings
 - [ ] Group feedback by block (onboarding, combat, sailing, UI, mobile)
-- [ ] Document which findings inform which downstream block
+- [X] Document which findings inform which downstream block
 
 
 ## B15 — Role-based Log entries

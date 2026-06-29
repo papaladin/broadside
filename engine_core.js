@@ -70,13 +70,13 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHARED HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  window.E.autoSave = (state) => {
-    try {
-      localStorage.setItem("piratesSave", JSON.stringify(state));
-    } catch (e) {
-      console.warn("Auto-save failed:", e);
-    }
-  };
+window.E.autoSave = (state) => {
+  try {
+    localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
+  } catch (e) {
+    console.warn("Auto-save failed:", e);
+  }
+};
 
   window.E.migrateState = (loaded) => {
     let s = { ...loaded };
@@ -326,20 +326,40 @@ window.E.reducer = (state, action) => {
   window.E._reducers.push((state, action) => {
     switch (action.type) {
       case window.E.A.SAVE_GAME:
-        localStorage.setItem("piratesSave", JSON.stringify(state));
+        localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
         return { ...state };
+
       case window.E.A.LOAD_GAME: {
         try {
-          const raw = localStorage.getItem("piratesSave");
+          let raw = localStorage.getItem("BroadsideGameSave");
+          // Migration: if nothing found, try the old key
+          if (!raw) {
+            raw = localStorage.getItem("piratesSave");
+            if (raw) {
+              // Move to new key and delete the old one
+              localStorage.setItem("BroadsideGameSave", raw);
+              localStorage.removeItem("piratesSave");
+            }
+          }
           if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
+
           const parsed = JSON.parse(raw);
           const loaded = window.E.migrateState(parsed);
           const currentPort = loaded.currentPort || "portRoyal";
-          return { ...loaded, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(currentPort), missions: G.generateMissions(currentPort, loaded) };
+          return {
+            ...loaded,
+            screen: "port",
+            battleState: null,
+            activeEvent: null,
+            encounterContext: null,
+            portMarket: G.generatePortMarket(currentPort),
+            missions: G.generateMissions(currentPort, loaded),
+          };
         } catch (e) {
           return { ...state, log: [...state.log, "Failed to load save. Corrupted data."] };
         }
       }
+      
       case window.E.A.EXPORT_SAVE: {
         const encoded = L.encodeSave(state);
         const scenario = state.scenarioId || "unknown";

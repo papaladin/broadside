@@ -26,8 +26,16 @@
     }
   };
 
-  const hasSave = () => !!localStorage.getItem("piratesSave");
+const SAVE_KEY = "BroadsideGameSave";
+const OLD_SAVE_KEY = "piratesSave";
 
+const hasSave = () => {
+  try {
+    return !!(localStorage.getItem(SAVE_KEY) || localStorage.getItem(OLD_SAVE_KEY));
+  } catch (e) {
+    return false;
+  }
+};
 
   // ── Export/Import (file save) ───────────────────────────
   const encodeSave = (state) => {

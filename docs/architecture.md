@@ -132,7 +132,9 @@ System resolutions
 | **Port / Market / Services** | Port faction, services, goods, missions, shipyard access              | Decision hub                     | Economy, Mission, Crew, Navigation        |
 | **Events**                   | Voyage events, event choices, outcomes                                | System disruption and surprise   |  Navigation, Crew          |
 
-Gossip, captain's log entries, crew biographies, and the Captain's Journal are not treated as core gameplay systems by themselves. They are part of the **Narrative Presentation Layer**.
+One system sits outside this table deliberately: **Onboarding** (the guided quartermaster tutorial) is scaffolding, not a permanent gameplay system — it has its own state ('state.onboarding') and it does reach into other systems (gating which Port actions are visible, suppressing random events and patrols during the first voyage, force-stocking the market for the opening delivery), but every one of those effects is temporary and switches off once onboarding completes or the player skips it. It earns a place in this document because of how it's wired in — see the engine middleware pattern below — not because it's a pillar-bearing system in the way Combat or Reputation are."
+
+Gossip, captain's log entries, crew biographies, the Captain's Journal, the quartermaster's onboarding dialogue, and the Market screen's flavour text are not treated as core gameplay systems by themselves. They are part of the **Narrative Presentation Layer**.
 Their role is to make consequences visible and help the player understand why things happened.
 They generally do not create mechanical effects on their own.
 
