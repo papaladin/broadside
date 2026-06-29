@@ -60,27 +60,25 @@ const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // Build a narrative round log using templates from D.COMBAT_LOG_TEMPLATES
 const buildRoundLog = (outcome) => {
   const T = D.COMBAT_LOG_TEMPLATES;
-  if (!T) return "";  // safety
+  if (!T) return "";
 
   const playerAct = outcome.playerAction;
-  const npcAct    = outcome.npcAction;
-
   let playerLog = "";
   if (playerAct === "broadside") {
     playerLog = pickRandom(T.player.broadside)
-      .replace("{hull}", outcome.player.hullDamage)
-      .replace("{crew}", outcome.player.crewLoss);
+      .replace("{hull}", outcome.playerHullDamageOutput)
+      .replace("{crew}", outcome.enemyCrewLossFromPlayerAction);
   } else if (playerAct === "precision") {
     playerLog = outcome.playerHit
       ? pickRandom(T.player.precision_hit)
-          .replace("{hull}", outcome.player.hullDamage)
-          .replace("{crew}", outcome.player.crewLoss)
+          .replace("{hull}", outcome.playerHullDamageOutput)
+          .replace("{crew}", outcome.enemyCrewLossFromPlayerAction)
       : pickRandom(T.player.precision_miss);
   } else if (playerAct === "grapple") {
     playerLog = outcome.playerGrappleSuccess
       ? pickRandom(T.player.grapple_success)
       : pickRandom(T.player.grapple_fail)
-          .replace("{crew}", outcome.player.crewLoss);
+          .replace("{crew}", outcome.playerCrewLossFromPlayerAction);
   } else if (playerAct === "evade") {
     playerLog = outcome.fled
       ? pickRandom(T.player.evade_success)
@@ -88,23 +86,25 @@ const buildRoundLog = (outcome) => {
   }
 
   let npcLog = "";
-  if (npcAct === "broadside") {
-    npcLog = pickRandom(T.npc.broadside)
-      .replace("{hull}", outcome.enemy.hullDamage)
-      .replace("{crew}", outcome.enemy.crewLoss);
-  } else if (npcAct === "precision") {
-    npcLog = outcome.npcHit
-      ? pickRandom(T.npc.precision_hit)
-          .replace("{hull}", outcome.enemy.hullDamage)
-          .replace("{crew}", outcome.enemy.crewLoss)
-      : pickRandom(T.npc.precision_miss);
-  } else if (npcAct === "grapple") {
-    // NPC grapple success kills *player* crew, failure kills *enemy* crew
-    npcLog = outcome.npcGrappleSuccess
-      ? pickRandom(T.npc.grapple_success)
-          .replace("{crew}", outcome.player.crewLoss)
-      : pickRandom(T.npc.grapple_fail)
-          .replace("{crew}", outcome.enemy.crewLoss);
+  if (outcome.npcAction) {
+    const npcAct = outcome.npcAction;
+    if (npcAct === "broadside") {
+      npcLog = pickRandom(T.npc.broadside)
+        .replace("{hull}", outcome.npcHullDamageOutput)
+        .replace("{crew}", outcome.playerCrewLossFromNpcAction);
+    } else if (npcAct === "precision") {
+      npcLog = outcome.npcHit
+        ? pickRandom(T.npc.precision_hit)
+            .replace("{hull}", outcome.npcHullDamageOutput)
+            .replace("{crew}", outcome.playerCrewLossFromNpcAction)
+        : pickRandom(T.npc.precision_miss);
+    } else if (npcAct === "grapple") {
+      npcLog = outcome.npcGrappleSuccess
+        ? pickRandom(T.npc.grapple_success)
+            .replace("{crew}", outcome.playerCrewLossFromNpcAction)
+        : pickRandom(T.npc.grapple_fail)
+            .replace("{crew}", outcome.enemyCrewLossFromNpcAction);
+    }
   }
 
   return `${playerLog} ${npcLog}`.trim();
@@ -453,9 +453,18 @@ const handleFledMission = (currentState, battleState) => {
 
   // ── Instant victory (grapple) ──────────────────────────
   if (outcome.instantVictory) {
+      // ── Apply crew loss from successful grapple ─────────────────
+    const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
+    const newRoster = crewResult.roster;
+    const newLostNames = [...state.battleState.lostCrewNames, ...crewResult.lostNames];
+      
     const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
     const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
     const capMsg = buildCaptainLog(state, "grapple_win", state.crew.roster, logExtra);
+
+    const boardingMsg = crewResult.lostCount > 0
+  ? `Boarding successful! Lost ${crewResult.lostCount} crew: ${crewResult.lostNames.join(", ")}.`
+  : "Boarding successful!";
 
     const newBS = {
       ...state.battleState,
@@ -463,13 +472,15 @@ const handleFledMission = (currentState, battleState) => {
       goldReward: outcome.goldReward || 0,
       enemyCargo: outcome.enemyCargo || {},
       canPlunder: true,
-      log: [...newLog, "Boarding successful!"],
+      log: [...newLog, boardingMsg],
+      lostCrewNames: newLostNames,
+
     };
     return {
       ...state,
       reputation: newRep,
       ship: { ...state.ship, hull: state.battleState.playerHull },
-      crew: { ...state.crew, morale: moraleAfter },
+      crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
       battleState: newBS,
       log: [...state.log, window.E.logEntry(state, capMsg)],
     };
@@ -481,7 +492,8 @@ const handleFledMission = (currentState, battleState) => {
   const crewLog = crewResult.log;
   const newLostNames = [...state.battleState.lostCrewNames, ...crewResult.lostNames];
 
-  const roundLog = buildRoundLog(outcome) + crewLog;  // crew log appended after narrative
+  const roundLog = buildRoundLog(outcome) + crewLog;
+
 
   const newBattleState = {
     ...state.battleState,

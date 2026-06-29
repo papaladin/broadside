@@ -574,32 +574,40 @@ const revealTag = (member, traitName) => {
         }
         break;
       }
-      case "grapple": {
-        const enemy = state.battleState.enemy;
-        const playerCrew = state.crew.roster.length;
-        const enemyCrew = enemy.crew;
-        const playerHullPct = state.ship.hull / shipStats.maxHull;
-        const playerMoralePct = state.crew.morale / 100;
+     case "grapple": {
+      const enemy = state.battleState.enemy;
+      const playerCrew = state.crew.roster.length;
+      const enemyCrew = enemy.crew;
+      const playerHullPct = state.ship.hull / shipStats.maxHull;
+      const playerMoralePct = state.crew.morale / 100;
 
-        let successChance = 0.5;
-        const crewDiff = playerCrew - enemyCrew;
-        successChance += Math.min(0.3, Math.max(0, crewDiff / enemyCrew * 0.3));
-        successChance += Math.min(0.2, Math.max(0, (playerMoralePct - 0.5) * 0.4));
-        successChance += Math.min(0.2, Math.max(0, (playerHullPct - 0.5) * 0.4));
-        successChance = Math.min(0.95, successChance);
+      let successChance = 0.5;
+      const crewDiff = playerCrew - enemyCrew;
+      successChance += Math.min(0.3, Math.max(0, crewDiff / enemyCrew * 0.3));
+      successChance += Math.min(0.2, Math.max(0, (playerMoralePct - 0.5) * 0.4));
+      successChance += Math.min(0.2, Math.max(0, (playerHullPct - 0.5) * 0.4));
+      successChance = Math.min(0.95, successChance);
 
-        if (Math.random() < successChance) {
-          out.instantVictory = true;
-          const risk = state.activeMission?.risk || "medium";
-          const plunder = G.generateEnemyCargo(state, state.battleState.enemy, risk);
-          out.goldReward = plunder.gold;
-          out.enemyCargo = plunder.cargo;
-        } else {
-          const crewLossPct = 0.3 + Math.random() * 0.2;
-          out.player.crewLoss = Math.floor(playerCrew * crewLossPct);
-        }
-        break;
+      if (Math.random() < successChance) {
+        out.instantVictory = true;
+
+        // Crew loss on successful grapple: proportional to resistance.
+        const ratio = playerCrew / (playerCrew + enemyCrew);
+        let loss = Math.ceil(playerCrew * (0.05 + 0.25 * (1 - ratio)));
+        // Protect early game: under 5 crew, boarding is still safe.
+        if (playerCrew < 5) loss = 0;
+        out.enemy.crewLoss = loss;
+
+        const risk = state.activeMission?.risk || "medium";
+        const plunder = G.generateEnemyCargo(state, state.battleState.enemy, risk);
+        out.goldReward = plunder.gold;
+        out.enemyCargo = plunder.cargo;
+      } else {
+        const crewLossPct = 0.3 + Math.random() * 0.2;
+        out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
       }
+      break;
+    }
       case "evade": {  
         const shipStats = getShipStats(state);
         const enemyShipType = guessShipType(state.battleState.enemy);
@@ -681,10 +689,13 @@ const revealTag = (member, traitName) => {
       result.grappleSuccess = npcSuccess;
       if (npcSuccess) {
         // NPC succeeds – kills player crew
-        result.player.crewLoss += Math.floor(playerCrew * (0.3 + Math.random() * 0.2));
+        result.enemy.crewLoss += Math.floor(playerCrew * (0.3 + Math.random() * 0.2));
       } else {
-        // NPC fails – loses some crew
-        result.enemy.crewLoss += Math.floor(enemyCrew * 0.05);
+         // Enemy also loses crew proportional to resistance
+        const ratio = enemyCrew / (enemyCrew + playerCrew);
+        let loss = Math.ceil(enemyCrew * (0.05 + 0.25 * (1 - ratio)));
+        if (enemyCrew < 5) loss = 0;
+        result.player.crewLoss += loss;
       }
       break;
     }
@@ -729,7 +740,7 @@ const revealTag = (member, traitName) => {
     return final;
   };
 
-  const resolveCombatAction = (state, action) => {
+ const resolveCombatAction = (state, action) => {
   if (!state.battleState) return emptyOutcome();
 
   // 1. Resolve player action
@@ -737,10 +748,10 @@ const revealTag = (member, traitName) => {
   const playerAction = action;
 
   // track whether player precision hit or grapple succeeded
-  let playerHit = null;       // null = not applicable, true = hit, false = miss
+  let playerHit = null;
   let playerGrappleSuccess = null;
   if (playerAction === "precision") {
-    playerHit = playerOutcome.player.hullDamage > 0;   // precision deals damage only on hit
+    playerHit = playerOutcome.player.hullDamage > 0;
   } else if (playerAction === "grapple") {
     playerGrappleSuccess = playerOutcome.instantVictory;
   }
@@ -757,10 +768,32 @@ const revealTag = (member, traitName) => {
   // 4. Combine all parts
   const combined = combineCombatOutcomes(playerOutcome, moraleOutcome, npcOutcome);
 
-  // 4b. Apply Surgeon's Bay crew loss reduction
+  // ── Per‑action loss tracking (for accurate round‑by‑round logs) ──
+  // NOTE: field meanings in the combined outcome are inverted:
+  //   combined.player.crewLoss → enemy crew killed by the player
+  //   combined.enemy.crewLoss  → player crew killed by the enemy
+  // So we store the raw per‑action values BEFORE they are summed.
+  combined.playerCrewLossFromPlayerAction = playerOutcome.enemy.crewLoss;   // player's own loss from their grapple/fail
+  combined.playerCrewLossFromNpcAction    = npcOutcome ? npcOutcome.enemy.crewLoss : 0;  // player loss from NPC's attack/grapple
+  combined.enemyCrewLossFromPlayerAction  = playerOutcome.player.crewLoss; // enemy crew killed by player's broadside/precision
+  combined.enemyCrewLossFromNpcAction     = npcOutcome ? npcOutcome.player.crewLoss : 0;  // enemy loss from NPC's own failed grapple, etc.
+// ── Per‑action hull damage tracking (for log accuracy) ──
+combined.playerHullDamageOutput = playerOutcome.player.hullDamage;        // hull damage dealt by player
+combined.npcHullDamageOutput    = npcOutcome ? npcOutcome.enemy.hullDamage : 0; // hull damage dealt by NPC to player
+
+// TEMPORARY DEBUG — remove after verifying
+console.log("per-action check", {
+  playerCrewLossFromPlayerAction: combined.playerCrewLossFromPlayerAction,
+  enemyCrewLossFromPlayerAction: combined.enemyCrewLossFromPlayerAction,
+  playerCrewLossFromNpcAction: combined.playerCrewLossFromNpcAction,
+  enemyCrewLossFromNpcAction: combined.enemyCrewLossFromNpcAction,
+}); 
+
+  // 4b. Apply Surgeon's Bay crew loss reduction (only affects the combined totals, not the per‑action fields)
   const crewLossMult = getEquipmentEffect(state, "crewLossMult");
   if (crewLossMult !== 1) {
     combined.player.crewLoss = Math.floor(combined.player.crewLoss * crewLossMult);
+    // Note: we intentionally leave the per‑action fields unreduced so the log shows the raw numbers before mitigation.
   }
 
   // 5. Apply morale modifier to player damage
@@ -773,6 +806,14 @@ const revealTag = (member, traitName) => {
   finalOutcome.playerGrappleSuccess = playerGrappleSuccess;
   finalOutcome.npcHit = npcOutcome ? npcOutcome.hit : null;
   finalOutcome.npcGrappleSuccess = npcOutcome ? npcOutcome.grappleSuccess : null;
+
+  // Carry forward the per‑action loss fields so buildRoundLog can use them
+  finalOutcome.playerCrewLossFromPlayerAction = combined.playerCrewLossFromPlayerAction;
+  finalOutcome.playerCrewLossFromNpcAction    = combined.playerCrewLossFromNpcAction;
+  finalOutcome.enemyCrewLossFromPlayerAction  = combined.enemyCrewLossFromPlayerAction;
+  finalOutcome.enemyCrewLossFromNpcAction     = combined.enemyCrewLossFromNpcAction;
+finalOutcome.playerHullDamageOutput = combined.playerHullDamageOutput;
+finalOutcome.npcHullDamageOutput    = combined.npcHullDamageOutput;
 
   return finalOutcome;
 };
