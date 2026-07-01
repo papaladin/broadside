@@ -132,18 +132,18 @@ Broadside is fully playable with rich narrative systems:
 
 - [X] "Sell all (except food/water)" button — especially useful after plunder (petripeeduhpedro, Ren both asked independently)
 - [X] "Buy x5 / x10 / x100" quantity buttons on the market --> x20 only (for screen size on phone)
-- [ ] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
+- [0] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
 - [X] Gold-sack icon + an attention/warning icon on mission cards
 - [X] Indicate which faction is harmed by a mission, not only who benefits from it
 - [X] Mission-type tooltips on mission cards
 - [X] Repair cost scales with the ship's max hull/price, not only its missing hull points
-- [ ] Surrender consequences explicitly logged (gold lost, cargo seized, days imprisoned) — currently implied but never stated
+- [X] Surrender consequences explicitly logged (gold lost, cargo seized, days imprisoned) — currently implied but never stated
 - [O] Stat-change feedback beyond the existing flash: show a transient numeric delta (e.g. "-1000") near the affected HUD stat for a couple of seconds, since the colour flash alone is easy to miss --> REJECTED
 - [ ] Morale threshold-crossed log entries (e.g. crossing 30/50/70/90, in either direction)
-- [ ] Hidden port discovery gets a visible callout beyond a single log line (a player found a new port via random encounter and almost missed that it happened)
+- [X] Hidden port discovery gets a visible callout beyond a single log line (a player found a new port via random encounter and almost missed that it happened)
 - [X] Being able to name your ship on purchase (so all ships will be named, except the dinghy. If necessary we can name it a default name in the "starts" data.)
 - [X] Ship name visible on the Sailing screen / HUD (carried over from B2.1, never shipped)
-- [ ] Pirate crew names drawn from a random/weighted nationality pool instead of defaulting to English for every pirate hire
+- [X] Pirate crew names drawn from a random/weighted nationality pool instead of defaulting to English for every pirate hire
 - [O] General log message throttling utility — apply a once-per-period cooldown to repetitive lines (navy patrol hails repeating 19 times in one session, a coward-trait reveal line firing dozens of times) -> parked
 - [ ] Finish hover/focus state coverage on any remaining interactive elements (carried over from B3.1, partially done)
 - [O] Shipyard nudge: when the player is within roughly 1-2 missions' worth of gold of an affordable upgrade (e.g. the Cutter), show a contextual hint --> parked, playtest shows its enough.

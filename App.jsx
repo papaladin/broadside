@@ -65,7 +65,7 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
     .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const formatGold = (g) => g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
-  const goldFlash = useFlashOnChange(state.gold, { direction: null }); // auto detect
+  const goldFlash = useFlashOnChange(state.gold, { direction: null });
   const moraleFlash   = useFlashOnChange(morale, { direction: null });
   const fameFlash     = useFlashOnChange(state.fame, { direction: null });
   const infamyFlash   = useFlashOnChange(state.infamy ?? 0, { invert: true });
@@ -75,8 +75,6 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
   const waterFlash    = useFlashOnChange(water, { direction: null });
   const holdUsedFlash = useFlashOnChange(holdUsed, { direction: null });
 
-
-  // ── Responsive HUD breakpoint ──────────────────────────────
   const [isNarrowHUD, setIsNarrowHUD] = React.useState(window.innerWidth < 600);
   React.useEffect(() => {
     const handle = () => setIsNarrowHUD(window.innerWidth < 600);
@@ -93,8 +91,8 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
     </div>
   );
   const Val = ({ children, color, small, className = "" }) => (
-  <div className={className} style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
-);
+    <div className={className} style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
+  );
 
   const TOOLTIPS = {
     gold: "Your gold. Spent on repairs, crew wages, provisions, and equipment.",
@@ -201,8 +199,7 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
 // ── APP COMPONENT ──────────────────────────────────────────────────
 const App = () => {
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
-  const { T } = window.UI;
-  const { screen } = state;
+  const { T, Btn } = window.UI;
   const { OnboardingPopup } = window.S;
 
   const [savedFlash, setSavedFlash] = React.useState(false);
@@ -214,6 +211,24 @@ const App = () => {
 
   const isDebug = new URLSearchParams(window.location.search).get('debug') === '1';
   const [debugOpen, setDebugOpen] = React.useState(false);
+
+  // ── Hidden port discovery popup ──────────────────────────────────
+  const prevDiscoveredRef = React.useRef(state.discoveredPorts || []);
+  const [discoveryPopup, setDiscoveryPopup] = React.useState(null);
+
+  React.useEffect(() => {
+    const prev = prevDiscoveredRef.current || [];
+    const current = state.discoveredPorts || [];
+    const newPorts = current.filter(p => !prev.includes(p));
+    if (newPorts.length > 0) {
+      const hiddenNew = newPorts.filter(p => window.D.PORTS[p]?.hidden);
+      if (hiddenNew.length > 0) {
+        const portName = window.D.PORTS[hiddenNew[0]]?.name || hiddenNew[0];
+        setDiscoveryPopup(portName);
+      }
+    }
+    prevDiscoveredRef.current = current;
+  }, [state.discoveredPorts]);
 
   if (isDebug) {
     window.__b = {
@@ -253,6 +268,28 @@ const App = () => {
         {renderScreen()}
       </div>
       <OnboardingPopup state={state} dispatch={dispatch} />
+      {discoveryPopup && (
+        <div style={{
+          position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          maxWidth: 560, width: "90%", zIndex: 500,
+          background: T.panel, border: `1px solid ${T.gold}`, borderRadius: 2,
+          padding: 12, display: "flex", alignItems: "flex-start", gap: 10,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+          animation: "qmSlideIn 0.3s ease-out",
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: T.gold, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
+              New Port Discovered!
+            </div>
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight }}>
+              You can now sail to {discoveryPopup}. Check your map.
+            </div>
+            <div style={{ marginTop: 8, display: "flex", gap: 12 }}>
+              <Btn sm v="gold" onClick={() => setDiscoveryPopup(null)}>Chart it</Btn>
+            </div>
+          </div>
+        </div>
+      )}
       {isDebug && debugOpen && <DebugPanel state={state} dispatch={dispatch} />}
     </div>
   );

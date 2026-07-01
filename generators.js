@@ -23,6 +23,23 @@ window.G = (() => {
     return items[items.length - 1];
   };
 
+  const pickPirateNationality = () => {
+  const weights = [
+    { faction: "english", weight: 40 },
+    { faction: "spanish", weight: 20 },
+    { faction: "french",  weight: 15 },
+    { faction: "dutch",   weight: 15 },
+    { faction: "pirate",  weight: 10 },
+  ];
+  const total = weights.reduce((s, w) => s + w.weight, 0);
+  let r = Math.random() * total;
+  for (const w of weights) {
+    r -= w.weight;
+    if (r <= 0) return w.faction;
+  }
+  return "pirate"; // fallback
+};
+
 const shuffleArray = (arr) => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -58,10 +75,16 @@ const isExtremePrice = (good, buyPrice) => {
     return "deckhand"; // fallback
   };
 
-  const generateCrewMember = (faction, existingNames = []) => {
+   const generateCrewMember = (faction, existingNames = []) => {
     const { CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
-    const firstList = CREW_FIRST_NAMES[faction] || CREW_FIRST_NAMES.pirate;
-    const lastList  = CREW_LAST_NAMES[faction]  || CREW_LAST_NAMES.pirate;
+    let firstList, lastList;
+    if (faction === "pirate") {
+      firstList = CREW_FIRST_NAMES[pickPirateNationality()];
+      lastList  = CREW_LAST_NAMES[pickPirateNationality()];
+    } else {
+      firstList = CREW_FIRST_NAMES[faction] || CREW_FIRST_NAMES.pirate;
+      lastList  = CREW_LAST_NAMES[faction]  || CREW_LAST_NAMES.pirate;
+    }
 
     let firstName, lastName, fullName;
     let attempts = 0;

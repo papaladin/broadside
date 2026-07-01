@@ -307,39 +307,69 @@
         return { ...state, encounterContext: null, gold: state.gold - cost, reputation: { ...state.reputation, [portKey]: Math.max(0, (state.reputation[portKey] ?? 20) - 2) }, screen: L.returnScreen(state), log: [...state.log, `Bribed them with ${cost}g. They looked the other way.`] };
       }
 
-      case A.INTERCEPT_SURRENDER: {
-        const ctx = state.encounterContext;
-        if (!ctx) return state;
-        const consequence = SURRENDER_CONSEQUENCE[ctx.type] ?? SURRENDER_CONSEQUENCE.random;
+   case A.INTERCEPT_SURRENDER: {
+      const ctx = state.encounterContext;
+      if (!ctx) return state;
+      const consequence = SURRENDER_CONSEQUENCE[ctx.type] ?? SURRENDER_CONSEQUENCE.random;
 
-        let s = { ...state, encounterContext: null };
+      let s = { ...state, encounterContext: null };
 
-        if (consequence.goldFine) s.gold = Math.max(0, s.gold - consequence.goldFine);
-        if (consequence.loseGoldPercent) s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
-        if (consequence.moralePenalty) s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
-        if (consequence.loseDays) { s.day += consequence.loseDays; }
-        if (consequence.rep_loss) {
-          const portKey = state.destination ?? state.currentPort;
-          s.reputation = { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) };
-        }
-
-        let newHoldItems = { ...(state.hold?.items || {}) };
-        const logExtra = [];
-        if (consequence.loseCargoPercent) {
-          newHoldItems = L.applyLoseCargoPercent(newHoldItems, consequence.loseCargoPercent);
-          logExtra.push(`${consequence.loseCargoPercent}% of your cargo was seized.`);
-        }
-        if (consequence.loseContraband) {
-          newHoldItems = L.applyLoseContraband(newHoldItems);
-          logExtra.push("Your contraband was confiscated.");
-        }
-
-        s.hold = { ...state.hold, items: newHoldItems };
-        s.screen = L.returnScreen(state);
-        s.log = [...state.log, "You surrendered. The consequences were steep.", ...logExtra];
-
-        return s;
+      if (consequence.goldFine) s.gold = Math.max(0, s.gold - consequence.goldFine);
+      if (consequence.loseGoldPercent) s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
+      if (consequence.moralePenalty) s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
+      if (consequence.loseDays) { s.day += consequence.loseDays; }
+      if (consequence.rep_loss) {
+        const portKey = state.destination ?? state.currentPort;
+        s.reputation = { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) };
       }
+
+      let newHoldItems = { ...(state.hold?.items || {}) };
+      const logDetails = [];
+
+      // Gold
+      if (consequence.goldFine) {
+        logDetails.push(`Gold fine: −${consequence.goldFine}g`);
+      }
+      if (consequence.loseGoldPercent) {
+        const lostGold = Math.round(state.gold * (consequence.loseGoldPercent / 100));
+        logDetails.push(`Lost ${consequence.loseGoldPercent}% of your gold (−${lostGold}g)`);
+      }
+
+      // Morale
+      if (consequence.moralePenalty) {
+        logDetails.push(`Crew morale −${consequence.moralePenalty}`);
+      }
+
+      // Days
+      if (consequence.loseDays) {
+        logDetails.push(`Imprisoned for ${consequence.loseDays} day${consequence.loseDays !== 1 ? 's' : ''}`);
+      }
+
+      // Reputation
+      if (consequence.rep_loss) {
+        logDetails.push(`Reputation with local faction −${consequence.rep_loss}`);
+      }
+
+      // Cargo
+      if (consequence.loseCargoPercent) {
+        newHoldItems = L.applyLoseCargoPercent(newHoldItems, consequence.loseCargoPercent);
+        logDetails.push(`${consequence.loseCargoPercent}% of your cargo was seized`);
+      }
+      if (consequence.loseContraband) {
+        newHoldItems = L.applyLoseContraband(newHoldItems);
+        logDetails.push("All contraband was confiscated");
+      }
+
+      s.hold = { ...state.hold, items: newHoldItems };
+      s.screen = L.returnScreen(state);
+      s.log = [
+        ...state.log,
+        "You surrendered. Here is what it cost you:",
+        ...logDetails.map(line => `  • ${line}`),
+      ];
+
+      return s;
+    }
 
       // --- PATROL INSPECTION ---
       case A.PATROL_INSPECT: {
