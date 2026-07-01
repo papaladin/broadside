@@ -344,6 +344,7 @@ case A.START_GAME: {
             sailingDaysTotal: newDays,
             screen: "sailing",
             portGossip: [],
+            completedCombatThisVisit: false,
             log: [...state.log, `Changing course for ${destPort.name}. ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
             route: {
               ...state.route,
@@ -371,6 +372,7 @@ case A.START_GAME: {
           sailingDaysTotal: days,
           screen: "sailing",
           portGossip: [],
+          completedCombatThisVisit: false,
           log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
           route: {
             originPort: state.currentPort,
@@ -468,6 +470,9 @@ if (
     nextState.missions = [huntData, ...nextState.missions];
   }
 } 
+
+  //reset hunt/combat flag
+  nextState.completedCombatThisVisit = false;
 
   autoSave(nextState);
   return nextState;
@@ -695,6 +700,13 @@ if (
         const mission = action.mission;
         if (!mission) return state;
 
+      if (action.mission.type === "combat" && state.completedCombatThisVisit) {
+        return {
+          ...state,
+          log: [...state.log, "You've already hunted here. Sail to another port to find new prey."],
+        };
+      }
+
        if (mission.type === "combat" && mission.enemy) {
         return {
           ...state,
@@ -836,6 +848,11 @@ if (
           missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
           log: newLog,
         };
+
+        // set flag to avoid chaining hunt mission in same port.
+        if (mission.type === "combat") {
+          nextState.completedCombatThisVisit = true;
+        }
 
         // ── Smuggle mission: add heat to target faction ────────────
         if (mission.type === "smuggle" && mission.targetPort) {

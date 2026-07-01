@@ -90,8 +90,8 @@ Broadside is fully playable with rich narrative systems:
 
 #### B5.1 — Combat exploit closure
 - [X] **Grapple minimum casualty**: boarding success still costs crew, scaled to crew ratio (e.g. `loss = ceil(playerCrew * (0.05 + 0.25 * (1 - ratio)))`). Confirmed: 140 boarding victories in one save, zero crew lost across all of them.
-- [ ] **Patrol mission duplication**: block `COMPLETE_MISSION` from re-awarding a patrol that has already been completed. Confirmed: the same patrol mission was completed 10 times for full rewards in one save, despite the story log showing "you have not yet found the enemy."
-- [ ] **Same-port mission chaining**: prevent accepting another mission of the same type immediately after completing one, in the same port, with zero travel in between — this is what let the exploit above collapse into "five combat missions in a single day" repeatedly.
+- [X] **Patrol mission duplication**: block `COMPLETE_MISSION` from re-awarding a patrol that has already been completed. Confirmed: the same patrol mission was completed 10 times for full rewards in one save, despite the story log showing "you have not yet found the enemy."
+- [X] **Same-port mission chaining**: prevent accepting another mission of the same type immediately after completing one, in the same port, with zero travel in between — this is what let the exploit above collapse into "five combat missions in a single day" repeatedly.
 
 **Source**: petripeeduhpedro (Reddit), Ren's 608-day save audit
 
@@ -141,6 +141,7 @@ Broadside is fully playable with rich narrative systems:
 - [ ] Stat-change feedback beyond the existing flash: show a transient numeric delta (e.g. "-1000") near the affected HUD stat for a couple of seconds, since the colour flash alone is easy to miss
 - [ ] Morale threshold-crossed log entries (e.g. crossing 30/50/70/90, in either direction)
 - [ ] Hidden port discovery gets a visible callout beyond a single log line (a player found a new port via random encounter and almost missed that it happened)
+- [ ] Being able to name your ship on purchase (so all ships will be named, except the dinghy. If necessary we can name it a default name in the "starts" data.)
 - [ ] Ship name visible on the Sailing screen / HUD (carried over from B2.1, never shipped)
 - [ ] Pirate crew names drawn from a random/weighted nationality pool instead of defaulting to English for every pirate hire
 - [ ] General log message throttling utility — apply a once-per-period cooldown to repetitive lines (navy patrol hails repeating 19 times in one session, a coward-trait reveal line firing dozens of times)
@@ -160,6 +161,9 @@ Broadside is fully playable with rich narrative systems:
 - [ ] Accessible from both the Port and Sailing screens
 - [ ] Resume / Save / Load / Export / Import / Back to Title
 - [ ] Toggle auto-save on/off
+- [ ] Link to captain's handbook
+- [ ] Link to feedback form or integrated form
+- [ ] link to comunity (github, kofi, itch, discord?) 
 
 #### B7.2 — Captain's Handbook
 - [ ] Static reference (in-app panel or linked page) explaining stats, status effects, faction mechanics, and the other hidden rules new players keep asking about in feedback

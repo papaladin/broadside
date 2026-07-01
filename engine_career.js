@@ -300,7 +300,7 @@
       // ── Mission completion ────────────────────────────────────
       case A.COMPLETE_MISSION: {
         const mission = prevState.activeMission;
-        if (mission) {
+        if (mission && !state.activeMission) {
           nextCareer.missionLog = [...(nextCareer.missionLog || []), {
             day: state.day,
             faction: mission.faction,

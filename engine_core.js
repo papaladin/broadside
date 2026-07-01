@@ -123,8 +123,8 @@ window.E.autoSave = (state) => {
     }
     if (!s.career) {
       s.career = { ...window.D.DEFAULT_CAREER };
-  
     }
+    if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
     return s;
   };
 
@@ -164,6 +164,7 @@ window.E.autoSave = (state) => {
     captainName: "",
     faction: null,
     tutorialMode: "full",   // default for new games without a choice (should never happen)
+    completedCombatThisVisit: false,
     onboarding: {
       enabled: false,
       completed: true,
