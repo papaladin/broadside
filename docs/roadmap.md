@@ -98,8 +98,8 @@ Broadside is fully playable with rich narrative systems:
 #### B5.2 — Survival & stat integrity
 - [ ] **Starvation lethality (stopgap)**: after 2-3 consecutive days at zero food or zero water, start killing 1 crew member per day instead of only reducing morale. (A richer, asymmetric food-vs-water redesign is a separate discovery — see B8.2.)
 - [ ] **Desertion at sea**: allow upset crew to attempt desertion mid-voyage if morale < 30, not only at port entry. Confirmed in the save audit: several permanently-upset crew never deserted because the player simply never entered a port belonging to their faction.
-- [ ] **Storm scar subset**: tag only 20-40% of survivors with `scar_storm`, not the entire crew. Confirmed: a single storm at day 338 left all 220 crew members carrying the tag, making it meaningless noise.
-- [ ] **`longestCrewTenure` fix**: compute the stat from the current roster as well as departed crew. Confirmed: the stat showed 36 days despite multiple crew members with 500+ days aboard, because it only updates on removal.
+- [X] **Storm scar subset**: tag only 20-40% of survivors with `scar_storm`, not the entire crew. Confirmed: a single storm at day 338 left all 220 crew members carrying the tag, making it meaningless noise.
+- [X] **`longestCrewTenure` fix**: compute the stat from the current roster as well as departed crew. Confirmed: the stat showed 36 days despite multiple crew members with 500+ days aboard, because it only updates on removal.
 
 **Note**: most low-morale-gated content (mutiny `<20`, deserters `<40`) should become naturally reachable once the above lands — a successful player currently never sees morale drop far enough to trigger either. Revisit if it's still unreachable after this ships.
 

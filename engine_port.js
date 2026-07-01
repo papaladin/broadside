@@ -473,6 +473,9 @@ if (
 
   //reset hunt/combat flag
   nextState.completedCombatThisVisit = false;
+  //reset hunger/thirst counter
+  nextState.daysWithoutFood  = 0;
+  nextState.daysWithoutWater = 0;
 
   autoSave(nextState);
   return nextState;

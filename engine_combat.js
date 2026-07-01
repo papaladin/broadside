@@ -777,15 +777,18 @@ const handleFledMission = (currentState, battleState) => {
           }
         }
         if (choice.outcome.repImpact) newState.reputation = L.applyReputationImpact(state, choice.outcome.repImpact);
-        // ── Storm scar: all survivors tagged ───────────────────────
+        // ── Storm scar: tag a random 20–40% of survivors ─────────────────
         if (event.id === "storm") {
-          const scarredRoster = (newState.crew?.roster || state.crew.roster).map(member => {
-            if (!L.hasTag(member, "scar_storm")) {
+          const roster = newState.crew?.roster || state.crew.roster;
+          const eligible = roster.filter(m => !L.hasTag(m, "scar_storm"));
+          const fraction = 0.2 + Math.random() * 0.2; // 0.2 to 0.4
+          const updatedRoster = roster.map(member => {
+            if (!L.hasTag(member, "scar_storm") && Math.random() < fraction) {
               return L.addTag(member, "scar_storm");
             }
             return member;
           });
-          newState.crew = { ...(newState.crew || state.crew), roster: scarredRoster };
+          newState.crew = { ...(newState.crew || state.crew), roster: updatedRoster };
         }
         if (choice.outcome.moraleBonus) newState.crew = { ...newState.crew, morale: Math.max(0, Math.min(100, (newState.crew.morale || state.crew.morale) + choice.outcome.moraleBonus)) };
 

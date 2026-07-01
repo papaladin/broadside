@@ -37,6 +37,68 @@
     };
   };
 
+  const processStarvation = (state, prov, currentRoster) => {
+  const roster = currentRoster || [];
+  const daysWithoutFood  = state.daysWithoutFood ?? 0;
+  const daysWithoutWater = state.daysWithoutWater ?? 0;
+
+  const FOOD_GRACE  = 14;
+  const WATER_GRACE = 3;
+
+  let newDaysWithoutFood  = daysWithoutFood;
+  let newDaysWithoutWater = daysWithoutWater;
+  const warningLogs = [];
+  let deathLog = null;
+  let newRoster = roster;
+
+  if (prov.foodEmpty) {
+    newDaysWithoutFood += 1;
+  } else {
+    newDaysWithoutFood = 0;
+  }
+
+  if (prov.waterEmpty) {
+    newDaysWithoutWater += 1;
+  } else {
+    newDaysWithoutWater = 0;
+  }
+
+  if (newDaysWithoutFood === FOOD_GRACE - 1) {
+    warningLogs.push("The crew grows gaunt. Without food, starvation is imminent.");
+  }
+  if (newDaysWithoutWater === WATER_GRACE - 1) {
+    warningLogs.push("Tongues are swollen. The crew is desperate for fresh water.");
+  }
+
+  if (roster.length > 0) {
+    const foodDeath  = newDaysWithoutFood >= FOOD_GRACE;
+    const waterDeath = newDaysWithoutWater >= WATER_GRACE;
+
+    if (waterDeath || foodDeath) {
+      const { newRoster: tempRoster, removed } = L.removeRandomCrew(roster, 1);
+      if (removed.length > 0) {
+        const name = `${removed[0].firstName} ${removed[0].lastName}`;
+        if (waterDeath && foodDeath) {
+          deathLog = `Hunger and thirst claim a crew member. ${name} has died.`;
+        } else if (waterDeath) {
+          deathLog = `Thirst claims a crew member. ${name} has died.`;
+        } else {
+          deathLog = `Starvation claims a crew member. ${name} has died.`;
+        }
+        newRoster = tempRoster;
+      }
+    }
+  }
+
+  return {
+    daysWithoutFood: newDaysWithoutFood,
+    daysWithoutWater: newDaysWithoutWater,
+    warningLogs,
+    deathLog,
+    roster: newRoster,
+  };
+};
+
   const maybeSmugglePatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
     if (!state.activeMission || state.activeMission.type !== "smuggle" || state.activeMission.encounterOccurred) return null;
     const interceptChance = state.activeMission.interceptChance || 0.70;
@@ -231,7 +293,7 @@
       const wages = L.payCrewWages(state);
       const newGold = Math.max(0, state.gold - wages);
       const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
-      const newCrew = advanceCrew(state.crew);
+      let newCrew = advanceCrew(state.crew);
       const prov = advanceProvisions(state);
 
       // Morale decay
@@ -249,10 +311,19 @@
         });
       }
 
+      // ── Build new log (must be done before starvation to use it there) ──
       const newLog = [...state.log];
       if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
       if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
+      // ── Starvation tracking ──────────────────────────────────────
+      const starvation = processStarvation(state, prov, newCrew.roster);
+      newCrew = { ...newCrew, roster: starvation.roster };
+      newLog.push(...starvation.warningLogs);
+      if (starvation.deathLog) {
+        newLog.push(window.E.logEntry(state, starvation.deathLog));
+      }
+      
       // ── Route progression ──────────────────────────────────────
       let newRoute = state.route;
       if (newRoute) {
@@ -279,6 +350,8 @@
         factionAlerts: newAlerts,
         log: newLog,
         route: newRoute,
+        daysWithoutFood: starvation.daysWithoutFood,
+        daysWithoutWater: starvation.daysWithoutWater,
       };
 
       const isOnboarding = state.onboarding?.enabled && !state.onboarding?.completed;

@@ -353,6 +353,15 @@
         break;
     }
 
+    // Always track longest crew tenure from the current roster,
+    // not just when a member is removed.
+    const currentMaxDays = Math.max(0, ...state.crew.roster.map(m => m.daysAboard || 0));
+    if (currentMaxDays > (nextCareer.longestCrewTenure || 0)) {
+      nextCareer.longestCrewTenure = currentMaxDays;
+      changed = true;
+    }
+
+
     if (changed) {
       return { ...state, career: nextCareer };
     }

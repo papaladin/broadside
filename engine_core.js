@@ -125,6 +125,8 @@ window.E.autoSave = (state) => {
       s.career = { ...window.D.DEFAULT_CAREER };
     }
     if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
+    if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
+    if (s.daysWithoutWater === undefined) s.daysWithoutWater = 0;
     return s;
   };
 
@@ -165,6 +167,8 @@ window.E.autoSave = (state) => {
     faction: null,
     tutorialMode: "full",   // default for new games without a choice (should never happen)
     completedCombatThisVisit: false,
+    daysWithoutFood: 0,
+    daysWithoutWater: 0,
     onboarding: {
       enabled: false,
       completed: true,
