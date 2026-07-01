@@ -15,9 +15,6 @@ const { shouldShowTutorial, markTutorialSeen } = window.L;
 //  CONSTANTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// ── Visual equipment helper ──────────────────────────────────────────
-// Only these equipment items have a visible effect on the ship sprite.
-// When more equipment gets visual effects, add the keys here.
 const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
 
 const getVisualEquipment = (state) => {
@@ -39,9 +36,6 @@ const SLOT_LABELS = {
 
 const TABS = { EQUIP: "equip", SHIPS: "ships", LOCKER: "locker" };
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  STAT PREVIEW HELPER
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function StatDelta({ label, before, after }) {
     const diff = after - before;
     const arrow = diff > 0 ? " ↑" : diff < 0 ? " ↓" : " =";
@@ -56,11 +50,7 @@ function StatDelta({ label, before, after }) {
     );
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  MAIN COMPONENT
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function ShipyardScreen({ state, dispatch }) {
-    // --- Rep / services check ---
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
     if (perk.servicesBlocked) {
         return (
@@ -71,19 +61,17 @@ function ShipyardScreen({ state, dispatch }) {
         );
     }
 
-    // --- Core data ---
     const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
     const currentShip = SHIPS[state.ship.type];
     const effectiveStats = L.getShipStats(state);
 
-    // --- UI state ---
     const [activeTab, setActiveTab] = useState(TABS.SHIPS);
     const [slotFilter, setSlotFilter] = useState("all");
     const [selectedEquip, setSelectedEquip] = useState(null);
     const [selectedShip, setSelectedShip] = useState(null);
+    const [selectedShipName, setSelectedShipName] = useState("");
     const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial(state,"shipyard"));
 
-    // --- Responsive ---
     const [isNarrow, setIsNarrow] = useState(window.innerWidth < 700);
     useEffect(() => {
         const h = () => setIsNarrow(window.innerWidth < 700);
@@ -91,10 +79,8 @@ function ShipyardScreen({ state, dispatch }) {
         return () => window.removeEventListener("resize", h);
     }, []);
 
-    // --- Accordion (mobile) ---
     const [equippedOpen, setEquippedOpen] = useState(!isNarrow);
 
-    // Clear selection on tab switch
     const switchTab = (tab) => {
         setActiveTab(tab);
         setSelectedEquip(null);
@@ -102,7 +88,6 @@ function ShipyardScreen({ state, dispatch }) {
         setSlotFilter("all");
     };
 
-    // --- Locker items ---
     const lockerItems = useMemo(() => (state.equipmentInventory || []).map(key => {
         const item = EQUIPMENT[key];
         if (!item) return null;
@@ -111,10 +96,6 @@ function ShipyardScreen({ state, dispatch }) {
     }).filter(Boolean), [state]);
 
     const hasLocker = lockerItems.length > 0;
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  PREVIEW PANEL (equipment or ship)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     const previewEquipStats = (equipmentKey) => {
         const newEquip = { ...state.ship.equipment };
@@ -126,7 +107,6 @@ function ShipyardScreen({ state, dispatch }) {
     };
 
     const renderPreviewPanel = () => {
-        // --- Equipment preview ---
         if (selectedEquip) {
             const item = EQUIPMENT[selectedEquip];
             if (!item) return null;
@@ -187,7 +167,6 @@ function ShipyardScreen({ state, dispatch }) {
             );
         }
 
-// --- Ship comparison preview ---
         if (selectedShip && selectedShip !== state.ship.type) {
             const s = SHIPS[selectedShip];
             const cur = currentShip;
@@ -204,7 +183,6 @@ function ShipyardScreen({ state, dispatch }) {
                         <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
                     </div>
 
-                    {/* Selected ship sprite */}
                     <div style={{
                         display: "flex",
                         justifyContent: "center",
@@ -222,6 +200,27 @@ function ShipyardScreen({ state, dispatch }) {
                             width={isNarrow ? 240 : 300}
                             height={isNarrow ? 170 : 210}
                             facing="left"
+                        />
+                    </div>
+
+                    {/* Ship Name Input */}
+                    <div style={{ marginBottom: 10 }}>
+                        <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Ship Name</div>
+                        <input
+                            type="text"
+                            value={selectedShipName}
+                            onChange={e => setSelectedShipName(e.target.value)}
+                            style={{
+                                padding: "6px 8px",
+                                background: T.panel,
+                                border: `1px solid ${T.border}`,
+                                color: T.text,
+                                fontSize: T.narrativeFontSize,
+                                fontFamily: T.font,
+                                borderRadius: 2,
+                                width: "100%",
+                                outline: "none",
+                            }}
                         />
                     </div>
 
@@ -244,7 +243,11 @@ function ShipyardScreen({ state, dispatch }) {
                         <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {lack.toLocaleString()}g more</div>
                     ) : (
                         <Btn v="gold" onClick={() => {
-                            dispatch({ type: A.BUY_SHIP, shipType: selectedShip });
+                            dispatch({
+                                type: A.BUY_SHIP,
+                                shipType: selectedShip,
+                                shipName: selectedShipName.trim() || SHIPS[selectedShip].name,
+                            });
                             setSelectedShip(null);
                         }}>
                             Purchase ({s.cost.toLocaleString()}g)
@@ -257,10 +260,6 @@ function ShipyardScreen({ state, dispatch }) {
         return null;
     };
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  LEFT PANEL — Ship Stats + Equipped
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     const renderLeftPanel = () => (
         <div style={{
             ...(isNarrow ? {} : {
@@ -269,29 +268,27 @@ function ShipyardScreen({ state, dispatch }) {
             }),
             display: "flex", flexDirection: "column", gap: 10,
         }}>
-            {/* Ship sprite */}
             <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 10,
-            padding: 6,
-            background: T.bgDeep,
-            borderRadius: 3,
-            border: `1px solid ${T.borderFaint}`,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 10,
+                padding: 6,
+                background: T.bgDeep,
+                borderRadius: 3,
+                border: `1px solid ${T.borderFaint}`,
             }}>
-            <ShipSideSprite
-                type={state.ship.type}
-                faction={null}
-                equipment={getVisualEquipment(state)}
-                width={isNarrow ? 260 : 340}
-                height={isNarrow ? 180 : 230}
-                facing="left"
-            />
+                <ShipSideSprite
+                    type={state.ship.type}
+                    faction={null}
+                    equipment={getVisualEquipment(state)}
+                    width={isNarrow ? 260 : 340}
+                    height={isNarrow ? 180 : 230}
+                    facing="left"
+                />
             </div>
-            {/* Current Vessel Stats */}
             <div style={panelStyle()}>
-                <SectionTitle>CURRENT VESSEL — {currentShip.name}</SectionTitle>
+                <SectionTitle>CURRENT VESSEL — {state.ship.name}</SectionTitle>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                     <StatBlock label="Hull" value={`${state.ship.hull}/${effectiveStats.maxHull}`} />
                     <StatBlock label="Cannons" value={effectiveStats.cannons} />
@@ -302,7 +299,6 @@ function ShipyardScreen({ state, dispatch }) {
                 </div>
             </div>
 
-            {/* Repair */}
             <div style={panelStyle()}>
                 <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
                     Hull: {state.ship.hull} / {effectiveStats.maxHull}
@@ -323,7 +319,6 @@ function ShipyardScreen({ state, dispatch }) {
                 </div>
             </div>
 
-            {/* Equipped Items */}
             <div style={panelStyle()}>
                 <div
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isNarrow ? "pointer" : "default" }}
@@ -383,12 +378,7 @@ function ShipyardScreen({ state, dispatch }) {
         </div>
     );
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  RIGHT PANEL — Tabs, Preview, Grid
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     const renderEquipmentTab = () => {
-        // Slot filter buttons – using icon components
         const filterButtons = [
             { key: "all", label: "All" },
             ...Object.entries(SLOT_LABELS).map(([k, v]) => ({
@@ -409,7 +399,6 @@ function ShipyardScreen({ state, dispatch }) {
 
         return (
             <div>
-                {/* Slot filters */}
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                     {filterButtons.map(f => (
                         <Btn key={f.key} sm
@@ -420,7 +409,6 @@ function ShipyardScreen({ state, dispatch }) {
                     ))}
                 </div>
 
-                {/* Equipment grid */}
                 <div style={{
                     display: "grid",
                     gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
@@ -489,7 +477,10 @@ function ShipyardScreen({ state, dispatch }) {
                     return (
                         <div key={key}
                             onClick={() => {
-                                if (!isCur) setSelectedShip(isSelected ? null : key);
+                                if (!isCur) {
+                                    setSelectedShip(isSelected ? null : key);
+                                    setSelectedShipName(SHIPS[key].name);
+                                }
                             }}
                             style={{
                                 ...panelStyle({
@@ -577,7 +568,6 @@ function ShipyardScreen({ state, dispatch }) {
 
     const renderRightPanel = () => (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-            {/* Tab bar */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <Btn sm v={activeTab === TABS.EQUIP ? "gold" : "ghost"}
                     onClick={() => switchTab(TABS.EQUIP)}><IconCog size={12} color={activeTab === TABS.EQUIP ? T.gold : T.textDim} /> Equipment</Btn>
@@ -589,25 +579,18 @@ function ShipyardScreen({ state, dispatch }) {
                 )}
             </div>
 
-            {/* Stat preview panel */}
             {renderPreviewPanel()}
 
-            {/* Tab content */}
             {activeTab === TABS.EQUIP && renderEquipmentTab()}
             {activeTab === TABS.SHIPS && renderShipsTab()}
             {activeTab === TABS.LOCKER && renderLockerTab()}
         </div>
     );
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  ROOT RENDER
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     return (
         <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", flex: 1 }}>
             <BackButton dispatch={dispatch} />
 
-            {/* Tutorial */}
             {showTutorial && (
                 <TutorialPopup
                     title="The Shipyard"
@@ -628,7 +611,6 @@ function ShipyardScreen({ state, dispatch }) {
                 </TutorialPopup>
             )}
 
-            {/* Main layout */}
             <div style={{
                 display: "flex",
                 flexDirection: isNarrow ? "column" : "row",

@@ -600,6 +600,80 @@ const ENEMY_SHIP_NAMES = {
       `${enemy.name} moves to intercept. They haven't fired yet.`,
   };
 
+  const ARRIVAL_MESSAGES = [
+  (portName, state) => ` Arrived at ${portName}.`,
+  (portName, state) => ` Dropped anchor at ${portName}.`,
+  (portName, state) => ` Made port at ${portName}.`,
+  (portName, state) => ` The harbour of ${portName} comes into view.`,
+  (portName, state) => ` ${portName} at last. The crew is glad to see land.`,
+  (portName, state) => ` ${portName} welcomes you, for now.`,
+  // ship‑name variants
+  (portName, state) => ` ${state.ship.name} drops anchor at ${portName}.`,
+  (portName, state) => ` ${portName} harbour welcomes ${state.ship.name}.`,
+  (portName, state) => ` ${state.ship.name} makes port at ${portName}.`,
+];
+
+const SAILING_MESSAGES = [
+  (destName, state) => `Setting sail for ${destName}.`,
+  (destName, state) => `${state.ship.name} sets sail for ${destName}.`,
+  (destName, state) => `Captain orders ${state.ship.name} to make for ${destName}.`,
+];
+
+const VICTORY_MESSAGES = [
+  (enemyName, state) => `Victory! ${enemyName} defeated.`,
+  (enemyName, state) => `${enemyName} sinks beneath the waves.`,
+  (enemyName, state) => `${enemyName} strikes her colours. Victory!`,
+  (enemyName, state) => `The ${enemyName} is defeated. The crew cheers.`,
+  (enemyName, state) => `${enemyName} goes down. The sea claims another.`,
+  // ship‑name variants
+  (enemyName, state) => `${state.ship.name} emerges victorious over the ${enemyName}!`,
+  (enemyName, state) => `${enemyName} strikes her colours – another prize for ${state.ship.name}.`,
+  (enemyName, state) => `${state.ship.name} sends the ${enemyName} to the depths.`,
+];
+
+const DEFEAT_MESSAGES = [
+  (enemyName, portName, state) => `Defeated by ${enemyName}. Washed ashore at ${portName}.`,
+  (enemyName, portName, state) => `${enemyName} overwhelmed us. We limp into ${portName} with nothing.`,
+  (enemyName, portName, state) => `The battle is lost. ${portName} is the nearest refuge. Everything gone.`,
+  // ship‑name variants
+  (enemyName, portName, state) => `${state.ship.name} is overwhelmed by ${enemyName}. Washed ashore at ${portName}.`,
+  (enemyName, portName, state) => `${enemyName} sinks ${state.ship.name}. We limp into ${portName} with nothing.`,
+];
+
+const FLED_MESSAGES = [
+  (state) => `You fled the battle.`,
+  (state) => `You escaped by the skin of your teeth.`,
+  (state) => `The enemy is left behind. The crew breathes easier.`,
+  (state) => `You disengage and sail away.`,
+  // ship‑name variants
+  (state) => `${state.ship.name} escapes the battle.`,
+  (state) => `${state.ship.name} slips away into the fog.`,
+];
+
+const BOARDING_SUCCESS_MESSAGES = [
+  (state) => "Boarding successful!",
+  (state) => `${state.ship.name}'s crew boards and captures the enemy!`,
+  (state) => `Boarding action from ${state.ship.name} is successful!`,
+];
+
+const REPAIR_MESSAGES = [
+  (cost, state) => `Repaired ship for ${cost}g.`,
+  (cost, state) => `The shipwright patches up ${state.ship.name} for ${cost}g.`,
+  (cost, state) => `${state.ship.name} is repaired at a cost of ${cost}g.`,
+];
+
+const PURCHASE_MESSAGES = [
+  (newShipName, cost, state) => `Purchased ${newShipName} for ${cost}g.`,
+  (newShipName, cost, state) => `Captain takes command of ${newShipName} for ${cost}g.`,
+  (newShipName, cost, state) => `${newShipName} joins the fleet. Cost: ${cost}g.`,
+];
+
+const PLUNDER_MESSAGES = [
+  (enemyName, state) => `Plundered the ${enemyName}.`,
+  (enemyName, state) => `${state.ship.name}'s crew loots the ${enemyName}.`,
+  (enemyName, state) => `Plunder from the ${enemyName} fills the hold of ${state.ship.name}.`,
+];
+
   const QM_DIALOGUE = {
   step0_welcome: (qmName, portName) =>
     `Welcome to ${portName}, Captain. I'm ${qmName}, your quartermaster. Let's see what work there is. Check the Contracts Board.`,
@@ -657,6 +731,8 @@ const ENEMY_SHIP_NAMES = {
 
 };
 
+
+
   // ── Merge into window.D ──────────────────────────────────
   Object.assign(window.D, {
     CREW_FIRST_NAMES,
@@ -669,6 +745,15 @@ const ENEMY_SHIP_NAMES = {
     COMBAT_LOG_TEMPLATES,
     ENEMY_SHIP_NAMES,
     ENCOUNTER_FLAVOUR,
+      ARRIVAL_MESSAGES,
+  SAILING_MESSAGES,
+  VICTORY_MESSAGES,
+  DEFEAT_MESSAGES,
+  FLED_MESSAGES,
+  BOARDING_SUCCESS_MESSAGES,
+  REPAIR_MESSAGES,
+  PURCHASE_MESSAGES,
+  PLUNDER_MESSAGES,
     QM_DIALOGUE,
   });
 })();

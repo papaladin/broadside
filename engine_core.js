@@ -205,7 +205,7 @@ window.E.autoSave = (state) => {
     wind: { angle: 45, speed: 10 },
     ship: {
       type: "dinghy",
-      name: "Sea Dog",
+      name: "The Sea Dog",
       hull: 30,
       cannons: 2,
       equipment: { hull: [], armament: [], rigging: [], special: [] },

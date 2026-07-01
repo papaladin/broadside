@@ -21,254 +21,220 @@
     return { ...state, factionAlerts: alerts };
   };
 
+  // --- BATTLE_ACTION Helpers ---------------------------------------
 
-  // ── Battle message pickers ───────────────────────────────────
-const victoryTemplates = [
-  name => `⚔ Victory! ${name} defeated.`,
-  name => `⚔ ${name} sinks beneath the waves.`,
-  name => `⚔ ${name} strikes her colours. Victory!`,
-  name => `⚔ The ${name} is defeated. The crew cheers.`,
-  name => `⚔ ${name} goes down. The sea claims another.`,
-];
-const victoryMessage = (enemyName) =>
-  victoryTemplates[Math.floor(Math.random() * victoryTemplates.length)](enemyName);
+  // ── Combat helpers (reduce BATTLE_ACTION verbosity) ─────────────
 
-const defeatTemplates = [
-  (enemy, port) => `☠️ Defeated by ${enemy}. Washed ashore at ${port}.`,
-  (enemy, port) => `☠️ ${enemy} overwhelmed us. We limp into ${port} with nothing.`,
-  (enemy, port) => `☠️ The battle is lost. ${port} is the nearest refuge. Everything gone.`,
-];
-const defeatMessage = (enemyName, portName) =>
-  defeatTemplates[Math.floor(Math.random() * defeatTemplates.length)](enemyName, portName);
+  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-const fledTemplates = [
-  () => `💨 You fled the battle.`,
-  () => `💨 You escaped by the skin of your teeth.`,
-  () => `💨 The enemy is left behind. The crew breathes easier.`,
-  () => `💨 You disengage and sail away.`,
-];
-const fledMessage = () =>
-  fledTemplates[Math.floor(Math.random() * fledTemplates.length)]();
+  // Build a narrative round log using templates from D.COMBAT_LOG_TEMPLATES
+  const buildRoundLog = (outcome) => {
+    const T = D.COMBAT_LOG_TEMPLATES;
+    if (!T) return "";
 
-
-// --- BATTLE_ACTION Helpers ---------------------------------------
-
-// ── Combat helpers (reduce BATTLE_ACTION verbosity) ─────────────
-
-const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-// Build a narrative round log using templates from D.COMBAT_LOG_TEMPLATES
-const buildRoundLog = (outcome) => {
-  const T = D.COMBAT_LOG_TEMPLATES;
-  if (!T) return "";
-
-  const playerAct = outcome.playerAction;
-  let playerLog = "";
-  if (playerAct === "broadside") {
-    playerLog = pickRandom(T.player.broadside)
-      .replace("{hull}", outcome.playerHullDamageOutput)
-      .replace("{crew}", outcome.enemyCrewLossFromPlayerAction);
-  } else if (playerAct === "precision") {
-    playerLog = outcome.playerHit
-      ? pickRandom(T.player.precision_hit)
-          .replace("{hull}", outcome.playerHullDamageOutput)
-          .replace("{crew}", outcome.enemyCrewLossFromPlayerAction)
-      : pickRandom(T.player.precision_miss);
-  } else if (playerAct === "grapple") {
-    playerLog = outcome.playerGrappleSuccess
-      ? pickRandom(T.player.grapple_success)
-      : pickRandom(T.player.grapple_fail)
-          .replace("{crew}", outcome.playerCrewLossFromPlayerAction);
-  } else if (playerAct === "evade") {
-    playerLog = outcome.fled
-      ? pickRandom(T.player.evade_success)
-      : pickRandom(T.player.evade_fail);
-  }
-
-  let npcLog = "";
-  if (outcome.npcAction) {
-    const npcAct = outcome.npcAction;
-    if (npcAct === "broadside") {
-      npcLog = pickRandom(T.npc.broadside)
-        .replace("{hull}", outcome.npcHullDamageOutput)
-        .replace("{crew}", outcome.playerCrewLossFromNpcAction);
-    } else if (npcAct === "precision") {
-      npcLog = outcome.npcHit
-        ? pickRandom(T.npc.precision_hit)
-            .replace("{hull}", outcome.npcHullDamageOutput)
-            .replace("{crew}", outcome.playerCrewLossFromNpcAction)
-        : pickRandom(T.npc.precision_miss);
-    } else if (npcAct === "grapple") {
-      npcLog = outcome.npcGrappleSuccess
-        ? pickRandom(T.npc.grapple_success)
-            .replace("{crew}", outcome.playerCrewLossFromNpcAction)
-        : pickRandom(T.npc.grapple_fail)
-            .replace("{crew}", outcome.enemyCrewLossFromNpcAction);
+    const playerAct = outcome.playerAction;
+    let playerLog = "";
+    if (playerAct === "broadside") {
+      playerLog = pickRandom(T.player.broadside)
+        .replace("{hull}", outcome.playerHullDamageOutput)
+        .replace("{crew}", outcome.enemyCrewLossFromPlayerAction);
+    } else if (playerAct === "precision") {
+      playerLog = outcome.playerHit
+        ? pickRandom(T.player.precision_hit)
+            .replace("{hull}", outcome.playerHullDamageOutput)
+            .replace("{crew}", outcome.enemyCrewLossFromPlayerAction)
+        : pickRandom(T.player.precision_miss);
+    } else if (playerAct === "grapple") {
+      playerLog = outcome.playerGrappleSuccess
+        ? pickRandom(T.player.grapple_success)
+        : pickRandom(T.player.grapple_fail)
+            .replace("{crew}", outcome.playerCrewLossFromPlayerAction);
+    } else if (playerAct === "evade") {
+      playerLog = outcome.fled
+        ? pickRandom(T.player.evade_success)
+        : pickRandom(T.player.evade_fail);
     }
-  }
 
-  return `${playerLog} ${npcLog}`.trim();
-};
-
-// Process crew loss and return updated roster + log fragment
-const applyCrewLoss = (state, playerCrewLoss) => {
-  const newCount = Math.max(0, (state.battleState.playerCrew || 0) - playerCrewLoss);
-  const lostCount = state.crew.roster.length - newCount;
-  if (lostCount <= 0) return { roster: state.crew.roster, lostCount: 0, log: "", lostNames: [] };
-
-  const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lostCount);
-  const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
-  const namesStr = lostNames.join(", ");
-  const log = ` Lost ${lostCount} crew: ${namesStr}.`;
-  return { roster: newRoster, lostCount, log, lostNames };
-};
-
-// Build a captain's‑log message for battle‑end events (victory/defeat/grapple win)
-const buildCaptainLog = (state, type, newRoster, extra = "") => {
-  const bs = state.battleState;
-  const initialCrew = bs.initialCrewCount ?? state.crew.roster.length;
-  const totalLost = initialCrew - newRoster.length;
-  const lostNames = bs.lostCrewNames ?? [];
-
-  let msg = "";
-  if (type === "grapple_win") {
-    msg = "Victory! Boarding successful.";
-  } else if (type === "sink_win") {
-    msg = "You sunk the enemy ship.";
-  } else if (type === "defeat") {
-    msg = "Defeated! Your ship was destroyed.";
-  }
-  if (totalLost > 0) {
-    const some = lostNames.slice(0, 3).join(", ");
-    msg += ` Lost ${totalLost} crew, including ${some}.`;
-  }
-  msg += extra;
-  return msg;
-};
-
-// Apply alignment penalty and return new morale + possible extra message fragment
-const applyAlignment = (state, newMorale) => {
-  const enemyFaction = state.battleState?.enemy?.faction;
-  if (!enemyFaction) return { morale: newMorale, logExtra: "" };
-
-  const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
-  const finalMorale = Math.max(0, newMorale - alignmentPenalty);
-  const logExtra = alignmentPenalty > 3
-    ? ` Your ${enemyFaction}-majority crew is furious about this.`
-    : "";
-  return { morale: finalMorale, logExtra };
-};
-
-
-// ── DISMISS_BATTLE helpers ───────────────────────────────────
-const handleDefeat = (state, battleState, patrolLog) => {
-  const returnPort = state.previousPort || state.currentPort;
-  const portName = D.PORTS[returnPort]?.name || "a nearby port";
-  const isMissionFight = battleState.encounterType === "mission_combat"
-                      || battleState.encounterType === "escort_defend";
-  const missionFailed = isMissionFight && state.activeMission;
-
-  return {
-    ...state,
-    battleState: null,
-    activeMission: missionFailed ? null : state.activeMission,
-    screen: "port",
-    currentPort: returnPort,
-    destination: null,
-    sailingDaysLeft: 0,
-    sailingDaysTotal: 0,
-    hold: {
-      ...state.hold,
-      items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
-    },
-    portMarket: G.generatePortMarket(returnPort, state),
-    missions: G.generateMissions(returnPort, state),
-    infamy: Math.min(999, (state.infamy ?? 0) + (patrolLog.length > 0 ? 2 : 0)),
-    log: [
-      ...state.log,
-      window.E.logEntry(state, defeatMessage(battleState.enemy.name, portName)),
-      window.E.logEntry(state, "All cargo lost."),
-      ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
-      ...patrolLog,
-    ],
-  };
-};
-
-const applyVictoryAftermath = (currentState, battleState) => {
-  let s = currentState;
-
-  // Upset tagging
-  if (s.crew?.roster) {
-    const enemyFaction = battleState.enemy?.faction;
-    if (enemyFaction) {
-      const upsetMembers = [];
-      const updatedRoster = s.crew.roster.map(member => {
-        if (member.faction === enemyFaction && !L.hasTag(member, "upset") && !L.hasTag(member, "loyal") && Math.random() < 0.15) {
-          upsetMembers.push(`${member.firstName} ${member.lastName}`);
-          return L.addTag(member, "upset");
-        }
-        return member;
-      });
-
-      if (upsetMembers.length > 0) {
-        const newLog = [...s.log];
-        if (upsetMembers.length === 1) {
-          newLog.push(window.E.logEntry(s, `${upsetMembers[0]} is disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
-        } else if (upsetMembers.length === 2) {
-          newLog.push(window.E.logEntry(s, `${upsetMembers[0]} and ${upsetMembers[1]} are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
-        } else {
-          newLog.push(window.E.logEntry(s, `Some of the crew are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
-        }
-        s = { ...s, crew: { ...s.crew, roster: updatedRoster }, log: newLog };
+    let npcLog = "";
+    if (outcome.npcAction) {
+      const npcAct = outcome.npcAction;
+      if (npcAct === "broadside") {
+        npcLog = pickRandom(T.npc.broadside)
+          .replace("{hull}", outcome.npcHullDamageOutput)
+          .replace("{crew}", outcome.playerCrewLossFromNpcAction);
+      } else if (npcAct === "precision") {
+        npcLog = outcome.npcHit
+          ? pickRandom(T.npc.precision_hit)
+              .replace("{hull}", outcome.npcHullDamageOutput)
+              .replace("{crew}", outcome.playerCrewLossFromNpcAction)
+          : pickRandom(T.npc.precision_miss);
+      } else if (npcAct === "grapple") {
+        npcLog = outcome.npcGrappleSuccess
+          ? pickRandom(T.npc.grapple_success)
+              .replace("{crew}", outcome.playerCrewLossFromNpcAction)
+          : pickRandom(T.npc.grapple_fail)
+              .replace("{crew}", outcome.enemyCrewLossFromNpcAction);
       }
     }
-  }
 
-  // Battle scar
-  if (battleState.phase === "victory" && s.crew?.roster) {
-    const initialCrew = battleState.initialCrewCount ?? s.crew.roster.length;
-    const lostCount = initialCrew - s.crew.roster.length;
-    if (lostCount >= 10) {
-      const scarredRoster = s.crew.roster.map(member =>
-        L.hasTag(member, "scar_battle") ? member : L.addTag(member, "scar_battle")
-      );
-      s = { ...s, crew: { ...s.crew, roster: scarredRoster } };
+    return `${playerLog} ${npcLog}`.trim();
+  };
+
+  // Process crew loss and return updated roster + log fragment
+  const applyCrewLoss = (state, playerCrewLoss) => {
+    const newCount = Math.max(0, (state.battleState.playerCrew || 0) - playerCrewLoss);
+    const lostCount = state.crew.roster.length - newCount;
+    if (lostCount <= 0) return { roster: state.crew.roster, lostCount: 0, log: "", lostNames: [] };
+
+    const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lostCount);
+    const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
+    const namesStr = lostNames.join(", ");
+    const log = ` Lost ${lostCount} crew: ${namesStr}.`;
+    return { roster: newRoster, lostCount, log, lostNames };
+  };
+
+  // Build a captain's‑log message for battle‑end events (victory/defeat/grapple win)
+  const buildCaptainLog = (state, type, newRoster, extra = "") => {
+    const bs = state.battleState;
+    const initialCrew = bs.initialCrewCount ?? state.crew.roster.length;
+    const totalLost = initialCrew - newRoster.length;
+    const lostNames = bs.lostCrewNames ?? [];
+
+    let msg = "";
+    if (type === "grapple_win") {
+      msg = "Victory! Boarding successful.";
+    } else if (type === "sink_win") {
+      msg = "You sunk the enemy ship.";
+    } else if (type === "defeat") {
+      msg = "Defeated! Your ship was destroyed.";
     }
-  }
-
-  return s;
-};
-
-const handlePatrolVictory = (currentState, battleState, heatAmount) => {
-  if (battleState.encounterType !== "mission_combat" || battleState.phase !== "victory") return null;
-  const missionType = currentState.activeMission?.type;
-  if (missionType !== "patrol" || !currentState.activeMission) return null;
-
-  return {
-    ...currentState,
-    battleState: null,
-    activeMission: { ...currentState.activeMission, enemyDefeated: true },
-    screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
-    log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
+    if (totalLost > 0) {
+      const some = lostNames.slice(0, 3).join(", ");
+      msg += ` Lost ${totalLost} crew, including ${some}.`;
+    }
+    msg += extra;
+    return msg;
   };
-};
 
-const handleFledMission = (currentState, battleState) => {
-  const isMissionFight = battleState.encounterType === "mission_combat"
-                      || battleState.encounterType === "escort_defend";
-  if (!isMissionFight) return null;
-  const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
-  return {
-    ...currentState,
-    battleState: null,
-    activeMission: null,
-    screen: returnToSailing ? "sailing" : "port",
-    log: [...currentState.log, window.E.logEntry(currentState, fledMessage()), window.E.logEntry(currentState, "The mission is a failure.")],
+  // Apply alignment penalty and return new morale + possible extra message fragment
+  const applyAlignment = (state, newMorale) => {
+    const enemyFaction = state.battleState?.enemy?.faction;
+    if (!enemyFaction) return { morale: newMorale, logExtra: "" };
+
+    const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
+    const finalMorale = Math.max(0, newMorale - alignmentPenalty);
+    const logExtra = alignmentPenalty > 3
+      ? ` Your ${enemyFaction}-majority crew is furious about this.`
+      : "";
+    return { morale: finalMorale, logExtra };
   };
-};
 
+  // ── DISMISS_BATTLE helpers ───────────────────────────────────
+  const handleDefeat = (state, battleState, patrolLog) => {
+    const returnPort = state.previousPort || state.currentPort;
+    const portName = D.PORTS[returnPort]?.name || "a nearby port";
+    const isMissionFight = battleState.encounterType === "mission_combat"
+                        || battleState.encounterType === "escort_defend";
+    const missionFailed = isMissionFight && state.activeMission;
 
+    return {
+      ...state,
+      battleState: null,
+      activeMission: missionFailed ? null : state.activeMission,
+      screen: "port",
+      currentPort: returnPort,
+      destination: null,
+      sailingDaysLeft: 0,
+      sailingDaysTotal: 0,
+      hold: {
+        ...state.hold,
+        items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
+      },
+      portMarket: G.generatePortMarket(returnPort, state),
+      missions: G.generateMissions(returnPort, state),
+      infamy: Math.min(999, (state.infamy ?? 0) + (patrolLog.length > 0 ? 2 : 0)),
+      log: [
+        ...state.log,
+        window.E.logEntry(state, L.logPick(D.DEFEAT_MESSAGES, state, battleState.enemy.name, portName)),
+        window.E.logEntry(state, "All cargo lost."),
+        ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
+        ...patrolLog,
+      ],
+    };
+  };
 
+  const applyVictoryAftermath = (currentState, battleState) => {
+    let s = currentState;
+
+    // Upset tagging
+    if (s.crew?.roster) {
+      const enemyFaction = battleState.enemy?.faction;
+      if (enemyFaction) {
+        const upsetMembers = [];
+        const updatedRoster = s.crew.roster.map(member => {
+          if (member.faction === enemyFaction && !L.hasTag(member, "upset") && !L.hasTag(member, "loyal") && Math.random() < 0.15) {
+            upsetMembers.push(`${member.firstName} ${member.lastName}`);
+            return L.addTag(member, "upset");
+          }
+          return member;
+        });
+
+        if (upsetMembers.length > 0) {
+          const newLog = [...s.log];
+          if (upsetMembers.length === 1) {
+            newLog.push(window.E.logEntry(s, `${upsetMembers[0]} is disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+          } else if (upsetMembers.length === 2) {
+            newLog.push(window.E.logEntry(s, `${upsetMembers[0]} and ${upsetMembers[1]} are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+          } else {
+            newLog.push(window.E.logEntry(s, `Some of the crew are disturbed by the attack on ${FACTIONS[enemyFaction]?.label || enemyFaction} ships.`));
+          }
+          s = { ...s, crew: { ...s.crew, roster: updatedRoster }, log: newLog };
+        }
+      }
+    }
+
+    // Battle scar
+    if (battleState.phase === "victory" && s.crew?.roster) {
+      const initialCrew = battleState.initialCrewCount ?? s.crew.roster.length;
+      const lostCount = initialCrew - s.crew.roster.length;
+      if (lostCount >= 10) {
+        const scarredRoster = s.crew.roster.map(member =>
+          L.hasTag(member, "scar_battle") ? member : L.addTag(member, "scar_battle")
+        );
+        s = { ...s, crew: { ...s.crew, roster: scarredRoster } };
+      }
+    }
+
+    return s;
+  };
+
+  const handlePatrolVictory = (currentState, battleState, heatAmount) => {
+    if (battleState.encounterType !== "mission_combat" || battleState.phase !== "victory") return null;
+    const missionType = currentState.activeMission?.type;
+    if (missionType !== "patrol" || !currentState.activeMission) return null;
+
+    return {
+      ...currentState,
+      battleState: null,
+      activeMission: { ...currentState.activeMission, enemyDefeated: true },
+      screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+      log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
+    };
+  };
+
+  const handleFledMission = (currentState, battleState) => {
+    const isMissionFight = battleState.encounterType === "mission_combat"
+                        || battleState.encounterType === "escort_defend";
+    if (!isMissionFight) return null;
+    const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
+    return {
+      ...currentState,
+      battleState: null,
+      activeMission: null,
+      screen: returnToSailing ? "sailing" : "port",
+      log: [...currentState.log, window.E.logEntry(currentState, L.logPick(D.FLED_MESSAGES, currentState)), window.E.logEntry(currentState, "The mission is a failure.")],
+    };
+  };
 
   // ── Reducer ──────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
@@ -462,9 +428,10 @@ const handleFledMission = (currentState, battleState) => {
     const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
     const capMsg = buildCaptainLog(state, "grapple_win", state.crew.roster, logExtra);
 
+    const baseMsg = L.logPick(D.BOARDING_SUCCESS_MESSAGES, state);
     const boardingMsg = crewResult.lostCount > 0
-  ? `Boarding successful! Lost ${crewResult.lostCount} crew: ${crewResult.lostNames.join(", ")}.`
-  : "Boarding successful!";
+      ? `${baseMsg} Lost ${crewResult.lostCount} crew: ${crewResult.lostNames.join(", ")}.`
+      : baseMsg;
 
     const newBS = {
       ...state.battleState,
@@ -625,7 +592,7 @@ const handleFledMission = (currentState, battleState) => {
           infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
           log: [
             ...currentState.log,
-            window.E.logEntry(currentState, victoryMessage(battleState.enemy.name)),
+            window.E.logEntry(currentState, L.logPick(D.VICTORY_MESSAGES, currentState, battleState.enemy.name)),
             ...patrolLog,
           ],
         };
@@ -641,7 +608,8 @@ const handleFledMission = (currentState, battleState) => {
         const finalHoldItems = action.holdItems;
 
         const newGold = state.gold + goldReward;
-        const logLines = [`Plundered the ${bs.enemy.name}. +${goldReward}g.`];
+        const plunderMsg = L.logPick(D.PLUNDER_MESSAGES, state, bs.enemy.name);
+        const logLines = [`${plunderMsg} +${goldReward}g.`];
 
         return {
           ...state,

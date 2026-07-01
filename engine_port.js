@@ -47,20 +47,6 @@
     return { valid: true };
   };
 
-// ── Arrival message picker ──────────────────────────────────
-const arrivalMessages = [
-  name => ` Arrived at ${name}.`,
-  name => ` Dropped anchor at ${name}.`,
-  name => ` Made port at ${name}.`,
-  name => ` The harbour of ${name} comes into view.`,
-  name => ` ${name} at last. The crew is glad to see land.`,
-  name => ` ${name} welcomes you, for now.`,
-];
-
-const pickArrivalMessage = (portName) => {
-  const template = arrivalMessages[Math.floor(Math.random() * arrivalMessages.length)];
-  return template(portName);
-};
 
 // ── Desertion check ─────────────────────────────────────────
 const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
@@ -232,7 +218,7 @@ case A.START_GAME: {
   const shipData = SHIPS[start.ship];
   newState.ship = {
     type: start.ship,
-    name: shipData.name,
+    name: newState.ship.name || shipData.name,
     hull: shipData.maxHull,
     cannons: shipData.cannons,
     equipment: { hull: [], armament: [], rigging: [], special: []},
@@ -317,77 +303,75 @@ case A.START_GAME: {
     }
 
       // --- SAIL_TO ---
-      case A.SAIL_TO: {
-        const destPort = PORTS[action.port];
-        if (!destPort) return state;
+    case A.SAIL_TO: {
+      const destPort = PORTS[action.port];
+      if (!destPort) return state;
 
-        // ── Reroute from sea ──────────────────────────────────────
-        if (state.route && state.route.totalDays > 0 && state.sailingDaysLeft > 0) {
-          // Same destination = cancel / no‑op
-          if (action.port === state.route.destinationPort) return state;
+      // ── Reroute from sea ──────────────────────────────────────
+      if (state.route && state.route.totalDays > 0 && state.sailingDaysLeft > 0) {
+        // Same destination = cancel / no‑op
+        if (action.port === state.route.destinationPort) return state;
 
-          const seaPos = L.getSeaPosition(state.route);
-          const remainingEndurance = state.route.enduranceBudget - state.route.enduranceSpent;
-          if (!L.canReachFromPosition(seaPos, action.port, state, remainingEndurance)) {
-            return {
-              ...state,
-              log: [...state.log, `Cannot reach ${destPort.name} from current position under present conditions.`],
-            };
-          }
-
-          const newDays = L.travelDaysFromPosition(seaPos, action.port, state);
-
-          let newState = {
+        const seaPos = L.getSeaPosition(state.route);
+        const remainingEndurance = state.route.enduranceBudget - state.route.enduranceSpent;
+        if (!L.canReachFromPosition(seaPos, action.port, state, remainingEndurance)) {
+          return {
             ...state,
-            destination: action.port,
-            sailingDaysLeft: newDays,
-            sailingDaysTotal: newDays,
-            screen: "sailing",
-            portGossip: [],
-            completedCombatThisVisit: false,
-            log: [...state.log, `Changing course for ${destPort.name}. ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
-            route: {
-              ...state.route,
-              destinationPort: action.port,
-              destinationPos: { x: destPort.x, y: destPort.y },
-              progressDays: 0,
-              totalDays: newDays,
-              seaPosition: seaPos,
-            },
+            log: [...state.log, `Cannot reach ${destPort.name} from current position under present conditions.`],
           };
-
-          return newState;
         }
 
-        // ── Normal port departure ─────────────────────────────────
-        const days = L.travelDays(state.currentPort, action.port, state);
-        const originPort = PORTS[state.currentPort];
-        const shipStats = L.getShipStats(state);
+        const newDays = L.travelDaysFromPosition(seaPos, action.port, state);
+        const sailMsg = L.logPick(D.SAILING_MESSAGES, state, destPort.name);
 
-        let newState = {
+        return {
           ...state,
-          previousPort: state.currentPort,
           destination: action.port,
-          sailingDaysLeft: days,
-          sailingDaysTotal: days,
+          sailingDaysLeft: newDays,
+          sailingDaysTotal: newDays,
           screen: "sailing",
           portGossip: [],
           completedCombatThisVisit: false,
-          log: [...state.log, `Setting sail for ${destPort.name}. ${days} day${days !== 1 ? "s" : ""} voyage.`],
+          log: [...state.log, `${sailMsg} ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
           route: {
-            originPort: state.currentPort,
+            ...state.route,
             destinationPort: action.port,
-            originPos: { x: originPort.x, y: originPort.y },
             destinationPos: { x: destPort.x, y: destPort.y },
             progressDays: 0,
-            totalDays: days,
-            seaPosition: { x: originPort.x, y: originPort.y },
-            enduranceBudget: shipStats.maxDays,
-            enduranceSpent: 0,
+            totalDays: newDays,
+            seaPosition: seaPos,
           },
         };
+      }
 
-        return newState;
+      // ── Normal port departure ─────────────────────────────────
+      const days = L.travelDays(state.currentPort, action.port, state);
+      const originPort = PORTS[state.currentPort];
+      const shipStats = L.getShipStats(state);
+      const sailMsg = L.logPick(D.SAILING_MESSAGES, state, destPort.name);
+
+      return {
+        ...state,
+        previousPort: state.currentPort,
+        destination: action.port,
+        sailingDaysLeft: days,
+        sailingDaysTotal: days,
+        screen: "sailing",
+        portGossip: [],
+        completedCombatThisVisit: false,
+        log: [...state.log, `${sailMsg} ${days} day${days !== 1 ? "s" : ""} voyage.`],
+        route: {
+          originPort: state.currentPort,
+          destinationPort: action.port,
+          originPos: { x: originPort.x, y: originPort.y },
+          destinationPos: { x: destPort.x, y: destPort.y },
+          progressDays: 0,
+          totalDays: days,
+          seaPosition: { x: originPort.x, y: originPort.y },
+          enduranceBudget: shipStats.maxDays,
+          enduranceSpent: 0,
+        },
+      };
     }
 
 // ------------ ENTER PORT ------------------------------
@@ -434,7 +418,7 @@ case A.ENTER_PORT: {
     screen: "port",
     missions: G.generateMissions(state.destination, state),
     portMarket: G.generatePortMarket(state.destination, state),     // ← pass state
-    log: [...state.log, window.E.logEntry(state, pickArrivalMessage(port.name))]
+    log: [...state.log, window.E.logEntry(state, L.logPick(D.ARRIVAL_MESSAGES, state, port.name))]
   };
 
   // Run post‑arrival logic
@@ -482,27 +466,29 @@ if (
 }
 
 // --------------------- PORT ACTIONS --------------------------------
-        case A.REPAIR: {
-          const blocked = checkServicesBlocked(state);
-          if (blocked) return blocked;
-          const shipStats = L.getShipStats(state);
-          const rep = state.reputation[state.currentPort] ?? 50;
-          const perk = L.getRepPerk(rep);
-          const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
-          const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
-          const combinedMult = perk.repairMult * (1 + eqRepairPct);
-          const cost = Math.floor(baseCost * combinedMult);
-          if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
-          const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
-          const eqPenaltyNote = eqRepairPct > 0 ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)` : "";
-          let s = {
-            ...state,
-            gold: state.gold - cost,
-            ship: { ...state.ship, hull: shipStats.maxHull },
-            log: [...state.log, `Repaired ship for ${cost}g${discountNote}${eqPenaltyNote}.`]
-          };
-          return s;
-        }
+      
+      case A.REPAIR: {
+        const blocked = checkServicesBlocked(state);
+        if (blocked) return blocked;
+        const shipStats = L.getShipStats(state);
+        const rep = state.reputation[state.currentPort] ?? 50;
+        const perk = L.getRepPerk(rep);
+        const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
+        const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
+        const combinedMult = perk.repairMult * (1 + eqRepairPct);
+        const cost = Math.floor(baseCost * combinedMult);
+        if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
+        const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
+        const eqPenaltyNote = eqRepairPct > 0 ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)` : "";
+        const repairMsg = L.logPick(D.REPAIR_MESSAGES, state, cost);
+        let s = {
+          ...state,
+          gold: state.gold - cost,
+          ship: { ...state.ship, hull: shipStats.maxHull },
+          log: [...state.log, `${repairMsg}${discountNote}${eqPenaltyNote}.`]
+        };
+        return s;
+      }
 
       case A.BUY_SHIP: {
         const blocked = checkServicesBlocked(state);
@@ -513,19 +499,21 @@ if (
         if (!ship || state.gold < ship.cost) return { ...state };
         let newRoster = state.crew.roster;
         if (ship.maxCrew < newRoster.length) newRoster = newRoster.slice(0, ship.maxCrew);
+        const newShipName = action.shipName || ship.name;
+        const purchaseMsg = L.logPick(D.PURCHASE_MESSAGES, state, newShipName, ship.cost);
         return {
           ...state,
           gold: state.gold - ship.cost,
           ship: {
             type: action.shipType,
-            name: ship.name,
+            name: newShipName,
             hull: ship.maxHull,
             cannons: ship.cannons,
-            equipment: { hull: [], armament: [], rigging: [], special: [] },  // NEW
+            equipment: { hull: [], armament: [], rigging: [], special: [] },
           },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
-          hold: { ...state.hold, capacity: ship.holdCapacity  },
-          log: [...state.log, `Purchased ${ship.name} for ${ship.cost}g.`],
+          hold: { ...state.hold, capacity: ship.holdCapacity },
+          log: [...state.log, purchaseMsg],
         };
       }
 

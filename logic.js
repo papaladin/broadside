@@ -237,13 +237,18 @@ const getLogTabCategory = (text) => {
   }
 };
 
+const logPick = (pool, state, ...args) => {
+  const fn = pool[Math.floor(Math.random() * pool.length)];
+  return fn(...args, state);  // state is the last argument, matching the pool signatures
+};
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIP & REPAIR FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const shipRepairCost = (state) => {
     const ship = getShipStats(state);
     const hullMissing = ship.maxHull - state.ship.hull;
-    return hullMissing * 2; // 2 gold per hull point
+    return hullMissing * Math.ceil(ship.maxHull / 20);
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1059,6 +1064,7 @@ const applyLoseContraband = (holdItems) => {
     getEffectiveMorale,
     classifyLogLine,
     getLogTabCategory,
+    logPick,
     isFeatureUnlocked,
     returnScreen,
 
