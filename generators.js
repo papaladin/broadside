@@ -460,34 +460,34 @@ const generatePortMarket = (portKey, state) => {
   };
 
   // Build a full enemy object
-  const generateEnemy = (risk, fame, faction) => {
-    const tier = window.L.getFameInfo(fame).tier;;
-    const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
-    const rf = riskFactors[risk] ?? 0.5;
+const generateEnemy = (risk, fame, faction, enemyFactionOverride = null) => {
+  const tier = window.L.getFameInfo(fame).tier;
+  const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
+  const rf = riskFactors[risk] ?? 0.5;
 
-    const pick = (rangeObj) => {
-      const [min, max] = rangeObj[tier];
-      const span = max - min;
-      const effectiveMax = risk === "assault" ? min + span * 1.6 : max;
-      const noise = randBetween(0, span * 0.15);
-      return Math.round(Math.min(effectiveMax, Math.max(min, min + span * rf + noise)));
-    };
-
-    const ranges = window.D.MISSION_ENEMY_RANGES;
-    return {
-      name:    generateEnemyName(faction),
-      faction: opposingFaction(faction),
-      hull:    pick(ranges.hull),
-      cannons: pick(ranges.cannons),
-      crew:    pick(ranges.crew),
-    };
+  const pick = (rangeObj) => {
+    const [min, max] = rangeObj[tier];
+    const span = max - min;
+    const effectiveMax = risk === "assault" ? min + span * 1.6 : max;
+    const noise = randBetween(0, span * 0.15);
+    return Math.round(Math.min(effectiveMax, Math.max(min, min + span * rf + noise)));
   };
+
+  const ranges = window.D.MISSION_ENEMY_RANGES;
+  return {
+    name:    generateEnemyName(faction),
+    faction: enemyFactionOverride !== null ? enemyFactionOverride : opposingFaction(faction),
+    hull:    pick(ranges.hull),
+    cannons: pick(ranges.cannons),
+    crew:    pick(ranges.crew),
+  };
+};
 
   // Assault enemy : uses the defending port's faction
   const generateEnemyForAssault = (targetPortKey, fame) => {
     const port = window.D.PORTS[targetPortKey];
     const faction = port?.faction || "spanish";
-    return generateEnemy("assault", fame, faction);
+    return generateEnemy("assault", fame, faction, faction);
   };
 
   // Gold reward, rounded to nearest 25
