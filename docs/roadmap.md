@@ -96,8 +96,8 @@ Broadside is fully playable with rich narrative systems:
 **Source**: petripeeduhpedro (Reddit), Ren's 608-day save audit
 
 #### B5.2 — Survival & stat integrity
-- [ ] **Starvation lethality (stopgap)**: after 2-3 consecutive days at zero food or zero water, start killing 1 crew member per day instead of only reducing morale. (A richer, asymmetric food-vs-water redesign is a separate discovery — see B8.2.)
-- [ ] **Desertion at sea**: allow upset crew to attempt desertion mid-voyage if morale < 30, not only at port entry. Confirmed in the save audit: several permanently-upset crew never deserted because the player simply never entered a port belonging to their faction.
+- [X] **Starvation lethality (stopgap)**: after 2-3 consecutive days at zero food or zero water, start killing 1 crew member per day instead of only reducing morale. (A richer, asymmetric food-vs-water redesign is a separate discovery — see B8.2.)
+- [X] **Desertion at sea**: allow upset crew to attempt desertion mid-voyage if morale < 30, not only at port entry. Confirmed in the save audit: several permanently-upset crew never deserted because the player simply never entered a port belonging to their faction.
 - [X] **Storm scar subset**: tag only 20-40% of survivors with `scar_storm`, not the entire crew. Confirmed: a single storm at day 338 left all 220 crew members carrying the tag, making it meaningless noise.
 - [X] **`longestCrewTenure` fix**: compute the stat from the current roster as well as departed crew. Confirmed: the stat showed 36 days despite multiple crew members with 500+ days aboard, because it only updates on removal.
 
@@ -106,21 +106,21 @@ Broadside is fully playable with rich narrative systems:
 **Source**: petripeeduhpedro (deliberately tested 20-day no-provisions voyages), Ren's save audit
 
 #### B5.3 — Platform & input bugs
-- [ ] Equipment-boosted hull doesn't unlock `minHull`-gated ports — `canReach` / `getUnreachableReason` must read effective hull (`L.getShipStats`) instead of the ship's base hull
-- [ ] Crew can exceed ship max via the shipwreck-rescue event (confirmed: 81/80) — clamp roster additions to current max
-- [ ] Map pinch/scroll zoom also scrolls the page underneath it, with visible black-border glitching — `preventDefault` on the map's wheel/touch handlers
-- [ ] Fullscreen escape has no way back in short of exiting and restarting the game
-- [ ] Market quantity-input field expands on first click and shifts the buttons out from under the cursor, breaking repeated click-click-click — reserve the layout space whether or not a trade is pending
+- [X] Equipment-boosted hull doesn't unlock `minHull`-gated ports — `canReach` / `getUnreachableReason` must read effective hull (`L.getShipStats`) instead of the ship's base hull
+- [X] Crew can exceed ship max via the shipwreck-rescue event (confirmed: 81/80) — clamp roster additions to current max
+- [X] Map pinch/scroll zoom also scrolls the page underneath it, with visible black-border glitching — `preventDefault` on the map's wheel/touch handlers
+- [0] Fullscreen escape has no way back in short of exiting and restarting the game -> rejected, it works (escape touch on keyboard)
+- [X] Market quantity-input field expands on first click and shifts the buttons out from under the cursor, breaking repeated click-click-click — reserve the layout space whether or not a trade is pending
 
 **Source**: Ren (Discord), confirmed across both mobile and desktop sessions
 
 #### B5.4 — Tutorial safety net
-- [ ] Abandoning the starter tutorial mission currently leaves a guided-onboarding player stuck with no recovery path. The QM should acknowledge the abandonment and advance onboarding regardless, instead of waiting indefinitely on a mission that will never complete.
+- [X] Abandoning the starter tutorial mission currently leaves a guided-onboarding player stuck with no recovery path. The QM should acknowledge the abandonment and advance onboarding regardless, instead of waiting indefinitely on a mission that will never complete.
 
 **Source**: Ren (Discord) — hit this in the very first session, had to restart the game entirely
 
 #### B5.5 — Economy scaling (known-direction fix)
-- [ ] Port market stock quantities don't scale with hold capacity or fame tier — confirmed independently by DocTheYounger, Ren, and the save audit (endgame port stocking 0-30 of most goods against a 900-capacity hold). Scale the tier quantity ranges in `generatePortMarket` by fame tier and/or hold size. (The deeper "is trade strategically interesting" question is a separate discovery — see B8.1.)
+- [X] Port market stock quantities don't scale with hold capacity or fame tier — confirmed independently by DocTheYounger, Ren, and the save audit (endgame port stocking 0-30 of most goods against a 900-capacity hold). Scale the tier quantity ranges in `generatePortMarket` by fame tier and/or hold size. (The deeper "is trade strategically interesting" question is a separate discovery — see B8.1.)
 
 **Source**: DocTheYounger (Reddit), Ren's save audit, petripeeduhpedro
 

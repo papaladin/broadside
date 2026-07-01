@@ -80,22 +80,22 @@ const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
       continue; // QM never deserts
     }
 
-    if (L.hasTag(member, "upset")) {
-      let desertChance = 0.30;
-      if (crewMorale > 60) desertChance = 0.10;
-      if (L.hasTag(member, "mutineer")) desertChance *= 2;
-      if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
-      if (destFaction && member.faction === destFaction) desertChance += 0.20;
+  if (L.hasTag(member, "upset")) {
+    // Base desertion chance (any port), independent of morale
+    let desertChance = 0.15;
+    if (L.hasTag(member, "mutineer")) desertChance *= 2;
+    if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
+    if (destFaction && member.faction === destFaction) desertChance += 0.20;
 
-      if (Math.random() < desertChance) {
-        deserters.push(`${member.firstName} ${member.lastName}`);
-      } else {
-        settlers.push(`${member.firstName} ${member.lastName}`);
-        newRoster.push(L.removeTag(member, "upset"));
-      }
+    if (Math.random() < desertChance) {
+      deserters.push(`${member.firstName} ${member.lastName}`);
     } else {
-      newRoster.push(member);
+      settlers.push(`${member.firstName} ${member.lastName}`);
+      newRoster.push(L.removeTag(member, "upset"));
     }
+  } else {
+    newRoster.push(member);
+  }
   }
 
   const logLines = [];

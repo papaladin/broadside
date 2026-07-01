@@ -972,19 +972,21 @@ const handleFledMission = (currentState, battleState) => {
             state.crew.roster.map(c => `${c.firstName} ${c.lastName}`)
           );
           member.tags = [...(member.tags || []), "scar_shipwreck"];
-          newState.crew = { ...state.crew, roster: [...state.crew.roster, member] };
-          newState.log = [...state.log,
-            `You find a survivor clinging to the wreckage. ${member.firstName} ${member.lastName}, battered but alive.`
-          ];
 
-        } else {
-          const enemy = G.generateEnemy("low", state.fame, "pirate");
-          enemy.name = "Wreck Looters";
-          const ctx = L.buildEncounterContext(state, "random", enemy);
-          newState.encounterContext = ctx;
-          newState.screen = "intercept";
-          newState.log = [...state.log, "As you board the wreck, pirates emerge from the hold. It was a trap!"];
-        }
+          const maxCrew = L.getShipStats(state).maxCrew;
+          const currentCount = state.crew.roster.length;
+
+          if (currentCount < maxCrew) {
+            newState.crew = { ...state.crew, roster: [...state.crew.roster, member] };
+            newState.log = [...state.log,
+              `You find a survivor clinging to the wreckage. ${member.firstName} ${member.lastName}, battered but alive.`
+            ];
+          } else {
+            newState.crew = { ...state.crew }; // no change
+            newState.log = [...state.log,
+              `You find a survivor clinging to the wreckage, but your ship is already at full capacity. ${member.firstName} ${member.lastName} is left with the wreck.`
+            ];
+          }
 
         return newState;
       }

@@ -333,6 +333,9 @@ const generatePortMarket = (portKey, state) => {
       never:      null,
     };
 
+    const fameTier = window.L.getFameInfo(state?.fame ?? 0).tier;
+    const scale = 1 + fameTier;
+
     const goods = {};
 
     colOrder.forEach((good, idx) => {
@@ -359,7 +362,7 @@ const generatePortMarket = (portKey, state) => {
           available = 999;
         } else {
           const range = tierQtyRanges[tier];
-          available = range ? randInt(range.min, range.max) : 0;
+          available = range ? randInt(range.min * scale, range.max * scale) : 0;
         }
       }
 
@@ -600,22 +603,21 @@ const generatePortMarket = (portKey, state) => {
 
   // ── Trade mission generator ──────────────────────────────────
   const generateTradeMission = (portKey, state, faction, risk) => {
-    const tier = window.L.getFameInfo(state.fame ?? 0).tier;;
+    const tier = window.L.getFameInfo(state.fame ?? 0).tier;
     const eligibleGoods = window.D.TRADE_GOODS_BY_TIER[tier] || window.D.TRADE_GOODS_BY_TIER[0];
 
     const good = pickRandom(eligibleGoods);
     const res = window.D.RESOURCES[good];
     if (!res) return null;
 
-    // Quantity: % of current hold capacity by risk
-    const holdCapacity = state.hold?.capacity || 200;
-    const holdPct = { low: 0.10, medium: 0.25, high: 0.50 }[risk] || 0.10;
-    const requiredQty = Math.max(3, Math.round(holdCapacity * holdPct));
+    // ── Gold reward from the standard mission gold table (same as combat/patrol/etc.) ──
+    const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
+    const rawGold = minGold + Math.random() * (maxGold - minGold);
+    const gold = Math.round(rawGold / 25) * 25;
 
-    // Gold: base price × qty × (1 + profitMargin), rounded to 25g
+    // ── Required quantity derived from gold reward, good base price, and profit margin ──
     const margin = window.D.TRADE_MISSION_PROFIT_MARGINS[risk] || 0.60;
-    const expectedCost = res.basePrice * requiredQty;
-    const gold = Math.round(expectedCost * (1 + margin) / 25) * 25;
+    const requiredQty = Math.max(3, Math.round(gold / (res.basePrice * (1 + margin))));
 
     const targetPort = pickTargetPort(portKey, "trade", state, faction);
     if (!targetPort) return null;
@@ -628,7 +630,7 @@ const generatePortMarket = (portKey, state) => {
     return {
       type: "trade",
       name: `Deliver ${res.name} to ${targetPortName}`,
-      description: `The ${factionAdj} factor requires ${requiredQty} ${res.unit} of ${res.name} at ${targetPortName}. Source the goods yourself and deliver:  you will be paid in full on arrival.`,
+      description: `The ${factionAdj} factor requires ${requiredQty} ${res.unit} of ${res.name} at ${targetPortName}. Source the goods yourself and deliver: you will be paid in full on arrival.`,
       faction,
       targetPort,
       risk,
@@ -644,12 +646,11 @@ const generatePortMarket = (portKey, state) => {
 
   // ── Smuggle mission generator ────────────────────────────────
   const generateSmuggleMission = (portKey, state, risk) => {
-    const tier = window.L.getFameInfo(state.fame ?? 0).tier;;
+    const tier = window.L.getFameInfo(state.fame ?? 0).tier;
     const infamy = state.infamy ?? 0;
 
     // Good pool by tier + infamy gating
     let eligibleGoods = window.D.SMUGGLE_GOODS_BY_TIER[tier] || ["rum", "tobacco"];
-    // Slaves only appear at medium+ risk and infamy >= 25
     if (risk === "low" || infamy < 25) {
       eligibleGoods = eligibleGoods.filter(g => g !== "slaves");
     }
@@ -666,18 +667,16 @@ const generatePortMarket = (portKey, state) => {
     const res = window.D.RESOURCES[good];
     if (!res) return null;
 
-    // Quantity: hold % by risk, with infamy multiplier for slaves at high infamy
-    const holdCapacity = state.hold?.capacity || 200;
-    const holdPct = { low: 0.08, medium: 0.18, high: 0.35 }[risk] || 0.08;
-    const infamyQtyMult = (good === "slaves" && infamy >= 50 && risk === "high") ? 1.5 : 1.0;
-    const requiredQty = Math.max(2, Math.round(holdCapacity * holdPct * infamyQtyMult));
+    // ── Gold reward from the standard mission gold table ──
+    const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
+    const rawGold = minGold + Math.random() * (maxGold - minGold);
+    const gold = Math.round(rawGold / 25) * 25;
 
-    // Gold: delivery fee
+    // ── Required quantity derived from gold reward, base price, and smuggle profit margin ──
     const margin = window.D.SMUGGLE_PROFIT_MARGINS[risk] || 0.80;
-    const expectedCost = res.basePrice * requiredQty;
-    const gold = Math.round(expectedCost * (1 + margin) / 25) * 25;
+    const requiredQty = Math.max(2, Math.round(gold / (res.basePrice * (1 + margin))));
 
-    // Intercept chance: one high-probability check per voyage
+    // Intercept chance: one high‑probability check per voyage
     const interceptChance = { low: 0.30, medium: 0.35, high: 0.40 }[risk] || 0.35;
 
     // Infamy on completion: always +1
@@ -698,7 +697,7 @@ const generatePortMarket = (portKey, state) => {
 
     const fame = risk === "high" ? 2 : 1;
 
-    // Rep: +pirate, -receiving faction
+    // Rep: +pirate, −receiving faction
     const repImpact = {
       pirate: window.D.MISSION_REP_IMPACTS.smuggle?.any ?? 2,
       [targetFaction]: -3,

@@ -3,10 +3,10 @@ window.S = window.S || {};
 
 (() => {
   const { useState } = React;
-  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES } = window.D;
+  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES, QM_DIALOGUE } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, QMPopup,
+  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
   IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -20,6 +20,8 @@ function PortScreen({ state, dispatch }) {
   const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
   const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
   const importRef = React.useRef(null);
+  const [qmPopupMessage, setQmPopupMessage] = useState(null);
+
 
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -250,8 +252,20 @@ function PortScreen({ state, dispatch }) {
                     </Btn>
                   </Tooltip>
                 )}
-                <Tooltip text="Abandon your current mission. You will lose reputation with the issuing faction.">
-                  <Btn v="ghost" sm onClick={() => dispatch({ type: A.ABANDON_MISSION })}>Abandon</Btn>
+                <Tooltip text={state.activeMission?.tutorial ? "You must complete this mission to continue." : "Abandon your current mission. You will lose reputation with the issuing faction."}>
+                  <Btn v="ghost" sm onClick={() => {
+                    if (state.activeMission?.tutorial && state.onboarding?.enabled && !state.onboarding?.completed) {
+                      // Show QM popup telling player they can't abandon the tutorial
+                      const qm = state.crew?.roster?.find(m => (m.tags || []).includes('quartermaster'));
+                      const qmName = qm ? `${qm.firstName} ${qm.lastName}` : 'Quartermaster';
+                      const msg = QM_DIALOGUE?.tutorialAbandonRefuse
+                        ? QM_DIALOGUE.tutorialAbandonRefuse(qmName)
+                        : `${qmName} tells you firmly that you can't abandon the opening contract.`;
+                      setQmPopupMessage(msg);
+                    } else {
+                      dispatch({ type: A.ABANDON_MISSION });
+                    }
+                  }}>Abandon</Btn>
                 </Tooltip>
               </div>
               {!canFinish && (
@@ -364,6 +378,34 @@ function PortScreen({ state, dispatch }) {
           <LogList entries={state.log} />
         </div>
       </div>
+
+      {/* ── QM Popup for tutorial abandon refusal ───────────────── */}
+      {qmPopupMessage && (
+        <div style={{
+          position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          maxWidth: 560, width: "90%", zIndex: 500,
+          background: T.panel, border: `1px solid ${T.gold}`, borderRadius: 2,
+          padding: 12, display: "flex", alignItems: "flex-start", gap: 10,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+          animation: "qmSlideIn 0.3s ease-out",
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: T.gold, fontSize: 11, fontWeight: "bold", marginBottom: 4 }}>
+              {state.crew?.roster?.find(m => (m.tags || []).includes('quartermaster'))?.firstName + " " + state.crew?.roster?.find(m => (m.tags || []).includes('quartermaster'))?.lastName || "Quartermaster"}
+            </div>
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight }}>
+              {qmPopupMessage}
+            </div>
+            <div style={{ marginTop: 8, display: "flex", gap: 12 }}>
+              <Btn sm v="gold" onClick={() => setQmPopupMessage(null)}>Got it</Btn>
+              <div onClick={() => setQmPopupMessage(null)}
+                style={{ color: T.textFaint, fontSize: T.captionFontSize, cursor: "pointer", textDecoration: "underline", alignSelf: "center" }}>
+                I'll take it from here
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

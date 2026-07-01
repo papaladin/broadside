@@ -298,6 +298,7 @@ window.S = window.S || {};
         return { key: step.key, text: step.text() };
       }
 
+
       return null;
     }, [state]);  // react to any state change
 

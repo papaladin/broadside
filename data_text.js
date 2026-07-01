@@ -651,6 +651,10 @@ const ENEMY_SHIP_NAMES = {
 
   step9_departure: (qmName) =>
     `${qmName} tips his hat. "You've got your sea legs now, Captain, you don't need me around. Fair winds." He takes a jolly boat ashore.`,
+
+  tutorialAbandonRefuse: (qmName) =>
+  `"Captain, we can't walk away from it. Not yet. Let's see it through." ${qmName} gestures toward the harbour. "After this, you're free to choose."`,
+
 };
 
   // ── Merge into window.D ──────────────────────────────────

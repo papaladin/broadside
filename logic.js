@@ -315,9 +315,9 @@ const canReachFrom = (origin, portKey, state, maxDays) => {
   if (port.hidden && !state.discoveredPorts?.includes(portKey)) return false;
   // Hull size guard
   if (port.minHull) {
-    const baseHull = D.SHIPS[state.ship?.type]?.maxHull ?? 0;
-    if (baseHull < port.minHull) return false;
-  }
+  const effectiveHull = getShipStats(state).maxHull;
+  if (effectiveHull < port.minHull) return false;
+}
 
   let days;
   if (typeof origin === "string") {
@@ -363,9 +363,9 @@ const getUnreachableReason = (state, portKey) => {
 
   // --- Layer 2: ship size ---
   if (port.minHull) {
-    const baseHull = SHIPS[state.ship?.type]?.maxHull ?? 0;
-    if (baseHull < port.minHull) {
-      return `Requires a heavier vessel (your ship: ${baseHull} hull, required: ${port.minHull}+)`;
+    const effectiveHull = getShipStats(state).maxHull;
+    if (effectiveHull < port.minHull) {
+      return `Requires a heavier vessel (your ship: ${effectiveHull} hull, required: ${port.minHull}+)`;
     }
   }
 
@@ -781,13 +781,6 @@ const revealTag = (member, traitName) => {
 combined.playerHullDamageOutput = playerOutcome.player.hullDamage;        // hull damage dealt by player
 combined.npcHullDamageOutput    = npcOutcome ? npcOutcome.enemy.hullDamage : 0; // hull damage dealt by NPC to player
 
-// TEMPORARY DEBUG — remove after verifying
-console.log("per-action check", {
-  playerCrewLossFromPlayerAction: combined.playerCrewLossFromPlayerAction,
-  enemyCrewLossFromPlayerAction: combined.enemyCrewLossFromPlayerAction,
-  playerCrewLossFromNpcAction: combined.playerCrewLossFromNpcAction,
-  enemyCrewLossFromNpcAction: combined.enemyCrewLossFromNpcAction,
-}); 
 
   // 4b. Apply Surgeon's Bay crew loss reduction (only affects the combined totals, not the per‑action fields)
   const crewLossMult = getEquipmentEffect(state, "crewLossMult");

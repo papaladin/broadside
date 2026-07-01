@@ -171,32 +171,38 @@ const MarketScreen = ({ state, dispatch }) => {
             <span>{Math.round(loadPct * 100)}% full</span>
           </div>
           <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={10} />
-          {speedMult > 1 && (
-            <div style={{ color: T.gold, fontSize: T.captionFontSize, marginTop: 4 }}>
-              ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
-            </div>
-          )}
+          <div style={{ height: 20, marginTop: 4, overflow: "hidden" }}>
+            {speedMult > 1 && (
+              <div style={{ color: T.gold, fontSize: T.captionFontSize }}>
+                ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
+              </div>
+            )}
+          </div>
 
           {/* Pending trade summary */}
-          {(pendingBuyGoods.length > 0 || pendingSellGoods.length > 0) && (
-            <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              {pendingBuyGoods.map(good => (
-                <span key={good} style={{ color: T.text, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 2 }}>
-                  {getGoodIcon(good, { size: 12, style: { marginRight: 2 } })}
-                  +{buyPending[good]} {window.D.RESOURCES[good]?.name || good}
+          <div style={{ minHeight: 32, marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {(pendingBuyGoods.length > 0 || pendingSellGoods.length > 0) ? (
+              <>
+                {pendingBuyGoods.map(good => (
+                  <span key={good} style={{ color: T.text, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 2 }}>
+                    {getGoodIcon(good, { size: 12, style: { marginRight: 2 } })}
+                    +{buyPending[good]} {window.D.RESOURCES[good]?.name || good}
+                  </span>
+                ))}
+                {pendingSellGoods.map(good => (
+                  <span key={good} style={{ color: T.text, fontSize: 11, display: "flex", alignItems: "center", gap: 2 }}>
+                    {getGoodIcon(good, { size: 12, style: { marginRight: 2 } })}
+                    -{sellPending[good]} {window.D.RESOURCES[good]?.name || good}
+                  </span>
+                ))}
+                <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginLeft: 8 }}>
+                  {goldDelta >= 0 ? "+" : ""}{goldDelta}g
                 </span>
-              ))}
-              {pendingSellGoods.map(good => (
-                <span key={good} style={{ color: T.text, fontSize: 11, display: "flex", alignItems: "center", gap: 2 }}>
-                  {getGoodIcon(good, { size: 12, style: { marginRight: 2 } })}
-                  -{sellPending[good]} {window.D.RESOURCES[good]?.name || good}
-                </span>
-              ))}
-              <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginLeft: 8 }}>
-                {goldDelta >= 0 ? "+" : ""}{goldDelta}g
-              </span>
-            </div>
-          )}
+              </>
+            ) : (
+              <div style={{ width: "100%", height: 1 }} /> // invisible placeholder to preserve height
+            )}
+          </div>
 
           {/* Reset / Confirm */}
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
