@@ -988,6 +988,8 @@ const handleFledMission = (currentState, battleState) => {
             ];
           }
 
+        }
+
         return newState;
       }
 

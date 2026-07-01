@@ -6,11 +6,11 @@ window.S = window.S || {};
   const { PORTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton,
+  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip,
     IconAnchor,
     IconFood, IconWater, IconRhum, IconSugar, IconTimber, IconCloth,
     IconSpice, IconSilk, IconCoffee, IconCocoa, IconSpear, IconTobacco,
-    IconGoblet, IconPerson,TransferLayout,
+    IconGoblet, IconPerson, TransferLayout,
   } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -39,8 +39,6 @@ window.S = window.S || {};
   };
 
   // ── Sort helper: groups legal goods first, illegal goods last.
-  // Array.prototype.sort is stable in modern JS, so within each group
-  // the original colOrder is preserved.
   const sortLegalFirst = (a, b) => {
     const aIllegal = RESOURCES[a]?.illegal ? 1 : 0;
     const bIllegal = RESOURCES[b]?.illegal ? 1 : 0;
@@ -75,9 +73,6 @@ const MarketScreen = ({ state, dispatch }) => {
     const loadPct = L.getHoldLoadPct(previewItems, capacity);
     const speedMult = L.getHoldSpeedMultiplier(loadPct);
 
-    // ── Gold delta: iterate from pending sets (not market.goods) ──
-    // After the generator fix, market.goods has all 14 goods with real prices,
-    // so selling a good the port doesn't stock now contributes correctly.
     const goldDelta = (() => {
       let total = 0;
       Object.entries(sellPending).forEach(([good, qty]) => {
@@ -126,7 +121,21 @@ const MarketScreen = ({ state, dispatch }) => {
       });
     };
 
-    // ── Top summary: list of goods in pending trade ───────────────
+    // ── Bulk sell all (except food/water) ──────────────────────
+    const sellAllExceptProvisions = () => {
+      const newSell = { ...sellPending };
+      Object.keys(holdItems).forEach(good => {
+        if (good === "food" || good === "water") return;
+        const qty = holdItems[good] || 0;
+        if (qty > 0) newSell[good] = qty;
+      });
+      setSellPending(newSell);
+    };
+
+    const hasAnythingToSell = Object.keys(holdItems).some(good => 
+      good !== "food" && good !== "water" && (holdItems[good] || 0) > 0
+    );
+
     const pendingBuyGoods = Object.keys(buyPending).filter(g => (buyPending[g]||0) > 0);
     const pendingSellGoods = Object.keys(sellPending).filter(g => (sellPending[g]||0) > 0);
 
@@ -171,13 +180,11 @@ const MarketScreen = ({ state, dispatch }) => {
             <span>{Math.round(loadPct * 100)}% full</span>
           </div>
           <Bar value={used} max={capacity} color={loadPct > 0.75 ? T.redBr : T.greenBr} h={10} />
-          <div style={{ height: 20, marginTop: 4, overflow: "hidden" }}>
-            {speedMult > 1 && (
-              <div style={{ color: T.gold, fontSize: T.captionFontSize }}>
-                ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
-              </div>
-            )}
-          </div>
+          {speedMult > 1 && (
+            <div style={{ color: T.gold, fontSize: T.captionFontSize, marginTop: 4 }}>
+              ⚠ Hold over 50% : voyages take {Math.round((speedMult - 1) * 100)}% longer.
+            </div>
+          )}
 
           {/* Pending trade summary */}
           <div style={{ minHeight: 32, marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
@@ -200,7 +207,7 @@ const MarketScreen = ({ state, dispatch }) => {
                 </span>
               </>
             ) : (
-              <div style={{ width: "100%", height: 1 }} /> // invisible placeholder to preserve height
+              <div style={{ width: "100%", height: 1 }} />
             )}
           </div>
 
@@ -213,7 +220,14 @@ const MarketScreen = ({ state, dispatch }) => {
 
         {/* ── Two‑column transfer layout ────────────────────────── */}
         <TransferLayout
-          leftTitle="YOUR HOLD"
+          leftTitle={
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span>YOUR HOLD</span>
+              <Tooltip text="Sell all cargo except food and water.">
+                <Btn sm v="ghost" onClick={sellAllExceptProvisions} disabled={!hasAnythingToSell}>Sell All</Btn>
+              </Tooltip>
+            </div>
+          }
           leftContent={
             Object.keys(holdItems).filter(good => (holdItems[good]||0) > 0 || (sellPending[good]||0) > 0).length === 0 ? (
               <EmptyState message="Your hold is empty." />
@@ -224,8 +238,6 @@ const MarketScreen = ({ state, dispatch }) => {
                   .sort(sortLegalFirst)
                   .map(good => {
                     const pg = market.goods[good];
-                    // After generator fix, pg always exists for any of the 14 goods.
-                    // The fallback is defensive only.
                     const price = pg ? pg.sellToPort : 0;
                     const inHold = holdItems[good] || 0;
                     const pending = sellPending[good] || 0;
@@ -249,11 +261,11 @@ const MarketScreen = ({ state, dispatch }) => {
                           />
                           <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= max}>+</Btn>
                           <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
-                          {price}g
-                          <div style={{ color: T.textFaint, fontSize: 8 }}>
-                            (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
-                          </div>
-                        </span>
+                            {price}g
+                            <div style={{ color: T.textFaint, fontSize: 8 }}>
+                              (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
+                            </div>
+                          </span>
                         </div>
                       </div>
                     );
@@ -262,73 +274,68 @@ const MarketScreen = ({ state, dispatch }) => {
             )
           }
           rightTitle="PORT MARKET"
-                    rightContent={
+          rightContent={
             Object.keys(market.goods).filter(g => market.goods[g].available > 0).length === 0 ? (
               <EmptyState message="No goods available for purchase." />
             ) : (
               (() => {
                 let illegalDividerShown = false;
-                // Filter to only goods the port actually has stock of.
-                // After the generator fix, all 14 goods are in market.goods,
-                // but many have available: 0 (port doesn't trade them).
-                // Sort puts illegal goods last so the divider correctly separates them.
                 return Object.keys(market.goods)
                   .filter(good => market.goods[good].available > 0)
                   .sort(sortLegalFirst)
                   .map(good => {
-                  const pg = market.goods[good];
-                  const price = pg.buyFromPort;
-                  const available = pg.available;
-                  const pending = buyPending[good] || 0;
-                  const freeSpace = capacity - used + (sellPending[good] || 0);
-                  const max = Math.min(available, freeSpace + pending);
-                  const isIllegal = RESOURCES[good]?.illegal;
-                  const showDivider = isIllegal && !illegalDividerShown;
-                  if (showDivider) illegalDividerShown = true;
+                    const pg = market.goods[good];
+                    const price = pg.buyFromPort;
+                    const available = pg.available;
+                    const pending = buyPending[good] || 0;
+                    const freeSpace = capacity - used + (sellPending[good] || 0);
+                    const max = Math.min(available, freeSpace + pending);
+                    const isIllegal = RESOURCES[good]?.illegal;
+                    const showDivider = isIllegal && !illegalDividerShown;
+                    if (showDivider) illegalDividerShown = true;
 
-                  return (
-                    <React.Fragment key={good}>
-                      {showDivider && (
-                        <div style={{
-                          borderTop: `1px solid ${T.redBr}`,
-                          margin: "4px 0",
-                          opacity: 0.5,
-                        }} />
-                      )}
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 6, flexWrap:"wrap" }}>
-                        <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
-                          {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
-                          {RESOURCES[good]?.name || good}
-                          {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: T.captionFontSize }}>(Illegal)</span>}
-                          <span style={{ color: T.textDim, marginLeft: 6 }}>×{available}</span>
-                        </span>
-                        {/* buy controls unchanged */}
-                        <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
-                          <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={(buyPending[good]||0) <= 0}>-</Btn>
-                          <input type="number" value={buyPending[good]||0}
-                            onChange={e => {
-                              const v = parseInt(e.target.value, 10) || 0;
-                              setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
-                            }}
-                            style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
-                          />
-                          <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
-                          <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
-                            {price}g
-                            <div style={{ color: T.textFaint, fontSize: 8 }}>
-                              (Base: {pg.basePrice}g)
-                            </div>
+                    return (
+                      <React.Fragment key={good}>
+                        {showDivider && (
+                          <div style={{
+                            borderTop: `1px solid ${T.redBr}`,
+                            margin: "4px 0",
+                            opacity: 0.5,
+                          }} />
+                        )}
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 6, flexWrap:"wrap" }}>
+                          <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
+                            {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
+                            {RESOURCES[good]?.name || good}
+                            {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: T.captionFontSize }}>(Illegal)</span>}
+                            <span style={{ color: T.textDim, marginLeft: 6 }}>×{available}</span>
                           </span>
+                          <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
+                            <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={(buyPending[good]||0) <= 0}>-</Btn>
+                            <input type="number" value={buyPending[good]||0}
+                              onChange={e => {
+                                const v = parseInt(e.target.value, 10) || 0;
+                                setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+                              }}
+                              style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
+                            />
+                            <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
+                            <Btn sm v="ghost" onClick={() => adjustBuy(good, 20)} disabled={(buyPending[good]||0) + 20 > max}>x20</Btn>
+                            <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
+                              {price}g
+                              <div style={{ color: T.textFaint, fontSize: 8 }}>
+                                (Base: {pg.basePrice}g)
+                              </div>
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                });
+                      </React.Fragment>
+                    );
+                  });
               })()
             )
           }
         />
-
 
         {/* ── Bottom confirm panel ───────────────────────────────── */}
         <div style={{ ...panelStyle(), marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>

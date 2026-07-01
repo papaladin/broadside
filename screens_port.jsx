@@ -7,7 +7,7 @@ window.S = window.S || {};
   const L = window.L;
   const A = window.E.A;
   const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
-  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette } = window.UI;
+  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette, IconCoins, IconAttention, } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -48,6 +48,20 @@ function PortScreen({ state, dispatch }) {
   const canCrew = L.isFeatureUnlocked(state, 'crew');
   const canShipyard = L.isFeatureUnlocked(state, 'shipyard');
   const canJournal = L.isFeatureUnlocked(state, 'journal');
+
+  // ── Helper: find the most negatively impacted faction ────────────
+  const getHarmedFaction = (mission) => {
+    const repImpact = mission.repImpact || {};
+    let worstFaction = null;
+    let worstDelta = 0;
+    for (const [faction, delta] of Object.entries(repImpact)) {
+      if (delta < worstDelta) {
+        worstDelta = delta;
+        worstFaction = faction;
+      }
+    }
+    return worstFaction ? { faction: worstFaction, delta: worstDelta } : null;
+  };
 
   return (
     <div style={{
@@ -217,17 +231,44 @@ function PortScreen({ state, dispatch }) {
                 <span style={{ color: T.greenBr, fontSize: T.metadataFontSize, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
                 <div style={{ display: "flex", gap: 4 }}>
                   <Pill label={state.activeMission.faction} color={FACTIONS[state.activeMission.faction]?.color ?? T.textDim} />
-                  <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
+                  <Tooltip text={
+                    state.activeMission.type === "trade" ? "Buy and deliver goods for profit." :
+                    state.activeMission.type === "smuggle" ? "Deliver illegal goods. Patrols may inspect you." :
+                    state.activeMission.type === "combat" ? "Hunt down an enemy ship." :
+                    state.activeMission.type === "patrol" ? "Patrol the waters near the target port until the enemy appears." :
+                    state.activeMission.type === "escort" ? "Protect a convoy to its destination." :
+                    state.activeMission.type === "assault" ? "Attack a port's garrison by force." : ""
+                  }>
+                    <Pill label={state.activeMission.risk} color={T.riskColor?.[state.activeMission.risk] ?? T.textDim} />
+                  </Tooltip>
                 </div>
               </div>
               <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8, lineHeight: 1.4 }}>
                 {state.activeMission.description}
               </div>
               <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
-              <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 8 }}>
-                <span style={{ color: T.gold, fontSize: T.metadataFontSize }}>💰 {state.activeMission.gold}</span>
+              <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ color: T.gold, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                  <IconCoins size={12} color={T.gold} /> {state.activeMission.gold}
+                </span>
                 <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {state.activeMission.fame}</span>
               </div>
+              {(() => {
+                const harmed = getHarmedFaction(state.activeMission);
+                if (!harmed) return null;
+                const harmedColor = FACTIONS[harmed.faction]?.color || T.redBr;
+                return (
+                  <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8, display: "flex", alignItems: "center", gap: 3 }}>
+                    <IconAttention size={12} color={harmedColor} />
+                    Will impact negatively the {FACTIONS[harmed.faction]?.label || harmed.faction}
+                  </div>
+                );
+              })()}
+              {state.activeMission.type === "patrol" && (
+                <div style={{ color: T.gold, fontSize: T.captionFontSize, marginBottom: 8 }}>
+                  ⚡ Sail near {PORTS[state.activeMission.targetPort]?.name || "the target port"} and advance days. The enemy will appear with time.
+                </div>
+              )}
               {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
                 const res = window.D.RESOURCES[state.activeMission.requiredGood];
                 const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
@@ -287,13 +328,22 @@ function PortScreen({ state, dispatch }) {
                     <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{m.name}</span>
                     <div style={{ display: "flex", gap: 4 }}>
                       <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
-                      <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                      <Tooltip text={
+                        m.type === "trade" ? "Buy and deliver goods for profit." :
+                        m.type === "smuggle" ? "Deliver illegal goods. Patrols may inspect you." :
+                        m.type === "combat" ? "Hunt down an enemy ship." :
+                        m.type === "patrol" ? "Patrol the waters near the target port until the enemy appears." :
+                        m.type === "escort" ? "Protect a convoy to its destination." :
+                        m.type === "assault" ? "Attack a port's garrison by force." : ""
+                      }>
+                        <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                      </Tooltip>
                     </div>
                   </div>
                   <p style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
                   {m.enemy && (
                     <div style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px" }}>
-                      Enemy: {m.enemy.name} — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
+                      Enemy: {m.enemy.name} ({FACTIONS[m.enemy.faction]?.label || m.enemy.faction}) — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
                     </div>
                   )}
                   {(m.requiredGood && m.requiredQty) && (() => {
@@ -352,8 +402,26 @@ function PortScreen({ state, dispatch }) {
                     );
                   })()}
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ color: T.gold, fontSize: T.metadataFontSize }}>💰 {m.gold}</span>
+                    <span style={{ color: T.gold, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                      <IconCoins size={12} color={T.gold} /> {m.gold}
+                    </span>
                     <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {m.fame}</span>
+                    {(() => {
+                      const harmed = getHarmedFaction(m);
+                      if (!harmed) return null;
+                      const harmedColor = FACTIONS[harmed.faction]?.color || T.redBr;
+                      return (
+                        <div style={{ color: T.textDim, fontSize: T.captionFontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                          <IconAttention size={12} color={harmedColor} />
+                          Will impact negatively the {FACTIONS[harmed.faction]?.label || harmed.faction}
+                        </div>
+                      );
+                    })()}
+                    {m.type === "patrol" && (
+                      <div style={{ color: T.gold, fontSize: T.captionFontSize }}>
+                        ⚡ Sail near {PORTS[m.targetPort]?.name || "the target port"} and advance days. The enemy will appear with time.
+                      </div>
+                    )}
                     <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
                     <Tooltip text="Take this mission as your active objective.">
                       <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>

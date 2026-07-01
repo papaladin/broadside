@@ -86,7 +86,25 @@ const IconGold = ({ size = 14, color = "currentColor" }) => (
   </svg>
 );
 
-  // ── New icons (19) ───────────────────────────────────────────────────────
+const IconAttention = ({ size = 14, color = "currentColor" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    style={{ display: "inline-block", verticalAlign: "middle" }}
+  >
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </svg>
+);
 
   const IconBarrel = ({ size = 14, color = "currentColor" }) => (
     <svg width={size} height={size}  aria-hidden="true" viewBox="0 0 16 16" fill="none"
@@ -911,7 +929,7 @@ window.UI.LOG_ICONS = {
   // ── Attach all icon components to window.UI ──────────────────
   Object.assign(window.UI, {
     IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconFood, IconWater, IconGold,
-    IconBarrel, IconCoins, IconFruit, IconPirate, IconCalendar, IconChest, IconMarket, IconMap, IconFloppy, IconJournal, IconAnchor,
+    IconBarrel, IconCoins, IconAttention, IconFruit, IconPirate, IconCalendar, IconChest, IconMarket, IconMap, IconFloppy, IconJournal, IconAnchor,
     IconSwords, IconSailboat, IconWind, IconParchment, IconCloth, IconTimber, IconCoffee, IconRhum, IconSugar, IconSpice,
     IconTobacco, IconSilk, IconShip, IconGoldBag, IconCocoa, IconPerson, IconGoblet,
     IconGrapple, IconSpear, IconCog, IconCompass, IconPlay, IconCheers, IconCannon, IconChefHat, IconHammer, IconTalking,

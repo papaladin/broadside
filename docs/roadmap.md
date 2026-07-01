@@ -130,9 +130,9 @@ Broadside is fully playable with rich narrative systems:
 
 **Goal**: cheap, low-risk improvements independently requested by multiple testers. Ship as a batch once B5 is in, before the heavier discovery/design work begins.
 
-- [ ] "Sell all (except food/water)" button — especially useful after plunder (petripeeduhpedro, Ren both asked independently)
-- [ ] "Buy x5 / x10 / x100" quantity buttons on the market
-- [ ] Auto-topup food & water at market to a chosen target quantity
+- [X] "Sell all (except food/water)" button — especially useful after plunder (petripeeduhpedro, Ren both asked independently)
+- [X] "Buy x5 / x10 / x100" quantity buttons on the market --> x20 only (for screen size on phone)
+- [ ] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
 - [ ] Gold-sack icon + an attention/warning icon on mission cards
 - [ ] Indicate which faction is harmed by a mission, not only who benefits from it
 - [ ] Mission-type tooltips on mission cards
