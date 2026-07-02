@@ -10,6 +10,11 @@
  |-------|-------------|----------|
  | [Player Guide](player_guide) | How to play, mechanics, tips, and strategies. | Players |
  | [Roadmap](roadmap) | Planned features, priorities, and release timeline. | Everyone |
+ | [Captain's Handbook](handbook.html) | Quick reference for game mechanics. | Players |
+
+
+
+
 
 ---
 
@@ -22,6 +27,7 @@
 - [Logic Module (specs_logic.md)](specs_logic) — Pure functions for calculations (travel, reputation, combat, etc.).
 - [Generators Module (specs_generators.md)](specs_generators) — Runtime content generation (missions, enemies, markets).
 - [Data Module (specs_data.md)](specs_data) - All game data, used by the Generator mainly (text), but also directly by Logic or Engine.
+- [Storage Module (specs_storage.md)](specs_storage) - Save/load encoding, tutorial state management, localStorage I/O.
 - [React/JSX Module (specs_jsx.md)](specs_jsx) — UI components, screens, and rendering logic.
 
 ---

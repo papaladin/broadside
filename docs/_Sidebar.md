@@ -4,6 +4,11 @@
   - [Architecture](architecture)
   - [Engine Specs](specs_engine)
   - [Logic Specs](specs_logic)
-  - [Generator Specs](specs_generator)
+  - [Generator Specs](specs_generators)
   - [Data Specs](specs_data)
+  - [Storage Specs](specs_storage)
+  - [JSX/React Specs](specs_jsx)
+  - [Changelog](changelog) 
   - [Roadmap](roadmap)
+- 📖 **Reference**
+  - [Captain's Handbook](handbook.html)

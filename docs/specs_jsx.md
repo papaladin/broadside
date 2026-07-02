@@ -503,8 +503,43 @@ switch(state.screen) {
 | **Player Hold Panel** | Current contents, jettison buttons, remaining capacity |
 | **Confirm Button** | Dispatches `TAKE_PLUNDER` with selected cargo, returns to sailing/port |
 
+
+
 ---
-## 11. Exposed Components Summary
+
+---
+### 11. screens_menu.jsx — Menu & Feedback System
+
+**Purpose**: Centralized menu modal for game controls, feedback, and changelog.
+
+#### Components
+   Component | Props | Purpose |
+ |---|---|---|
+ | **`MenuModal`** | `state, dispatch, onClose` | Main menu modal with tabs for menu, new game, changelog, feedback |
+ | **`FeedbackPanel`** | `popPanel, state` | Feedback form with auto-filled metadata (OS, browser, URL, playtime) and optional save data |
+ | **`renderChangelog`** | `md` | Renders changelog markdown as JSX |
+
+#### Features
+- **Auto-detection**: Detects if running on itch.io (blocks external form submission).
+- **Feedback Form**:
+  - Uses **FormSubmit.co** (`https://formsubmit.co/gregory.paladin@me.com`).
+  - Pre-fills: date, OS, browser, URL, playtime, save data (optional).
+  - Opens in new tab on itch.io (due to CSP restrictions).
+- **Changelog Viewer**: Fetches `docs/changelog.md` and renders it as formatted cards.
+- **Menu Options**:
+  - Resume, Save Game, Load Game, New Game, Export Save, Import Save.
+  - Links to Handbook, Changelog, Feedback.
+  - External links: GitHub, itch.io, Ko-fi.
+
+#### itch.io Limitation
+- Feedback form **does not work** on itch.io due to CSP blocking `formsubmit.co`.
+- Falls back to redirecting users to itch.io’s **comments section**.
+
+**Equipment Impact**: *None* (UI-only).
+
+
+---
+## 12. Exposed Components Summary
 
 All screen components are registered on `window.S` via `Object.assign` at the bottom of each screen file:
 
@@ -553,10 +588,10 @@ Object.assign(window.S, {
 All screens receive `{ state, dispatch }` props from `App.jsx`.
 
 ---
-## 12. Tutorial System Integration
+## 13. Tutorial System Integration
 
 ---
-### 12.1 TutorialPopup (ui.jsx)
+### 13.1 TutorialPopup (ui.jsx)
 **Purpose**: Dismissible overlay card for per-screen tutorials.
 
 - **Props**: `title`, `children`, `onDismiss`
@@ -567,7 +602,7 @@ All screens receive `{ state, dispatch }` props from `App.jsx`.
   - "Don’t show tutorials again" checkbox → Calls `L.markTutorialSeen(screen, true)`
 
 ---
-### 12.2 Per-Screen Tutorials
+### 13.2 Per-Screen Tutorials
 Each screen checks `L.shouldShowTutorial(screenName)` on mount. If true, renders a `TutorialPopup` with screen-specific guidance:
 
 | Screen | Tutorial Content |
@@ -583,7 +618,7 @@ Each screen checks `L.shouldShowTutorial(screenName)` on mount. If true, renders
 | `status` | Reputation, fame, faction relations |
 
 ---
-### 12.3 Tutorial State Management
+### 13.3 Tutorial State Management
 - **Storage Key**: `"broadside_tutorial"` (managed by `storage.js`).
 - **State Shape**:
   ```javascript
@@ -595,10 +630,10 @@ Each screen checks `L.shouldShowTutorial(screenName)` on mount. If true, renders
 - **Functions**: `L.shouldShowTutorial(screen)`, `L.markTutorialSeen(screen, disableAll)`
 
 ---
-## 13. Dependencies & Rules
+## 14. Dependencies & Rules
 
 ---
-### 13.1 Dependency Rules
+### 14.1 Dependency Rules
 
 | File | May Read | May NOT Call |
 |---|---|---|
@@ -608,7 +643,7 @@ Each screen checks `L.shouldShowTutorial(screenName)` on mount. If true, renders
 | `screens_*.jsx` | `window.D`, `window.L`, `window.E.A`, `window.UI`, `window.S` | `window.G` (generators) |
 
 ---
-### 13.2 Style Rules
+### 14.2 Style Rules
 
 1. **No CSS files**: All styling is **inline** via theme tokens (`T`) and helper functions (`panelStyle()`).
 2. **Color Tokens**: **Never hardcode hex values**. Always use `T.*` (e.g., `T.gold` instead of `#c9a84c`).
@@ -617,7 +652,7 @@ Each screen checks `L.shouldShowTutorial(screenName)` on mount. If true, renders
 5. **Responsive Layouts**: Use inline `flexbox`/`grid` with media queries if needed.
 
 ---
-### 13.3 Screen Naming Convention
+### 14.3 Screen Naming Convention
 
 | Type | Convention | Example |
 |---|---|---|

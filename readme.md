@@ -85,7 +85,11 @@ Everything runs entirely in the browser -- no build step, no server needed for t
 # Running the Game
 
 Play online:
+
+**[papaladin.itch.io/broadside](https://papaladin.itch.io/broadside)**
+OR
 **[papaladin.github.io/broadside](https://papaladin.github.io/broadside/)**
+
 
 Or run locally:
 
@@ -123,6 +127,7 @@ Tests run automatically in the browser.
 ```text
 Broadside/
 +-- index.html              # Entry point
++-- handbook.html           # A player guide handbook, reachable from in game Menu
 +-- data.js                 # Game constants (ports, ships, factions, equipment, resources, etc.)
 +-- data_text.js            # Text constants (crew names, bio templates, gossip templates, etc.)
 +-- logic.js                # Pure game logic functions
@@ -130,12 +135,16 @@ Broadside/
 +-- generators.js           # Runtime content generators (crew, missions, market, gossip, bios)
 +-- engine_core.js          # Core engine: action constants, initial state, reducer chain, auto-save, state migration
 +-- engine_onboarding.js    # Onboarding engine: toast style indication, menu unlocking, onboarding mission injection, etc..
++-- engine_career.js         # Career stats middleware: lifetime tracking (gold, crew, battles, missions)
++-- engine_scripted.js      # Dev-only: scripted playthroughs (enabled via ?scripted=1)
 +-- engine_port.js          # Port engine: reducers for port actions (REPAIR, BUY_SHIP, BUY_EQUIPMENT, HIRE_CREW, MISSIONS, SAVE/LOAD)
 +-- engine_voyage.js        # Voyage engine: reducers for sailing (ADVANCE_DAY, DISCOVER_PORT, random events, patrols)
 +-- engine_combat.js        # Combat engine: reducers for intercepts, battles, plunder, and events
 +-- ui.jsx                  # Reusable UI components & theme tokens
 +-- icons.jsx               # svg path Icons pack.
-+-- screens_port.jsx        # Port-zone screens (Title, Scenario, Port, Status, Journal)
++-- screens_core.jsx        # Title screen and New Game screen, as well aas onboarding elements.
++-- screens_menu.jsx        # In game Menu, with Game Save/Load/Import/export, feedback, link to socials, etc.
++-- screens_port.jsx        # Port-zone screens ( Port, Status, Journal)
 +-- screens_shipyard.jsx    # Shipyard screen (Ships, Equipment, Locker tabs)
 +-- screens_crew.jsx        # Crew screen (roster, bios, hiring)
 +-- screens_market.jsx      # Market screen (buy/sell goods)
@@ -147,10 +156,12 @@ Broadside/
 |   +-- player_guide.md     # Player guide
 |   +-- developer_guide.md  # Developer guide
 |   +-- roadmap.md          # Development roadmap
+|   +-- changelog.md        # Changelog, visible in game. Based on Commits
 |   +-- specs_data.md       # Data constants specification
 |   +-- specs_engine.md     # Engine architecture specification
 |   +-- specs_logic.md      # Logic module specification
 |   +-- specs_generators.md # Generators module specification
+|   +-- specs_storage.md    # Game save and import/export management specs
 |   +-- specs_jsx.md        # React/JSX module specification
 |   +-- Home.md             # Wiki home page
 |   +-- _Sidebar.md         # Wiki sidebar
@@ -186,7 +197,7 @@ For a deep dive into architecture, data flow, state shape, and game mechanics, s
 
 ---
 
-# License
+# License AGPL 3.0
 
 This project is open-source. Feel free to use, modify, and expand it.
 If you like it, don't hesitate to buy me coffee!

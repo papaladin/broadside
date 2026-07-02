@@ -1,3 +1,9 @@
+### 2026‑07‑02
+- **Menu screen**: a Menu button on the port screen opens a modal with Save, Load, Export, Import, Start New Game (with confirmation), and an autosave toggle.
+- **Captain's Handbook**: quick in-game reference covering all stats, hidden mechanics, mission types, and crew traits — opens in a new tab.
+- **Changelog**: version history now readable in-game from the menu.
+- **Feedback & community**: send feedback directly from the game (with optional save attachment); links to GitHub, itch.io, and Ko‑fi.
+
 ### 2026‑07‑01
 - **Gameplay balance**: Combat missions can no longer be chained in the same port without sailing. Starvation and thirst finally kill crew after prolonged neglect — water runs out faster than food.
 - **Economy scaling**: port market stock and trade/smuggle mission quantities now grow with your fame, making large‑ship trading viable. Repair costs scale with ship size — fixing a Ship of the Line is a real investment.

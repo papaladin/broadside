@@ -190,8 +190,8 @@ Broadside is fully playable with rich narrative systems:
 - [ ] Minor data balance: review port-per-faction distribution — Spanish ports are currently over-represented relative to the other four factions (DocTheYounger)
 
 #### B8.2 — Provisions depth
-- [ ] Decide: keep food and water as separate resources, or merge them, since they're always consumed in equal amounts (Ren)
-- [ ] Decide: asymmetric effects — e.g. water deprivation killing crew faster than food deprivation — as a richer follow-up to the uniform B5.2 stopgap
+- [X] Decide: keep food and water as separate resources, or merge them, since they're always consumed in equal amounts (Ren)
+- [X] Decide: asymmetric effects — e.g. water deprivation killing crew faster than food deprivation — as a richer follow-up to the uniform B5.2 stopgap
 - [ ] Explore at-sea acquisition alternatives instead of always needing a port: rain-catching, fishing, whaling
 
 **See also**: Parked Concepts — faction-specific reputation decay curves may inform the decay audit above.
@@ -201,9 +201,9 @@ Broadside is fully playable with rich narrative systems:
 - [ ] Explore: a guaranteed encounter after X days (rising chance), tied to a random sea point within the patrol zone; hunts requiring scouting or trail-following instead of a flat combat trigger
 - [ ] Decide whether to merge the two mission types or give each a genuinely distinct loop
 
-#### B8.4 — Concurrent mission tracking
-- [ ] Explore letting a mission (the bounty hunt especially) stay tracked passively while the player does other things, instead of forcing dedicated back-and-forth travel just to keep it active (Ren)
-- [ ] This is an architecture change — `state.activeMission` is currently singular — scope the change before committing to it
+#### B8.4 — Concurrent mission tracking --> REJECTED, the "parallel thing" will be implemented through bounty hunter quests later on.
+- [O] Explore letting a mission (the bounty hunt especially) stay tracked passively while the player does other things, instead of forcing dedicated back-and-forth travel just to keep it active (Ren)
+- [O] This is an architecture change — `state.activeMission` is currently singular — scope the change before committing to it
 
 ---
 
@@ -631,14 +631,14 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 **Goal**: promote a game that's been through two playtest cycles, not one that's been through zero.
 
 #### B22.1 — itch.io listing
-- [ ] Page with screenshots, description, tags
-- [ ] Use screenshots generated via screenshots_builder.html
+- [X] Page with screenshots, description, tags
+- [X] Use screenshots generated via screenshots_builder.html
 
 #### B22.2 — GitHub Pages deployment verified
-- [ ] Confirm play link works on first visit, no localStorage prompts
+- [X] Confirm play link works on first visit, no localStorage prompts
 
 #### B22.3 — README badges and play link prominence
-- [ ] License, play link, build status (if applicable)
+- [X] License, play link, build status (if applicable)
 
 #### B22.4 — Contributor onboarding
 - [ ] CONTRIBUTING.md with how to run, how to test, file responsibility map (carried over from B0.2)
