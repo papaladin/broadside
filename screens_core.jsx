@@ -7,13 +7,25 @@ window.S = window.S || {};
   const L = window.L;
   const A = window.E.A;
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
-    IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat } = window.UI;
+    IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat, IconJournal  } = window.UI;
 
   // ── TITLE SCREEN (moved from screens_port.jsx) ───────────────────
   function TitleScreen({ dispatch }) {
     const hasSave = L.hasSave();
     const importRef = React.useRef(null);
     const localStorageWarning = React.useMemo(() => !L.checkLocalStorageAvailable(), []);
+    const [showChangelog, setShowChangelog] = useState(false);
+  const [changelogContent, setChangelogContent] = useState(null);
+
+    const handleShowChangelog = () => {
+      setShowChangelog(true);
+      if (!changelogContent) {
+        fetch("docs/changelog.md")
+          .then(r => r.text())
+          .then(md => setChangelogContent(md))
+          .catch(() => setChangelogContent("*Changelog not available.*"));
+      }
+    };
 
     const handleImport = (e) => {
       const file = e.target.files[0];
@@ -54,7 +66,67 @@ window.S = window.S || {};
               Browser storage is blocked. Use Import/Export Save to keep your progress.
             </div>
           )}
+          <Tooltip text="See what's new in this version.">
+            <Btn v="ghost" style={{ width: "100%" }} onClick={handleShowChangelog}>
+              <IconJournal size={12} color={T.gold} /> Changelog
+            </Btn>
+          </Tooltip>
         </div>
+        {showChangelog && (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }} onClick={() => setShowChangelog(false)}>
+            <div style={{
+              background: T.panel,
+              border: `1px solid ${T.gold}`,
+              borderRadius: 2,
+              padding: T.spacing.lg,
+              width: 420,
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 16 }}>
+                Changelog
+              </div>
+              <NarrativePanel variant="neutral">
+                {changelogContent
+                  ? (() => {
+                      const lines = changelogContent.split("\n");
+                      const elements = [];
+                      let i = 0;
+                      while (i < lines.length) {
+                        const line = lines[i];
+                        if (/^###\s/.test(line)) {
+                          elements.push(
+                            <div key={i} style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", marginTop: 12, marginBottom: 4 }}>
+                              {line.replace(/^###\s+/, "")}
+                            </div>
+                          );
+                          i++;
+                          continue;
+                        }
+                        if (line.trim() === "") { i++; continue; }
+                        const processed = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                        elements.push(
+                          <div key={i} style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.5, marginBottom: 4 }}
+                            dangerouslySetInnerHTML={{ __html: processed }} />
+                        );
+                        i++;
+                      }
+                      return elements;
+                    })()
+                  : <div style={{ color: T.textDim }}>Loading…</div>}
+              </NarrativePanel>
+              <div style={{ marginTop: 12, textAlign: "right" }}>
+                <Btn sm v="gold" onClick={() => setShowChangelog(false)}>Close</Btn>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
