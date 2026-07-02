@@ -10,63 +10,81 @@ window.S = window.S || {};
   const L = window.L;
 
   // ── Feedback form as a separate component ────────────────────
-  const FeedbackPanel = ({ popPanel, state }) => {
-    const formRef = useRef(null);
-    const [includeSave, setIncludeSave] = useState(false);
+const FeedbackPanel = ({ popPanel, state }) => {
+  const formRef = useRef(null);
+  const [includeSave, setIncludeSave] = useState(false);
 
-    useEffect(() => {
-      if (formRef.current) {
-        const now = new Date().toISOString();
-        formRef.current.elements["date"].value = now;
-        formRef.current.elements["os"].value = navigator.platform || "unknown";
-        formRef.current.elements["browser"].value = navigator.userAgent;
-        formRef.current.elements["url"].value = window.location.href;
-        formRef.current.elements["playtime"].value = state.day + " days";
-      }
-    }, []);
+  // Detect itch.io embedding
+  const isOnItchio = window.self !== window.top || window.location.hostname.includes("itch.zone");
 
-    useEffect(() => {
-      if (formRef.current) {
-        formRef.current.elements["saveData"].value = includeSave
-          ? JSON.stringify(state)
-          : "";
-      }
-    }, [includeSave]);
+  useEffect(() => {
+    if (!isOnItchio && formRef.current) {
+      const now = new Date().toISOString();
+      formRef.current.elements["date"].value = now;
+      formRef.current.elements["os"].value = navigator.platform || "unknown";
+      formRef.current.elements["browser"].value = navigator.userAgent;
+      formRef.current.elements["url"].value = window.location.href;
+      formRef.current.elements["playtime"].value = state.day + " days";
+    }
+  }, [isOnItchio]);
 
+  useEffect(() => {
+    if (!isOnItchio && formRef.current) {
+      formRef.current.elements["saveData"].value = includeSave
+        ? JSON.stringify(state)
+        : "";
+    }
+  }, [includeSave, isOnItchio]);
+
+  if (isOnItchio) {
     return (
       <div>
         <div style={{ marginBottom: 8 }}>
           <Btn sm v="ghost" onClick={popPanel}>← Back</Btn>
         </div>
-        <form ref={formRef} action="https://formsubmit.co/gregory.paladin@me.com" method="POST" target="_blank">
-          <input type="hidden" name="date" value="" />
-          <input type="hidden" name="os" value="" />
-          <input type="hidden" name="browser" value="" />
-          <input type="hidden" name="url" value="" />
-          <input type="hidden" name="playtime" value="" />
-          <input type="hidden" name="saveData" value="" />
-          <input type="hidden" name="_subject" value="Broadside Feedback" />
-          <input type="hidden" name="_captcha" value="false" />
-          <textarea name="message" rows={6} style={{
-            width: "100%", background: T.panel, border: `1px solid ${T.border}`,
-            color: T.text, padding: 8, fontFamily: T.font, fontSize: T.narrativeFontSize,
-            resize: "vertical"
-          }} placeholder="Your feedback..." required></textarea>
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, color: T.textDim, fontSize: T.captionFontSize }}>
-            <input type="checkbox" id="shareSave" checked={includeSave} onChange={e => setIncludeSave(e.target.checked)} />
-            <label htmlFor="shareSave">Share my game save for context (optional)</label>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <button type="submit" style={{
-              background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
-              padding: "4px 8px", borderRadius: 2, cursor: "pointer",
-              fontSize: 11, fontFamily: T.font, minHeight: 44, width: "100%"
-            }}>Send</button>
-          </div>
-        </form>
+        <NarrativePanel variant="neutral">
+          <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, marginBottom: 8 }}>
+            External feedback forms are not supported inside itch.io. Please use the <strong>comments section</strong> at the bottom of the itch.io game page to share your feedback. Thank you!
+          </p>
+        </NarrativePanel>
       </div>
     );
-  };
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 8 }}>
+        <Btn sm v="ghost" onClick={popPanel}>← Back</Btn>
+      </div>
+      <form ref={formRef} action="https://formsubmit.co/gregory.paladin@me.com" method="POST" target="_blank">
+        <input type="hidden" name="date" value="" />
+        <input type="hidden" name="os" value="" />
+        <input type="hidden" name="browser" value="" />
+        <input type="hidden" name="url" value="" />
+        <input type="hidden" name="playtime" value="" />
+        <input type="hidden" name="saveData" value="" />
+        <input type="hidden" name="_subject" value="Broadside Feedback" />
+        <input type="hidden" name="_captcha" value="false" />
+        <textarea name="message" rows={6} style={{
+          width: "100%", background: T.panel, border: `1px solid ${T.border}`,
+          color: T.text, padding: 8, fontFamily: T.font, fontSize: T.narrativeFontSize,
+          resize: "vertical"
+        }} placeholder="Your feedback..." required></textarea>
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, color: T.textDim, fontSize: T.captionFontSize }}>
+          <input type="checkbox" id="shareSave" checked={includeSave} onChange={e => setIncludeSave(e.target.checked)} />
+          <label htmlFor="shareSave">Share my game save for context (optional)</label>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <button type="submit" style={{
+            background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+            padding: "4px 8px", borderRadius: 2, cursor: "pointer",
+            fontSize: 11, fontFamily: T.font, minHeight: 44, width: "100%"
+          }}>Send</button>
+        </div>
+      </form>
+    </div>
+  );
+};
 
   // ── Simple markdown‑to‑JSX for changelog ────────────────────
   const renderChangelogContent = (md) => {
