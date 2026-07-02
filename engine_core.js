@@ -20,6 +20,7 @@ window.E = window.E || {};
     START_GAME: "START_GAME",
     SAVE_GAME: "SAVE_GAME",
     LOAD_GAME: "LOAD_GAME",
+    TOGGLE_AUTO_SAVE: "TOGGLE_AUTO_SAVE",
     EXPORT_SAVE: "EXPORT_SAVE",
     IMPORT_SAVE: "IMPORT_SAVE",
     REPAIR: "REPAIR",
@@ -194,6 +195,7 @@ window.E.autoSave = (state) => {
       combatHintShown: false,
       qmDismissed: false,
     },
+    autoSave: true,
     scenarioId: null,
     previousPort: null,
     destination: null,
@@ -329,6 +331,7 @@ window.E.reducer = (state, action) => {
 
   // ── Save / Load / Export / Import ────────────────────────────
   window.E._reducers.push((state, action) => {
+    const A = window.E.A;
     switch (action.type) {
       case window.E.A.SAVE_GAME:
         localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
@@ -386,6 +389,10 @@ window.E.reducer = (state, action) => {
         if (tampered) migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
         return { ...migrated, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"), missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated) };
       }
+
+      case A.TOGGLE_AUTO_SAVE:
+        return { ...state, autoSave: !state.autoSave };
+
       default:
         return state;
     }

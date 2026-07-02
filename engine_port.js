@@ -461,7 +461,7 @@ if (
   nextState.daysWithoutFood  = 0;
   nextState.daysWithoutWater = 0;
 
-  autoSave(nextState);
+  if (state.autoSave !== false) autoSave(nextState);
   return nextState;
 }
 
@@ -887,7 +887,7 @@ if (
           }
         }
 
-        autoSave(nextState);
+        if (state.autoSave !== false) autoSave(nextState);
         return nextState;
       }
 

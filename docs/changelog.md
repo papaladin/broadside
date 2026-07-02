@@ -1,6 +1,3 @@
-## Broadside Changelog
-
-
 ### 2026‑07‑01
 - **Gameplay balance**: Combat missions can no longer be chained in the same port without sailing. Starvation and thirst finally kill crew after prolonged neglect — water runs out faster than food.
 - **Economy scaling**: port market stock and trade/smuggle mission quantities now grow with your fame, making large‑ship trading viable. Repair costs scale with ship size — fixing a Ship of the Line is a real investment.

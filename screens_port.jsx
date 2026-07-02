@@ -21,16 +21,7 @@ function PortScreen({ state, dispatch }) {
   const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
   const importRef = React.useRef(null);
   const [qmPopupMessage, setQmPopupMessage] = useState(null);
-
-
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
-    reader.readAsText(file);
-    e.target.value = "";
-  };
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"port"));
 
@@ -177,35 +168,11 @@ function PortScreen({ state, dispatch }) {
             )}
           </>
         )}
-        {/* Save/Load/Export/Import — not gated, normal Btn */}
-        <div style={{ marginTop: 8 }}>
-          <Tooltip text="Record your progress against the perils of the sea.">
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.SAVE_GAME })}><IconFloppy size={12} color={T.text} /> Save Game</Btn>
-          </Tooltip>
-        </div>
-        {L.hasSave() && (
-          <Tooltip text="Return to a previous record of your journey.">
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.LOAD_GAME })} style={{ marginTop: 4 }}>
-              <IconFloppy size={12} color={T.text} /> Load Game
-            </Btn>
-          </Tooltip>
-        )}
-        <div style={{ marginTop: 8 }}>
-          <Tooltip text="Save your adventure to a file for safekeeping.">
-            <Btn v="ghost" sm onClick={() => dispatch({ type: A.EXPORT_SAVE })}><IconFileTransfer size={12} color={T.text} /> Export Save</Btn>
-          </Tooltip>
-          <Tooltip text="Load an adventure from a file.">
-            <Btn v="ghost" sm onClick={() => importRef.current?.click()}><IconFileTransfer size={12} color={T.text} /> Import Save</Btn>
-          </Tooltip>
-        </div>
-        <input
-          type="file"
-          accept=".broadside"
-          ref={importRef}
-          style={{ display: "none" }}
-          onChange={handleImport}
-        />
-        <div style={{ marginTop: 8 }}>
+        <Tooltip text="Manage your game and access community links.">
+          <Btn v="ghost" onClick={() => setMenuOpen(true)}>Menu</Btn>
+        </Tooltip>
+      
+         <div style={{ marginTop: 8 }}>
         </div>
       </div>
 
@@ -474,12 +441,16 @@ function PortScreen({ state, dispatch }) {
           </div>
         </div>
       )}
+
+      {menuOpen && (
+        <window.S.MenuModal state={state} dispatch={dispatch} onClose={() => setMenuOpen(false)} />
+      )}
+
     </div>
   );
 }
 
 
-  // ── STATUS SCREEN ────────────────────────────────────────────────────
  // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state, "status"));

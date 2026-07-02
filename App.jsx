@@ -213,6 +213,23 @@ const App = () => {
   const [debugOpen, setDebugOpen] = React.useState(false);
 
   // ── Hidden port discovery popup ──────────────────────────────────
+  const SEEN_DISCOVERY_KEY = "BroadsideSeenDiscoveries";
+  const getSeenDiscoveries = () => {
+    try {
+      const raw = localStorage.getItem(SEEN_DISCOVERY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  };
+  const markDiscoverySeen = (portName) => {
+    try {
+      const seen = getSeenDiscoveries();
+      if (!seen.includes(portName)) {
+        seen.push(portName);
+        localStorage.setItem(SEEN_DISCOVERY_KEY, JSON.stringify(seen));
+      }
+    } catch {}
+  };
+
   const prevDiscoveredRef = React.useRef(state.discoveredPorts || []);
   const [discoveryPopup, setDiscoveryPopup] = React.useState(null);
 
@@ -221,7 +238,8 @@ const App = () => {
     const current = state.discoveredPorts || [];
     const newPorts = current.filter(p => !prev.includes(p));
     if (newPorts.length > 0) {
-      const hiddenNew = newPorts.filter(p => window.D.PORTS[p]?.hidden);
+      const seen = getSeenDiscoveries();
+      const hiddenNew = newPorts.filter(p => window.D.PORTS[p]?.hidden && !seen.includes(p));
       if (hiddenNew.length > 0) {
         const portName = window.D.PORTS[hiddenNew[0]]?.name || hiddenNew[0];
         setDiscoveryPopup(portName);
@@ -285,7 +303,10 @@ const App = () => {
               You can now sail to {discoveryPopup}. Check your map.
             </div>
             <div style={{ marginTop: 8, display: "flex", gap: 12 }}>
-              <Btn sm v="gold" onClick={() => setDiscoveryPopup(null)}>Chart it</Btn>
+            <Btn sm v="gold" onClick={() => {
+              markDiscoverySeen(discoveryPopup);
+              setDiscoveryPopup(null);
+            }}>Chart it</Btn>
             </div>
           </div>
         </div>

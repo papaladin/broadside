@@ -158,23 +158,23 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: give players a way to manage their session and find Broadside's wider presence without hunting through the Port screen, and open a real feedback channel now that there are real players to hear from.
 
 #### B7.1 — Menu screen
-- [ ] Accessible from both the Port and Sailing screens
-- [ ] Resume / Save / Load / Export / Import / Back to Title
-- [ ] Toggle auto-save on/off
-- [ ] Link to captain's handbook
-- [ ] Link to feedback form or integrated form
-- [ ] link to comunity (github, kofi, itch, discord?) 
+- [X] Accessible from both the Port and Sailing screens --> port only
+- [X] Resume / Save / Load / Export / Import / Back to Title
+- [X] Toggle auto-save on/off
+- [X] Link to captain's handbook
+- [X] Link to feedback form or integrated form
+- [X] link to comunity (github, kofi, itch, discord?) 
 
 #### B7.2 — Captain's Handbook
-- [ ] Static reference (in-app panel or linked page) explaining stats, status effects, faction mechanics, and the other hidden rules new players keep asking about in feedback
-- [ ] Linked from the menu and from the New Game screen
+- [X] Static reference (in-app panel or linked page) explaining stats, status effects, faction mechanics, and the other hidden rules new players keep asking about in feedback
+- [0] Linked from the menu and from the New Game screen -> doesnt make sense. player never read user guide before stating to play and beingt stuck or having a question.
 
 #### B7.3 — Ship & equipment flavour text
-- [ ] Short descriptive text per ship type and equipment item, surfaced in the Shipyard
+- [0] Short descriptive text per ship type and equipment item, surfaced in the Shipyard -> there is already a stat modifier text.
 
 #### B7.4 — Community & feedback links
-- [ ] Feedback form link, replacing ad-hoc collection over Discord/Reddit
-- [ ] Links to the itch.io page, GitHub repo, and Ko-fi
+- [X] Feedback form link, replacing ad-hoc collection over Discord/Reddit
+- [X] Links to the itch.io page, GitHub repo, and Ko-fi
 
 **Note**: thematically pairs with B22 (Promotion), but ships much earlier since real testers are already active and asking where to send feedback.
 
