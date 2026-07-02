@@ -29,13 +29,16 @@ jobs:
 
           # Player & developer guides
           cp docs/player_guide.md wiki/player_guide.md
+          cp docs/changelog.md wiki/changelog.md          # <-- ADDED
 
-          # Architecture & specs (now in docs/)
+          # Architecture & specs
           cp docs/architecture.md wiki/architecture.md
           cp docs/specs_data.md wiki/specs_data.md
           cp docs/specs_logic.md wiki/specs_logic.md
           cp docs/specs_engine.md wiki/specs_engine.md
-          cp docs/specs_generators.md wiki/specs_generator.md
+          cp docs/specs_generators.md wiki/specs_generators.md
+          cp docs/specs_jsx.md wiki/specs_jsx.md        # <-- ADDED
+          cp docs/specs_storage.md wiki/specs_storage.md # <-- ADDED
 
           # Roadmap
           cp docs/roadmap.md wiki/roadmap.md
