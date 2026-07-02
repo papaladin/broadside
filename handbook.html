@@ -3,15 +3,299 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Captain's Handbook – Broadside</title>
+  <title>Captain’s Handbook – Broadside</title>
+  <!--
+    Theme values copied from ui.jsx’s T object.
+    Update these CSS variables whenever the game’s theme changes.
+    T.bg       = #0a1622
+    T.panel    = #221d16
+    T.border   = #5a4a32
+    T.text     = #e2d6be
+    T.textDim  = #b0a48c
+    T.gold     = #c9aa6e
+    T.goldDim  = #96784a
+    T.green    = #6a9a5a
+    T.red      = #b85a4a
+    T.blue     = #5a8aaa
+    T.font     = Georgia, 'Times New Roman', serif
+    T.fontSize    (base) ≈ 14px → body font-size: 14px
+    T.narrativeFontSize = 12px → body font-size: 14px for readability
+    T.heading3FontSize  = 14px → card title
+    T.heading2FontSize  = 16px → page title
+    T.spacing.md = 12px → padding inside cards
+    T.spacing.lg = 16px → gap between cards
+  -->
   <style>
-    body { background: #0a1622; color: #e2d6be; font-family: Georgia, serif; padding: 2em; max-width: 700px; margin: auto; }
-    h1 { color: #c9aa6e; }
-    a { color: #c9aa6e; }
+    :root {
+      --bg: #0a1622;
+      --panel: #221d16;
+      --border: #5a4a32;
+      --text: #e2d6be;
+      --textDim: #b0a48c;
+      --gold: #c9aa6e;
+      --goldDim: #96784a;
+      --green: #6a9a5a;
+      --red: #b85a4a;
+      --blue: #5a8aaa;
+      --font: Georgia, 'Times New Roman', serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.55;   /* T.narrativeLineHeight */
+      padding: 2em;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: var(--gold);
+      font-size: 18px;      /* T.heading1FontSize */
+      text-align: center;
+      margin-bottom: 0.5em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      color: var(--textDim);
+      text-align: center;
+      font-size: 12px;      /* T.narrativeFontSize */
+      margin-bottom: 2em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;            /* T.spacing.lg */
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 12px;        /* T.spacing.md */
+    }
+    .card h2 {
+      color: var(--gold);
+      font-size: 14px;      /* T.heading3FontSize */
+      margin-bottom: 0.5em;
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.4em;
+      letter-spacing: 0.05em;
+      font-weight: bold;
+    }
+    .card ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .card li {
+      margin-bottom: 0.3em;
+      font-size: 12px;      /* T.captionFontSize → 11px, but kept 12px for readability */
+      color: var(--textDim);
+    }
+    .card li strong {
+      color: var(--text);
+      font-weight: normal;
+    }
+    .icon {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    a { color: var(--gold); }
   </style>
 </head>
 <body>
-  <h1>Captain's Handbook</h1>
-  <p>This handbook is under construction. Check back soon for detailed explanations of crew traits, reputation, heat, fame, infamy, and more.</p>
+
+<h1>⚓ Captain’s Handbook</h1>
+<p class="subtitle">A quick reference for the Caribbean, 1695</p>
+
+<div class="grid">
+
+  <!-- Gold -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--gold)" stroke-width="1.3"><path d="M3 6C3 3 17 3 17 6C17 9 3 9 3 6Z"/><path d="M3 9C3 12 17 12 17 9"/><path d="M3 12C3 15 17 15 17 12"/><path d="M3 6 L3 12 M17 6 L17 12"/></svg>
+      Gold
+    </h2>
+    <ul>
+      <li><strong>Earned</strong> through missions, plunder, and trade.</li>
+      <li><strong>Spent</strong> on repairs, crew, provisions, equipment, ships.</li>
+      <li><strong>Wages</strong> paid daily : 2g per crew member (×1.5 if morale &lt; 30).</li>
+      <li>If you run out of gold, you cannot hire, repair, or buy provisions.</li>
+    </ul>
+  </div>
+
+  <!-- Fame -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="var(--gold)" stroke-width="1.2"><path d="M8 1.5l2 4.1 4.5.6-3.3 3.2.8 4.5L8 11.7 3.9 13.9l.8-4.5L1.5 6.2l4.5-.6z"/></svg>
+      Fame
+    </h2>
+    <ul>
+      <li>Your permanent reputation across the Caribbean.</li>
+      <li>Gained from completing missions (especially combat).</li>
+      <li>Gates access to better ships, equipment, and hidden ports.</li>
+      <li>Never decays.</li>
+    </ul>
+  </div>
+
+  <!-- Infamy -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/></svg>
+      Infamy
+    </h2>
+    <ul>
+      <li>Your criminal notoriety.</li>
+      <li>Gained from smuggling, attacking patrols, and certain missions.</li>
+      <li>At <strong>50</strong> infamy, bribes are blocked.</li>
+      <li>At <strong>100</strong>, you become a Legendary Outlaw.</li>
+    </ul>
+  </div>
+
+  <!-- Faction Heat -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>
+      Faction Heat
+    </h2>
+    <ul>
+      <li>Short‑term alert level for each colonial power (0‑10).</li>
+      <li>Rises when you fight their patrols or ships.</li>
+      <li>Decays by 1 every 2 days at sea.</li>
+      <li>Higher heat → more random patrols at sea.</li>
+    </ul>
+  </div>
+
+  <!-- Hull -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.2"><path d="M8 1.5L3 4v4c0 3.2 2.2 5.8 5 6.5 2.8-.7 5-3.3 5-6.5V4z"/></svg>
+      Hull
+    </h2>
+    <ul>
+      <li>Your ship’s hit points.</li>
+      <li>Damaged in combat and storms.</li>
+      <li>If it reaches 0, you are defeated.</li>
+      <li>Repair at any port’s Shipyard.</li>
+    </ul>
+  </div>
+
+  <!-- Crew -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.1"><circle cx="6" cy="5" r="2.2"/><path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="5.5" r="1.6"/><path d="M10 13c0-1.7 1-3 2.5-3.5"/></svg>
+      Crew
+    </h2>
+    <ul>
+      <li>More crew → faster combat actions.</li>
+      <li>Hire at ports with a Crew service.</li>
+      <li>Dismiss or lose crew in battle.</li>
+      <li>Wages paid daily; low morale can double wages.</li>
+    </ul>
+  </div>
+
+  <!-- Morale -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="var(--blue)" stroke-width="1.2"><path d="M8 13.5C6 12 2 9 2 5.5A3 3 0 018 3.5a3 3 0 016 2c0 3.5-4 6.5-6 8z"/></svg>
+      Morale
+    </h2>
+    <ul>
+      <li>Affects combat effectiveness, travel speed, and wages.</li>
+      <li>Drops with empty provisions, unpaid wages, or combat losses.</li>
+      <li>Rises with mission success, drinks, and shore leave.</li>
+      <li>Below <strong>50</strong> → travel slows. Below <strong>30</strong> → wages increase. At <strong>0</strong> → crew deserts.</li>
+    </ul>
+  </div>
+
+  <!-- Reputation -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></svg>
+      Reputation
+    </h2>
+    <ul>
+      <li>Per‑port standing (0‑100), shown as a label (At War → Allied).</li>
+      <li>Affects repair cost, mission rewards, and service access.</li>
+      <li>Decays slowly toward 50 over time.</li>
+      <li>Attacking a faction’s ships reduces reputation with all its ports.</li>
+    </ul>
+  </div>
+
+  <!-- Speed & Hold -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></svg>
+      Speed &amp; Hold
+    </h2>
+    <ul>
+      <li>Speed determines how many days a voyage takes.</li>
+      <li>Hold capacity limits how much cargo you can carry.</li>
+      <li>Hold load &gt; 50% slows your ship (+11% travel time).</li>
+      <li>Hold load &gt; 75% slows it further (+33%).</li>
+    </ul>
+  </div>
+
+  <!-- Resources & Trade -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg>
+      Resources &amp; Trade
+    </h2>
+    <ul>
+      <li><strong>Food &amp; Water</strong> consumed daily (1 unit per 10 crew).</li>
+      <li>Empty provisions → morale loss; after 14 days no food / 3 days no water, crew die.</li>
+      <li>Prices vary per port based on availability and random variance.</li>
+      <li>Buy low in one port, sell high in another for profit.</li>
+      <li>Goods marked <strong>Illegal</strong> (tobacco, slaves) risk confiscation by patrols.</li>
+    </ul>
+  </div>
+
+  <!-- Combat & Intercept -->
+  <div class="card">
+    <h2>
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>
+      Combat &amp; Intercept
+    </h2>
+    <ul>
+      <li><strong>Intercept options</strong>: Fight, Flee, Parley, Bribe, Surrender. Navy patrols also offer <strong>Allow Inspection</strong>.</li>
+      <li>Surrendering costs gold, cargo, days, or reputation depending on context.</li>
+      <li>If contraband is found during inspection, it is seized and you are fined.</li>
+      <li><strong>Combat actions</strong>: Broadside (reliable), Precision (risky high damage), Grapple (board and capture), Evade (flee).</li>
+      <li>Boarding (grapple victory) kills some of your crew proportional to resistance, then allows <strong>plunder</strong>.</li>
+      <li>Patrol missions: enemy encounter is <strong>not guaranteed</strong> — sail near the target port and advance days; chance increases with voyage progress.</li>
+    </ul>
+  </div>
+
+  <!-- Mission Types -->
+  <div class="card">
+    <h2>Mission Types</h2>
+    <ul>
+      <li><strong>Trade</strong> – buy goods cheap, deliver for profit.</li>
+      <li><strong>Smuggle</strong> – deliver illegal goods; risk patrol inspection.</li>
+      <li><strong>Combat</strong> – hunt down a specific enemy ship.</li>
+      <li><strong>Patrol</strong> – clear a rival’s waters of hostile vessels.</li>
+      <li><strong>Escort</strong> – protect a convoy to its destination.</li>
+      <li><strong>Assault</strong> – attack a port’s garrison by force.</li>
+    </ul>
+  </div>
+
+  <!-- Crew Traits -->
+  <div class="card">
+    <h2>Crew Traits</h2>
+    <ul>
+      <li><strong>Hidden traits</strong> (drunkard, coward, greedy) – revealed over time.</li>
+      <li><strong>Scars</strong> earned from storms, battles, shipwrecks.</li>
+      <li><strong>Progression</strong>: Seasoned (50 days) → Veteran (100 days) → Loyal (200 days).</li>
+      <li><strong>Upset</strong> crew may desert if you attack their home faction.</li>
+    </ul>
+  </div>
+
+</div>
+
 </body>
 </html>

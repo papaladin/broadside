@@ -10,55 +10,129 @@ window.S = window.S || {};
     IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat, IconJournal  } = window.UI;
 
   // ── TITLE SCREEN (moved from screens_port.jsx) ───────────────────
-  function TitleScreen({ dispatch }) {
-    const hasSave = L.hasSave();
-    const importRef = React.useRef(null);
-    const localStorageWarning = React.useMemo(() => !L.checkLocalStorageAvailable(), []);
-    const [showChangelog, setShowChangelog] = useState(false);
+function TitleScreen({ dispatch }) {
+  const hasSave = L.hasSave();
+  const importRef = React.useRef(null);
+  const localStorageWarning = React.useMemo(() => !L.checkLocalStorageAvailable(), []);
+
+  // Changelog popup state
+  const [showChangelog, setShowChangelog] = useState(false);
   const [changelogContent, setChangelogContent] = useState(null);
+  const handleShowChangelog = () => {
+    setShowChangelog(true);
+    if (!changelogContent) {
+      fetch("docs/changelog.md")
+        .then(r => r.text())
+        .then(md => setChangelogContent(md))
+        .catch(() => setChangelogContent("*Changelog not available.*"));
+    }
+  };
 
-    const handleShowChangelog = () => {
-      setShowChangelog(true);
-      if (!changelogContent) {
-        fetch("docs/changelog.md")
-          .then(r => r.text())
-          .then(md => setChangelogContent(md))
-          .catch(() => setChangelogContent("*Changelog not available.*"));
-      }
-    };
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
-    const handleImport = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
-      reader.readAsText(file);
-      e.target.value = "";
-    };
-
-    return (
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* ── Hero section ─────────────────────────────────────── */}
       <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: T.spacing.xl,
-        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+        height: "25vh", minHeight: 220,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: T.spacing.xl,
+        background: `linear-gradient(180deg, ${T.bg} 0%, #1c3450 100%)`,
+        position: "relative",
+        overflow: "hidden",
       }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
-        <div style={{ color: T.textDim, fontSize: T.metadataFontSize, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+        <div className="title-font" style={{
+          color: T.gold,
+          fontSize: 42,
+          fontWeight: "normal",
+          letterSpacing: "0.15em",
+          textTransform: "uppercase",
+          marginBottom: 4,
+          textShadow: `0 0 30px ${T.goldDim}`,
+          fontFamily: "'IMFellEnglishSC', Georgia, serif",
+          lineHeight: 1.1,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <IconAnchor size={32} color={T.gold} />
+          Broadside
+          <IconAnchor size={32} color={T.gold} />
+        </div>
+        <div style={{
+          color: T.textDim,
+          fontSize: T.metadataFontSize,
+          letterSpacing: "0.15em",
+          marginBottom: 24,
+          fontFamily: "'IMFellEnglishSC', Georgia, serif",
+        }}>
+          CARIBBEAN · 1695
+        </div>
 
+        {/* Wave SVG with floating animation */}
+        <svg
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            width: "100%",
+            height: "auto",
+            maxHeight: "120px",
+            animation: "waveFloat 4s ease-in-out infinite alternate",
+          }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0,40 C240,100 480,0 720,60 C960,120 1200,20 1440,60 L1440,120 L0,120 Z"
+            fill={T.panelAlt}
+          />
+        </svg>
+      </div>
+
+      {/* ── Actions section ──────────────────────────────────── */}
+      <div style={{
+        flex: 1,
+        background: T.panelAlt,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: `${T.spacing.xl}px ${T.spacing.xl}px 40px`,
+        gap: T.spacing.md,
+      }}>
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
-            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}><IconPlay size={12} color={T.gold} /> New Game</Btn>
+            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}>
+              <IconPlay size={12} color={T.gold} /> New Game
+            </Btn>
           </Tooltip>
 
           {hasSave && (
             <Tooltip text="Continue your most recent voyage from where you left off.">
-              <Btn v="ghost"  style={{ width: "100%" }} onClick={() => dispatch({ type: A.LOAD_GAME })}><IconContinue size={12} color={T.gold} /> Continue</Btn>
+              <Btn v="ghost" style={{ width: "100%" }} onClick={() => dispatch({ type: A.LOAD_GAME })}>
+                <IconContinue size={12} color={T.gold} /> Continue
+              </Btn>
             </Tooltip>
           )}
 
           <input type="file" accept=".broadside" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
           <Tooltip text="Load an adventure from a saved file.">
-            <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}><IconFileTransfer size={12} color={T.gold} /> Import Save</Btn>
+            <Btn v="ghost" style={{ width: "100%" }} onClick={() => importRef.current?.click()}>
+              <IconFileTransfer size={12} color={T.gold} /> Import Save
+            </Btn>
+          </Tooltip>
+
+          <Tooltip text="See what's new in this version.">
+            <Btn v="ghost" style={{ width: "100%" }} onClick={handleShowChangelog}>
+              <IconJournal size={12} color={T.gold} /> Changelog
+            </Btn>
           </Tooltip>
 
           {localStorageWarning && (
@@ -66,118 +140,172 @@ window.S = window.S || {};
               Browser storage is blocked. Use Import/Export Save to keep your progress.
             </div>
           )}
-          <Tooltip text="See what's new in this version.">
-            <Btn v="ghost" style={{ width: "100%" }} onClick={handleShowChangelog}>
-              <IconJournal size={12} color={T.gold} /> Changelog
-            </Btn>
-          </Tooltip>
         </div>
-        {showChangelog && (
+      </div>
+
+      {/* ── Changelog popup ──────────────────────────────────── */}
+      {showChangelog && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setShowChangelog(false)}>
           <div style={{
-            position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }} onClick={() => setShowChangelog(false)}>
-            <div style={{
-              background: T.panel,
-              border: `1px solid ${T.gold}`,
-              borderRadius: 2,
-              padding: T.spacing.lg,
-              width: 420,
-              maxWidth: "95vw",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
-            }} onClick={e => e.stopPropagation()}>
-              <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 16 }}>
-                Changelog
-              </div>
-              <NarrativePanel variant="neutral">
-                {changelogContent
-                  ? (() => {
-                      const lines = changelogContent.split("\n");
-                      const elements = [];
-                      let i = 0;
-                      while (i < lines.length) {
-                        const line = lines[i];
-                        if (/^###\s/.test(line)) {
-                          elements.push(
-                            <div key={i} style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", marginTop: 12, marginBottom: 4 }}>
-                              {line.replace(/^###\s+/, "")}
-                            </div>
-                          );
-                          i++;
-                          continue;
-                        }
-                        if (line.trim() === "") { i++; continue; }
-                        const processed = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+            background: T.panel,
+            border: `1px solid ${T.gold}`,
+            borderRadius: 2,
+            padding: T.spacing.lg,
+            width: 420,
+            maxWidth: "95vw",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 16 }}>
+              Changelog
+            </div>
+            <NarrativePanel variant="neutral">
+              {changelogContent
+                ? (() => {
+                    const lines = changelogContent.split("\n");
+                    const elements = [];
+                    let i = 0;
+                    while (i < lines.length) {
+                      const line = lines[i];
+                      if (/^###\s/.test(line)) {
                         elements.push(
-                          <div key={i} style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.5, marginBottom: 4 }}
-                            dangerouslySetInnerHTML={{ __html: processed }} />
+                          <div key={i} style={{ color: T.gold, fontSize: T.heading3FontSize, fontWeight: "bold", marginTop: 12, marginBottom: 4 }}>
+                            {line.replace(/^###\s+/, "")}
+                          </div>
                         );
                         i++;
+                        continue;
                       }
-                      return elements;
-                    })()
-                  : <div style={{ color: T.textDim }}>Loading…</div>}
-              </NarrativePanel>
-              <div style={{ marginTop: 12, textAlign: "right" }}>
-                <Btn sm v="gold" onClick={() => setShowChangelog(false)}>Close</Btn>
-              </div>
+                      if (line.trim() === "") { i++; continue; }
+                      const processed = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+                      elements.push(
+                        <div key={i} style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.5, marginBottom: 4 }}
+                          dangerouslySetInnerHTML={{ __html: processed }} />
+                      );
+                      i++;
+                    }
+                    return elements;
+                  })()
+                : <div style={{ color: T.textDim }}>Loading…</div>}
+            </NarrativePanel>
+            <div style={{ marginTop: 12, textAlign: "right" }}>
+              <Btn sm v="gold" onClick={() => setShowChangelog(false)}>Close</Btn>
             </div>
           </div>
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
+    </div>
+  );
+}
 
   // ── NEW GAME SCREEN (moved from screens_port.jsx) ────────────────
-  function NewGameScreen({ dispatch }) {
-    const { FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
-    const L = window.L;
-    const A = window.E.A;
-    const { T, panelStyle, Btn } = window.UI;
+ function NewGameScreen({ dispatch }) {
+  const { FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
+  const L = window.L;
+  const A = window.E.A;
+  const { T, panelStyle, Btn } = window.UI;
 
-    const [captainName, setCaptainName] = useState(() => {
-      const first = CREW_FIRST_NAMES?.english || ["William"];
-      const last = CREW_LAST_NAMES?.english || ["Hartley"];
-      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-      return `${pick(first)} ${pick(last)}`;
+  const [captainName, setCaptainName] = useState(() => {
+    const first = CREW_FIRST_NAMES?.english || ["William"];
+    const last = CREW_LAST_NAMES?.english || ["Hartley"];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    return `${pick(first)} ${pick(last)}`;
+  });
+  const [selectedFaction, setSelectedFaction] = useState(null);
+  const [tutorialMode, setTutorialMode] = useState("full");
+
+  const handleRandomName = () => {
+    const faction = selectedFaction || "english";
+    const first = CREW_FIRST_NAMES?.[faction] || ["Captain"];
+    const last = CREW_LAST_NAMES?.[faction] || ["Unknown"];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    setCaptainName(`${pick(first)} ${pick(last)}`);
+  };
+
+  const handleSetSail = () => {
+    if (!captainName.trim()) return;
+    if (!selectedFaction) return;
+    dispatch({
+      type: A.START_GAME,
+      captainName: captainName.trim(),
+      faction: selectedFaction,
+      tutorialMode,
     });
-    const [selectedFaction, setSelectedFaction] = useState(null);
-    const [tutorialMode, setTutorialMode] = useState("full");
+  };
 
-    const handleRandomName = () => {
-      const faction = selectedFaction || "english";
-      const first = CREW_FIRST_NAMES?.[faction] || ["Captain"];
-      const last = CREW_LAST_NAMES?.[faction] || ["Unknown"];
-      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-      setCaptainName(`${pick(first)} ${pick(last)}`);
-    };
+  const backstory = selectedFaction ? STARTS.factionBackstory?.[selectedFaction] : null;
+  const startPort = selectedFaction ? (window.D.PORTS[STARTS.factionPorts?.[selectedFaction]]?.name || "") : "";
 
-    const handleSetSail = () => {
-      if (!captainName.trim()) return;
-      if (!selectedFaction) return;
-      dispatch({
-        type: A.START_GAME,
-        captainName: captainName.trim(),
-        faction: selectedFaction,
-        tutorialMode,   
-      });
-    };
-
-    const backstory = selectedFaction ? STARTS.factionBackstory?.[selectedFaction] : null;
-    const startPort = selectedFaction ? (window.D.PORTS[STARTS.factionPorts?.[selectedFaction]]?.name || "") : "";
-
-    return (
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* ── Hero section (blue gradient + wave) ──────────────── */}
       <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", padding: T.spacing.xl,
-        background: `radial-gradient(ellipse at 50% 60%, #0a1e38 0%, ${T.bg} 70%)`,
+        height: "25vh", minHeight: 220,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "flex-end",
+        padding: `0 ${T.spacing.xl}px`,
+        background: `linear-gradient(180deg, ${T.bg} 0%, #1c3450 100%)`,
+        position: "relative",
+        overflow: "hidden",
       }}>
-        <div style={{ color: T.gold, fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, textShadow: `0 0 30px ${T.goldDim}` }}><IconAnchor size={32} color={T.gold} /> Broadside <IconAnchor size={32} color={T.gold} /></div>
-        <div style={{ color: T.textDim, fontSize: T.metadataFontSize, letterSpacing: "0.15em", marginBottom: 36 }}>CARIBBEAN · 1695</div>
+        <div className="title-font" style={{
+          color: T.gold,
+          fontSize: 42,
+          fontWeight: "normal",
+          letterSpacing: "0.15em",
+          textTransform: "uppercase",
+          marginBottom: 4,
+          textShadow: `0 0 30px ${T.goldDim}`,
+          lineHeight: 1.1,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <IconAnchor size={32} color={T.gold} />
+          Broadside
+          <IconAnchor size={32} color={T.gold} />
+        </div>
+        <div className="title-font" style={{
+          color: T.textDim,
+          fontSize: T.metadataFontSize,
+          letterSpacing: "0.15em",
+          marginBottom: 40,
+        }}>
+          CARIBBEAN · 1695
+        </div>
 
+        {/* Wave SVG */}
+        <svg
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            width: "100%",
+            height: "auto",
+            maxHeight: "120px",
+            animation: "waveFloat 4s ease-in-out infinite alternate",
+          }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0,40 C240,100 480,0 720,60 C960,120 1200,20 1440,60 L1440,120 L0,120 Z"
+            fill={T.panelAlt}
+          />
+        </svg>
+      </div>
+
+      {/* ── Form section (brown background) ──────────────────── */}
+      <div style={{
+        flex: 1,
+        background: T.panelAlt,
+        display: "flex", flexDirection: "column", alignItems: "center",
+        padding: `${T.spacing.xl}px ${T.spacing.xl}px 40px`,
+      }}>
         <div style={{ width: 380, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: T.spacing.lg }}>
           {/* Captain Name */}
           <div>
@@ -221,42 +349,41 @@ window.S = window.S || {};
             </div>
           )}
 
-          {/* Onboarding toggle */}
           {/* Tutorial choice */}
-<div>
-  <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-    Tutorial style
-  </div>
-  <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
-    {[
-      { value: "full",  label: "Guided (Quartermaster)", desc: "A crewmate guides you step by step." },
-      { value: "light", label: "Hints only",             desc: "Help popups on your first visit to each screen." },
-      { value: "none",  label: "None",                   desc: "No guidance – you're on your own." },
-    ].map(opt => (
-      <label key={opt.value}
-        style={{
-          display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-          padding: "6px 8px", borderRadius: 3,
-          background: tutorialMode === opt.value ? T.panelAlt : T.panel,
-          border: `2px solid ${tutorialMode === opt.value ? T.gold : T.border}`,
-          transition: "border-color 0.15s",
-        }}>
-        <input
-          type="radio"
-          name="tutorialMode"
-          value={opt.value}
-          checked={tutorialMode === opt.value}
-          onChange={() => setTutorialMode(opt.value)}
-          style={{ accentColor: T.gold }}
-        />
-        <div>
-          <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{opt.label}</div>
-          <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
-        </div>
-      </label>
-    ))}
-  </div>
-</div>
+          <div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+              Tutorial style
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
+              {[
+                { value: "full",  label: "Guided (Quartermaster)", desc: "A crewmate guides you step by step." },
+                { value: "light", label: "Hints only",             desc: "Help popups on your first visit to each screen." },
+                { value: "none",  label: "None",                   desc: "No guidance – you're on your own." },
+              ].map(opt => (
+                <label key={opt.value}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                    padding: "6px 8px", borderRadius: 3,
+                    background: tutorialMode === opt.value ? T.panelAlt : T.panel,
+                    border: `2px solid ${tutorialMode === opt.value ? T.gold : T.border}`,
+                    transition: "border-color 0.15s",
+                  }}>
+                  <input
+                    type="radio"
+                    name="tutorialMode"
+                    value={opt.value}
+                    checked={tutorialMode === opt.value}
+                    onChange={() => setTutorialMode(opt.value)}
+                    style={{ accentColor: T.gold }}
+                  />
+                  <div>
+                    <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{opt.label}</div>
+                    <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {/* Set Sail */}
           <Btn v="gold" onClick={handleSetSail} disabled={!captainName.trim() || !selectedFaction} style={{ fontSize: 16, padding: "14px" }}>
@@ -264,8 +391,9 @@ window.S = window.S || {};
           </Btn>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ── ONBOARDING POPUP (global QM dialogue) ────────────────────────
   
