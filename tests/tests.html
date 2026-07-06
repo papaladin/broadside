@@ -2,292 +2,379 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pirates Game Tests</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Broadside — Test Suite</title>
   <style>
+    :root {
+      --bg:           #0d1520;
+      --panel:        #131f2e;
+      --panel-alt:    #1a2a3a;
+      --border:       #2a3f52;
+      --border-faint: #1e2e3e;
+      --text:         #c4b896;
+      --text-dim:     #8a7a60;
+      --text-faint:   #5a4a38;
+      --gold:         #c9a84c;
+      --gold-br:      #e8c870;
+      --green:        #5aaa5a;
+      --red:          #cc6060;
+      --amber:        #c89040;
+      --font:         'Courier New', monospace;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a141e; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 20px; }
-    h1 { color: #ffd700; margin-bottom: 10px; }
-    .summary { margin: 10px 0; font-size: 14px; }
-    .summary span { margin-right: 20px; }
-    .pass { color: #4caf50; }
-    .fail { color: #f44336; }
-    .suite { margin: 16px 0; border: 1px solid #2a3a4a; border-radius: 4px; padding: 12px; background: #121c28; }
-    .suite h2 { color: #ffd700; font-size: 16px; margin-bottom: 8px; }
-    .test { margin: 4px 0; font-size: 12px; padding: 2px 8px; }
-    .test.pass::before { content: "✓ "; color: #4caf50; }
-    .test.fail { color: #f44336; }
-    .test.fail::before { content: "✗ "; color: #f44336; }
-    .error { color: #ff9800; font-size: 11px; margin-left: 20px; white-space: pre-wrap; }
-    .filters { margin-bottom: 10px; }
-    .filters button { background: #121c28; border: 1px solid #2a3a4a; color: #e0e0e0; padding: 4px 10px; cursor: pointer; margin-right: 6px; font-family: inherit; }
-    .filters button.active { border-color: #ffd700; color: #ffd700; }
-    #toolbar { margin: 10px 0; display: flex; gap: 10px; align-items: center; }
-    #copyFailures { background: #f44336; border: none; color: white; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-family: inherit; display: none; }
-    #copyMsg { color: #4caf50; font-size: 12px; display: none; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font);
+           font-size: 12px; padding: 16px; line-height: 1.5; }
+
+    h1 { color: var(--gold-br); font-size: 16px; letter-spacing: 1px; margin-bottom: 4px; }
+    .subtitle { color: var(--text-dim); font-size: 11px; margin-bottom: 14px; }
+
+    /* Summary bar */
+    .summary { display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+               background: var(--panel); border: 1px solid var(--border);
+               padding: 10px 14px; margin-bottom: 12px; }
+    .stat-label { color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .stat-value { font-size: 20px; font-weight: bold; color: var(--gold-br); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.red    { color: var(--red); }
+    .stat-value.amber  { color: var(--amber); }
+
+    /* Toolbar */
+    #toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    button   { background: var(--panel-alt); color: var(--gold); border: 1px solid var(--border);
+               padding: 5px 12px; font-family: var(--font); font-size: 12px; cursor: pointer; min-height: 30px; }
+    button:hover { background: var(--gold); color: var(--bg); }
+    button.active { border-color: var(--gold-br); color: var(--gold-br); background: var(--panel); }
+    #copy-btn   { border-color: var(--red); color: var(--red); display: none; }
+    #copy-btn:hover { background: var(--red); color: #fff; }
+    #copy-msg   { color: var(--green); font-size: 11px; display: none; }
+
+    /* Suite groups */
+    .suite { background: var(--panel); border: 1px solid var(--border-faint);
+             padding: 10px 14px; margin-bottom: 8px; }
+    .suite h2 { color: var(--gold); font-size: 12px; letter-spacing: 0.5px;
+                border-bottom: 1px solid var(--border-faint); padding-bottom: 4px; margin-bottom: 6px; }
+
+    /* Individual test rows */
+    .test { padding: 2px 0; display: flex; gap: 6px; align-items: baseline; }
+    .test-id   { color: var(--text-faint); font-size: 10px; min-width: 80px; flex-shrink: 0; }
+    .test-name { color: var(--text); }
+    .test.fail .test-name { color: var(--red); }
+    .test.skip .test-name { color: var(--text-faint); font-style: italic; }
+    .test-icon { font-size: 11px; flex-shrink: 0; }
+    .test-err  { color: var(--amber); font-size: 11px; margin-left: 4px; font-style: italic; }
+
+    .running { color: var(--text-dim); font-style: italic; padding: 8px 0; }
+    .footer  { color: var(--text-faint); font-size: 10px; margin-top: 14px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>🧪 Test Suite</h1>
+  <h1>⚓ Broadside — Test Suite</h1>
+  <div class="subtitle">Unit tests (logic), reducer tests (engine), smoke tests (UI). No browser storage or RNG side effects leak between tests.</div>
+
   <div class="summary">
-    <span>Total: <span id="total">0</span></span>
-    <span class="pass">Passed: <span id="passed">0</span></span>
-    <span class="fail">Failed: <span id="failed">0</span></span>
+    <div><div class="stat-label">Total</div><div class="stat-value" id="total">—</div></div>
+    <div><div class="stat-label">Passed</div><div class="stat-value green" id="passed">—</div></div>
+    <div><div class="stat-label">Failed</div><div class="stat-value red" id="failed">—</div></div>
+    <div><div class="stat-label">Status</div><div class="stat-value" id="status">—</div></div>
   </div>
-  <div class="filters">
-    <button data-type="all" class="active">All</button>
-    <button data-type="unit">Unit</button>
-    <button data-type="reducer">Reducer</button>
-    <button data-type="integration">Flows</button>
-    <button data-type="ui">UI Smoke</button>
-  </div>
+
   <div id="toolbar">
-    <button id="copyFailures">📋 Copy Failing Details</button>
-    <span id="copyMsg">Copied!</span>
+    <button class="active" data-filter="all">All</button>
+    <button data-filter="L">Logic</button>
+    <button data-filter="E">Engine</button>
+    <button data-filter="U">UI</button>
+    <button onclick="location.reload()">↻ Re-run</button>
+    <button id="copy-btn">📋 Copy failures</button>
+    <span id="copy-msg">Copied!</span>
   </div>
-  <div id="suites"></div>
 
-  <!-- Load React and Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <div id="suites"><div class="running">Loading game scripts and running tests…</div></div>
+  <div class="footer">Tests run automatically once all Babel JSX files are transpiled.</div>
 
-  <!-- Game files (relative to tests/ folder) -->
-<script type="text/babel" data-presets="react" src="../data.js"></script>
-<script type="text/babel" data-presets="react" src="../data_text.js"></script>
-  <script type="text/babel" data-presets="react" src="../logic.js"></script>
-  <script type="text/babel" data-presets="react"  src="../storage.js"></script>         
-  <script type="text/babel" data-presets="react" src="../generators.js"></script>
-<script type="text/babel" data-presets="react" src="../engine_core.js"></script>
-<script type="text/babel" data-presets="react" src="../engine_port.js"></script>
-<script type="text/babel" data-presets="react" src="../engine_voyage.js"></script>
-<script type="text/babel" data-presets="react" src="../engine_combat.js"></script>
+  <!-- ── React & Babel ──────────────────────────────────────────────────── -->
+  <!-- Use development builds so React error messages are readable -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js" crossorigin></script>
+
+  <!-- ── Game scripts — plain JS files (no Babel needed) ───────────────── -->
+  <script src="../data.js"></script>
+  <script src="../data_text.js"></script>
+  <script src="../ship-sprite.js"></script>
+  <script src="../logic.js"></script>
+  <script src="../storage.js"></script>
+  <script src="../generators.js"></script>
+  <script src="../engine_core.js"></script>
+  <script src="../engine_port.js"></script>
+  <script src="../engine_voyage.js"></script>
+  <script src="../engine_combat.js"></script>
+  <script src="../engine_onboarding.js"></script>
+  <script src="../engine_career.js"></script>
+  <script src="../engine_scripted.js"></script>
+
+  <!-- ── Game scripts — JSX files (Babel required) ─────────────────────── -->
+  <!-- Note: App.jsx is intentionally excluded — it renders the game into
+       the page, which is not needed for unit or smoke tests. -->
   <script type="text/babel" data-presets="react" src="../ui.jsx"></script>
-<script type="text/babel" data-presets="react" src="../screens_port.jsx"></script>
-<script type="text/babel" data-presets="react" src="../screens_shipyard.jsx"></script>
-<script type="text/babel" data-presets="react" src="../screens_crew.jsx"></script>
-<script type="text/babel" data-presets="react" src="../screens_market.jsx"></script>
-<script type="text/babel" data-presets="react" src="../screens_voyage.jsx"></script>
-  <script type="text/babel" data-presets="react" src="../App.jsx"></script>
-  <div id="root" style="display: none;"></div>
+  <script type="text/babel" data-presets="react" src="../icons.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_core.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_port.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_shipyard.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_crew.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_market.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_voyage.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_combat.jsx"></script>
+  <script type="text/babel" data-presets="react" src="../screens_menu.jsx"></script>
 
-  <!-- Test utilities and runner -->
-  <script type="text/babel">
-    // ── Test utilities ────────────────────────────────────────────────
-    (() => {
-      const origRandom = Math.random;
-      const origLocalStorage = window.localStorage;
-      let randomValues = [];
-      let randomIndex = 0;
-      let usingStub = false;
+  <!-- ── Test files (plain JS — no JSX, no Babel) ──────────────────────── -->
+  <!-- Each file pushes {id, name, run} objects onto window._tests. -->
+  <!-- Tests are not executed at load time — the runner below runs them. -->
+  <script>window._tests = [];</script>
+  <script src="tests_helpers.js"></script>
+  <script src="tests_logic.js"></script>
+  <script src="tests_engine.js"></script>
+  <script src="tests_ui.js"></script>
 
-      const resetRandomStub = () => {
-        randomValues = [];
-        randomIndex = 0;
-        usingStub = false;
-        Math.random = origRandom;
-      };
+  <!-- ── Runner ────────────────────────────────────────────────────────── -->
+  <script>
+  (function () {
+    "use strict";
 
-      const setRandomSequence = (values) => {
-        randomValues = values;
-        randomIndex = 0;
-        usingStub = true;
-        Math.random = () => {
-          if (randomIndex >= randomValues.length) throw new Error('Random stub exhausted');
-          return randomValues[randomIndex++];
-        };
-      };
+    // ── localStorage isolation ──────────────────────────────────────────
+    // Each test runs against a fresh in-memory store so save/load tests
+    // cannot pollute each other or the real browser storage.
+    const _realLS = window.localStorage;
+    let _store = {};
+    const _mockLS = {
+      getItem:    (k)    => (_store[k] !== undefined ? _store[k] : null),
+      setItem:    (k, v) => { _store[k] = String(v); },
+      removeItem: (k)    => { delete _store[k]; },
+      clear:      ()     => { _store = {}; },
+    };
 
-      // localStorage mock
-      let store = {};
-      const mockLocalStorage = {
-        getItem: (key) => store[key] || null,
-        setItem: (key, value) => { store[key] = value; },
-        removeItem: (key) => { delete store[key]; },
-        clear: () => { store = {}; }
-      };
-
-      const installLocalStorageMock = () => {
-        Object.defineProperty(window, 'localStorage', { value: mockLocalStorage, writable: true, configurable: true });
-      };
-
-      const clearLocalStorageMock = () => { store = {}; };
-
-      const restoreLocalStorage = () => {
-        try { window.localStorage = origLocalStorage; } catch(e) {
-          // Fallback in case assignment fails (browser security)
-          Object.defineProperty(window, 'localStorage', { value: origLocalStorage, writable: true, configurable: true });
-        }
-      };
-
-      // Assertion helpers
-      const assert = (condition, msg = 'Assertion failed') => { if (!condition) throw new Error(msg); };
-      const assertEqual = (actual, expected, msg) => {
-        if (actual !== expected) throw new Error(msg || `Expected ${expected} but got ${actual}`);
-      };
-      const assertDeepEqual = (actual, expected, msg) => {
-        if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(msg || `Deep equal failed`);
-      };
-
-      // React mount helpers
-      const mountReact = (Component, props = {}) => {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(React.createElement(Component, props));
-        return {
-          root, container,
-          query: (s) => container.querySelector(s),
-          queryAll: (s) => container.querySelectorAll(s),
-          unmount: () => { root.unmount(); document.body.removeChild(container); }
-        };
-      };
-
-      // Expose
-      window.__testUtils = {
-        assert, assertEqual, assertDeepEqual,
-        resetRandomStub, setRandomSequence,
-        installLocalStorageMock, clearLocalStorageMock, restoreLocalStorage,
-        mountReact,
-      };
-    })();
-
-    // ── Test runner ──────────────────────────────────────────────────
-    (() => {
-      const suitesContainer = document.getElementById('suites');
-      const totalSpan = document.getElementById('total');
-      const passedSpan = document.getElementById('passed');
-      const failedSpan = document.getElementById('failed');
-      const copyBtn = document.getElementById('copyFailures');
-      const copyMsg = document.getElementById('copyMsg');
-
-      let allTests = [];
-      let currentFilter = 'all';
-      let failureDetails = [];  // Array of {suite, test, error, consoleErrors}
-
-      const runTests = (suites) => {
-        allTests = [];
-        suites.forEach(suite => {
-          const suiteType = suite.type || "unit"; // fallback
-          suite.tests.forEach(test => {
-            test.suiteName = suite.name;
-            test.suiteType = suiteType;
-            allTests.push(test);
-          });
-        });
-        applyFilter();
-      };
-
-      const applyFilter = () => {
-        suitesContainer.innerHTML = '';
-        let total = 0, passed = 0, failed = 0;
-        failureDetails = [];
-        const filtered = allTests.filter(t => currentFilter === 'all' || t.suiteType === currentFilter);
-
-        const grouped = {};
-        filtered.forEach(t => {
-          if (!grouped[t.suiteName]) grouped[t.suiteName] = [];
-          grouped[t.suiteName].push(t);
-        });
-
-        Object.entries(grouped).forEach(([suiteName, tests]) => {
-          const suiteDiv = document.createElement('div');
-          suiteDiv.className = 'suite';
-          suiteDiv.innerHTML = `<h2>${suiteName}</h2>`;
-
-          tests.forEach(test => {
-            const testDiv = document.createElement('div');
-            testDiv.className = 'test';
-            testDiv.textContent = test.name;
-            suiteDiv.appendChild(testDiv);
-
-            const capturedErrors = [];
-            const origConsoleError = console.error;
-            console.error = (...args) => capturedErrors.push(args.join(' '));
-
-            // Before running the test, ensure localStorage is real
-            window.__testUtils.restoreLocalStorage();
-            window.__testUtils.resetRandomStub();   // ← ADD THIS LINE
-
-
-            try {
-              test.run(window.__testUtils);
-              testDiv.classList.add('pass');
-              passed++;
-            } catch (err) {
-              testDiv.classList.add('fail');
-              failed++;
-              const errDiv = document.createElement('div');
-              errDiv.className = 'error';
-              errDiv.textContent = err.message;
-              testDiv.appendChild(errDiv);
-              failureDetails.push({
-                suite: suiteName,
-                test: test.name,
-                error: err.message,
-                consoleErrors: [...capturedErrors]
-              });
-            } finally {
-              console.error = origConsoleError;
-            }
-            total++;
-          });
-          suitesContainer.appendChild(suiteDiv);
-        });
-
-        totalSpan.textContent = total;
-        passedSpan.textContent = passed;
-        failedSpan.textContent = failed;
-        copyBtn.style.display = failed > 0 ? 'inline-block' : 'none';
-      };
-
-      // Copy button handler
-      copyBtn.addEventListener('click', () => {
-        const lines = [];
-        lines.push(`FAILED TESTS (${failureDetails.length}):\n`);
-        failureDetails.forEach((f, idx) => {
-          lines.push(`[${f.suite}] ${f.test}`);
-          lines.push(`  Error: ${f.error}`);
-          if (f.consoleErrors.length > 0) {
-            lines.push(`  Console errors:`);
-            f.consoleErrors.forEach(e => lines.push(`    ${e}`));
-          }
-          lines.push('');
-        });
-        const text = lines.join('\n');
-        navigator.clipboard.writeText(text).then(() => {
-          copyMsg.style.display = 'inline';
-          setTimeout(() => { copyMsg.style.display = 'none'; }, 2000);
-        }).catch(() => alert('Copy failed'));
-      });
-
-      // Filter buttons
-      document.querySelectorAll('.filters button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentFilter = btn.dataset.type;
-          applyFilter();
-        });
-      });
-
-      window.__runTests = runTests;
-    })();
-  </script>
-
-  <!-- Test definitions (always last) -->
-  <script type="text/babel" data-presets="react" src="tests_helpers.js"></script>
-<script type="text/babel" data-presets="react" src="tests_logic.js"></script>
-<script type="text/babel" data-presets="react" src="tests_engine.js"></script>
-<script type="text/babel" data-presets="react" src="tests_flows.js"></script>
-<script type="text/babel" data-presets="react" src="tests_ui.js"></script>
-
-  <script type="text/babel">
-    if (window.TESTS) {
-      window.__runTests(window.TESTS);
-    } else {
-      document.getElementById('suites').innerHTML = '<div class="fail">No tests found (window.TESTS is undefined)</div>';
+    function installMockLS () {
+      try { Object.defineProperty(window, "localStorage", { value: _mockLS, writable: true, configurable: true }); }
+      catch (e) { window.localStorage = _mockLS; }
     }
+    function restoreRealLS () {
+      try { Object.defineProperty(window, "localStorage", { value: _realLS, writable: true, configurable: true }); }
+      catch (e) { window.localStorage = _realLS; }
+    }
+    function clearStore () { _store = {}; }
+
+    // ── RNG stub (mirrors the one in tests_helpers.js — kept independent
+    //    so the runner can always reset it regardless of test outcome) ───
+    const _realRandom = Math.random;
+    function resetRandom () { Math.random = _realRandom; }
+
+    // ── Assertion utilities (passed as `u` to every test) ───────────────
+    const makeU = () => ({
+      assert: (cond, msg) => {
+        if (!cond) throw new Error(msg || "Assertion failed");
+      },
+      assertEqual: (actual, expected, msg) => {
+        if (actual !== expected)
+          throw new Error(msg || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+      },
+      assertApprox: (actual, expected, tolerance = 0.001, msg) => {
+        if (Math.abs(actual - expected) > tolerance)
+          throw new Error(msg || `Expected ≈${expected} (±${tolerance}), got ${actual}`);
+      },
+      assertThrows: (fn, msg) => {
+        let threw = false;
+        try { fn(); } catch (e) { threw = true; }
+        if (!threw) throw new Error(msg || "Expected function to throw but it did not");
+      },
+    });
+
+    // ── Group tests by prefix (L. E. U.) ────────────────────────────────
+    const GROUPS = {
+      "L": "Logic Tests (pure functions)",
+      "E": "Engine Tests (reducers)",
+      "U": "UI Tests (namespace + smoke renders)",
+    };
+    const OTHER_GROUP = "Other Tests";
+
+    function groupTests(tests) {
+      const grouped = {};
+      for (const t of tests) {
+        const prefix = t.id ? t.id.split(".")[0] : "?";
+        const groupName = GROUPS[prefix] || OTHER_GROUP;
+        if (!grouped[groupName]) grouped[groupName] = [];
+        grouped[groupName].push(t);
+      }
+      return grouped;
+    }
+
+    // ── Run all tests ────────────────────────────────────────────────────
+    let _results = [];
+
+    function runAll() {
+      _results = [];
+      const u = makeU();
+
+      for (const test of window._tests) {
+        let ok = true, err = null;
+        // Isolate: fresh mock localStorage, restored RNG
+        clearStore();
+        installMockLS();
+        resetRandom();
+
+        try {
+          test.run(u);
+        } catch (e) {
+          ok = false;
+          err = e.message || String(e);
+        } finally {
+          resetRandom();
+          restoreRealLS();
+        }
+
+        _results.push({ id: test.id, name: test.name, ok, err });
+      }
+
+      render("all");
+    }
+
+    // ── Render results ───────────────────────────────────────────────────
+    function render(activeFilter) {
+      const root = document.getElementById("suites");
+      root.innerHTML = "";
+
+      const filtered = activeFilter === "all"
+        ? _results
+        : _results.filter(r => r.id && r.id.startsWith(activeFilter + "."));
+
+      const grouped = groupTests(filtered);
+      let total = 0, passed = 0, failed = 0;
+      const failures = [];
+
+      for (const [groupName, tests] of Object.entries(grouped)) {
+        const suite = document.createElement("div");
+        suite.className = "suite";
+        const h = document.createElement("h2");
+        const groupPassed = tests.filter(t => t.ok).length;
+        h.textContent = `${groupName}  (${groupPassed}/${tests.length})`;
+        suite.appendChild(h);
+
+        for (const t of tests) {
+          total++;
+          if (t.ok) passed++; else { failed++; failures.push(t); }
+
+          const row = document.createElement("div");
+          row.className = "test " + (t.ok ? "pass" : "fail");
+
+          const icon = document.createElement("span");
+          icon.className = "test-icon";
+          icon.textContent = t.ok ? "✓" : "✗";
+
+          const id = document.createElement("span");
+          id.className = "test-id";
+          id.textContent = t.id || "";
+
+          const name = document.createElement("span");
+          name.className = "test-name";
+          name.textContent = t.name;
+
+          row.appendChild(icon);
+          row.appendChild(id);
+          row.appendChild(name);
+
+          if (!t.ok && t.err) {
+            const errSpan = document.createElement("span");
+            errSpan.className = "test-err";
+            errSpan.textContent = "— " + t.err;
+            row.appendChild(errSpan);
+          }
+          suite.appendChild(row);
+        }
+        root.appendChild(suite);
+      }
+
+      if (filtered.length === 0) {
+        root.innerHTML = '<div class="running">No tests match the current filter.</div>';
+      }
+
+      // Update summary
+      document.getElementById("total").textContent  = total;
+      document.getElementById("passed").textContent = passed;
+      document.getElementById("failed").textContent = failed;
+      const statusEl = document.getElementById("status");
+      if (failed === 0 && total > 0) {
+        statusEl.textContent = "ALL GREEN"; statusEl.className = "stat-value green";
+      } else if (failed > 0) {
+        statusEl.textContent = `${failed} FAILED`; statusEl.className = "stat-value red";
+      } else {
+        statusEl.textContent = "—"; statusEl.className = "stat-value";
+      }
+
+      // Copy failures button
+      const copyBtn = document.getElementById("copy-btn");
+      copyBtn.style.display = failures.length > 0 ? "inline-block" : "none";
+      copyBtn.onclick = () => {
+        const lines = [`BROADSIDE TEST FAILURES (${failures.length})\n`];
+        for (const f of failures) {
+          lines.push(`[${f.id}] ${f.name}`);
+          lines.push(`  Error: ${f.err}`);
+          lines.push("");
+        }
+        navigator.clipboard.writeText(lines.join("\n")).then(() => {
+          const msg = document.getElementById("copy-msg");
+          msg.style.display = "inline";
+          setTimeout(() => { msg.style.display = "none"; }, 2000);
+        }).catch(() => alert("Clipboard write failed. Check browser permissions."));
+      };
+    }
+
+    // ── Filter buttons ───────────────────────────────────────────────────
+    document.querySelectorAll("[data-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        render(btn.dataset.filter);
+      });
+    });
+
+    // ── Wait for all Babel JSX files then run ────────────────────────────
+    // window.S.MenuModal is the last component to be registered (screens_menu.jsx).
+    // Once it exists, all game modules are ready and tests can run safely.
+    function waitAndRun(attempt) {
+      const ready = (
+        window.D && window.L && window.G && window.E &&
+        window.ShipSprite &&
+        window.UI && window.UI.LOG_ICONS &&
+        window.S && window.S.MenuModal &&
+        window._tests && window._tests.length > 0
+      );
+
+      if (ready) {
+        runAll();
+      } else if (attempt >= 80) {
+        // Timeout — show what's missing
+        const missing = [];
+        if (!window.D)                 missing.push("window.D");
+        if (!window.L)                 missing.push("window.L");
+        if (!window.G)                 missing.push("window.G");
+        if (!window.E)                 missing.push("window.E");
+        if (!window.ShipSprite)        missing.push("window.ShipSprite");
+        if (!window.UI)                missing.push("window.UI");
+        if (!window.UI?.LOG_ICONS)     missing.push("window.UI.LOG_ICONS");
+        if (!window.S)                 missing.push("window.S");
+        if (!window.S?.MenuModal)      missing.push("window.S.MenuModal");
+        if (!window._tests?.length)    missing.push("window._tests (test files)");
+        document.getElementById("suites").innerHTML =
+          `<div class="running" style="color:var(--red)">` +
+          `⚠ Timed out waiting for scripts. Missing: ${missing.join(", ")}. ` +
+          `Check the browser console for load errors.</div>`;
+        document.getElementById("status").textContent  = "TIMEOUT";
+        document.getElementById("status").className    = "stat-value red";
+      } else {
+        setTimeout(() => waitAndRun(attempt + 1), 100);
+      }
+    }
+
+    window.addEventListener("load", () => waitAndRun(0));
+  })();
   </script>
 </body>
 </html>

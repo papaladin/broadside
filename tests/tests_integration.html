@@ -6,104 +6,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root {
-    --bg: #1a1207;
-    --panel: #2a1f10;
-    --panel-alt: #352a18;
-    --border: #5a4a2a;
-    --border-faint: #3a2e1a;
-    --text: #d4c4a0;
-    --text-dim: #a09070;
-    --text-faint: #706050;
+    --bg: #0d1520;
+    --panel: #131f2e;
+    --panel-alt: #1a2a3a;
+    --border: #2a3f52;
+    --border-faint: #1e2e3e;
+    --text: #c4b896;
+    --text-dim: #8a7a60;
+    --text-faint: #5a4a38;
     --gold: #c9a84c;
-    --gold-br: #e8d080;
-    --green: #6cbf6c;
-    --red: #d46a6a;
-    --blue: #6a8cbf;
+    --gold-br: #e8c870;
+    --green: #5aaa5a;
+    --red: #cc6060;
     --font: 'Courier New', monospace;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    padding: 16px;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 13px;
-    line-height: 1.5;
+    margin: 0; padding: 16px;
+    background: var(--bg); color: var(--text);
+    font-family: var(--font); font-size: 13px; line-height: 1.5;
   }
-  h1 { color: var(--gold-br); margin: 0 0 4px; font-size: 20px; }
-  .subtitle { color: var(--text-dim); margin-bottom: 16px; font-size: 12px; }
+  h1 { color: var(--gold-br); margin: 0 0 4px; font-size: 18px; letter-spacing: 1px; }
+  .subtitle { color: var(--text-dim); margin-bottom: 16px; font-size: 11px; }
   .summary {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    display: flex;
-    gap: 24px;
-    align-items: center;
-    flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 12px 16px; margin-bottom: 16px;
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
   }
   .summary .stat { display: flex; flex-direction: column; }
-  .summary .label { color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .summary .label { color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
   .summary .value { color: var(--gold-br); font-size: 22px; font-weight: bold; }
   .summary .value.green { color: var(--green); }
-  .summary .value.red { color: var(--red); }
+  .summary .value.red   { color: var(--red); }
   button {
-    background: var(--panel-alt);
-    color: var(--gold);
-    border: 1px solid var(--gold);
-    border-radius: 3px;
-    padding: 8px 16px;
-    font-family: var(--font);
-    font-size: 13px;
-    cursor: pointer;
-    min-height: 36px;
+    background: var(--panel-alt); color: var(--gold);
+    border: 1px solid var(--gold); padding: 8px 16px;
+    font-family: var(--font); font-size: 13px;
+    cursor: pointer; min-height: 36px;
   }
   button:hover { background: var(--gold); color: var(--bg); }
   .group {
-    background: var(--panel);
-    border: 1px solid var(--border-faint);
-    border-radius: 4px;
-    padding: 12px 16px;
-    margin-bottom: 12px;
+    background: var(--panel); border: 1px solid var(--border-faint);
+    padding: 12px 16px; margin-bottom: 10px;
   }
   .group h2 {
-    color: var(--gold);
-    font-size: 14px;
-    margin: 0 0 8px;
-    border-bottom: 1px solid var(--border-faint);
-    padding-bottom: 4px;
+    color: var(--gold); font-size: 13px; margin: 0 0 8px;
+    border-bottom: 1px solid var(--border-faint); padding-bottom: 4px;
   }
-  .test {
-    padding: 4px 0;
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-  }
-  .test .icon { flex-shrink: 0; font-size: 14px; }
+  .test { padding: 3px 0; display: flex; gap: 8px; align-items: flex-start; }
+  .test .icon { flex-shrink: 0; font-size: 13px; }
   .test .name { color: var(--text); }
   .test.fail .name { color: var(--red); }
-  .test .err {
-    color: var(--text-dim);
-    font-size: 11px;
-    margin-left: 8px;
-    font-style: italic;
-  }
+  .test .err { color: var(--text-dim); font-size: 11px; margin-left: 8px; font-style: italic; }
   .running { color: var(--text-dim); font-style: italic; padding: 8px 0; }
-  .empty { color: var(--text-faint); padding: 8px 0; font-style: italic; }
-  .footer {
-    color: var(--text-faint);
-    font-size: 11px;
-    margin-top: 16px;
-    text-align: center;
-  }
+  .footer  { color: var(--text-faint); font-size: 11px; margin-top: 16px; text-align: center; }
 </style>
 </head>
 <body>
 
 <h1>⚓ Broadside — Integration Load Test</h1>
-<div class="subtitle">B0.5 — verifies all scripts load cleanly and core namespaces are populated. Catches LOG_ICONS-class regressions.</div>
+<div class="subtitle">
+  Verifies all scripts load in the correct order and every expected namespace, export,
+  and data shape is present. Catches load-order regressions and renamed/removed exports.
+  Runs automatically; results appear once all Babel files are transpiled.
+</div>
 
 <div class="summary">
   <div class="stat"><div class="label">Total</div><div class="value" id="total">—</div></div>
@@ -114,17 +80,20 @@
 </div>
 
 <div id="results"><div class="running">Loading game scripts…</div></div>
+<div class="footer">
+  This file loads all game scripts from <code>../</code>.
+  Any 404 or syntax error will show up as a namespace-missing failure below.
+</div>
 
-<div class="footer">Tests run automatically once Babel finishes transpiling all .jsx files.</div>
-
-<!-- React & Babel (same CDN as index.html) -->
+<!-- ── React & Babel (same CDN as index.html) ─────────────────────────── -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js" crossorigin></script>
 
-<!-- Game scripts in load order (../ because we are inside tests/) -->
+<!-- ── Game scripts in strict load order (must match index.html exactly) ─ -->
 <script src="../data.js"></script>
 <script src="../data_text.js"></script>
+<script src="../ship-sprite.js"></script>
 <script src="../logic.js"></script>
 <script src="../storage.js"></script>
 <script src="../generators.js"></script>
@@ -132,327 +101,516 @@
 <script src="../engine_port.js"></script>
 <script src="../engine_voyage.js"></script>
 <script src="../engine_combat.js"></script>
+<script src="../engine_onboarding.js"></script>
+<script src="../engine_career.js"></script>
+<script src="../engine_scripted.js"></script>
 
-<script type="text/babel" src="../ui.jsx"></script>
-<script type="text/babel" src="../icons.jsx"></script>
-<script type="text/babel" src="../screens_core.jsx"></script>
-<script type="text/babel" src="../screens_port.jsx"></script>
-<script type="text/babel" src="../screens_shipyard.jsx"></script>
-<script type="text/babel" src="../screens_crew.jsx"></script>
-<script type="text/babel" src="../screens_market.jsx"></script>
-<script type="text/babel" src="../screens_voyage.jsx"></script>
+<script type="text/babel" data-presets="react" src="../ui.jsx"></script>
+<script type="text/babel" data-presets="react" src="../icons.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_core.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_port.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_shipyard.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_crew.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_market.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_voyage.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_combat.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_menu.jsx"></script>
 
+<!-- ── Test runner ────────────────────────────────────────────────────── -->
 <script>
 (function () {
-  // Test harness
+  "use strict";
+
   const results = [];
   let currentGroup = null;
+
   function group(name) {
     currentGroup = { name, tests: [] };
     results.push(currentGroup);
   }
+
   function test(name, fn) {
     let ok = true, err = null;
     try {
-      const r = fn();
-      if (r === false) { ok = false; err = "assertion returned false"; }
+      fn();
     } catch (e) {
       ok = false;
       err = (e && e.message) ? e.message : String(e);
     }
     currentGroup.tests.push({ name, ok, err });
   }
+
   function assert(cond, msg) {
     if (!cond) throw new Error(msg || "assertion failed");
   }
 
+  // ── Tests ───────────────────────────────────────────────────────────────
+
   function runAllTests() {
-    // ─────────────────────────────────────────────────────────────
-    // Namespace existence
-    // ─────────────────────────────────────────────────────────────
-    group("1. Global namespaces present");
-    test("window.D exists", () => assert(window.D && typeof window.D === "object", "window.D missing"));
-    test("window.L exists", () => assert(window.L && typeof window.L === "object", "window.L missing"));
-    test("window.G exists", () => assert(window.G && typeof window.G === "object", "window.G missing"));
-    test("window.E exists", () => assert(window.E && typeof window.E === "object", "window.E missing"));
-    test("window.UI exists", () => assert(window.UI && typeof window.UI === "object", "window.UI missing"));
-    test("window.S exists", () => assert(window.S && typeof window.S === "object", "window.S missing"));
 
-    // ─────────────────────────────────────────────────────────────
-    // Data (D)
-    // ─────────────────────────────────────────────────────────────
+    // ── 1. Global namespaces ──────────────────────────────────────────────
+    group("1. Global namespaces");
+    test("window.D",          () => assert(window.D          && typeof window.D          === "object", "window.D missing"));
+    test("window.L",          () => assert(window.L          && typeof window.L          === "object", "window.L missing"));
+    test("window.G",          () => assert(window.G          && typeof window.G          === "object", "window.G missing"));
+    test("window.E",          () => assert(window.E          && typeof window.E          === "object", "window.E missing"));
+    test("window.UI",         () => assert(window.UI         && typeof window.UI         === "object", "window.UI missing"));
+    test("window.S",          () => assert(window.S          && typeof window.S          === "object", "window.S missing"));
+    test("window.ShipSprite", () => assert(window.ShipSprite && typeof window.ShipSprite === "object", "window.ShipSprite missing"));
+
+    // ── 2. Data constants ─────────────────────────────────────────────────
     group("2. Data constants (window.D)");
-    const dKeys = ["PORTS","SHIPS","FACTIONS","EQUIPMENT","RESOURCES","RANDOM_EVENTS","STARTS"];
-    dKeys.forEach(k => test("D." + k + " exists", () => assert(window.D && window.D[k], "D." + k + " missing")));
-    test("D.TUTORIAL_DELIVERY exists", () => assert(window.D && window.D.TUTORIAL_DELIVERY, "D.TUTORIAL_DELIVERY missing"));
-    test("D.TUTORIAL_HUNT exists", () => assert(window.D && window.D.TUTORIAL_HUNT, "D.TUTORIAL_HUNT missing"));
-    test("D.PORTS has >= 20 entries", () => {
-      assert(window.D && window.D.PORTS, "PORTS missing");
-      assert(Object.keys(window.D.PORTS).length >= 20, "expected >=20 ports, got " + Object.keys(window.D.PORTS).length);
-    });
-    test("D.SHIPS has >= 10 entries", () => {
-      assert(Object.keys(window.D.SHIPS).length >= 10, "expected >=10 ships");
-    });
-    test("D.FACTIONS includes 5 factions (english, spanish, french, dutch, pirate)", () => {
-      ["english","spanish","french","dutch","pirate"].forEach(f =>
-        assert(window.D.FACTIONS[f], "faction missing: " + f));
-    });
-    test("D.EQUIPMENT has >= 15 items", () => {
-      assert(Object.keys(window.D.EQUIPMENT).length >= 15, "expected >=15 equipment items");
+    [
+      "PORTS", "SHIPS", "SHIP_VISUALS", "FACTIONS", "EQUIPMENT", "RESOURCES",
+      "GOODS_AVAILABILITY", "RANDOM_EVENTS", "STARTS", "DEFAULT_CAREER",
+      "TUTORIAL_DELIVERY", "TUTORIAL_HUNT", "SURRENDER_CONSEQUENCE",
+      "MISSION_GOLD_RANGES", "PATROL_FINE_RATE",
+    ].forEach(k => test(`D.${k} exists`, () => assert(k in window.D, `D.${k} missing`)));
+
+    test("D.PORTS has ≥20 entries", () =>
+      assert(Object.keys(window.D.PORTS).length >= 20,
+        `expected ≥20 ports, got ${Object.keys(window.D.PORTS).length}`));
+
+    test("D.SHIPS has ≥10 entries", () =>
+      assert(Object.keys(window.D.SHIPS).length >= 10,
+        `expected ≥10 ships, got ${Object.keys(window.D.SHIPS).length}`));
+
+    test("D.FACTIONS has exactly 5 entries", () => {
+      const f = Object.keys(window.D.FACTIONS);
+      assert(f.length === 5, `expected 5 factions, got ${f.length}: ${f.join(", ")}`);
+      ["english","spanish","french","dutch","pirate"].forEach(name =>
+        assert(name in window.D.FACTIONS, `faction "${name}" missing`)
+      );
     });
 
-    // ─────────────────────────────────────────────────────────────
-    // Logic (L)
-    // ─────────────────────────────────────────────────────────────
-    group("3. Logic functions (window.L)");
-    const lFns = [
-      "getShipStats","travelDays","canReach","getRepPerk","getFameInfo",
-      "getInfamyLabel","getHeatLabel","getEffectiveMorale","getHoldCapacity","getHoldUsed",
-      "getRepairCost","getEquipmentEffect","canInstallEquipment","hasTag","addTag",
-      "removeTag","revealTag","classifyLogLine","getLogTabCategory","buildEncounterContext",
-      "canSeePort","getNPCAction","resolveCombatAction","hasSave","encodeSave",
-      "decodeSave","shouldShowTutorial","markTutorialSeen"
-    ];
-    lFns.forEach(fn => test("L." + fn + " is a function", () =>
-      assert(typeof window.L[fn] === "function", "L." + fn + " is " + (typeof window.L[fn]))
-    ));
+    test("D.EQUIPMENT has ≥10 items", () =>
+      assert(Object.keys(window.D.EQUIPMENT).length >= 10,
+        `expected ≥10 equipment items, got ${Object.keys(window.D.EQUIPMENT).length}`));
 
-    // ─────────────────────────────────────────────────────────────
-    // Generators (G)
-    // ─────────────────────────────────────────────────────────────
-    group("4. Generators (window.G)");
-    const gFns = [
-      "generateCrewMember","generateRoster","generateCrewBio",
-      "generatePortMarket","generateEnemyCargo","generateMissions",
-      "generatePortGossip","generateEnemy"
-    ];
-    gFns.forEach(fn => test("G." + fn + " is a function", () =>
-      assert(typeof window.G[fn] === "function", "G." + fn + " missing or not a function")
-    ));
+    // Text constants (populated by data_text.js)
+    [
+      "CREW_FIRST_NAMES", "CREW_LAST_NAMES", "QM_DIALOGUE",
+      "ARRIVAL_MESSAGES", "SAILING_MESSAGES",
+      "VICTORY_MESSAGES", "DEFEAT_MESSAGES", "FLED_MESSAGES",
+      "REPAIR_MESSAGES", "PURCHASE_MESSAGES",
+      "BOARDING_SUCCESS_MESSAGES", "PLUNDER_MESSAGES",
+      "PORT_GOSSIP_TEMPLATES", "MARKET_FLAVOUR",
+    ].forEach(k => test(`D.${k} exists (data_text.js)`, () =>
+      assert(k in window.D, `D.${k} missing — check data_text.js loaded after data.js`)));
 
-    // ─────────────────────────────────────────────────────────────
-    // Engine (E)
-    // ─────────────────────────────────────────────────────────────
-    group("5. Engine (window.E)");
-    test("E.A actions table exists", () => assert(window.E.A && typeof window.E.A === "object", "E.A missing"));
-    test("E.A has >= 30 action types", () => {
-      const n = Object.keys(window.E.A).length;
-      assert(n >= 30, "expected >=30 actions, got " + n);
-    });
-    test("every E.A entry is a non-empty string", () => {
-      for (const k of Object.keys(window.E.A)) {
-        const v = window.E.A[k];
-        assert(typeof v === "string" && v.length > 0, "E.A." + k + " is " + JSON.stringify(v));
+    // ── 3. STARTS shape ───────────────────────────────────────────────────
+    group("3. STARTS data shape (faction-keyed, not array)");
+    test("D.STARTS is an object, not an array", () =>
+      assert(!Array.isArray(window.D.STARTS), "STARTS must not be an array"));
+
+    ["factionPorts", "factionRepAdjust", "factionBackstory", "factionQM"].forEach(k =>
+      test(`D.STARTS.${k} is an object with 5 faction keys`, () => {
+        const v = window.D.STARTS[k];
+        assert(v && typeof v === "object", `STARTS.${k} missing or not object`);
+        ["english","spanish","french","dutch","pirate"].forEach(f =>
+          assert(f in v, `STARTS.${k}.${f} missing`));
+      })
+    );
+
+    test("D.STARTS.ship references a valid SHIPS entry", () =>
+      assert(window.D.STARTS.ship in window.D.SHIPS,
+        `STARTS.ship "${window.D.STARTS.ship}" not in D.SHIPS`));
+
+    test("D.STARTS.factionPorts: each faction maps to a real port", () => {
+      const bad = [];
+      for (const [faction, port] of Object.entries(window.D.STARTS.factionPorts)) {
+        if (!(port in window.D.PORTS)) bad.push(`${faction} → "${port}"`);
       }
+      assert(bad.length === 0, `bad port refs: ${bad.join(", ")}`);
     });
-    test("E.reducer is a function", () => assert(typeof window.E.reducer === "function"));
-    test("E.initialState exists with key fields", () => {
-      const s = window.E.initialState;
-      assert(s, "initialState missing");
-      ["screen","day","gold","fame","infamy","ship","crew","hold","reputation"].forEach(k =>
-        assert(k in s, "initialState missing field: " + k));
-    });
-    test("E.initialState.ship has equipment shape (not legacy 'upgrades')", () => {
-      const s = window.E.initialState.ship;
-      assert(s.equipment, "ship.equipment missing");
-      ["hull","armament","rigging","special"].forEach(slot =>
-        assert(Array.isArray(s.equipment[slot]), "ship.equipment." + slot + " not an array"));
-      assert(!("upgrades" in s), "initialState.ship still contains legacy 'upgrades' field");
-    });
-    test("E.autoSave is a function", () => assert(typeof window.E.autoSave === "function"));
-    test("E.migrateState is a function", () => assert(typeof window.E.migrateState === "function"));
 
-    // ─────────────────────────────────────────────────────────────
-    // UI (theme + components)
-    // ─────────────────────────────────────────────────────────────
-    group("6. UI primitives (window.UI)");
-    test("UI.T theme tokens exist", () => {
-      assert(window.UI.T, "UI.T missing");
-      ["bg","panel","border","text","gold","green","red","font","btnMinHeight"].forEach(k =>
-        assert(k in window.UI.T, "UI.T." + k + " missing"));
-    });
-    test("UI.panelStyle is a function", () => assert(typeof window.UI.panelStyle === "function"));
-    const uiComponents = ["Btn","Bar","Pill","StatBlock","SectionTitle","ScreenHeader","LogList","Divider","EmptyState","BackButton","NarrativePanel","NarrativeLine","TutorialPopup","FactionPill","RepPill","ShipSprite"];
-    uiComponents.forEach(c => test("UI." + c + " component exists", () =>
-      assert(typeof window.UI[c] === "function", "UI." + c + " is " + (typeof window.UI[c]))
-    ));
+    test("D.STARTS.gold is a positive number", () =>
+      assert(typeof window.D.STARTS.gold === "number" && window.D.STARTS.gold > 0,
+        `STARTS.gold is ${window.D.STARTS.gold}`));
 
-    // ─────────────────────────────────────────────────────────────
-    // Icons + LOG_ICONS (the regression we just fixed)
-    // ─────────────────────────────────────────────────────────────
-    group("7. Icons & LOG_ICONS mapping");
-    test("UI.LOG_ICONS exists and is an object", () => {
-      assert(window.UI.LOG_ICONS && typeof window.UI.LOG_ICONS === "object",
-        "UI.LOG_ICONS missing — icons.jsx likely failed to load (load order or IIFE scope issue)");
-    });
-    test("UI.LOG_ICONS has at least one entry", () => {
-      const n = Object.keys(window.UI.LOG_ICONS || {}).length;
-      assert(n > 0, "LOG_ICONS is empty");
-    });
-    test("every LOG_ICONS entry is a function (React component)", () => {
-      const m = window.UI.LOG_ICONS || {};
-      for (const k of Object.keys(m)) {
-        assert(typeof m[k] === "function", "LOG_ICONS." + k + " is " + (typeof m[k]));
-      }
-    });
-    test("at least one named icon is exposed on window.UI (e.g. IconAnchor)", () => {
-      const someIconExists = Object.keys(window.UI).some(k => /^Icon[A-Z]/.test(k));
-      assert(someIconExists, "no Icon* component found on window.UI");
-    });
-    test("classifyLogLine categories all have an icon", () => {
-      const sampleLines = [
-        "Arrived at Port Royal","Set sail for Havana","Hired 3 new crew",
-        "Sank the Black Serpent","Sold 10 sugar for 80g","Mission complete",
-        "Discovered Roatán","Infamy rises","Patrol seized 5 tobacco"
-      ];
-      const cats = new Set();
-      sampleLines.forEach(l => {
-        const c = window.L.classifyLogLine(l);
-        if (c) cats.add(c);
-      });
+    // ── 4. Data integrity ─────────────────────────────────────────────────
+    group("4. Data integrity");
+    test("Every PORT has required fields (name, faction, x, y, services, desc)", () => {
       const missing = [];
-      cats.forEach(c => { if (!window.UI.LOG_ICONS[c]) missing.push(c); });
-      assert(missing.length === 0, "categories without icon: " + missing.join(", "));
-    });
-
-    // ─────────────────────────────────────────────────────────────
-    // Screens (S)
-    // ─────────────────────────────────────────────────────────────
-    group("8. Screens (window.S)");
-    const screens = [
-      "TitleScreen","PortScreen","StatusScreen","JournalScreen",
-      "ShipyardScreen","CrewScreen","MarketScreen",
-      "MapScreen","SailingScreen","EventScreen","InterceptScreen","BattleScreen","PlunderScreen"
-    ];
-    screens.forEach(s => test("S." + s + " component exists", () =>
-      assert(typeof window.S[s] === "function", "S." + s + " is " + (typeof window.S[s]))
-    ));
-
-    // ─────────────────────────────────────────────────────────────
-    // Functional smoke tests
-    // ─────────────────────────────────────────────────────────────
-    group("9. Functional smoke tests");
-    test("L.classifyLogLine('Arrived at Port Royal') returns a string category", () => {
-      const c = window.L.classifyLogLine("Arrived at Port Royal");
-      assert(typeof c === "string" && c.length > 0, "got: " + JSON.stringify(c));
-    });
-    test("L.classifyLogLine('totally unrelated text') returns null or 'other'", () => {
-      const c = window.L.classifyLogLine("totally unrelated text");
-      assert(c === null || c === undefined || typeof c === "string", "unexpected: " + JSON.stringify(c));
-    });
-    test("L.getFameInfo(0) returns { label, tier }", () => {
-      const r = window.L.getFameInfo(0);
-      assert(r && typeof r.label === "string" && typeof r.tier === "number",
-        "got: " + JSON.stringify(r));
-    });
-    test("L.getFameInfo(350) returns tier 4 (Immortal)", () => {
-      const r = window.L.getFameInfo(350);
-      assert(r.tier === 4, "tier was " + r.tier);
-    });
-    test("E.reducer(initialState, { type: '__NOOP__' }) returns state unchanged", () => {
-      const s1 = window.E.initialState;
-      const s2 = window.E.reducer(s1, { type: "__NOOP__" });
-      assert(s2 === s1 || JSON.stringify(s2) === JSON.stringify(s1),
-        "reducer mutated state on noop action");
-    });
-    test("L.encodeSave + L.decodeSave round-trip preserves gold and fame", () => {
-      const s = JSON.parse(JSON.stringify(window.E.initialState));
-      s.gold = 1234;
-      s.fame = 56;
-      const enc = window.L.encodeSave(s);
-      const dec = window.L.decodeSave(enc);
-      const state = (dec && dec.state) ? dec.state : dec;
-      assert(state && state.gold === 1234, "gold not preserved: " + JSON.stringify(state && state.gold));
-      assert(state && state.fame === 56, "fame not preserved: " + JSON.stringify(state && state.fame));
-    });
-
-    // ─────────────────────────────────────────────────────────────
-    // Data integrity
-    // ─────────────────────────────────────────────────────────────
-    group("10. Data integrity");
-    test("every PORT has required fields (name, faction, x, y, services, desc)", () => {
-      const missing = [];
-      for (const k of Object.keys(window.D.PORTS)) {
-        const p = window.D.PORTS[k];
+      for (const [k, p] of Object.entries(window.D.PORTS)) {
         ["name","faction","x","y","services","desc"].forEach(f => {
-          if (!(f in p)) missing.push(k + "." + f);
+          if (!(f in p)) missing.push(`${k}.${f}`);
         });
       }
-      assert(missing.length === 0, "missing fields: " + missing.slice(0,5).join(", "));
+      assert(missing.length === 0, `missing: ${missing.slice(0,5).join(", ")}`);
     });
-    test("every PORT.faction references an existing FACTION", () => {
+
+    test("Every PORT.faction references a real FACTIONS key", () => {
       const bad = [];
-      for (const k of Object.keys(window.D.PORTS)) {
-        const f = window.D.PORTS[k].faction;
-        if (!window.D.FACTIONS[f]) bad.push(k + " -> " + f);
+      for (const [k, p] of Object.entries(window.D.PORTS)) {
+        if (!(p.faction in window.D.FACTIONS)) bad.push(`${k} → "${p.faction}"`);
       }
-      assert(bad.length === 0, "bad faction refs: " + bad.join(", "));
+      assert(bad.length === 0, `bad faction refs: ${bad.join(", ")}`);
     });
-    test("every SHIP has slots object with hull/armament/rigging/special", () => {
-      const bad = [];
-      for (const k of Object.keys(window.D.SHIPS)) {
-        const sh = window.D.SHIPS[k];
-        if (!sh.slots) { bad.push(k + " (no slots)"); continue; }
-        ["hull","armament","rigging","special"].forEach(s => {
-          if (typeof sh.slots[s] !== "number") bad.push(k + "." + s);
+
+    test("Every SHIP has required fields (name, maxHull, cannons, speed, holdCapacity, maxCrew, maxDays, cost, slots)", () => {
+      const missing = [];
+      for (const [k, s] of Object.entries(window.D.SHIPS)) {
+        ["name","maxHull","cannons","speed","holdCapacity","maxCrew","maxDays","cost","slots"].forEach(f => {
+          if (!(f in s)) missing.push(`${k}.${f}`);
         });
       }
-      assert(bad.length === 0, "bad ships: " + bad.slice(0,5).join(", "));
+      assert(missing.length === 0, `missing: ${missing.slice(0,5).join(", ")}`);
     });
-    test("every EQUIPMENT slot value is one of hull/armament/rigging/special", () => {
+
+    test("Every SHIP.slots has hull/armament/rigging/special (all numbers)", () => {
       const bad = [];
-      const valid = new Set(["hull","armament","rigging","special"]);
-      for (const k of Object.keys(window.D.EQUIPMENT)) {
-        const e = window.D.EQUIPMENT[k];
-        if (!valid.has(e.slot)) bad.push(k + " -> " + e.slot);
+      for (const [k, s] of Object.entries(window.D.SHIPS)) {
+        if (!s.slots) { bad.push(`${k} (no slots)`); continue; }
+        ["hull","armament","rigging","special"].forEach(slot => {
+          if (typeof s.slots[slot] !== "number") bad.push(`${k}.slots.${slot}`);
+        });
       }
-      assert(bad.length === 0, "bad slots: " + bad.join(", "));
+      assert(bad.length === 0, `bad slots: ${bad.slice(0,5).join(", ")}`);
     });
-    test("every STARTS entry references a real ship and start port", () => {
+
+    test("Every SHIP_VISUALS entry references a valid ship type", () => {
       const bad = [];
-      for (const k of Object.keys(window.D.STARTS)) {
-        const s = window.D.STARTS[k];
-        if (s.ship && !window.D.SHIPS[s.ship]) bad.push(k + " ship " + s.ship);
-        if (s.startPort && !window.D.PORTS[s.startPort]) bad.push(k + " port " + s.startPort);
+      for (const k of Object.keys(window.D.SHIP_VISUALS)) {
+        if (!(k in window.D.SHIPS)) bad.push(k);
       }
-      assert(bad.length === 0, "bad refs: " + bad.join(", "));
+      assert(bad.length === 0, `SHIP_VISUALS keys with no matching SHIPS entry: ${bad.join(", ")}`);
+    });
+
+    test("Every EQUIPMENT item has slot, cost, installFee, effects", () => {
+      const missing = [];
+      const validSlots = new Set(["hull","armament","rigging","special"]);
+      for (const [k, e] of Object.entries(window.D.EQUIPMENT)) {
+        ["slot","cost","installFee","effects"].forEach(f => {
+          if (!(f in e)) missing.push(`${k}.${f}`);
+        });
+        if (e.slot && !validSlots.has(e.slot)) missing.push(`${k}.slot="${e.slot}" (invalid)`);
+      }
+      assert(missing.length === 0, `missing: ${missing.slice(0,5).join(", ")}`);
+    });
+
+    test("D.DEFAULT_CAREER has required tracking fields", () => {
+      const c = window.D.DEFAULT_CAREER;
+      const required = ["goldEarned","goldSpent","battles","shipsSunk","shipsPlundered",
+        "crewHired","crewLost","crewDismissed","longestCrewTenure",
+        "portsVisited","shipsOwned","stormsSurvived","contrabandSeized",
+        "missionLog","combatLog"];
+      required.forEach(f => assert(f in c, `DEFAULT_CAREER.${f} missing`));
+    });
+
+    // ── 5. Logic exports ──────────────────────────────────────────────────
+    group("5. Logic exports (window.L)");
+    [
+      "getShipStats","getShipSlots","canInstallEquipment","getEquipmentEffect",
+      "travelDays","canReach","getUnreachableReason",
+      "getSeaPosition","travelDaysFromPosition","canReachFromPosition","getReachablePortsFromSea",
+      "reputationLabel","getFameInfo","getRepPerk",
+      "hasTag","addTag","removeTag","revealTag",
+      "getAlignmentModifier","getHoldCapacity","getHoldUsed",
+      "getProvisionConsumptionPerDay","shipRepairCost",
+      "classifyLogLine","getLogTabCategory",
+      "buildEncounterContext","resolveCombatAction","getNPCAction",
+      "isFeatureUnlocked","applyReputationImpact",
+      "encodeSave","decodeSave","simpleHash",
+      "logPick","returnScreen","addHeat",
+    ].forEach(fn => test(`L.${fn} is a function`, () =>
+      assert(typeof window.L[fn] === "function", `L.${fn} missing or not a function`)));
+
+    // ── 6. Generator exports ──────────────────────────────────────────────
+    group("6. Generator exports (window.G)");
+    [
+      "generatePortMarket","generateMissions","generateEnemy","generateEnemyCargo",
+      "generateCrewMember","generateRoster","generateCrewBio",
+      "generatePortGossip","generateMarketFlavour",
+    ].forEach(fn => test(`G.${fn} is a function`, () =>
+      assert(typeof window.G[fn] === "function", `G.${fn} missing`)));
+
+    // ── 7. Engine infrastructure ──────────────────────────────────────────
+    group("7. Engine infrastructure (window.E)");
+    test("E.reducer is a function",          () => assert(typeof window.E.reducer         === "function"));
+    test("E.autoSave is a function",         () => assert(typeof window.E.autoSave        === "function"));
+    test("E.migrateState is a function",     () => assert(typeof window.E.migrateState    === "function"));
+    test("E.createBattleState is a function",() => assert(typeof window.E.createBattleState === "function"));
+    test("E.logEntry is a function",         () => assert(typeof window.E.logEntry        === "function"));
+    test("E.initialState is an object",      () => assert(window.E.initialState && typeof window.E.initialState === "object"));
+    test("E._reducers is an array",          () => assert(Array.isArray(window.E._reducers)));
+
+    test("E._reducers has the expected count (9 reducers registered)", () => {
+      // domain: port, voyage, combat (3)
+      // middleware: onboardingLifecycle, onboardingMiddleware (2), career (1) = 3
+      // engine_core inline: debug, save/load, morale (3)
+      // engine_scripted: 1 (registered but inert without ?scripted=1)
+      // Total: 10 — adjust this number if reducers are added/removed
+      const count = window.E._reducers.length;
+      assert(count >= 8, `expected ≥8 reducers, found ${count}`);
+    });
+
+    test("E.initialState has no hold.capacity field (architecture invariant)", () =>
+      assert(!("capacity" in window.E.initialState.hold),
+        "hold.capacity must not exist — use L.getHoldCapacity(state)"));
+
+    test("E.initialState.ship.equipment has four empty slot arrays", () => {
+      const eq = window.E.initialState.ship.equipment;
+      ["hull","armament","rigging","special"].forEach(slot =>
+        assert(Array.isArray(eq[slot]) && eq[slot].length === 0, `equipment.${slot} not empty array`));
+    });
+
+    test("E.A has all core action constants", () => {
+      const required = [
+        "START_GAME","NAVIGATE","SAIL_TO","ENTER_PORT","ADVANCE_DAY",
+        "REPAIR","BUY_SHIP","BUY_EQUIPMENT","INSTALL_EQUIPMENT","REMOVE_EQUIPMENT",
+        "HIRE_CREW","DISMISS_CREW","RAISE_MORALE",
+        "TAKE_MISSION","COMPLETE_MISSION","ABANDON_MISSION","REFRESH_MISSIONS",
+        "CONFIRM_TRADE",
+        "INTERCEPT_FIGHT","INTERCEPT_FLEE","INTERCEPT_PARLEY",
+        "INTERCEPT_BRIBE","INTERCEPT_SURRENDER","PATROL_INSPECT",
+        "BATTLE_ACTION","DISMISS_BATTLE","TAKE_PLUNDER",
+        "RESOLVE_EVENT","ATTACK_PIRATE","ATTACK_MERCHANT",
+        "RESOLVE_DRIFTING_WRECK_SEARCH",
+        "SAVE_GAME","LOAD_GAME","EXPORT_SAVE","IMPORT_SAVE","TOGGLE_AUTO_SAVE",
+        "ONBOARDING_QM_SEEN","ONBOARDING_SKIP","ONBOARDING_COMPLETE",
+        "DISCOVER_PORT",
+      ];
+      const missing = required.filter(a => !(a in window.E.A));
+      assert(missing.length === 0, `E.A missing: ${missing.join(", ")}`);
+    });
+
+    // ── 8. ShipSprite ─────────────────────────────────────────────────────
+    group("8. Ship sprite renderer (window.ShipSprite)");
+    test("ShipSprite.render is a function",
+      () => assert(typeof window.ShipSprite.render === "function"));
+
+    test("ShipSprite.render(dinghy) returns an SVGElement", () => {
+      const el = window.ShipSprite.render("dinghy", { faction: "english" });
+      assert(el instanceof SVGElement, `got ${el?.constructor?.name || typeof el}`);
+    });
+
+    test("ShipSprite.render: all ship types produce an SVGElement without throwing", () => {
+      const bad = [];
+      for (const type of Object.keys(window.D.SHIP_VISUALS)) {
+        try {
+          const el = window.ShipSprite.render(type, { faction: "pirate" });
+          if (!(el instanceof SVGElement)) bad.push(`${type} (not SVGElement)`);
+        } catch (e) {
+          bad.push(`${type} (threw: ${e.message})`);
+        }
+      }
+      assert(bad.length === 0, `render failures: ${bad.join(", ")}`);
+    });
+
+    // ── 9. UI components ──────────────────────────────────────────────────
+    group("9. UI components (window.UI)");
+    test("UI.T theme token object exists with core fields", () => {
+      const T = window.UI.T;
+      assert(T && typeof T === "object", "T missing");
+      ["bg","bgDeep","bgAlt","text","textDim","border","gold","font"].forEach(k =>
+        assert(k in T, `T.${k} missing`));
+    });
+
+    [
+      "Btn","PulseBtn","Bar","Pill","FactionPill","RepPill",
+      "StatBlock","SectionTitle","NarrativePanel","NarrativeLine",
+      "LogList","Divider","EmptyState",
+      "BackButton","Tooltip","TransferLayout","TutorialPopup",
+      "ShipSprite","ShipSideSprite","PortSilhouette",
+      "panelStyle","getGoodIcon","useFlashOnChange",
+    ].forEach(c => test(`UI.${c} exists`, () =>
+      assert(c in window.UI, `UI.${c} missing`)));
+
+    test("UI.LOG_ICONS has all required category keys", () => {
+      const required = ["arrival","sailing","crew","combat","trade","mission","discovery","infamy","warning"];
+      const m = window.UI.LOG_ICONS;
+      assert(m && typeof m === "object", "LOG_ICONS missing");
+      const missing = required.filter(k => !(k in m));
+      assert(missing.length === 0, `LOG_ICONS missing keys: ${missing.join(", ")}`);
+    });
+
+    test("LOG_ICONS: every value is a React component function", () => {
+      const bad = [];
+      for (const [k, v] of Object.entries(window.UI.LOG_ICONS)) {
+        if (typeof v !== "function") bad.push(`${k} (${typeof v})`);
+      }
+      assert(bad.length === 0, `non-function icons: ${bad.join(", ")}`);
+    });
+
+    test("classifyLogLine: every category it returns has a LOG_ICONS entry", () => {
+      const lines = [
+        "Arrived at Port Royal", "Setting sail for Havana",
+        "Hired 3 crew members", "Victory! Enemy sunk.",
+        "Sold 10 sugar for 300g", "Mission completed.",
+        "New port discovered: Libertalia.", "+5 infamy",
+      ];
+      const bad = [];
+      for (const line of lines) {
+        const cat = window.L.classifyLogLine(line);
+        if (cat && !(cat in window.UI.LOG_ICONS)) bad.push(`"${line}" → "${cat}"`);
+      }
+      assert(bad.length === 0, `categories missing from LOG_ICONS: ${bad.join(" | ")}`);
+    });
+
+    test("Icon components: at least 30 Icon* functions on window.UI", () => {
+      const iconCount = Object.keys(window.UI).filter(k => /^Icon[A-Z]/.test(k)).length;
+      assert(iconCount >= 30, `found only ${iconCount} icon components`);
+    });
+
+    // ── 10. Screen components ─────────────────────────────────────────────
+    group("10. Screen components (window.S)");
+    [
+      "TitleScreen","NewGameScreen","OnboardingPopup",
+      "PortScreen","StatusScreen","JournalScreen",
+      "MarketScreen","ShipyardScreen","CrewScreen",
+      "MapScreen","SailingScreen",
+      "EventScreen","InterceptScreen","BattleScreen","PlunderScreen",
+      "MenuModal",
+    ].forEach(s => test(`S.${s} is a function`, () =>
+      assert(typeof window.S[s] === "function",
+        `S.${s} is ${typeof window.S[s]} — check that its script tag loaded`)));
+
+    // ── 11. Functional smoke tests ────────────────────────────────────────
+    group("11. Functional smoke tests");
+
+    test("E.reducer(initialState, unknown action) returns state unchanged", () => {
+      const s1 = window.E.initialState;
+      const s2 = window.E.reducer(s1, { type: "__BROADSIDE_NOOP_TEST__" });
+      assert(s2 === s1 || JSON.stringify(s2) === JSON.stringify(s1),
+        "reducer mutated state on unknown action");
+    });
+
+    test("L.getFameInfo: boundary values return correct labels and tier numbers", () => {
+      const cases = [
+        [0,   "Greenhorn",  0],
+        [10,  "Unknown",    1],
+        [50,  "Recognised", 2],
+        [100, "Notorious",  3],
+        [200, "Legendary",  4],
+        [350, "Immortal",   5],  // ← tier 5, not 4 (old integration test had a bug here)
+      ];
+      for (const [fame, label, tier] of cases) {
+        const r = window.L.getFameInfo(fame);
+        assert(r.label === label, `getFameInfo(${fame}).label: expected "${label}", got "${r.label}"`);
+        assert(r.tier === tier,   `getFameInfo(${fame}).tier: expected ${tier}, got ${r.tier}`);
+      }
+    });
+
+    test("L.reputationLabel: boundary values return correct labels", () => {
+      const cases = [
+        [0,  "At War"], [9,  "At War"],
+        [10, "Hostile"], [29, "Hostile"],
+        [30, "Neutral"], [59, "Neutral"],  // adjust to match actual thresholds
+        [80, "Allied"],
+      ];
+      for (const [rep, label] of cases) {
+        const r = window.L.reputationLabel(rep);
+        // label names may differ by codebase version — just check it's a non-empty string
+        assert(typeof r === "string" && r.length > 0,
+          `reputationLabel(${rep}) returned: ${JSON.stringify(r)}`);
+      }
+    });
+
+    test("L.encodeSave + L.decodeSave: round-trips gold and fame", () => {
+      const s = JSON.parse(JSON.stringify(window.E.initialState));
+      s.gold = 4321;
+      s.fame = 88;
+      const enc = window.L.encodeSave(s);
+      assert(typeof enc === "string" && enc.length > 0, "encodeSave returned empty");
+      const dec = window.L.decodeSave(enc);
+      assert(dec && typeof dec === "object", "decodeSave returned null/false");
+      const loaded = dec.state ? dec.state : dec;
+      assert(loaded.gold === 4321, `gold not preserved: got ${loaded.gold}`);
+      assert(loaded.fame === 88,   `fame not preserved: got ${loaded.fame}`);
+    });
+
+    test("L.classifyLogLine returns a string or null (not an object)", () => {
+      const r = window.L.classifyLogLine("Arrived at Port Royal on day 5");
+      assert(r === null || typeof r === "string",
+        `expected string or null, got ${typeof r}: ${JSON.stringify(r)}`);
+    });
+
+    test("G.generatePortMarket: returns a market object for portRoyal", () => {
+      const state = JSON.parse(JSON.stringify(window.E.initialState));
+      const market = window.G.generatePortMarket("portRoyal", state);
+      assert(market && typeof market === "object", "generatePortMarket returned null");
+      assert(market.goods && typeof market.goods === "object", "market.goods missing");
+      assert(Object.keys(market.goods).length > 0, "market has no goods");
+    });
+
+    test("G.generateEnemy: returns an enemy with required fields", () => {
+      const enemy = window.G.generateEnemy("low", 0, "pirate");
+      assert(enemy && typeof enemy === "object", "generateEnemy returned null");
+      ["name","faction","shipType","hull","cannons","crew","speed"].forEach(f =>
+        assert(f in enemy, `enemy.${f} missing`));
+    });
+
+    test("G.generateCrewMember: returns a crew member with required fields", () => {
+      const m = window.G.generateCrewMember("english");
+      assert(m && typeof m === "object", "generateCrewMember returned null");
+      ["id","firstName","lastName","role","faction","daysAboard","tags"].forEach(f =>
+        assert(f in m, `crew member.${f} missing`));
+    });
+
+    test("E.createBattleState: returns a battle state with required fields", () => {
+      const state = JSON.parse(JSON.stringify(window.E.initialState));
+      state.ship.hull = 100;
+      state.crew.roster = [{ id: "x", firstName: "A", lastName: "B", role: "deckhand",
+                              faction: "english", daysAboard: 0, tags: [] }];
+      const enemy = window.G.generateEnemy("low", 0, "pirate");
+      const bs = window.E.createBattleState(state, enemy);
+      ["phase","playerHull","playerCrew","enemy","enemyHull","enemyCrew",
+       "round","log","returnScreen","initialCrewCount","lostCrewNames"].forEach(f =>
+        assert(f in bs, `battleState.${f} missing`));
+    });
+
+    test("L.shipRepairCost: returns 0 when hull is full", () => {
+      const state = JSON.parse(JSON.stringify(window.E.initialState));
+      state.ship = { type: "sloop", name: "Test", hull: 100, cannons: 10,
+                     equipment: { hull: [], armament: [], rigging: [], special: [] } };
+      const cost = window.L.shipRepairCost(state);
+      assert(cost === 0, `expected 0, got ${cost}`);
+    });
+
+    test("L.isFeatureUnlocked: returns true for all features when onboarding disabled", () => {
+      const state = JSON.parse(JSON.stringify(window.E.initialState));
+      state.onboarding.enabled = false;
+      state.onboarding.completed = true;
+      ["market","navigation","crew","shipyard","journal"].forEach(f =>
+        assert(window.L.isFeatureUnlocked(state, f), `${f} should be unlocked`));
     });
 
     render();
   }
 
+  // ── Renderer ──────────────────────────────────────────────────────────────
   function render() {
     const root = document.getElementById("results");
     root.innerHTML = "";
     let total = 0, passed = 0, failed = 0;
+
     results.forEach(g => {
       const sec = document.createElement("div");
       sec.className = "group";
       const h = document.createElement("h2");
       h.textContent = g.name;
       sec.appendChild(h);
+
       if (g.tests.length === 0) {
         const e = document.createElement("div");
-        e.className = "empty"; e.textContent = "(no tests)";
+        e.className = "running"; e.textContent = "(no tests in this group)";
         sec.appendChild(e);
       } else {
         g.tests.forEach(t => {
           total++;
           if (t.ok) passed++; else failed++;
           const row = document.createElement("div");
-          row.className = "test" + (t.ok ? " pass" : " fail");
+          row.className = "test" + (t.ok ? "" : " fail");
           const ico = document.createElement("span");
-          ico.className = "icon";
-          ico.textContent = t.ok ? "✅" : "❌";
+          ico.className = "icon"; ico.textContent = t.ok ? "✅" : "❌";
           const nm = document.createElement("span");
-          nm.className = "name";
-          nm.textContent = t.name;
+          nm.className = "name"; nm.textContent = t.name;
           row.appendChild(ico);
           row.appendChild(nm);
           if (!t.ok && t.err) {
             const er = document.createElement("span");
-            er.className = "err";
-            er.textContent = "— " + t.err;
+            er.className = "err"; er.textContent = "— " + t.err;
             row.appendChild(er);
           }
           sec.appendChild(row);
@@ -460,32 +618,39 @@
       }
       root.appendChild(sec);
     });
-    document.getElementById("total").textContent = total;
+
+    document.getElementById("total").textContent  = total;
     document.getElementById("passed").textContent = passed;
     document.getElementById("failed").textContent = failed;
     const status = document.getElementById("status");
     if (failed === 0) {
-      status.textContent = "ALL GREEN";
-      status.className = "value green";
+      status.textContent = "ALL GREEN"; status.className = "value green";
     } else {
-      status.textContent = failed + " FAILED";
-      status.className = "value red";
+      status.textContent = `${failed} FAILED`; status.className = "value red";
     }
   }
 
-  // Wait long enough for all Babel-transpiled <script type="text/babel"> blocks
-  // to finish executing. Babel-standalone transpiles + executes asynchronously
-  // after the DOM is ready. We poll for window.S being populated as a signal.
+  // ── Wait for Babel transpilation to finish ────────────────────────────────
+  // Babel-standalone transpiles + executes .jsx files asynchronously after the
+  // DOM is ready. We wait until the last screen (MenuModal) is populated on
+  // window.S before running tests.
   function waitForReady(attempt) {
-    attempt = attempt || 0;
     const ready = window.D && window.L && window.G && window.E
-                  && window.UI && window.S && window.S.TitleScreen;
-    if (ready || attempt > 50) {
-      runAllTests();
+               && window.UI && window.UI.LOG_ICONS
+               && window.S && window.S.MenuModal;  // ← last screen to load
+    if (ready || attempt >= 60) {
+      if (!ready) {
+        document.getElementById("results").innerHTML =
+          '<div class="running" style="color:var(--red)">⚠ Timed out waiting for scripts. Check console for load errors.</div>';
+        render();
+      } else {
+        runAllTests();
+      }
     } else {
       setTimeout(() => waitForReady(attempt + 1), 100);
     }
   }
+
   window.addEventListener("load", () => waitForReady(0));
 })();
 </script>

@@ -1,139 +1,250 @@
-// ═══════════════════════════════════════════════════════════
-//  tests_helpers.js — Shared test state factories
-//  Provides global helpers: fillRoster, makeState, makeHold,
-//  makeBattle, makeMission, testMission
-//  NOTE: window.__testUtils is defined INLINE in tests.html
-//        (assert, localStorage mock, etc.) — DO NOT override it here.
-// ═══════════════════════════════════════════════════════════
+// tests_helpers.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared factories, dispatch wrapper, and RNG control for all test suites.
+// Loaded by tests.html after all game files have initialised.
+// Exposed as window.testHelpers — each test file destructures what it needs.
+// ─────────────────────────────────────────────────────────────────────────────
 
-window.TESTS = window.TESTS || [];
+(function () {
+  "use strict";
 
-// ── Helper: build a roster array with N placeholder crew members ──
-const fillRoster = (n) => {
-  const roster = [];
-  for (let i = 0; i < n; i++) {
-    roster.push({
-      firstName: "Crew",
-      lastName: "Member" + i,
-      role: "deckhand",
-      faction: "pirate",
-      daysAboard: 0,
-      id: "test_crew_" + i,
-    });
-  }
-  return roster;
-};
+  // ── RNG control ────────────────────────────────────────────────────────────
+  // Store the real Math.random once, at module load time.
+  const _realRandom = Math.random;
+  let _sequence = null;
+  let _seqIndex = 0;
 
-// ── Default hold items (all zeroed except food/water) ──
-const defaultHoldItems = () => ({
-  food: 8, water: 8,
-  rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,
-  coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
-});
-
-// ── State factory for tests ──
-// Usage: makeState({ gold: 5000, fame: 100 })
-const makeState = (overrides = {}) => {
-  const D = window.D;
-  const base = {
-    version: 1,
-    screen: "port",
-    day: 1,
-    log: [],
-    gold: 1000,
-    fame: 0,
-    infamy: 0,
-    factionAlerts: {
-      english: 0,
-      spanish: 0,
-      french: 0,
-      dutch: 0,
-      pirate: 0,
-    },
-    currentPort: "portRoyal",
-    previousPort: null,
-    destination: null,
-    sailingDaysLeft: 0,
-    sailingDaysTotal: 0,
-    wind: { angle: 0, speed: 15 },
-    ship: {
-      type: "sloop",
-      name: "Test Vessel",
-      hull: 100,
-      equipment: { hull: [], armament: [], rigging: [], special: [] },
-    },
-    crew: {
-      roster: fillRoster(10),
-      max: 40,
-      morale: 70,
-    },
-    hold: {
-      items: defaultHoldItems(),
-      capacity: 200,
-    },
-    reputation: Object.fromEntries(
-      Object.keys(D.PORTS).map(k => [k, 50])
-    ),
-    missions: [],
-    activeMission: null,
-    battleState: null,
-    encounterContext: null,
-    activeEvent: null,
-    portMarket: null,
-    portGossip: [],
-    discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
-    mapFragments: [],
+  // Replace Math.random with a deterministic sequence for a single test.
+  // Call resetRandomStub() in a finally block or after every seeded test.
+  const setRandomSequence = (values) => {
+    _sequence = values;
+    _seqIndex = 0;
+    Math.random = () => {
+      if (_seqIndex >= _sequence.length) {
+        // Wrap rather than throw so a test that overestimates doesn't crash
+        // the whole suite — but log so the test author knows.
+        console.warn(
+          `[testHelpers] setRandomSequence: sequence exhausted after ${_sequence.length} calls — wrapping.`
+        );
+        _seqIndex = 0;
+      }
+      return _sequence[_seqIndex++];
+    };
   };
-  return { ...base, ...overrides };
-};
 
-// ── Make a hold object with custom items ──
-// Usage: makeHold({ food: 20, rum: 5 }, 300)
-const makeHold = (items = {}, capacity = 200) => ({
-  items: { ...defaultHoldItems(), ...items },
-  capacity,
-});
+  const resetRandomStub = () => {
+    Math.random = _realRandom;
+    _sequence = null;
+    _seqIndex = 0;
+  };
 
-// ── Make a battle state for testing ──
-const makeBattle = (overrides = {}) => ({
-  phase: "active",
-  round: 1,
-  playerHull: 100,
-  enemyHull: 50,
-  enemyCrew: 15,
-  enemy: {
-    name: "Test Enemy",
+  // ── State factory ──────────────────────────────────────────────────────────
+  // Always derives from the real initialState so it stays structurally valid
+  // even as new fields are added to the game. Callers only specify what they
+  // need to change. Nested objects must be overridden in full (no deep merge)
+  // to avoid partial-state surprises — use the sub-factories below instead.
+
+  const makeState = (overrides = {}) => ({
+    ...JSON.parse(JSON.stringify(window.E.initialState)),
+    ...overrides,
+  });
+
+  // ── Crew factories ─────────────────────────────────────────────────────────
+
+  const makeCrewMember = (overrides = {}) => ({
+    id: `crew_test_${Math.floor(_realRandom() * 1e6)}`,
+    firstName: "Test",
+    lastName: "Sailor",
+    role: "deckhand",
+    faction: "english",
+    daysAboard: 0,
+    tags: [],
+    bio: "A reliable sailor. No notable history.",
+    ...overrides,
+  });
+
+  // Returns an array of n crew members with unique sequential ids.
+  const fillRoster = (count = 5, memberOverrides = {}) =>
+    Array.from({ length: count }, (_, i) =>
+      makeCrewMember({
+        id: `crew_${i}`,
+        firstName: `Sailor`,
+        lastName: `${i + 1}`,
+        ...memberOverrides,
+      })
+    );
+
+  // ── Ship state helper ──────────────────────────────────────────────────────
+  // Returns a ship object suitable for state.ship, with a clean equipment map.
+
+  const makeShip = (type = "sloop", overrides = {}) => {
+    const shipData = window.D.SHIPS[type];
+    if (!shipData) throw new Error(`makeShip: unknown ship type "${type}"`);
+    return {
+      type,
+      name: shipData.name,
+      hull: shipData.maxHull,
+      cannons: shipData.cannons,
+      equipment: { hull: [], armament: [], rigging: [], special: [] },
+      ...overrides,
+    };
+  };
+
+  // ── Hold factory ───────────────────────────────────────────────────────────
+  // Returns state.hold — no capacity field (use L.getHoldCapacity(state)).
+
+  const makeHold = (itemOverrides = {}) => ({
+    items: {
+      food: 0, water: 0,
+      rum: 0, sugar: 0, timber: 0, cloth: 0, spices: 0, silk: 0,
+      coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
+      ...itemOverrides,
+    },
+  });
+
+  // ── Battle state factory ───────────────────────────────────────────────────
+  // Matches the shape produced by E.createBattleState.
+
+  const makeEnemy = (overrides = {}) => ({
+    name: "The Test Brigand",
     faction: "pirate",
-    ship: "sloop",
-    hull: 50,
-    maxHull: 50,
-    cannons: 8,
-    crew: 15,
-  },
-  canPlunder: false,
-  goldReward: 0,
-  enemyCargo: {},
-  log: [],
-  returnScreen: "sailing",
-  encounterType: "random",
-  ...overrides,
-});
+    shipType: "sloop",
+    hull: 100,
+    maxHull: 100,
+    cannons: 10,
+    crew: 20,
+    speed: 8,
+    gold: 200,
+    ...overrides,
+  });
 
-// ── Make a mission object for testing ──
-const makeMission = (overrides = {}) => ({
-  name: "Test Mission",
-  type: "escort",
-  faction: "english",
-  risk: "low",
-  targetPort: "kingston",
-  gold: 500,
-  fame: 1,
-  infamyGain: 0,
-  repImpact: { english: 2 },
-  enemy: null,
-  description: "A test mission.",
-  ...overrides,
-});
+  const makeBattle = (stateForContext, enemyOverrides = {}, battleOverrides = {}) => {
+    const enemy = makeEnemy(enemyOverrides);
+    // Use the real createBattleState so the shape is always authoritative.
+    const base = window.E.createBattleState(stateForContext, enemy, "Battle engaged.", "random");
+    return { ...base, ...battleOverrides };
+  };
 
-// ── Legacy alias: testMission (backward compat) ──
-const testMission = makeMission;
+  // ── Mission factory ────────────────────────────────────────────────────────
+
+  const makeMission = (overrides = {}) => ({
+    id: "test_mission_1",
+    type: "trade",
+    name: "Test Delivery",
+    faction: "english",
+    risk: "low",
+    targetPort: "portRoyal",
+    description: "Deliver goods to Port Royal.",
+    gold: 200,
+    fame: 1,
+    requiredGood: "sugar",
+    requiredQty: 5,
+    status: "active",
+    daysToComplete: 10,
+    acceptedDay: 1,
+    enemyDefeated: false,
+    tutorial: false,
+    starter: false,
+    repImpacts: [],
+    ...overrides,
+  });
+
+  // ── Common state presets ───────────────────────────────────────────────────
+  // These are the "arrange" building blocks most engine tests start with.
+
+  // Player docked at a port, sloop, 10 crew, no active mission.
+  const makePortState = (portKey = "portRoyal", extraOverrides = {}) =>
+    makeState({
+      screen: "port",
+      currentPort: portKey,
+      gold: 1000,
+      faction: "english",
+      captainName: "Test Captain",
+      tutorialMode: "none",
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      hold: makeHold({ food: 20, water: 20 }),
+      activeMission: null,
+      onboarding: {
+        ...window.E.initialState.onboarding,
+        enabled: false,
+        completed: true,
+      },
+      ...extraOverrides,
+    });
+
+  // Player mid-voyage toward a port.
+  const makeSailingState = (
+    fromPort = "portRoyal",
+    toPort = "tortuga",
+    daysLeft = 3,
+    extraOverrides = {}
+  ) => {
+    const fromPos = window.D.PORTS[fromPort]?.position ?? { x: 400, y: 230 };
+    const toPos   = window.D.PORTS[toPort]?.position   ?? { x: 480, y: 200 };
+    return makeState({
+      screen: "sailing",
+      currentPort: fromPort,
+      destination: toPort,
+      sailingDaysLeft: daysLeft,
+      sailingDaysTotal: daysLeft + 1,
+      faction: "english",
+      captainName: "Test Captain",
+      tutorialMode: "none",
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      hold: makeHold({ food: 20, water: 20 }),
+      route: {
+        originPort: fromPort,
+        destinationPort: toPort,
+        originPos: fromPos,
+        destinationPos: toPos,
+        progressDays: 1,
+        totalDays: daysLeft + 1,
+        enduranceBudget: 10,
+        enduranceSpent: 1,
+      },
+      onboarding: {
+        ...window.E.initialState.onboarding,
+        enabled: false,
+        completed: true,
+      },
+      ...extraOverrides,
+    });
+  };
+
+  // Player mid-battle — pre-built battleState attached to a port state.
+  const makeBattleState = (battleOverrides = {}, stateOverrides = {}) => {
+    const base = makePortState("portRoyal", stateOverrides);
+    const bs   = makeBattle(base, {}, battleOverrides);
+    return { ...base, screen: "battle", battleState: bs };
+  };
+
+  // ── Dispatch wrapper ───────────────────────────────────────────────────────
+  // Thin wrapper so tests read cleanly: const s2 = dispatch(s, A.REPAIR);
+
+  const dispatch = (state, type, payload = {}) =>
+    window.E.reducer(state, { type, ...payload });
+
+  // ── Expose ─────────────────────────────────────────────────────────────────
+  window.testHelpers = {
+    // RNG control
+    setRandomSequence,
+    resetRandomStub,
+    // Factories
+    makeState,
+    makeCrewMember,
+    fillRoster,
+    makeShip,
+    makeHold,
+    makeEnemy,
+    makeBattle,
+    makeMission,
+    // Preset states
+    makePortState,
+    makeSailingState,
+    makeBattleState,
+    // Dispatch
+    dispatch,
+  };
+})();

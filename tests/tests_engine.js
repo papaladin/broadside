@@ -1,2522 +1,921 @@
-// tests_engine.js — Reducer tests for engine.js
-window.TESTS = window.TESTS || [];
+// tests_engine.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Reducer (engine) tests. Only tests with deterministic outcomes are included
+// here — no seeded-RNG cases. For each test, the pre-condition state is built
+// with makePortState/makeSailingState/makeState from tests_helpers.js, an
+// action is dispatched, and the post-condition is asserted.
+//
+// RNG-dependent outcomes (ADVANCE_DAY event rolls, BATTLE_ACTION combat rolls,
+// ENTER_PORT desertion rolls) are intentionally excluded — they are tested via
+// the simulation tools (sim.html, crew_sim.html, tests_balance.html) instead.
+// ─────────────────────────────────────────────────────────────────────────────
 
-window.TESTS.push({
-  name: "Reducer: engine.js State Transitions",
-  type: "reducer",
-  tests: [
-    // START_GAME tests — add resetRandomStub because generateRoster uses random
-{
-  name: "E.01 START_GAME english_william",
-  run: (u) => {
-    u.resetRandomStub();
-    const start = D.STARTS.find(s => s.id === "english_william");
-    const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
-    u.assertEqual(s.gold, start.gold);
-    u.assertEqual(s.ship.type, start.ship);
-    u.assertEqual(s.crew.max, D.SHIPS[start.ship].maxCrew);
-    u.assertEqual(s.screen, "port");
-  }
-},
-    {
-  name: "E.02 START_GAME spanish_elena",
-  run: (u) => {
-    u.resetRandomStub();
-    const start = D.STARTS.find(s => s.id === "spanish_elena");
-    const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
-    u.assertEqual(s.ship.type, start.ship);
-    u.assertEqual(s.gold, start.gold);
-    // Spanish rep +10 → all Spanish ports 60, English rep -5 → all English 45
-    u.assertEqual(s.reputation.havana, 60, "Spanish port rep 60");
-    u.assertEqual(s.reputation.portRoyal, 45, "English port rep 45");
-  }
-},
-{
-  name: "E.03 START_GAME pirate_rosa",
-  run: (u) => {
-    u.resetRandomStub();
-    const start = D.STARTS.find(s => s.id === "pirate_rosa");
-    const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
-    u.assertEqual(s.ship.type, start.ship);
-    u.assertEqual(s.gold, start.gold);
-    // Pirate rep +10 → pirate ports 60, Spanish -5 → Spanish 45
-    u.assertEqual(s.reputation.tortuga, 60, "Tortuga rep 60");
-    u.assertEqual(s.reputation.havana, 45, "Havana rep 45");
-  }
-},
-{
-  name: "E.04 START_GAME english_william",
-  run: (u) => {
-    u.resetRandomStub();
-    const start = D.STARTS.find(s => s.id === "english_william");
-    const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
-    u.assertEqual(s.ship.type, start.ship);
-    u.assertEqual(s.gold, start.gold);
-    // English rep +10 → English ports 60
-    u.assertEqual(s.reputation.portRoyal, 60, "Port Royal rep 60");
-  }
-},
-    {
-      name: "E.05 START_GAME invalid scenario",
-      
-      run: (u) => {
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: "nope" });
-        u.assertEqual(s.screen, "start", "Should stay on start screen");
-      }
-    },
-    // SAIL_TO unchanged
-    {
-      name: "E.06 SAIL_TO sets destination and screen",
-      
-      run: (u) => {
-        const state = { ...E.initialState, screen: "map", currentPort: "portRoyal", reputation: { tortuga: 50 } };
-        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "tortuga" });
-        u.assertEqual(s.destination, "tortuga");
-        u.assert(s.sailingDaysLeft > 0);
-        u.assertEqual(s.screen, "sailing");
-      }
-    },
-    // ENTER_PORT tests — update for intercept screen
-    {
-      name: "E.07 ENTER_PORT normal",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = { ...E.initialState, screen: "sailing", destination: "tortuga", sailingDaysLeft: 0, reputation: { tortuga: 50 }, crew: { roster: fillRoster(30), max: 50, morale: 80 } };
-        const s = E.reducer(state, { type: E.A.ENTER_PORT });
-        u.assertEqual(s.currentPort, "tortuga");
-        u.assertEqual(s.screen, "port");
-        u.assert(s.missions.length > 0);
-      }
-    },
-    {
-      name: "E.08 ENTER_PORT hostile (rep<10) triggers intercept",
-      
-      run: (u) => {
-        const state = { ...E.initialState, screen: "sailing", destination: "portRoyal", sailingDaysLeft: 0, reputation: { portRoyal: 5 }, crew: { roster: fillRoster(30), max: 50, morale: 80 } };
-        const s = E.reducer(state, { type: E.A.ENTER_PORT });
-        u.assertEqual(s.screen, "intercept");
-        u.assert(s.encounterContext !== null);
-        u.assert(s.encounterContext.enemy.name.includes("Guards"));
-        u.assertEqual(s.currentPort, "portRoyal");
-      }
-    },
-    // ADVANCE_DAY tests — update crew shape and random sequences
-    {
-      name: "E.09 ADVANCE_DAY reduces days and deducts wages",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          screen: "sailing", destination: "tortuga", sailingDaysLeft: 3, sailingDaysTotal: 3,
-          gold: 1000,
-          crew: { roster: fillRoster(30), max: 50, morale: 80 },
-          reputation: { tortuga: 50 }
-        };
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assertEqual(s.sailingDaysLeft, 2);
-        u.assert(s.gold < 1000);
-        u.assertEqual(s.day, state.day + 1);
-      }
-    },
-    {
-      name: "E.10 ADVANCE_DAY smuggle mission intercept",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = testMission({
-          type: "smuggle", faction: "pirate", targetPort: "nassau",
-          risk: "medium", gold: 400, infamyGain: 1,
-          requiredGood: "rum", requiredQty: 5, patrolRisk: 0.30,
-          enemy: { name: "The Serpent", hull: 50, cannons: 6, crew: 20, faction: "english" }
-        });
-        const state = {
-          ...E.initialState,
-          screen: "sailing", destination: "nassau", sailingDaysLeft: 3, sailingDaysTotal: 3,
-          activeMission: { ...mission, encounterOccurred: false },
-          crew: { roster: fillRoster(30), max: 50, morale: 80 },
-          gold: 1000, reputation: { nassau: 50 }
-        };
-        u.setRandomSequence(new Array(120).fill(0.1));
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assertEqual(s.screen, "intercept", "Smuggle intercept now goes to intercept screen");
-        u.assert(s.encounterContext, "Encounter context should exist");
-        u.resetRandomStub();
-      }
-    },
-    {
-      name: "E.11 ADVANCE_DAY random event (10% chance)",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        u.setRandomSequence(new Array(120).fill(0.05)); // low chance triggers event
-        const state = {
-          ...E.initialState,
-          screen: "sailing", destination: "tortuga", sailingDaysLeft: 3, sailingDaysTotal: 3,
-          crew: { roster: fillRoster(30), max: 50, morale: 80 },
-          gold: 1000, reputation: { tortuga: 50 }
-        };
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assert(s.activeEvent, "Random event should be active");
-        u.assertEqual(s.screen, "event");  // now screen is "event"
-        u.resetRandomStub();
-      }
-    },
-    {
-      name: "E.12 ADVANCE_DAY morale decay if <30",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          screen: "sailing", destination: "tortuga", sailingDaysLeft: 3, sailingDaysTotal: 3,
-          crew: { roster: fillRoster(30), max: 50, morale: 25 },
-          gold: 1000, reputation: { tortuga: 50 }
-        };
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assert(s.crew.morale === 24, "Morale should decay by 1");
-      }
-    },
-    // REPAIR — require log on failure (engine fix needed)
-    {
-      name: "E.13 REPAIR restores hull to effective max",
-      
-      run: (u) => {
-        const state = { ...E.initialState, ship: { type: "sloop", hull: 50, upgrades: ["reinforced_hull"] }, gold: 1000 };
-        const s = E.reducer(state, { type: E.A.REPAIR });
-        u.assertEqual(s.ship.hull, Math.floor(D.SHIPS.sloop.maxHull * 1.2));
-        u.assert(s.gold < 1000);
-      }
-    },
-    {
-      name: "E.14 REPAIR insufficient gold",
-      
-      run: (u) => {
-        const state = { ...E.initialState, ship: { type: "sloop", hull: 50, upgrades: ["reinforced_hull"] }, gold: 10 };
-        const s = E.reducer(state, { type: E.A.REPAIR });
-        u.assertEqual(s.gold, 10);
-        u.assertEqual(s.ship.hull, 50, "Hull unchanged");
-      }
-    },
-    // BUY_SHIP — update crew shape
-    {
-      name: "E.15 BUY_SHIP changes ship and adjusts crew",
-      
-      run: (u) => {
-        const state = { ...E.initialState, gold: 5000, fame: 100, ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } }, crew: { roster: fillRoster(50), max: 50, morale: 80 } };
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-        u.assertEqual(s.ship.type, "frigate");
-        u.assertEqual(s.crew.max, D.SHIPS.frigate.maxCrew);
-        u.assert(s.crew.roster.length <= s.crew.max, "Crew capped to new max");
-        u.assert(Object.values(s.ship.equipment).flat().length === 0, "Upgrades cleared");
-        u.assertEqual(s.gold, 5000 - D.SHIPS.frigate.cost);
-      }
-    },
-    {
-      name: "E.16 BUY_SHIP not enough gold",
-      
-      run: (u) => {
-        const state = { ...E.initialState, gold: 100, ship: { type: "sloop" } };
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "galleon" });
-        u.assertEqual(s.ship.type, "sloop");
-      }
-    },
-    // BUY_UPGRADE — require log on failure (engine fix needed)
-    {
-      name: "E.17 BUY_UPGRADE installs upgrade",
-      
-      run: (u) => {
-        const state = { ...E.initialState, ship: { type: "sloop", cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } }, gold: 1000 };
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "reinforced_hull" });
-        u.assert(Object.values(s.ship.equipment).flat().includes("reinforced_hull"));
-        u.assertEqual(s.gold, 1000 - D.EQUIPMENT.reinforced_hull.cost);
-      }
-    },
-    {
-      name: "E.18 BUY_UPGRADE already installed",
-      
-      run: (u) => {
-        const state = { ...E.initialState, ship: { type: "sloop", upgrades: ["reinforced_hull"] }, gold: 1000 };
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "reinforced_hull" });
-        u.assertEqual(s.gold, 1000);
-      }
-    },
-    {
-      name: "E.19 BUY_UPGRADE incompatible ship",
-      
-      run: (u) => {
-        const state = { ...E.initialState, ship: { type: "dinghy", equipment: { hull: [], armament: [], rigging: [], special: [] } }, gold: 1000 };
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assertEqual(s.gold, 1000);
-      }
-    },
-    // HIRE_CREW — roster
-    {
-      name: "E.20 HIRE_CREW adds crew, deducts gold",
-      
-      run: (u) => {
-        const state = { ...E.initialState, crew: { roster: fillRoster(20), max: 50, morale: 80 }, gold: 500 };
-        const s = E.reducer(state, { type: E.A.HIRE_CREW, count: 5 });
-        u.assertEqual(s.crew.roster.length, 25);
-        u.assertEqual(s.gold, 250);
-      }
-    },
-    // MISSIONS — intercept changes
-    {
-      name: "E.21 TAKE_MISSION combat type starts intercept",
-      
-      run: (u) => {
-        const combatMission = testMission({
-          type: "combat", faction: "english",
-          enemy: { name: "The Iron Drake", hull: 60, cannons: 8, crew: 25, faction: "pirate" }
-        });
-        const state = { ...E.initialState, currentPort: "portRoyal", crew: { roster: fillRoster(30), morale: 80 } };
-        const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission: combatMission });
-        u.assertEqual(s.screen, "intercept");
-        u.assert(s.encounterContext, "Encounter context created");
-      }
-    },
-    {
-      name: "E.22 TAKE_MISSION trade type sets activeMission",
-      
-      run: (u) => {
-        const tradeMission = testMission({
-          type: "trade", targetPort: "nassau", requiredGood: "rum", requiredQty: 10, gold: 600
-        });
-        const state = makeState({ currentPort: "portRoyal", screen: "port" });
-        const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission: tradeMission });
-        u.assert(s.activeMission, "Should have active mission");
-        u.assertEqual(s.screen, "port", "Screen stays port for trade mission");
-      }
-    },
-    {
-      name: "E.23 COMPLETE_MISSION at target adds rewards",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const mission = { id:"test", name:"Test", gold:500, fame:20, repImpact:{english:10}, targetPort:"tortuga", faction:"english" };
-        const state = { ...E.initialState, currentPort:"tortuga", activeMission: mission, gold:1000, fame:0, reputation:{ tortuga:50, portRoyal:50, kingston:50 }, crew: { roster: fillRoster(30), morale: 80 } };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.gold, 1550);
-        u.assertEqual(s.fame, 20);
-        u.assert(s.activeMission === null);
-        u.assert(s.reputation.portRoyal === 60, "English rep +10");
-      }
-    },
-    {
-      name: "E.24 COMPLETE_MISSION wrong port fails",
-      
-      run: (u) => {
-        const mission = { targetPort:"tortuga", gold:500 };
-        const state = { ...E.initialState, currentPort:"portRoyal", activeMission: mission, gold:1000 };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.gold, 1000);
-      }
-    },
-    {
-      name: "E.25 ABANDON_MISSION clears mission and applies penalty",
-      
-      run: (u) => {
-        const mission = { faction:"english" };
-        const state = { ...E.initialState, activeMission: mission, reputation:{ portRoyal:50, kingston:50, tortuga:50 }, crew: { roster: fillRoster(30), morale: 80 } };
-        const s = E.reducer(state, { type: E.A.ABANDON_MISSION });
-        u.assert(s.activeMission === null);
-        u.assert(s.reputation.portRoyal < 50, "Should lose reputation");
-      }
-    },
-    {
-      name: "E.26 REFRESH_MISSIONS regenerates missions",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = { ...E.initialState, currentPort:"portRoyal", missions:[], reputation:{ portRoyal:80 }, crew: { roster: fillRoster(30), morale: 80 } };
-        const s = E.reducer(state, { type: E.A.REFRESH_MISSIONS });
-        u.assert(s.missions.length > 0);
-      }
-    },
-    // COMBAT — fix crew shape and battle states
-{
-  name: "E.27 BATTLE_ACTION victory when enemy hull<=0",
-  
-  run: (u) => {
-    u.resetRandomStub();
-    const state = {
-      ...E.initialState, screen:"battle",
-      ship: { type:"sloop", hull:100, cannons:10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-      crew: { roster: fillRoster(30), max:50, morale:80 },
-      battleState: {
-        phase:"player_turn", playerHull:100, playerCrew:30,
-        enemy: { name:"test", hull:10, cannons:5, crew:10, faction:"pirate" },
-        enemyHull:1, enemyCrew:10, round:1, log:[], returnScreen:"port",
-        initialCrewCount: 30, lostCrewNames: []
-      }
-    };
-    const s = E.reducer(state, { type: E.A.BATTLE_ACTION, action:"broadside" });
-    u.assertEqual(s.battleState.phase, "victory");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.28 BATTLE_ACTION defeat when player hull<=0",
-  
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(120).fill(0.99)); // high values → NPC hits hard
-    const state = {
-      ...E.initialState, screen:"battle",
-      ship: { type:"sloop", hull:1, upgrades:[] },
-      crew: { roster: fillRoster(30), max:50, morale:80 },
-      battleState: {
-        phase:"player_turn", playerHull:1, playerCrew:30,
-        enemy: { name:"test", hull:100, cannons:50, crew:50, faction:"pirate" },
-        enemyHull:100, enemyCrew:50, round:1, log:[], returnScreen:"port",
-        initialCrewCount: 30, lostCrewNames: []
-      }
-    };
-    const s = E.reducer(state, { type: E.A.BATTLE_ACTION, action:"broadside" });
-    u.assertEqual(s.battleState.phase, "defeat");
-    u.assertEqual(s.ship.hull, 0);
-    u.assertEqual(s.screen, "battle", "Defeat stays on battle screen");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.29 BATTLE_ACTION flee (evade success)",
-  
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(30).fill(0.0));
-    const state = {
-      ...E.initialState, screen:"battle",
-      ship: { type:"sloop", hull:100, cannons:10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-      crew: { roster: fillRoster(30), max:50, morale:80 },
-      battleState: {
-        phase:"player_turn", playerHull:100, playerCrew:30,
-        enemy: { name:"test", hull:100, cannons:10, crew:40, faction:"pirate" },
-        enemyHull:100, enemyCrew:40, round:1, log:[], returnScreen:"port",
-        initialCrewCount: 30, lostCrewNames: []
-      }
-    };
-    const s = E.reducer(state, { type: E.A.BATTLE_ACTION, action:"evade" });
-    u.assertEqual(s.battleState.phase, "fled");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.30 BATTLE_ACTION grapple instant victory",
-  
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(30).fill(0.0));
-    const state = {
-      ...E.initialState, screen:"battle",
-      ship: { type:"sloop", hull:100, cannons:10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-      crew: { roster: fillRoster(50), max:50, morale:90 },
-      battleState: {
-        phase:"player_turn", playerHull:100, playerCrew:50,
-        enemy: { name:"test", hull:100, cannons:10, crew:30, faction:"pirate" },
-        enemyHull:100, enemyCrew:30, round:1, log:[], returnScreen:"port",
-        initialCrewCount: 50, lostCrewNames: []
-      }
-    };
-    const s = E.reducer(state, { type: E.A.BATTLE_ACTION, action:"grapple" });
-    u.assertEqual(s.battleState.phase, "victory");
-    u.resetRandomStub();
-  }
-},
-    // DISMISS_BATTLE — auto‑complete combat mission on victory (needs engine fix)
-    {
-      name: "E.31 DISMISS_BATTLE after victory keeps mission active (manual completion needed)",
-      
-      run: (u) => {
-        const mission = testMission({ type: "combat", faction: "english",  targetPort: "portRoyal", enemy: { faction: "pirate" } });
-        const state = {
-          ...E.initialState, screen:"battle", currentPort:"portRoyal",
-          activeMission: mission,
-          battleState: { phase:"victory", returnScreen:"port", enemy:{ faction:"pirate" } },
-          gold:1000, fame:0, reputation: { portRoyal:50 },
-          crew: { roster: fillRoster(30), morale:80 }
-        };
-        const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-        u.assert(s.activeMission !== null, "Mission should still be active after battle");
-        u.assertEqual(s.screen, "port");
-        // Now manually complete
-        const s2 = E.reducer(s, { type: E.A.COMPLETE_MISSION });
-        u.assert(s2.activeMission === null, "Manual completion works");
-        u.assert(s2.gold > 1000, "Gold reward added");
-      }
-    },
-    {
-      name: "E.32 DISMISS_BATTLE after fled while sailing returns to sailing",
-      
-      run: (u) => {
-        const state = { ...E.initialState, screen:"battle", destination:"tortuga", sailingDaysLeft:2, battleState: { phase:"fled", returnScreen:"sailing" }, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-        u.assertEqual(s.screen, "sailing");
-      }
-    },
-    {
-      name: "E.33 DISMISS_BATTLE after victory no mission returns to port",
-      
-      run: (u) => {
-        const state = { ...E.initialState, screen:"battle", currentPort:"portRoyal", activeMission: null, battleState: { phase:"victory", returnScreen:"port" }, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-        u.assertEqual(s.screen, "port");
-      }
-    },
-    // EVENTS — fix crew shape and daysLost sign (engine fix)
-    {
-      name: "E.34 RESOLVE_EVENT gold gain",
-      
-      run: (u) => {
-        const event = { choices: [{ label:"Take", outcome: { gold:200, log:"Got gold" } }] };
-        const state = { ...E.initialState, activeEvent: event, gold:500, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.gold, 700);
-        u.assert(s.log.some(l => l.includes("Got gold")));
-      }
-    },
-    {
-      name: "E.35 RESOLVE_EVENT hull damage",
-      
-      run: (u) => {
-        const event = { choices: [{ outcome: { hullDamage:20 } }] };
-        const state = { ...E.initialState, activeEvent: event, ship: { type:"sloop", hull:100, cannons:10, equipment: { hull: [], armament: [], rigging: [], special: [] } }, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.ship.hull, 80);
-      }
-    },
-    {
-      name: "E.36 RESOLVE_EVENT crew loss",
-      
-      run: (u) => {
-        u.resetRandomStub();   // already in file, just confirm
-        const event = { choices: [{ outcome: { crewLoss:5 } }] };
-        const state = {
-          ...E.initialState,
-          activeEvent: event,
-          crew: { roster: fillRoster(20), max:50, morale:80 }
-        };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.crew.roster.length, 15, "Lost 5 crew");
-      }
-    },
-    {
-      name: "E.37 RESOLVE_EVENT days lost",
-      
-      run: (u) => {
-        const event = { choices: [{ outcome: { daysLost:3 } }] };
-        const state = { ...E.initialState, activeEvent: event, day:10, sailingDaysLeft:5, sailingDaysTotal:8, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.day, 13);
-        // daysLost adds to sailingDaysTotal and sailingDaysLeft (extends voyage)
-        u.assertEqual(s.sailingDaysTotal, 11);
-        u.assertEqual(s.sailingDaysLeft, 8);
-      }
-    },
-    {
-      name: "E.38 RESOLVE_EVENT reputation impact",
-      
-      run: (u) => {
-        const event = { choices: [{ outcome: { repImpact:{english:10} } }] };
-        const state = { ...E.initialState, activeEvent: event, reputation:{ portRoyal:50, kingston:50 }, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.reputation.portRoyal, 60);
-      }
-    },
-    {
-      name: "E.39 RESOLVE_EVENT triggers battle",
-      
-      run: (u) => {
-        const event = { choices: [{ outcome: { battle: { enemy:{ name:"Navy", hull:100, cannons:10, crew:40, faction:"english" } } } }] };
-        const state = { ...E.initialState, activeEvent: event, ship:{ type:"sloop", hull:100, upgrades:[] }, crew: { roster: fillRoster(30), morale:80 } };
-        const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-        u.assertEqual(s.screen, "intercept");
-        u.assert(s.encounterContext.enemy.name === "Navy");
-      }
-    },
-    // SAVE/LOAD — these tests expect engine fixes
-    {
-      name: "E.40 SAVE_GAME stores state",
-      
-      run: (u) => {
-        u.installLocalStorageMock();
-        const state = { ...E.initialState, gold:1234 };
-        const s = E.reducer(state, { type: E.A.SAVE_GAME });
-        u.assert(JSON.parse(localStorage.getItem("piratesSave")).gold === 1234);
-        u.restoreLocalStorage();
-      }
-    },
-    {
-      name: "E.41 LOAD_GAME restores state",
-      
-      run: (u) => {
-        u.installLocalStorageMock();
-        localStorage.setItem("piratesSave", JSON.stringify({ gold:9876, screen:"port", day:5 }));
-        const s = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
-        u.assertEqual(s.gold, 9876);
-        u.assertEqual(s.screen, "port");
-        u.assertEqual(s.day, 5);
-        u.restoreLocalStorage();
-      }
-    },
-    {
-      name: "E.42 LOAD_GAME no save",
-      
-      run: (u) => {
-        u.installLocalStorageMock();
-        localStorage.removeItem("piratesSave");
-        const s = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
-        u.assertEqual(s.gold, E.initialState.gold);
-        u.assert(s.log.some(l => l.includes("No saved game")));
-        u.restoreLocalStorage();
-      }
-    },
-    {
-      name: "E.43 LOAD_GAME corrupted save",
-      
-      run: (u) => {
-        u.installLocalStorageMock();
-        localStorage.setItem("piratesSave", "not json");
-        const s = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
-        u.assert(s.log.some(l => l.includes("Failed to load")));
-        u.restoreLocalStorage();
-      }
-    },
-    // New reducer tests from previous iterations (some already added, adjusting where needed)
-{
-  name: "E.44 BATTLE_ACTION logs lost crew names",
-  
-  run: (u) => {
-    u.resetRandomStub();
-    const roster = G.generateRoster(30, "pirate");
-    u.setRandomSequence(new Array(30).fill(0.5));
-    const state = {
-      ...E.initialState, screen:"battle",
-      ship: { type:"sloop", hull:100, cannons:10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-      crew: { roster, max:50, morale:80 },
-      battleState: {
-        phase:"player_turn", playerHull:100, playerCrew:30,
-        enemy: { name:"test", hull:100, cannons:20, crew:40, faction:"pirate" },
-        enemyHull:100, enemyCrew:40, round:1, log:[], returnScreen:"port",
-        initialCrewCount: 30, lostCrewNames: []
-      }
-    };
-    const s = E.reducer(state, { type: E.A.BATTLE_ACTION, action:"broadside" });
-    if (s.crew.roster.length < 30) {
-      u.assert(s.battleState.log.some(entry => entry.includes("Lost")), "Battle log mentions lost crew");
+(function () {
+  "use strict";
+
+  const {
+    makeState, makePortState, makeSailingState, makeBattleState,
+    makeCrewMember, fillRoster, makeShip, makeHold, makeMission,
+    makeBattle, dispatch,
+  } = window.testHelpers;
+
+  const A = window.E.A;
+  const D = window.D;
+  const L = window.L;
+
+  const reg = (id, name, run) =>
+    window._tests.push({ id, name, run });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.START — START_GAME (faction-keyed STARTS shape)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.START.01", "START_GAME english: lands at kingston with dinghy", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Thomas Wells",
+      faction: "english",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.screen, "port", "screen");
+    u.assertEqual(s.currentPort, "kingston", "english starts at kingston");
+    u.assertEqual(s.ship.type, "dinghy", "starting ship");
+    u.assertEqual(s.captainName, "Thomas Wells", "captain name");
+    u.assertEqual(s.faction, "english", "faction");
+    u.assertEqual(s.gold, D.STARTS.gold, "starting gold");
+    u.assertEqual(s.tutorialMode, "none", "tutorial mode");
+  });
+
+  reg("E.START.02", "START_GAME spanish: lands at havana", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Juan Ruiz",
+      faction: "spanish",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.currentPort, "havana", "spanish starts at havana");
+    u.assertEqual(s.faction, "spanish");
+  });
+
+  reg("E.START.03", "START_GAME french: lands at petitGoave", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Louis Bernard",
+      faction: "french",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.currentPort, "petitGoave");
+  });
+
+  reg("E.START.04", "START_GAME dutch: lands at santoDomingo", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Hendrik Bakker",
+      faction: "dutch",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.currentPort, "santoDomingo");
+  });
+
+  reg("E.START.05", "START_GAME pirate: lands at santiagoDeCuba", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Scarred Jim",
+      faction: "pirate",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.currentPort, "santiagoDeCuba");
+  });
+
+  reg("E.START.06", "START_GAME invalid faction: returns to title", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Nobody",
+      faction: "ottoman",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.screen, "title", "invalid faction → title screen");
+  });
+
+  reg("E.START.07", "START_GAME tutorialMode full: onboarding enabled, QM in roster", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "New Captain",
+      faction: "english",
+      tutorialMode: "full",
+    });
+    u.assert(s.onboarding.enabled, "onboarding enabled");
+    u.assert(!s.onboarding.completed, "onboarding not completed");
+    const hasQM = s.crew.roster.some(m => m.tags?.includes("quartermaster"));
+    u.assert(hasQM, "QM crew member injected");
+  });
+
+  reg("E.START.08", "START_GAME tutorialMode none: onboarding disabled", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Veteran",
+      faction: "english",
+      tutorialMode: "none",
+    });
+    u.assert(!s.onboarding.enabled, "onboarding disabled");
+    u.assert(s.onboarding.completed, "onboarding marked complete");
+    const hasQM = s.crew.roster.some(m => m.tags?.includes("quartermaster"));
+    u.assert(!hasQM, "no QM injected in none mode");
+  });
+
+  reg("E.START.09", "START_GAME english: rep adjusted for english ports", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Test",
+      faction: "english",
+      tutorialMode: "none",
+    });
+    // English start adjusts english ports +10 rep (50+10=60) and pirate ports -5 (50-5=45)
+    const engAdj = D.STARTS.factionRepAdjust.english;
+    const portAffected = Object.keys(D.PORTS).find(k => D.PORTS[k].faction === "english");
+    if (portAffected && engAdj.english) {
+      u.assertEqual(s.reputation[portAffected], 50 + engAdj.english);
     }
-    u.resetRandomStub();
-  }
-},
-    // Intercept tests (E.50–E.57)
-    {
-      name: "E.50 INTERCEPT_FIGHT starts battle",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          encounterContext: { enemy: { name: "test", hull: 100, cannons: 10, crew: 40, faction: "pirate", gold: 200 } },
-          crew: { roster: fillRoster(30), max: 50, morale: 80 },
-          ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } }
-        };
-        const s = E.reducer(state, { type: E.A.INTERCEPT_FIGHT });
-        u.assertEqual(s.screen, "battle");
-        u.assert(s.battleState, "BattleState created");
-        u.assertEqual(s.battleState.enemy.name, "test");
-      }
-    },
-    {
-      name: "E.51 INTERCEPT_FLEE success",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          destination: "tortuga",
-          sailingDaysLeft: 2,
-          encounterContext: {
-            enemy: { name: "test", hull: 100 },
-            options: { flee: { speedCheck: { player: 10, enemy: 1 } } }
-          },
-          crew: { roster: [], morale: 80 }
-        };
-        // L.roll(3) will use Math.random (we reset stub, so real random)
-        const s = E.reducer(state, { type: E.A.INTERCEPT_FLEE });
-        u.assertEqual(s.screen, "sailing");
-        u.assert(s.log.some(l => l.includes("pulled clear")));
-        u.resetRandomStub();
-      }
-    },
-    {
-      name: "E.52 INTERCEPT_FLEE failure leads to battle",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          destination: "tortuga",
-          sailingDaysLeft: 2,
-          encounterContext: {
-            enemy: { name: "test", hull: 100, cannons: 10, crew: 40 },
-            options: { flee: { speedCheck: { player: 1, enemy: 10 } } }
-          },
-          crew: { roster: fillRoster(30), morale: 80 },
-          ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } }
-        };
-        const s = E.reducer(state, { type: E.A.INTERCEPT_FLEE });
-        u.assertEqual(s.screen, "battle");
-        u.assert(s.battleState, "BattleState created");
-        u.assert(s.log.some(l => l.includes("Failed to escape")));
-        u.resetRandomStub();
-      }
-    },
-    {
-      name: "E.53 INTERCEPT_PARLEY (basic check)",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          destination: "tortuga",
-          currentPort: "portRoyal",
-          sailingDaysLeft: 2,
-          reputation: { tortuga: 50 },
-          encounterContext: {
-            type: "random",
-            enemy: { name: "test", hull: 100 },
-            options: { parley: { available: true, repRequired: 30 } }
-          },
-          crew: { roster: [], morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.INTERCEPT_PARLEY });
-        u.assert(s.screen === "sailing" || s.screen === "battle", "Screen is sailing or battle");
-        u.resetRandomStub();
-      }
-    },
-    {
-      name: "E.54 INTERCEPT_BRIBE",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          destination: "tortuga",
-          currentPort: "portRoyal",
-          sailingDaysLeft: 2,
-          gold: 500,
-          reputation: { tortuga: 30 },
-          encounterContext: { options: { bribe: { cost: 200, available: true } } },
-          crew: { roster: [], morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.INTERCEPT_BRIBE });
-        u.assertEqual(s.gold, 300);
-        u.assertEqual(s.reputation.tortuga, 28);
-        u.assertEqual(s.screen, "sailing");
-        u.assert(s.log.some(l => l.includes("Bribed")));
-      }
-    },
-    {
-      name: "E.55 INTERCEPT_SURRENDER applies consequences",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          destination: "tortuga",
-          sailingDaysLeft: 2,
-          gold: 500,
-          crew: { roster: fillRoster(10), morale: 80, max: 50 },
-          encounterContext: { encounterType: "random", type: "random", enemy: { name: "Pirate", faction: "pirate", ship: "sloop", hull: 50, maxHull: 50, cannons: 8, crew: 15 }, flavourText: "Pirates!", options: [ { id: "fight", label: "Fight", available: true, action: { type: "INTERCEPT_FIGHT" } }, { id: "surrender", label: "Surrender", available: true, action: { type: "INTERCEPT_SURRENDER" } } ] }
-        };
-        const s = E.reducer(state, { type: E.A.INTERCEPT_SURRENDER });
-        u.assertEqual(s.gold, 300);
-        u.assertEqual(s.crew.morale, 70);
-        u.assertEqual(s.screen, "sailing");
-        u.assert(s.log.some(l => l.includes("surrendered")));
-      }
-    },
-    {
-      name: "E.56 DISMISS_BATTLE after defeat uses previousPort",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          previousPort: "portRoyal",
-          currentPort: "tortuga",
-          battleState: { phase: "defeat", returnScreen: "port" },
-          crew: { roster: [], morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-        u.assertEqual(s.currentPort, "portRoyal");
-        u.assert(s.log.some(l => l.includes("washed ashore")));
-      }
-    },
-    {
-      name: "E.57 Assault mission triggers combat on entry",
-      
-      run: (u) => {
-        const mission = testMission({
-          type: "assault", targetPort: "havana", faction: "english",
-          enemy: { name: "Havana Guards", hull: 80, cannons: 12, crew: 40, faction: "spanish" }
-        });
-        const state = {
-          ...E.initialState,
-          destination: mission.targetPort,
-          activeMission: mission,
-          currentPort: "portRoyal",
-          reputation: { [mission.targetPort]: 50 },
-          crew: { roster: [], max: 50, morale: 80 }
-        };
-        const s = E.reducer(state, { type: E.A.ENTER_PORT });
-        u.assertEqual(s.screen, "intercept");
-        u.assert(s.encounterContext.enemy.name === mission.enemy.name, "Uses mission enemy");
-      }
-    },
-    // Fame gating (P1.5)
-    {
-      name: "E.58 BUY_SHIP blocked by fame",
-      
-      run: (u) => {
-        const state = { ...E.initialState, gold: 10000, fame: 10 };
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-        u.assertEqual(s.ship.type, state.ship.type, "Ship type unchanged");
-        u.assert(s.log.some(l => l.includes("Requires ★ 100 fame")), "Should log fame requirement");
-      }
-    },
-    {
-      name: "E.59 BUY_UPGRADE blocked by fame",
-      
-      run: (u) => {
-        const state = { ...E.initialState, gold: 5000, fame: 10, ship: { type: "frigate", equipment: { hull: [], armament: [], rigging: [], special: [] } } };
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assert(!Object.values(s.ship.equipment).flat().includes("extra_cannons"), "Upgrade not installed");
-        u.assertEqual(s.gold, 5000, "Gold unchanged");
-      }
-    },
-    {
-      name: "E.60 TAKE_MISSION fame blocking removed (no longer gates)",
-      
-      run: (u) => {
-        const mission = testMission({ type: "escort", targetPort: "nassau" });
-        const state = { ...E.initialState, currentPort: "portRoyal", fame: 0, reputation: { nassau: 50 }, crew: { roster: fillRoster(30), morale: 80 } };
-        const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
-        u.assert(s.activeMission !== null, "Mission accepted regardless of fame");
-      }
-    },
-    {
-      name: "E.61 BUY_SHIP with sufficient fame",
-      
-      run: (u) => {
-        const state = { ...E.initialState, gold: 10000, fame: 100 };
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-        u.assertEqual(s.ship.type, "frigate");
-        u.assertEqual(s.gold, 100000);
-      }
-    },
-    // Smuggle/Trade mission completion (E.66–E.70)
-    {
-      name: "E.66 COMPLETE_MISSION smuggle requires goods in hold",
-      
-      run: (u) => {
-        const mission = testMission({
-          type: "smuggle", targetPort: "nassau",
-          gold: 400, infamyGain: 1, requiredGood: "tobacco", requiredQty: 5
-        });
-        const state = {
-          ...E.initialState,
-          currentPort: "nassau",
-          activeMission: mission,
-          hold: { capacity: 200, items: { tobacco: 5 } },
-          gold: 1000, infamy: 9
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.gold, 1400);
-        u.assertEqual(s.infamy, 10);
-        u.assert(s.activeMission === null);
-      }
-    },
-    {
-      name: "E.67 COMPLETE_MISSION assault increases infamy",
-      
-      run: (u) => {
-        const mission = testMission({
-          type: "assault", targetPort: "portRoyal", faction: "pirate", infamyGain: 3
-        });
-        const state = {
-          ...E.initialState,
-          currentPort: "portRoyal",
-          activeMission: mission,
-          gold: 1000, infamy: 5
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 8);
-        u.assert(s.activeMission === null);
-      }
-    },
-    {
-      name: "E.68 COMPLETE_MISSION trade no infamy",
-      
-      run: (u) => {
-        const mission = testMission({ type: "trade", requiredGood: "rum", requiredQty: 5 });
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort || "tortuga",
-          activeMission: mission,
-          hold: { capacity: 200, items: { rum: 5 } },
-          gold: 1000, infamy: 5
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 5);
-        u.assert(s.activeMission === null);
-      }
-    },
-    {
-      name: "E.69 COMPLETE_MISSION infamy threshold Clean to Suspect",
-      
-      run: (u) => {
-        const mission = testMission({ type: "smuggle", infamyGain: 1 });
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort || "nassau",
-          activeMission: mission,
-          hold: { capacity: 200, items: { rum: 5 } },
-          gold: 1000, infamy: 9
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 10);
-        u.assert(s.activeMission === null);
-      }
-    },
-    {
-      name: "E.70 COMPLETE_MISSION infamy threshold Suspect to Notorious",
-      
-      run: (u) => {
-        const mission = testMission({ type: "smuggle", infamyGain: 1 });
-        const state = {
-          ...E.initialState,
-          currentPort: mission.targetPort || "nassau",
-          activeMission: mission,
-          hold: { capacity: 200, items: { rum: 5 } },
-          gold: 1000, infamy: 19
-        };
-        const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-        u.assertEqual(s.infamy, 20);
-        u.assert(s.activeMission === null);
-      }
-    },
-    // Hold capacity (E.87)
-    {
-      name: "E.87 BUY_SHIP updates hold capacity",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          gold: 10000,
-          fame: 150,
-          ship: { type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-          hold: { capacity: 100, items: {} }
-        };
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "galleon" });
-        u.assertEqual(s.ship.type, "galleon");
-        u.assertEqual(s.hold.capacity, D.SHIPS.galleon.holdCapacity);
-      }
-    },
-    // Log message tests (E.81, E.85)
-    {
-      name: "E.81 ADVANCE_DAY food stores empty log",
-      
-      run: (u) => {
-        u.resetRandomStub();
-        const state = {
-          ...E.initialState,
-          screen: "sailing", destination: "tortuga", sailingDaysLeft: 1, sailingDaysTotal: 1,
-          crew: { roster: fillRoster(30), max: 50, morale: 80 },
-          hold: { capacity: 200, items: { food: 1 } }
-        };
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assert(s.log.some(l => l.includes("food stores are empty")));
-      }
-    },
-    {
-      name: "E.85 CONFIRM_TRADE not enough stock log",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          currentPort: "portRoyal",
-          screen: "port",
-          hold: { capacity: 200, items: {} },
-          portMarket: { goods: { rum: { available: 0, buyFromPort: 10 } } }   };
-          const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys: { rum: 10 }, sells: {} });
-          u.assert(s.log.some(l => l.includes("Not enough rum available")));
-      }
-    },
+  });
 
+  reg("E.START.10", "START_GAME: ship equipment starts empty for all slots", (u) => {
+    const s = dispatch(makeState(), A.START_GAME, {
+      captainName: "Test",
+      faction: "english",
+      tutorialMode: "none",
+    });
+    u.assertEqual(s.ship.equipment.hull.length, 0, "no hull equipment");
+    u.assertEqual(s.ship.equipment.armament.length, 0, "no armament");
+    u.assertEqual(s.ship.equipment.rigging.length, 0, "no rigging");
+    u.assertEqual(s.ship.equipment.special.length, 0, "no special");
+  });
 
-{
-  name: "E.M.1 migrateState adds version to old saves",
-  
-  run: (u) => {
-    const old = { gold: 500, screen: "port" }; // no version field
-    const migrated = E.migrateState(old);
-    u.assertEqual(migrated.version, 2);
-    u.assertEqual(migrated.gold, 500, "Existing fields preserved");
-  }
-},
-{
-  name: "E.M.2 LOAD_GAME migrates versionless save",
-  
-  run: (u) => {
-    u.installLocalStorageMock();
-    u.clearLocalStorageMock();
-    // Simulate an old save without a version field
-    const old = { ...E.initialState, version: undefined, gold: 9999, screen: "port" };
-    localStorage.setItem("piratesSave", JSON.stringify(old));
-    const s = E.reducer(E.initialState, { type: E.A.LOAD_GAME });
-    u.assertEqual(s.gold, 9999);
-    u.assert(s.version >= 1, "Version should be set after migration");
-    u.restoreLocalStorage();
-  }
-},
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.NAV — NAVIGATE and SAIL_TO
+  // ══════════════════════════════════════════════════════════════════════════
 
-{
-  name: "E.AS.1 ENTER_PORT auto-saves state",
-  
-  run: (u) => {
-    u.installLocalStorageMock();
-    u.clearLocalStorageMock();
-    let s = makeState({ screen: "sailing", destination: "tortuga", sailingDaysLeft: 0 });
-    s = E.reducer(s, { type: E.A.ENTER_PORT });
-    const saved = localStorage.getItem("piratesSave");
-    u.assert(saved !== null, "Should have saved after ENTER_PORT");
-    const parsed = JSON.parse(saved);
-    u.assertEqual(parsed.screen, "port");
-    u.restoreLocalStorage();
-  }
-},
-// ── Hidden port discovery (Layer 3) ──
-{
-  name: "E.DP.1 DISCOVER_PORT adds port and logs entry",
-  
-  run: (u) => {
-    const s = makeState({
-      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
-    });
-    const next = E.reducer(s, { type: E.A.DISCOVER_PORT, portKey: "libertalia" });
-    u.assert(next.discoveredPorts.includes("libertalia"), "Libertalia should be discovered");
-    u.assert(next.log.some(l => l.includes("Libertalia")), "Discovery logged");
-  }
-},
-{
-  name: "E.DP.2 DISCOVER_PORT is idempotent",
-  
-  run: (u) => {
-    const s = {
-      ...makeState({
-        screen: "sailing", destination: "tortuga", sailingDaysLeft: 3,
-        fame: 50,
-        infamy: 25,
-        discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
-        hold: { capacity: 200, items: { food: 10, water: 10 } },
-        gold: 500,
-        reputation: { ...E.initialState.reputation, tortuga: 70, nassau: 70 },  // pirate ports high
-      }),
-    };
-    const logBefore = s.log.length;
-    const next = E.reducer(s, { type: E.A.DISCOVER_PORT, portKey: "libertalia" });
-    u.assertEqual(next.discoveredPorts.filter(k => k === "libertalia").length, 1, "Should not duplicate");
-    u.assertEqual(next.log.length, logBefore, "Should not re-log");
-  }
-},
-{
-  name: "E.DP.3 ADVANCE_DAY auto-discovers dryTortugas at fame 50",
-  
-  run: (u) => {
-    const s = {
-      ...makeState({
-        screen: "sailing", destination: "tortuga", sailingDaysLeft: 3,
-        fame: 50,
-        infamy: 25,
-        discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
-        hold: { capacity: 200, items: { food: 10, water: 10 } },
-        gold: 500,
-        reputation: { ...E.initialState.reputation, tortuga: 70, nassau: 70, },
-      }),
-    };
-    const next = E.reducer(s, { type: E.A.ADVANCE_DAY });
-    u.assert(next.discoveredPorts.includes("dryTortugas"), "Dry Tortugas should be discovered at fame 50");
-    u.assert(next.log.some(l => l.includes("Dry Tortugas")));
-  }
-},
-{
-  name: "E.DP.4 map_libertalia fragment discovers Libertalia",
-  
-  run: (u) => {
-    const chartEvent = D.RANDOM_EVENTS.find(e => e.id === "mysterious_chart");
-    u.assert(chartEvent, "mysterious_chart event must exist in RANDOM_EVENTS");
-    const s = {
-      ...makeState({ fame: 100, mapFragments: [] }),
-      activeEvent: chartEvent,
-      discoveredPorts: Object.keys(D.PORTS).filter(k => !D.PORTS[k].hidden),
-    };
-    // Choice index 0 = "Take the chart"
-    const next = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    u.assert(next.mapFragments.includes("map_fragment_libertalia"), "Fragment added to state");
-    u.assert(next.discoveredPorts.includes("libertalia"), "Libertalia discovered via fragment");
-  }
-},
+  reg("E.NAV.01", "NAVIGATE: changes screen field", (u) => {
+    const s0 = makePortState();
+    const s1 = dispatch(s0, A.NAVIGATE, { screen: "market" });
+    u.assertEqual(s1.screen, "market");
+  });
 
-    // Market price test (G.31)
-    {
-      name: "G.31 Market price for food",
-      
-      run: (u) => {
-        const state = {
-          ...E.initialState,
-          currentPort: "portRoyal",
-          market: { goods: { food: { stock: 100, buyFromPort: D.RESOURCES.food.basePrice } } }
-        };
-        u.assertEqual(state.market.goods.food.buyFromPort, 3);
-      }
-    },
+  reg("E.NAV.02", "NAVIGATE: preserves all other state fields", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 777 });
+    const s1 = dispatch(s0, A.NAVIGATE, { screen: "journal" });
+    u.assertEqual(s1.gold, 777);
+    u.assertEqual(s1.currentPort, "portRoyal");
+  });
 
-    // ── Drifting Wreck ──────────────────────────────────────────────
-{
-  name: "E.DW.1 Drifting Wreck – Leave it be",
-  run: (u) => {
-    let s = makeState({
-      screen: "sailing", destination: "tortuga", sailingDaysLeft: 3,
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
-    u.assertEqual(s.activeEvent, null, "Event cleared");
-    u.assertEqual(s.screen, "sailing");
-  }
-},
-{
-  name: "E.DW.2 Drifting Wreck – Search (cargo branch, no capacity check)",
-  run: (u) => {
-    // We'll force the cargo branch by stubbing Math.random to 0.1 (<0.50)
-    u.resetRandomStub();
-    u.setRandomSequence([0.1]); // only one roll used in RESOLVE_DRIFTING_WRECK_SEARCH
-    let s = makeState({
-      screen: "sailing",
-      hold: { items: { food: 5, water: 5 } },
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 }); // triggers RESOLVE_DRIFTING_WRECK_SEARCH
-    u.assertEqual(s.activeEvent, null);
-    u.assertEqual(s.screen, "sailing");
-    u.assert(s.gold > makeState().gold, "Gold increased");
-    u.assert(Object.values(s.hold.items).some(v => v > 0), "Cargo added");
-    u.assert(s.log.some(l => l.includes("cargo")));
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.DW.3 Drifting Wreck – Search (nothing branch)",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence([0.6]); // 0.50–0.70 → nothing
-    let s = makeState({
-      screen: "sailing",
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    u.assertEqual(s.activeEvent, null);
-    u.assert(s.log.some(l => l.includes("empty")));
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.DW.4 Drifting Wreck – Search (survivor branch)",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence([0.8]); // 0.70–0.90 → survivor
-    let s = makeState({
-      screen: "sailing",
-      crew: { roster: fillRoster(10), max: 50, morale: 80 },
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    u.assertEqual(s.crew.roster.length, 11);
-    const last = s.crew.roster[s.crew.roster.length - 1];
-    u.assert(last.tags.includes("scar_shipwreck"), "Survivor has scar tag");
-    u.assert(s.log.some(l => l.includes("survivor")));
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.DW.5 Drifting Wreck – Search (trap branch)",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence([0.95]); // ≥0.90 → trap
-    let s = makeState({
-      screen: "sailing",
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_wreck"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    u.assertEqual(s.screen, "intercept");
-    u.assert(s.encounterContext, "Encounter context exists");
-    u.assert(s.encounterContext.enemy.name.includes("Wreck Looters"));
-    u.resetRandomStub();
-  }
-},
+  reg("E.NAV.03", "SAIL_TO: sets destination, screen, route from port", (u) => {
+    const s0 = makePortState("portRoyal");
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "tortuga" });
+    u.assertEqual(s1.screen, "sailing", "screen");
+    u.assertEqual(s1.destination, "tortuga", "destination");
+    u.assert(s1.sailingDaysLeft >= 1, "sailingDaysLeft ≥ 1");
+    u.assert(s1.route !== null, "route set");
+    u.assertEqual(s1.route.originPort, "portRoyal", "route origin");
+    u.assertEqual(s1.route.destinationPort, "tortuga", "route destination");
+    u.assert(s1.route.enduranceBudget >= 1, "endurance budget set");
+    u.assertEqual(s1.route.enduranceSpent, 0, "endurance spent starts 0");
+  });
 
-// ── Marooned Sailors ────────────────────────────────────────────
-{
-  name: "E.MS.1 Marooned Sailors – Take aboard",
-  run: (u) => {
-    let s = makeState({
-      screen: "sailing",
-      crew: { roster: fillRoster(10), max: 50, morale: 80 },
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    u.assertEqual(s.crew.roster.length, 13, "3 crew added");
-    u.assert(s.log.some(l => l.includes("join")));
-  }
-},
-{
-  name: "E.MS.2 Marooned Sailors – Pay off",
-  run: (u) => {
-    let s = makeState({
-      screen: "sailing",
-      gold: 200,
-      crew: { roster: fillRoster(10), max: 50, morale: 50 },
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
-    u.assertEqual(s.gold, 150, "50g deducted");
-    u.assertEqual(s.crew.morale, 53, "Morale +3");
-  }
-},
-{
-  name: "E.MS.3 Marooned Sailors – Sail on",
-  run: (u) => {
-    let s = makeState({
-      screen: "sailing",
-      crew: { roster: fillRoster(10), max: 50, morale: 50 },
-      activeEvent: D.RANDOM_EVENTS.find(e => e.id === "drifting_sailors"),
-    });
-    s = E.reducer(s, { type: E.A.RESOLVE_EVENT, choiceIndex: 2 });
-    u.assertEqual(s.crew.morale, 49, "Morale -1");
-  }
-},
+  reg("E.NAV.04", "SAIL_TO: invalid port key = no change", (u) => {
+    const s0 = makePortState("portRoyal");
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "notAPort" });
+    u.assertEqual(s1.screen, "port", "screen unchanged");
+    u.assertEqual(s1.destination, null, "no destination set");
+  });
 
-// ── Faction Heat ──────────────────────────────────────────────
-{
-  name: "E.HEAT.1 DISMISS_BATTLE victory adds heat to enemy faction",
-  run: (u) => {
-    const state = makeState({
-      screen: "battle",
-      battleState: {
-        phase: "victory", returnScreen: "port",
-        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
-        encounterType: "random",
-        playerHull: 80, enemyHull: 0,
-        playerCrew: 25, enemyCrew: 0,
-        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
+  reg("E.NAV.05", "SAIL_TO: resets completedCombatThisVisit to false", (u) => {
+    const s0 = makePortState("portRoyal", { completedCombatThisVisit: true });
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "tortuga" });
+    u.assert(!s1.completedCombatThisVisit, "combat flag reset on sail");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.SHIP — REPAIR
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.SHIP.01", "REPAIR: hull restored to maxHull", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      ship: { ...makeShip("sloop"), hull: 60 }, // 40 missing
+    });
+    const s1 = dispatch(s0, A.REPAIR);
+    u.assertEqual(s1.ship.hull, 100, "hull restored to sloop maxHull");
+  });
+
+  reg("E.SHIP.02", "REPAIR: gold is deducted", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      ship: { ...makeShip("sloop"), hull: 60 },
+    });
+    const s1 = dispatch(s0, A.REPAIR);
+    u.assert(s1.gold < s0.gold, "gold decreased");
+  });
+
+  // BUG-01: REPAIR deducts using L.shipRepairCost (tier-scaled formula).
+  // Currently engine_port.js line 476 uses the old flat `* 2` formula instead.
+  // This test asserts INTENDED behavior — it will fail until BUG-01 is fixed.
+  reg("E.SHIP.03", "[BUG-01] REPAIR: gold deducted equals L.shipRepairCost(state)", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      ship: { ...makeShip("sloop"), hull: 60 },
+    });
+    const expectedCost = L.shipRepairCost(s0); // tier-scaled: 40 * ceil(100/20) = 200
+    const s1 = dispatch(s0, A.REPAIR);
+    u.assertEqual(s1.gold, s0.gold - expectedCost,
+      `expected gold ${s0.gold - expectedCost}, got ${s1.gold}`);
+  });
+
+  reg("E.SHIP.04", "REPAIR: blocked when not enough gold", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 1, // not enough for any repair
+      ship: { ...makeShip("sloop"), hull: 60 },
+    });
+    const s1 = dispatch(s0, A.REPAIR);
+    u.assertEqual(s1.ship.hull, 60, "hull unchanged");
+    u.assertEqual(s1.gold, 1, "gold unchanged");
+  });
+
+  reg("E.SHIP.05", "REPAIR: no-op when hull is already full", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      ship: makeShip("sloop"), // hull == maxHull
+    });
+    const s1 = dispatch(s0, A.REPAIR);
+    u.assertEqual(s1.gold, s0.gold, "gold unchanged on full-hull repair");
+    u.assertEqual(s1.ship.hull, 100);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.SHIP — BUY_SHIP
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.BUY.01", "BUY_SHIP: gold reduced by ship cost", (u) => {
+    const cutterCost = D.SHIPS.cutter.cost; // 1000
+    const s0 = makePortState("portRoyal", { gold: cutterCost + 500 });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assertEqual(s1.gold, 500, `gold: expected 500, got ${s1.gold}`);
+  });
+
+  reg("E.BUY.02", "BUY_SHIP: new ship type is set", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 10000, fame: 0 });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assertEqual(s1.ship.type, "cutter");
+  });
+
+  reg("E.BUY.03", "BUY_SHIP: equipment is reset to empty slots", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 10000 });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assertEqual(s1.ship.equipment.hull.length, 0, "hull eq empty");
+    u.assertEqual(s1.ship.equipment.armament.length, 0, "armament eq empty");
+    u.assertEqual(s1.ship.equipment.rigging.length, 0, "rigging eq empty");
+    u.assertEqual(s1.ship.equipment.special.length, 0, "special eq empty");
+  });
+
+  reg("E.BUY.04", "BUY_SHIP: hull set to new ship maxHull", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 10000 });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assertEqual(s1.ship.hull, D.SHIPS.cutter.maxHull);
+  });
+
+  reg("E.BUY.05", "BUY_SHIP: blocked when not enough gold", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 10 });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assertEqual(s1.ship.type, "sloop", "ship type unchanged");
+    u.assertEqual(s1.gold, 10, "gold unchanged");
+  });
+
+  reg("E.BUY.06", "BUY_SHIP: blocked by fame requirement", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 5000, fame: 0 });
+    // sloop requires fame 20
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "sloop" });
+    // With fame 0 and the current ship already a sloop in makePortState,
+    // try buying schooner which requires fame 50
+    const s2 = dispatch(makePortState("portRoyal", { gold: 50000, fame: 0 }), A.BUY_SHIP, { shipType: "schooner" });
+    u.assertEqual(s2.ship.type, "sloop", "schooner blocked by fame requirement");
+  });
+
+  reg("E.BUY.07", "BUY_SHIP: roster trimmed to new ship maxCrew", (u) => {
+    // Cutter maxCrew = 20. Build a state with 25 crew on a sloop.
+    const bigCrew = fillRoster(25);
+    const s0 = makePortState("portRoyal", {
+      gold: 10000,
+      crew: { roster: bigCrew, max: 40, morale: 80 },
+    });
+    const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
+    u.assert(s1.crew.roster.length <= D.SHIPS.cutter.maxCrew,
+      `roster trimmed to ${D.SHIPS.cutter.maxCrew}`);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.EQ — Equipment actions
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.EQ.01", "BUY_EQUIPMENT: adds equipment to correct slot, deducts cost+fee", (u) => {
+    const item = D.EQUIPMENT.tar_sealed_hull;
+    const totalCost = item.cost + item.installFee; // 1200 + 150 = 1350
+    // cutter has hull slot, tar_sealed_hull requires fame 20, minHull 60
+    // Use a frigate (hull 180) with fame 100
+    const s0 = makePortState("portRoyal", {
+      gold: 10000,
+      fame: 100,
+      ship: makeShip("frigate"),
+    });
+    const s1 = dispatch(s0, A.BUY_EQUIPMENT, { equipmentKey: "tar_sealed_hull" });
+    u.assert(s1.ship.equipment.hull.includes("tar_sealed_hull"), "equipment in hull slot");
+    u.assertEqual(s1.gold, s0.gold - totalCost, "gold deducted correctly");
+  });
+
+  reg("E.EQ.02", "BUY_EQUIPMENT: blocked if no slot available", (u) => {
+    // Dinghy has zero hull slots
+    const s0 = makePortState("portRoyal", {
+      gold: 10000,
+      fame: 0,
+      ship: makeShip("dinghy"),
+    });
+    const s1 = dispatch(s0, A.BUY_EQUIPMENT, { equipmentKey: "reinforced_hull" });
+    u.assertEqual(s1.gold, s0.gold, "gold unchanged — no slot");
+  });
+
+  reg("E.EQ.03", "INSTALL_EQUIPMENT: moves item from locker to ship slot", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 10000,
+      fame: 100,
+      ship: makeShip("frigate"),
+      equipmentInventory: ["tar_sealed_hull"],
+    });
+    const s1 = dispatch(s0, A.INSTALL_EQUIPMENT, { equipmentKey: "tar_sealed_hull" });
+    u.assert(s1.ship.equipment.hull.includes("tar_sealed_hull"), "installed in slot");
+    u.assert(!s1.equipmentInventory.includes("tar_sealed_hull"), "removed from locker");
+  });
+
+  reg("E.EQ.04", "REMOVE_EQUIPMENT: moves removable item from slot to locker", (u) => {
+    // extra_cannons is armament slot, removable: true
+    const s0 = makePortState("portRoyal", {
+      fame: 0,
+      ship: {
+        ...makeShip("sloop"),
+        equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] },
       },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
+      equipmentInventory: [],
     });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assertEqual(s.factionAlerts.spanish, 3, "Spanish heat +3");
-  }
-},
-{
-  name: "E.HEAT.2 DISMISS_BATTLE does not add heat for pirate faction",
-  run: (u) => {
-    const state = makeState({
-      screen: "battle",
-      battleState: {
-        phase: "victory", returnScreen: "port",
-        enemy: { name: "Pirate", hull: 100, cannons: 10, crew: 40, faction: "pirate" },
-        encounterType: "random",
-        playerHull: 80, enemyHull: 0,
-        playerCrew: 25, enemyCrew: 0,
-        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
-      },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-    });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assertEqual(s.factionAlerts.pirate, 0, "Pirate heat unchanged");
-  }
-},
-{
-  name: "E.HEAT.3 INTERCEPT_FLEE success adds heat for navy patrol",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(120).fill(0.0)); // low roll ensures flee success
-    const state = makeState({
-      screen: "intercept",
-      destination: "havana",
-      sailingDaysLeft: 3,
-      encounterContext: {
-        type: "navy_patrol",
-        encounterType: "navy_patrol",
-        enemy: { name: "Patrol", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
-        options: [ { id: "flee", speedCheck: { player: 10, enemy: 5 } } ]
-      },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-    });
-    const s = E.reducer(state, { type: E.A.INTERCEPT_FLEE });
-    u.assertEqual(s.factionAlerts.spanish, 2, "Spanish heat +2 after fleeing");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.HEAT.4 ATTACK_MERCHANT adds heat to merchant faction",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-    });
-    const s = E.reducer(state, { type: E.A.ATTACK_MERCHANT });
-    // ATTACK_MERCHANT picks a random non-pirate faction; any non-pirate should have heat +2
-    const totalHeat = Object.entries(s.factionAlerts)
-      .filter(([f]) => f !== "pirate")
-      .reduce((sum, [_, v]) => sum + v, 0);
-    u.assertEqual(totalHeat, 2, "Exactly 2 heat added to the merchant's faction");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.HEAT.5 ADVANCE_DAY decays faction alerts every 2 days",
-  run: (u) => {
-    u.resetRandomStub();
-    let s = makeState({
-      screen: "sailing", destination: "tortuga", sailingDaysLeft: 5, sailingDaysTotal: 5,
-      day: 2,
-      factionAlerts: { english: 5, spanish: 3, french: 0, dutch: 0, pirate: 0 },
-      hold: { items: { food: 10, water: 10 } },
-    });
-    s = E.reducer(s, { type: E.A.ADVANCE_DAY });
-    // day 2 → 3, so decay triggers because day 3 % 2 != 0? Wait, decay on day%2===0 (before increment). We need day to be even initially. Let's set day=2, so day%2===0 → decay. After ADVANCE_DAY, day becomes 3. Actually we need to check state.day % 2 === 0 before decay. In our ADVANCE_DAY we compute newRep then decay heat. Let's set state.day = 2, so before increment day is 2, which is even. So decay should happen. We'll verify heat decreased by 1.
-    u.assertEqual(s.factionAlerts.english, 4, "English heat decayed from 5 to 4");
-    u.assertEqual(s.factionAlerts.spanish, 2, "Spanish heat decayed from 3 to 2");
-    u.assertEqual(s.factionAlerts.french, 0, "Zero stays zero");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.HEAT.6 Heat caps at 10",
-  run: (u) => {
-    const state = makeState({
-      screen: "battle",
-      battleState: {
-        phase: "victory", returnScreen: "port",
-        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "spanish" },
-        encounterType: "random",
-        playerHull: 80, enemyHull: 0,
-        playerCrew: 25, enemyCrew: 0,
-        round: 2, log: [], initialCrewCount: 30, lostCrewNames: []
-      },
-      factionAlerts: { english: 0, spanish: 10, french: 0, dutch: 0, pirate: 0 },
-    });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assertEqual(s.factionAlerts.spanish, 10, "Heat capped at 10");
-  }
-},
-// ── Mutiny Negotiate Conditional Cost ─────────────────────────
-{
-  name: "E.MUTINY.1 Mutiny negotiate with enough gold",
-  run: (u) => {
-    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
-    u.assert(mutinyEvent, "mutiny event must exist");
-    const state = makeState({
-      activeEvent: mutinyEvent,
+    const s1 = dispatch(s0, A.REMOVE_EQUIPMENT, { equipmentKey: "extra_cannons" });
+    u.assert(!s1.ship.equipment.armament.includes("extra_cannons"), "removed from slot");
+    u.assert(s1.equipmentInventory.includes("extra_cannons"), "moved to locker");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.CREW — HIRE_CREW, DISMISS_CREW, RAISE_MORALE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.CREW.01", "HIRE_CREW: roster count increases by action.count", (u) => {
+    const s0 = makePortState("portRoyal", {
       gold: 1000,
-      crew: { roster: fillRoster(30), morale: 15, max: 50 },
+      crew: { roster: fillRoster(3), max: 40, morale: 80 },
     });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    // Cost = 30 * 10 = 300g
-    u.assertEqual(s.gold, 700, "Gold should be deducted by 300");
-    u.assertEqual(s.crew.morale, 35, "Morale +20 from negotiate (15+20)");
-    u.assert(s.log.some(l => l.includes("stands down")), "Log should indicate crew stands down");
-  }
-},
-{
-  name: "E.MUTINY.2 Mutiny negotiate with insufficient gold",
-  run: (u) => {
-    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
-    u.assert(mutinyEvent, "mutiny event must exist");
-    const state = makeState({
-      activeEvent: mutinyEvent,
-      gold: 50,
-      crew: { roster: fillRoster(10), morale: 15, max: 50 },
-    });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    // Cost = 10 * 10 = 100g, but only 50g available -> negotiation fails
-    u.assertEqual(s.gold, 50, "Gold unchanged");
-    u.assertEqual(s.crew.morale, 10, "Morale -5 (15-5)");
-    u.assert(s.log.some(l => l.includes("empty words")), "Log should indicate empty promise");
-  }
-},
+    const s1 = dispatch(s0, A.HIRE_CREW, { count: 2 });
+    u.assertEqual(s1.crew.roster.length, 5, "3 + 2 = 5");
+  });
 
-// ── Heat Gossip on Port Entry ─────────────────────────────────
-{
-  name: "E.GOSSIP.1 ENTER_PORT with low heat has ambient gossip only",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen: "sailing",
-      destination: "havana",
-      sailingDaysLeft: 0,
-      reputation: { havana: 50 },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-      crew: { roster: fillRoster(10), max: 50, morale: 80 },
-      hold: { items: { food: 5, water: 5 } },
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.portGossip.length >= 0, "Ambient gossip may be present");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.GOSSIP.2 ENTER_PORT with high heat produces warning",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen: "sailing",
-      destination: "havana",
-      sailingDaysLeft: 0,
-      reputation: { havana: 50 },
-      factionAlerts: { english: 0, spanish: 5, french: 0, dutch: 0, pirate: 0 },
-      crew: { roster: fillRoster(10), max: 50, morale: 80 },
-      hold: { items: { food: 5, water: 5 } },
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.portGossip.length > 0, "Gossip should be present");
-    u.assert(s.portGossip[0].includes("Soldiers") || s.portGossip[0].includes("garrison"), "Gossip mentions patrols or garrison");
-    u.resetRandomStub();
-  }
-},
-
-// ── Gossip Generator ──────────────────────────────────────────
-{
-  name: "G.GOSSIP.1 generatePortGossip returns 2-4 strings for a valid port",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({ currentPort: "portRoyal", portMarket: null });
-    const lines = G.generatePortGossip(state, "portRoyal");
-    u.assert(lines.length >= 2 && lines.length <= 4, `Expected 2-4 lines, got ${lines.length}`);
-    u.assert(lines.every(l => typeof l === "string"), "All lines should be strings");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "G.GOSSIP.2 heat gossip appears when faction alert >= 3",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      currentPort: "havana",
-      factionAlerts: { english: 0, spanish: 5, french: 0, dutch: 0, pirate: 0 },
-      portMarket: null,
-    });
-    const lines = G.generatePortGossip(state, "havana");
-    // Heat = 5 -> medium bucket. Should contain a heat line.
-    u.assert(lines.some(l =>
-      l.includes("harbourmaster") || l.includes("soldiers") || l.includes("guards") || l.includes("notice board")
-    ), "Should contain a heat warning line");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "G.GOSSIP.3 contraband gossip appears when hold has illegal goods and heat < 3",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      currentPort: "portRoyal",
-      hold: { items: { food: 5, water: 5, tobacco: 3 } },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-      portMarket: null,
-    });
-    const lines = G.generatePortGossip(state, "portRoyal");
-    // No heat, but contraband -> should see contraband line
-    u.assert(lines.some(l =>
-      l.includes("customs") || l.includes("dockworkers") || l.includes("smell") || l.includes("manifests")
-    ), "Should contain a contraband warning line");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "G.GOSSIP.4 reputation line appears based on rep tier",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      currentPort: "bridgetown",
-      reputation: { bridgetown: 80 }, // allied
-      portMarket: null,
-    });
-    const lines = G.generatePortGossip(state, "bridgetown");
-    // Should have a reputation line (allied bucket has specific phrases)
-    u.assert(lines.some(l =>
-      l.includes("welcome") || l.includes("opens doors") || l.includes("raise a glass") || l.includes("hero")
-    ), "Allied reputation should produce a positive gossip line");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "G.GOSSIP.5 local market gossip appears only when price deviation is extreme",
-  run: (u) => {
-    u.resetRandomStub();
-    // Force market with a good at extreme low price
-    const state = makeState({
-      currentPort: "curacao",
-      portMarket: {
-        goods: {
-          rum: { basePrice: 30, buyFromPort: 20, sellToPort: 18, available: 50 }, // 20 is well below min (24)
-        }
-      },
-      hold: { items: { food: 5, water: 5 } },
-    });
-    const lines = G.generatePortGossip(state, "curacao");
-    // Rum is cheap -> should see surplus line
-    u.assert(lines.some(l =>
-      l.includes("overflow") || l.includes("cheap") || l.includes("flooded") || l.includes("giving")
-    ), "Cheap rum should produce surplus gossip");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "G.GOSSIP.6 SAIL_TO clears portGossip",
-  run: (u) => {
-    const state = makeState({
-      screen: "map",
-      currentPort: "portRoyal",
-      destination: null,
-      portGossip: ["test gossip"],
-    });
-    const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
-    u.assert(s.portGossip.length === 0, "portGossip should be cleared on SAIL_TO");
-  }
-},
-
-
-// ── Crew Loyalty: Alignment on Mission Complete ─────────────
-{
-  name: "E.CREW.01 COMPLETE_MISSION applies alignment modifier to morale",
-  run: (u) => {
-    const mission = testMission({ type: "escort", targetPort: "portRoyal", faction: "english", gold: 100, fame: 1 });
-    const state = makeState({
-      currentPort: "portRoyal",
-      activeMission: mission,
-      crew: {
-        roster: [
-          ...fillRoster(4).map(m => ({ ...m, faction: "english" })),
-          ...fillRoster(1).map(m => ({ ...m, faction: "pirate" })),
-        ],
-        max: 50,
-        morale: 50,
-      },
-      reputation: { portRoyal: 50 },
-    });
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    // Alignment = 4/5 = 0.8, modifier = 0.5 + 0.8 = 1.3, moraleGain = round(3 * 1.3) = 4
-    // So morale goes from 50 to 54
-    u.assertEqual(s.crew.morale, 54);
-  }
-},
-{
-  name: "E.CREW.02 DISMISS_BATTLE applies alignment penalty on grapple victory",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen: "battle",
-      crew: {
-        roster: fillRoster(10).map(m => ({ ...m, faction: "english" })),
-        max: 50, morale: 50,
-      },
-      ship: { type: "sloop", hull: 100, equipment: { hull: [], armament: [], rigging: [], special: [] } },
-      battleState: {
-        phase: "player_turn", playerHull: 80, playerCrew: 10,
-        enemy: { name: "Test", hull: 10, cannons: 5, crew: 10, faction: "english" },
-        enemyHull: 1, enemyCrew: 10, round: 1, log: [], returnScreen: "port",
-        initialCrewCount: 10, lostCrewNames: [],
-        encounterType: "mission_combat",
-      },
-    });
-    // Need to force an instant victory → grapple success
-    u.setRandomSequence([0.0, ...new Array(120).fill(0.5)]);
-    let s = E.reducer(state, { type: E.A.BATTLE_ACTION, action: "grapple" });
-    u.assertEqual(s.battleState.phase, "victory");
-    // Grapple victory: moraleDelta is +5 (from combat), then alignment penalty: 3 * 1.5 = 4.5 → round 5
-    // So morale = 50 + 5 - 5 = 50
-    // Actually the order: first newMorale = 50 + 5 = 55, then alignmentPenalty = 5 → 55 - 5 = 50
-    u.assertEqual(s.crew.morale, 50);
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.CREW.03 DISMISS_BATTLE upset triggers on matching faction",
-  run: (u) => {
-    // Set up a crew with 5 english members, defeat an english enemy, force 100% upset chance
-    // We can't force 100% without changing the code, so we test structural: the log should contain "disturbed" if any upset occurred.
-    u.resetRandomStub();
-    // Use a sequence that produces 0.0 for each upset roll → every member becomes upset
-    u.setRandomSequence(new Array(50).fill(0.0));
-    const state = makeState({
-      screen: "battle",
-      crew: {
-        roster: fillRoster(5).map(m => ({ ...m, faction: "english" })),
-        max: 50, morale: 50,
-      },
-      battleState: {
-        phase: "victory", returnScreen: "port",
-        enemy: { name: "Test", hull: 100, cannons: 10, crew: 40, faction: "english" },
-        encounterType: "random",
-        playerHull: 80, enemyHull: 0,
-        playerCrew: 5, enemyCrew: 0,
-        round: 2, log: [], initialCrewCount: 5, lostCrewNames: []
-      },
-      factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-    });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    // Should see "disturbed" in log since 5 members all rolled 0.0 → upset
-    u.assert(s.log.some(l => l.includes("disturbed")), "Log should mention upset crew");
-    // Since 5 > 2, the batched message should say "Some of the crew are disturbed"
-    u.assert(s.log.some(l => l.includes("Some of the crew")), "Batched upset message for 3+ members");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.CREW.04 ENTER_PORT desertion removes upset members (with forced chance)",
-  run: (u) => {
-    // Set up 2 upset crew, force desertion with sequence 0.0
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(120).fill(0.0)); // all rolls < 0.30 → desert
-    const state = makeState({
-      screen: "sailing",
-      destination: "portRoyal",
-      sailingDaysLeft: 0,
-      reputation: { portRoyal: 50 },
-      crew: {
-        roster: [
-          { id: "a", firstName: "John", lastName: "Doe", faction: "english", role: "deckhand", tags: ["upset"] },
-          { id: "b", firstName: "Jane", lastName: "Smith", faction: "spanish", role: "gunner", tags: ["upset"] },
-          { id: "c", firstName: "Bob", lastName: "Lee", faction: "pirate", role: "cook", tags: [] },
-        ],
-        max: 50, morale: 50,
-      },
-      hold: { items: { food: 10, water: 10 } },
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    // Both upset crew should desert (sequence 0.0 forces it)
-    u.assertEqual(s.crew.roster.length, 1, "Two upset crew deserted, one clean remains");
-    u.assertEqual(s.crew.roster[0].id, "c", "Clean crew member remains");
-    u.assert(s.log.some(l => l.includes("have left")), "Log mentions deserters");
-    u.assert(!s.log.some(l => l.includes("settled down")), "No settlers when all upset members desert");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.CREW.05 ENTER_PORT upset members calm down when not deserting",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(120).fill(0.99)); // all rolls > 0.30 → calm down
-    const state = makeState({
-      screen: "sailing",
-      destination: "portRoyal",
-      sailingDaysLeft: 0,
-      reputation: { portRoyal: 50 },
-      crew: {
-        roster: [
-          { id: "a", firstName: "John", lastName: "Doe", faction: "english", role: "deckhand", tags: ["upset"] },
-          { id: "b", firstName: "Jane", lastName: "Smith", faction: "spanish", role: "gunner", tags: ["upset"] },
-        ],
-        max: 50, morale: 50,
-      },
-      hold: { items: { food: 10, water: 10 } },
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assertEqual(s.crew.roster.length, 2, "No desertion — both stay");
-    u.assert(!L.hasTag(s.crew.roster[0], "upset"), "Upset tag removed");
-    u.assert(!L.hasTag(s.crew.roster[1], "upset"), "Upset tag removed");
-    u.assert(s.log.some(l => l.includes("settled down")), "Log mentions settlers");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.CREW.06 Mutiny negotiate-fail upsets 30% of crew",
-  run: (u) => {
-    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
-    u.assert(mutinyEvent, "mutiny event must exist");
-    const state = makeState({
-      activeEvent: mutinyEvent,
-      gold: 0, // can't afford
-      crew: {
-        roster: fillRoster(10),
-        morale: 15,
-        max: 50,
-      },
-    });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 0 });
-    // 30% of 10 = 3 crew should get upset tag
-    const upsetCount = s.crew.roster.filter(m => L.hasTag(m, "upset")).length;
-    u.assert(upsetCount >= 2 && upsetCount <= 4, `Expected ~3 upset, got ${upsetCount}`);
-    u.assertEqual(s.crew.morale, 10, "Morale -5");
-  }
-},
-{
-  name: "E.CREW.07 Mutiny crush tags 30% of survivors as mutineer",
-  run: (u) => {
-    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
-    u.assert(mutinyEvent, "mutiny event must exist");
-    // Crush outcome includes crewLoss: 10 in the event data
-    const state = makeState({
-      activeEvent: mutinyEvent,
-      crew: {
-        roster: fillRoster(30),
-        morale: 15,
-        max: 50,
-      },
-    });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex: 1 });
-    // crewLoss 10 → 20 survivors → 30% = 6 mutineers
-    const mutineerCount = s.crew.roster.filter(m => L.hasTag(m, "mutineer")).length;
-    u.assert(mutineerCount >= 5 && mutineerCount <= 8, `Expected ~6 mutineers, got ${mutineerCount}`);
-  }
-},
-{
-  name: "E.CREW.08 migrateState adds tags array to crew",
-  run: (u) => {
-    const oldState = {
-      version: 1,
-      crew: { roster: [{ id: "a", firstName: "Old", lastName: "Sailor" }] }
-    };
-    const migrated = window.E.migrateState(oldState);
-    u.assert(Array.isArray(migrated.crew.roster[0].tags), "tags array added");
-    u.assertDeepEqual(migrated.crew.roster[0].tags, []);
-  }
-},
-
-// ── Coward trait ────────────────────────────────────────────
-{
-  name: "E.TRAIT.01 Coward morale penalty on dangerous mission",
-  run: (u) => {
-    const mission = testMission({ type:"assault", risk:"high", gold:100, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
-      crew: { roster: [
-        { id:"a", firstName:"A", lastName:"Cow", faction:"english", role:"deckhand", tags:["hidden_coward"] }
-      ], morale:80, max:50 },
-      reputation:{ portRoyal:50 }
-    });
-    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
-    u.assertEqual(s.crew.morale, 77, "Morale -3 from coward");
-    const coward = s.crew.roster[0];
-    u.assert(coward.tags.includes("revealed_coward"), "Coward revealed");
-    u.assert(!coward.tags.includes("hidden_coward"), "Hidden tag removed");
-  }
-},
-{
-  name: "E.TRAIT.02 Coward no effect on low-risk mission",
-  run: (u) => {
-    const mission = testMission({ type:"escort", risk:"low", gold:50, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
-      crew: { roster: [
-        { id:"a", firstName:"A", lastName:"Cow", faction:"english", role:"deckhand", tags:["hidden_coward"] }
-      ], morale:80, max:50 },
-      reputation:{ portRoyal:50 }
-    });
-    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
-    u.assertEqual(s.crew.morale, 80, "Morale unchanged");
-    u.assert(s.crew.roster[0].tags.includes("hidden_coward"), "Still hidden");
-  }
-},
-
-// ── Greedy trait ────────────────────────────────────────────
-{
-  name: "E.TRAIT.03 Greedy demands bonus on mission complete",
-  run: (u) => {
-    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
-      activeMission: mission,
-      gold:1000,
-      crew: { roster: [
-        { id:"a", firstName:"A", lastName:"Greed", faction:"english", role:"deckhand", tags:["hidden_greedy"] }
-      ], morale:50, max:50 },
-      reputation:{ portRoyal:50 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assertEqual(s.gold, 1450, "Mission gold (500) minus greedy demand (50)");
-    u.assert(s.crew.roster[0].tags.includes("revealed_greedy"));
-  }
-},
-{
-  name: "E.TRAIT.04 Greedy becomes upset when not paid",
-  run: (u) => {
-    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
-      activeMission: mission,
-      gold:20,
-      crew: { roster: [
-        { id:"a", firstName:"A", lastName:"Greed", faction:"english", role:"deckhand", tags:["hidden_greedy"] }
-      ], morale:50, max:50 },
-      reputation:{ portRoyal:50 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assert(s.crew.roster[0].tags.includes("upset"), "Greedy becomes upset");
-    u.assert(s.crew.roster[0].tags.includes("revealed_greedy"));
-  }
-},
-
-// ── Drunkard during sailing ──────────────────────────────────
-{
-  name: "E.TRAIT.05 Drunkard consumes rum during ADVANCE_DAY",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(20).fill(0.0));
-    const state = makeState({
-      screen:"sailing", destination:"tortuga", sailingDaysLeft:3, sailingDaysTotal:3,
-      crew: { roster: [
-        { id:"a", firstName:"A", lastName:"Drunk", faction:"pirate", role:"deckhand", tags:["hidden_drunkard"] }
-      ], morale:80, max:50 },
-      hold:{ items:{ food:10, water:10, rum:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-    u.assertEqual(s.hold.items.rum, 4, "One rum consumed");
-    u.assert(s.crew.roster[0].tags.includes("revealed_drunkard"), "Drunkard revealed");
-    u.assert(s.log.some(l => l.includes("Bosun")), "Log mentions Bosun finding thief");
-    u.resetRandomStub();
-  }
-},
-
-// ── Battle scar ─────────────────────────────────────────────
-{
-  name: "E.SCAR.01 Battle scar on heavy casualties",
-  run: (u) => {
-    const state = makeState({
-      screen:"battle",
-      battleState: {
-        phase:"victory", returnScreen:"port",
-        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
-        encounterType:"random",
-        playerHull:80, enemyHull:0,
-        playerCrew:5, enemyCrew:0,
-        round:2, log:[], initialCrewCount:15, lostCrewNames: new Array(10).fill("X Y")
-      },
-      crew:{ roster:fillRoster(5).map(m => ({...m, tags:[]})), max:50, morale:50 },
-      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 }
-    });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assert(s.crew.roster.every(m => m.tags.includes("scar_battle")), "All survivors get battle scar");
-  }
-},
-
-// ── Storm scar ──────────────────────────────────────────────
-{
-  name: "E.SCAR.02 Storm scar on storm event",
-  run: (u) => {
-    const stormEvent = D.RANDOM_EVENTS.find(e => e.id === "storm");
-    u.assert(stormEvent, "Storm event must exist");
-    const state = makeState({
-      activeEvent: stormEvent,
-      crew:{ roster:fillRoster(5).map(m => ({...m, tags:[]})), max:50, morale:50 }
-    });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:0 });
-    u.assert(s.crew.roster.every(m => m.tags.includes("scar_storm")), "All survivors get storm scar");
-  }
-},
-
-// ── Positive traits ─────────────────────────────────────────
-{
-  name: "E.TRAIT.06 Seasoned assigned at 50 days",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
-      crew:{ roster:[{ id:"a", firstName:"Old", lastName:"Salt", faction:"english", role:"deckhand", tags:[], daysAboard:50 }], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.crew.roster[0].tags.includes("seasoned"));
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.TRAIT.07 Veteran replaces seasoned at 100 days",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
-      crew:{ roster:[{ id:"a", firstName:"Old", lastName:"Salt", faction:"english", role:"deckhand", tags:["seasoned"], daysAboard:100 }], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(!s.crew.roster[0].tags.includes("seasoned"), "Seasoned removed");
-    u.assert(s.crew.roster[0].tags.includes("veteran"), "Veteran added");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.TRAIT.08 Loyal assigned at 200 days with faction rep >=80",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
-      reputation:{ portRoyal:85, kingston:85 },
-      crew:{ roster:[{ id:"a", firstName:"Loyal", lastName:"One", faction:"english", role:"deckhand", tags:["veteran"], daysAboard:200 }], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(!s.crew.roster[0].tags.includes("veteran"), "Veteran removed");
-    u.assert(s.crew.roster[0].tags.includes("loyal"), "Loyal added");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.TRAIT.09 Loyal not assigned if upset",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
-      reputation:{ portRoyal:85 },
-      crew:{ roster:[{ id:"a", firstName:"Angry", lastName:"One", faction:"english", role:"deckhand", tags:["veteran","upset"], daysAboard:200 }], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(!s.crew.roster[0].tags.includes("loyal"), "Upset prevents loyal");
-    u.resetRandomStub();
-  }
-},
-
-// ── Desertion logic ─────────────────────────────────────────
-{
-  name: "E.TRAIT.10 Loyal never deserts",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence(new Array(120).fill(0.0));
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0, reputation:{ portRoyal:50 },
-      crew:{ roster:[
-        { id:"a", firstName:"Loyal", lastName:"One", faction:"english", role:"deckhand", tags:["loyal","upset"], daysAboard:10 },
-        { id:"b", firstName:"Unlucky", lastName:"Two", faction:"english", role:"deckhand", tags:["upset"], daysAboard:10 }
-      ], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
-    });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.crew.roster.length >= 1, "Loyal still aboard");
-    u.assert(s.crew.roster.find(m => m.id==="a"), "Loyal present");
-    u.resetRandomStub();
-  }
-},
-
-// ── Mutiny tagging ──────────────────────────────────────────
-{
-  name: "E.TRAIT.11 Mutiny crush tags mutineers",
-  run: (u) => {
-    const mutinyEvent = D.RANDOM_EVENTS.find(e => e.id === "mutiny");
-    u.assert(mutinyEvent, "mutiny event must exist");
-    const state = makeState({
-      activeEvent: mutinyEvent,
-      crew:{ roster:fillRoster(30), max:50, morale:15 }
-    });
-    const s = E.reducer(state, { type: E.A.RESOLVE_EVENT, choiceIndex:1 });
-    const mutineers = s.crew.roster.filter(m => L.hasTag(m, "mutineer"));
-    u.assert(mutineers.length >= 5 && mutineers.length <= 8, `Expected ~6 mutineers, got ${mutineers.length}`);
-  }
-},
-
-// ── Trade consolidation ─────────────────────────────────────
-{
-  name: "E.TRADE.01 CONFIRM_TRADE produces single summary line",
-  run: (u) => {
-    const state = makeState({
-      screen:"port", currentPort:"portRoyal",
-      portMarket: { goods: {
-        rum: { basePrice:30, buyFromPort:33, sellToPort:27, available:20 },
-        sugar: { basePrice:40, buyFromPort:44, sellToPort:36, available:15 },
-      }},
-      hold: { items: { food:5, water:5, rum:10, sugar:5 } },
+  reg("E.CREW.02", "HIRE_CREW: gold deducted at 50g per crew", (u) => {
+    const s0 = makePortState("portRoyal", {
       gold: 1000,
+      crew: { roster: [], max: 40, morale: 80 },
     });
-    // Buy 5 sugar, sell 3 rum
-    const s = E.reducer(state, { type: E.A.CONFIRM_TRADE, buys:{ sugar:5 }, sells:{ rum:3 } });
-    // Should have a single summary line containing "Bought", "Sold", "Net:"
-    const summary = s.log.find(l => l.includes("Net:"));
-    u.assert(summary !== undefined, "Trade summary exists");
-    u.assert(summary.includes("Bought"), "Mentions bought");
-    u.assert(summary.includes("Sold"), "Mentions sold");
-    u.assert(summary.includes("Net:"), "Shows net");
-    u.assertEqual(s.gold, 1000 - (5*44) + (3*27), "Gold correct");
-  }
-},
+    const s1 = dispatch(s0, A.HIRE_CREW, { count: 3 });
+    u.assertEqual(s1.gold, 850, "1000 - 3*50 = 850");
+  });
 
-// ── Arrival message variation ──────────────────────────────
-{
-  name: "E.ARR.01 ENTER_PORT uses varied arrival message",
-  run: (u) => {
-    // Force random to pick the first template each time → "Arrived at"
-    u.resetRandomStub();
-    u.setRandomSequence([0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]); // arrival picker uses random once
-    const state = makeState({
-      screen:"sailing", destination:"havana", sailingDaysLeft:0,
-      reputation:{ havana:50 },
-      crew:{ roster:fillRoster(2), max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
+  reg("E.CREW.03", "HIRE_CREW: blocked when crew at max", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      crew: { roster: fillRoster(40), max: 40, morale: 80 },
     });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.log.some(l => l.includes("⚓ Arrived at") || l.includes("⚓ Dropped") || l.includes("⚓ Made port") || l.includes("⚓ The harbour") || l.includes("⚓ Havana at last") || l.includes("⚓ Havana welcomes")),
-      "Arrival message has an emoji variant");
-    u.resetRandomStub();
-  }
-},
+    const s1 = dispatch(s0, A.HIRE_CREW, { count: 1 });
+    u.assertEqual(s1.crew.roster.length, 40, "roster unchanged at max");
+    u.assertEqual(s1.gold, 5000, "gold unchanged");
+  });
 
-// ── Victory message variation ───────────────────────────────
-{
-  name: "E.VICT.01 DISMISS_BATTLE victory uses varied message",
-  run: (u) => {
-    const state = makeState({
-      screen:"battle",
-      battleState: {
-        phase:"victory", returnScreen:"port",
-        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
-        encounterType:"random",
-        playerHull:80, enemyHull:0,
-        playerCrew:5, enemyCrew:0,
-        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
-      },
-      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
-      crew:{ roster:fillRoster(5), max:50, morale:50 },
+  reg("E.CREW.04", "HIRE_CREW: blocked when not enough gold", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 40, // not enough for 1 crew (costs 50)
+      crew: { roster: [], max: 40, morale: 80 },
     });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assert(s.log.some(l => l.includes("⚔")), "Victory has sword icon");
-  }
-},
+    const s1 = dispatch(s0, A.HIRE_CREW, { count: 1 });
+    u.assertEqual(s1.crew.roster.length, 0, "no hire below cost");
+  });
 
-// ── Defeat message variation ────────────────────────────────
-{
-  name: "E.DEF.01 DISMISS_BATTLE defeat uses varied message",
-  run: (u) => {
-    const state = makeState({
-      screen:"battle",
-      previousPort:"portRoyal",
-      battleState: {
-        phase:"defeat", returnScreen:"port",
-        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
-        encounterType:"random",
-        playerHull:0, enemyHull:80,
-        playerCrew:0, enemyCrew:5,
-        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
-      },
-      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
+  reg("E.CREW.05", "DISMISS_CREW: removes crew member by id", (u) => {
+    const roster = fillRoster(5);
+    const targetId = roster[2].id;
+    const s0 = makePortState("portRoyal", {
+      crew: { roster, max: 40, morale: 80 },
+      onboarding: { ...window.E.initialState.onboarding, enabled: false, completed: true },
     });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assert(s.log.some(l => l.includes("☠️")), "Defeat has skull icon");
-  }
-},
+    const s1 = dispatch(s0, A.DISMISS_CREW, { memberId: targetId });
+    u.assertEqual(s1.crew.roster.length, 4, "roster shrinks by 1");
+    u.assert(!s1.crew.roster.some(m => m.id === targetId), "dismissed member gone");
+  });
 
-// ── Fled message variation ──────────────────────────────────
-{
-  name: "E.FLED.01 DISMISS_BATTLE fled uses varied message",
-  run: (u) => {
-    const state = makeState({
-      screen:"battle",
-      battleState: {
-        phase:"fled", returnScreen:"port",
-        enemy:{ name:"Test", hull:100, cannons:10, crew:40, faction:"english" },
-        encounterType:"mission_combat",  // forces fled-mission path
-        playerHull:80, enemyHull:80,
-        playerCrew:5, enemyCrew:5,
-        round:2, log:[], initialCrewCount:5, lostCrewNames:[]
-      },
-      activeMission:{ type:"combat", targetPort:null },
-      factionAlerts:{ english:0, spanish:0, french:0, dutch:0, pirate:0 },
+  reg("E.CREW.06", "DISMISS_CREW: no-op for unknown id", (u) => {
+    const roster = fillRoster(5);
+    const s0 = makePortState("portRoyal", {
+      crew: { roster, max: 40, morale: 80 },
     });
-    const s = E.reducer(state, { type: E.A.DISMISS_BATTLE });
-    u.assert(s.log.some(l => l.includes("💨")), "Fled has dash icon");
-  }
-},
+    const s1 = dispatch(s0, A.DISMISS_CREW, { memberId: "nonexistent_id" });
+    u.assertEqual(s1.crew.roster.length, 5, "roster unchanged");
+  });
 
-// ── Settled‑down variant ────────────────────────────────────
-{
-  name: "E.SETTLE.01 ENTER_PORT settled message uses variant",
-  run: (u) => {
-    u.resetRandomStub();
-    u.setRandomSequence([0.99, ...new Array(120).fill(0.0)]); // first roll for desertion (high → calm), second for settled picker
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
-      reputation:{ portRoyal:50 },
-      crew:{ roster:[
-        { id:"a", firstName:"Calm", lastName:"One", faction:"english", role:"deckhand", tags:["upset"], daysAboard:10 }
-      ], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
+  reg("E.CREW.07", "RAISE_MORALE: adds 5 morale, deducts roster.length * 5 gold", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      crew: { roster: fillRoster(10), max: 40, morale: 70 },
     });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.log.some(l => l.includes("Tensions") || l.includes("mood") || l.includes("calmed")),
-      "Settled message uses a variant");
-    u.resetRandomStub();
-  }
-},
+    const cost = 10 * 5; // 50g
+    const s1 = dispatch(s0, A.RAISE_MORALE);
+    u.assertEqual(s1.crew.morale, 75, "morale +5");
+    u.assertEqual(s1.gold, 950, "gold -50");
+  });
 
-// ── Crew full‑name usage ────────────────────────────────────
-{
-  name: "E.NAME.01 Positive trait logs use full names",
-  run: (u) => {
-    u.resetRandomStub();
-    const state = makeState({
-      screen:"sailing", destination:"portRoyal", sailingDaysLeft:0,
-      reputation:{ portRoyal:50 },
-      crew:{ roster:[
-        { id:"s", firstName:"Salty", lastName:"Dog", faction:"english", role:"deckhand", tags:[], daysAboard:50 }
-      ], max:50, morale:80 },
-      hold:{ items:{ food:5, water:5 } }
+  reg("E.CREW.08", "RAISE_MORALE: blocked when not enough gold", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 10, // not enough for 10 crew * 5g = 50g
+      crew: { roster: fillRoster(10), max: 40, morale: 70 },
     });
-    const s = E.reducer(state, { type: E.A.ENTER_PORT });
-    u.assert(s.log.some(l => l.includes("Salty Dog")), "Seasoned log includes full name");
-    u.resetRandomStub();
-  }
-},
-{
-  name: "E.NAME.02 Coward effect uses full name",
-  run: (u) => {
-    const mission = testMission({ type:"assault", risk:"high", gold:100, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
-      crew:{ roster:[
-        { id:"c", firstName:"Craven", lastName:"Coward", faction:"english", role:"deckhand", tags:["hidden_coward"], daysAboard:5 }
-      ], max:50, morale:80 },
-      reputation:{ portRoyal:50 }
+    const s1 = dispatch(s0, A.RAISE_MORALE);
+    u.assertEqual(s1.crew.morale, 70, "morale unchanged");
+    u.assertEqual(s1.gold, 10, "gold unchanged");
+  });
+
+  reg("E.CREW.09", "RAISE_MORALE: morale capped at 100", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5000,
+      crew: { roster: fillRoster(2), max: 40, morale: 98 },
     });
-    const s = E.reducer(state, { type: E.A.TAKE_MISSION, mission });
-    u.assert(s.log.some(l => l.includes("Craven Coward")), "Coward log includes full name");
-  }
-},
-{
-  name: "E.NAME.03 Greedy demand uses full name",
-  run: (u) => {
-    const mission = testMission({ type:"escort", targetPort:"portRoyal", faction:"english", gold:500, fame:1 });
-    const state = makeState({
-      currentPort:"portRoyal",
+    const s1 = dispatch(s0, A.RAISE_MORALE);
+    u.assert(s1.crew.morale <= 100, "morale does not exceed 100");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.MISSION — TAKE_MISSION, COMPLETE_MISSION, ABANDON_MISSION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.MISS.01", "TAKE_MISSION: sets activeMission", (u) => {
+    const mission = makeMission({ type: "trade", targetPort: "tortuga" });
+    const s0 = makePortState("portRoyal");
+    const s1 = dispatch(s0, A.TAKE_MISSION, { mission });
+    u.assert(s1.activeMission !== null, "activeMission set");
+    u.assertEqual(s1.activeMission.id, mission.id);
+  });
+
+  reg("E.MISS.02", "TAKE_MISSION: combat mission blocked after completedCombatThisVisit", (u) => {
+    const mission = makeMission({ type: "combat", id: "combat_1" });
+    const s0 = makePortState("portRoyal", { completedCombatThisVisit: true });
+    const s1 = dispatch(s0, A.TAKE_MISSION, { mission });
+    u.assert(s1.activeMission === null, "combat mission rejected after chaining");
+    u.assert(s1.log.length > s0.log.length, "a message was logged");
+  });
+
+  reg("E.MISS.03", "COMPLETE_MISSION trade: gold awarded, goods consumed", (u) => {
+    const mission = makeMission({
+      type: "trade",
+      targetPort: "portRoyal",
+      gold: 300,
+      fame: 2,
+      requiredGood: "sugar",
+      requiredQty: 5,
+    });
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      hold: makeHold({ sugar: 10, food: 5, water: 5 }),
       activeMission: mission,
-      gold:1000,
-      crew:{ roster:[
-        { id:"g", firstName:"Goldie", lastName:"Greed", faction:"english", role:"deckhand", tags:["revealed_greedy"], daysAboard:10 }
-      ], max:50, morale:50 },
-      reputation:{ portRoyal:50 },
-      hold:{ items:{ food:5, water:5 } }
     });
-    const s = E.reducer(state, { type: E.A.COMPLETE_MISSION });
-    u.assert(s.log.some(l => l.includes("Goldie Greed")), "Greedy log includes full name");
-  }
-},
-// EXPORT_SAVE
-    {
-      name: "E.EXP.01 EXPORT_SAVE does not change game state",
-      run: (u) => {
-        const state = makeState({ gold: 500, day: 10 });
-        const s = E.reducer(state, { type: E.A.EXPORT_SAVE });
-        u.assertEqual(s.gold, 500);
-        u.assertEqual(s.day, 10);
-        u.assertEqual(s.screen, state.screen);
-      }
-    },
-    // IMPORT_SAVE
-    {
-      name: "E.IMP.01 IMPORT_SAVE restores from a valid file",
-      run: (u) => {
-        const state = makeState({ gold: 5000, day: 15, currentPort: "tortuga" });
-        const encoded = L.encodeSave(state);
-        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: encoded });
-        u.assertEqual(restored.gold, 5000);
-        u.assertEqual(restored.day, 15);
-        u.assertEqual(restored.currentPort, "tortuga");
-        u.assertEqual(restored.screen, "port");
-      }
-    },
-    {
-      name: "E.IMP.02 IMPORT_SAVE tampered file warns but loads",
-      run: (u) => {
-        const state = makeState({ gold: 999, day: 1 });
-        const encoded = L.encodeSave(state);
-        // Tamper with the encoded string (swap a char)
-        const tampered = encoded.slice(0, -10) + "AAAA" + encoded.slice(-6);
-        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: tampered });
-        u.assert(
-          restored.log.some(l => l.includes("modified") || l.includes("Invalid") || l.includes("Could not read")),
-          "Should log warning or error for tampered file"
-        );
-      }
-    },
-    {
-      name: "E.IMP.03 IMPORT_SAVE corrupt file logs error",
-      run: (u) => {
-        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: "not base64!!" });
-        u.assert(restored.log.some(l => l.includes("Invalid") || l.includes("Could not read")), "Should log error");
-        u.assertEqual(restored.gold, E.initialState.gold, "State unchanged on error");
-      }
-    },
-    {
-      name: "E.IMP.04 IMPORT_SAVE clears transient state",
-      run: (u) => {
-        const state = makeState({
-          battleState: { phase: "victory" },
-          encounterContext: { enemy: {} },
-          activeEvent: { id: "storm" },
-          currentPort: "portRoyal"
-        });
-        const encoded = L.encodeSave(state);
-        const restored = E.reducer(E.initialState, { type: E.A.IMPORT_SAVE, fileContent: encoded });
-        u.assertEqual(restored.battleState, null);
-        u.assertEqual(restored.encounterContext, null);
-        u.assertEqual(restored.activeEvent, null);
-        u.assert(restored.portMarket !== null, "Market regenerated");
-        u.assert(restored.missions.length > 0, "Missions regenerated");
-      }
-    },
-    // NAVIGATE to new screens
-    {
-      name: "E.NAV.01 NAVIGATE to title screen",
-      run: (u) => {
-        const s = E.reducer(E.initialState, { type: E.A.NAVIGATE, screen: "title" });
-        u.assertEqual(s.screen, "title");
-      }
-    },
-    {
-      name: "E.NAV.02 NAVIGATE to journal screen",
-      run: (u) => {
-        const s = E.reducer(E.initialState, { type: E.A.NAVIGATE, screen: "journal" });
-        u.assertEqual(s.screen, "journal");
-      }
-    },
-    // START_GAME sets scenarioId (added in T4.1)
-    {
-      name: "E.START.01 START_GAME stores scenarioId",
-      run: (u) => {
-        u.resetRandomStub();
-        const start = D.STARTS.find(s => s.id === "english_william");
-        const s = E.reducer(E.initialState, { type: E.A.START_GAME, scenarioId: start.id });
-        u.assertEqual(s.scenarioId, "english_william", "Scenario id stored");
-      }
-    },
-    // BUY_EQUIPMENT
-    {
-      name: "E.EQ.01 BUY_EQUIPMENT success",
-      run: (u) => {
-        const state = makeState({
-          gold: 2000, fame: 50,
-          currentPort: "portRoyal", // shipyard service exists
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: [], armament: [], rigging: [], special: [] }
-          },
-          reputation: { portRoyal: 80 } // allied
-        });
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
-        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.cost - D.EQUIPMENT.extra_cannons.installFee);
-        u.assert(s.log.some(l => l.includes("Extra Cannons")));
-      }
-    },
-    {
-      name: "E.EQ.02 BUY_EQUIPMENT insufficient gold",
-      run: (u) => {
-        const state = makeState({
-          gold: 100, fame: 50,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: [], armament: [], rigging: [], special: [] }
-          },
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assert(!s.ship.equipment.armament.includes("extra_cannons"));
-        u.assertEqual(s.gold, 100);
-      }
-    },
-    {
-      name: "E.EQ.03 BUY_EQUIPMENT blocked by fame",
-      run: (u) => {
-        const state = makeState({
-          gold: 5000, fame: 10,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: [], armament: [], rigging: [], special: [] }
-          },
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.BUY_EQUIPMENT, equipmentKey: "long_guns" }); // fame 100
-        u.assert(!s.ship.equipment.armament.includes("long_guns"));
-        u.assertEqual(s.gold, 5000);
-      }
-    },
-    // INSTALL_EQUIPMENT
-    {
-      name: "E.EQ.04 INSTALL_EQUIPMENT from inventory",
-      run: (u) => {
-        const state = makeState({
-          gold: 500,
-          fame: 50,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: [], armament: [], rigging: [], special: [] }
-          },
-          equipmentInventory: ["extra_cannons"],
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.INSTALL_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assert(s.ship.equipment.armament.includes("extra_cannons"));
-        u.assert(!s.equipmentInventory.includes("extra_cannons"));
-        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.installFee);
-      }
-    },
-    // REMOVE_EQUIPMENT
-    {
-      name: "E.EQ.05 REMOVE_EQUIPMENT removable",
-      run: (u) => {
-        const state = makeState({
-          gold: 500,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
-          },
-          equipmentInventory: [],
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.REMOVE_EQUIPMENT, equipmentKey: "extra_cannons" });
-        u.assert(!s.ship.equipment.armament.includes("extra_cannons"));
-        u.assert(s.equipmentInventory.includes("extra_cannons"));
-        u.assertEqual(s.gold, state.gold - D.EQUIPMENT.extra_cannons.installFee);
-      }
-    },
-    {
-      name: "E.EQ.06 REMOVE_EQUIPMENT structural blocked",
-      run: (u) => {
-        const state = makeState({
-          gold: 500,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10, equipment: { hull: [], armament: [], rigging: [], special: [] },
-            equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] } // structural
-          },
-          equipmentInventory: [],
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.REMOVE_EQUIPMENT, equipmentKey: "reinforced_hull" });
-        u.assert(s.ship.equipment.hull.includes("reinforced_hull"), "Still installed");
-        u.assertEqual(s.equipmentInventory.length, 0, "Not added to inventory");
-        u.assertEqual(s.gold, 500, "Fee not deducted");
-      }
-    },
-    // BUY_SHIP with equipment
-    {
-      name: "E.EQ.07 BUY_SHIP warns when removable equipment installed",
-      run: (u) => {
-        const state = makeState({
-          gold: 600000, fame: 100,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10,
-            equipment: { hull: [], armament: ["extra_cannons"], rigging: [], special: [] }
-          },
-          equipmentInventory: [],
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-        u.assertEqual(s.ship.type, "sloop", "Ship not bought due to removable equipment");
-        u.assert(s.log.some(l => /remove|locker|equipment/i.test(l)), "Warning logged");
-      }
-    },
-    {
-      name: "E.EQ.08 BUY_SHIP loses structural equipment, new ship empty",
-      run: (u) => {
-        const state = makeState({
-          gold: 600000, fame: 100,
-          ship: {
-            type: "sloop", hull: 100, cannons: 10,
-            equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] }
-          },
-          equipmentInventory: [],
-          reputation: { portRoyal: 80 }
-        });
-        const s = E.reducer(state, { type: E.A.BUY_SHIP, shipType: "frigate" });
-        u.assertEqual(s.ship.type, "frigate");
-        u.assertDeepEqual(s.ship.equipment, { hull: [], armament: [], rigging: [], special: [] });
-      }
-    },
-    // Migration
-    {
-      name: "E.EQ.09 migrateState removes upgrades and adds equipment",
-      run: (u) => {
-        const old = {
-          version: 1,
-          ship: { type: "sloop", upgrades: ["reinforced_hull"], hull: 100 },
-          crew: { roster: [] }
-        };
-        const migrated = E.migrateState(old);
-        u.assertEqual(migrated.ship.upgrades, undefined, "upgrades removed");
-        u.assert(migrated.ship.equipment && Array.isArray(migrated.ship.equipment.hull), "equipment added");
-        u.assert(Array.isArray(migrated.equipmentInventory), "equipmentInventory exists");
-      }
-    },
-    {
-      name: "E.NAV.01 SAIL_TO from port initializes route",
-      run: (u) => {
-        const state = makeState({ currentPort: "portRoyal", screen: "map" });
-        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "tortuga" });
-        u.assert(s.route !== null, "Route should be created");
-        u.assertEqual(s.route.originPort, "portRoyal");
-        u.assertEqual(s.route.destinationPort, "tortuga");
-        u.assertEqual(s.route.progressDays, 0);
-        u.assert(s.route.totalDays > 0);
-        u.assert(s.route.enduranceBudget > 0);
-        u.assertDeepEqual(s.route.seaPosition, D.PORTS.portRoyal);
-      }
-    },
-    {
-      name: "E.NAV.02 ADVANCE_DAY updates route progress and seaPosition",
-      run: (u) => {
-        u.resetRandomStub();
-        const state = makeState({
-          screen: "sailing",
-          destination: "tortuga",
-          sailingDaysLeft: 3,
-          sailingDaysTotal: 3,
-          route: {
-            originPort: "portRoyal",
-            destinationPort: "tortuga",
-            originPos: D.PORTS.portRoyal,
-            destinationPos: D.PORTS.tortuga,
-            progressDays: 0,
-            totalDays: 3,
-            seaPosition: D.PORTS.portRoyal,
-            enduranceBudget: 10,
-            enduranceSpent: 0,
-          },
-          wind: { angle: 0, speed: 15 },
-          crew: { roster: fillRoster(10), max: 50, morale: 80 },
-          hold: { items: { food: 10, water: 10 } },
-          gold: 1000,
-          reputation: { portRoyal: 50, tortuga: 50 },
-        });
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assertEqual(s.route.progressDays, 1);
-        u.assertEqual(s.route.enduranceSpent, 1);
-        // seaPosition should have moved toward destination
-        u.assert(s.route.seaPosition.x !== state.route.seaPosition.x || s.route.seaPosition.y !== state.route.seaPosition.y);
-      }
-    },
-    {
-      name: "E.NAV.03 Reroute from sea changes destination and recalculates days",
-      run: (u) => {
-        u.resetRandomStub();
-        const state = makeState({
-          screen: "map",
-          destination: "tortuga",
-          sailingDaysLeft: 4,
-          sailingDaysTotal: 6,
-          route: {
-            originPort: "portRoyal",
-            destinationPort: "tortuga",
-            originPos: D.PORTS.portRoyal,
-            destinationPos: D.PORTS.tortuga,
-            progressDays: 2,
-            totalDays: 6,
-            seaPosition: { x: 450, y: 200 }, // somewhere mid-sea
-            enduranceBudget: 10,
-            enduranceSpent: 2,
-          },
-          wind: { angle: 0, speed: 15 },
-          crew: { roster: fillRoster(10), max: 50, morale: 80 },
-          hold: { items: { food: 10, water: 10 } },
-          reputation: { portRoyal: 50, havana: 50 },
-        });
-        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
-        u.assertEqual(s.route.destinationPort, "havana");
-        u.assertEqual(s.route.progressDays, 0);
-        u.assert(s.route.totalDays > 0);
-        u.assertEqual(s.route.enduranceSpent, 2, "Endurance spent preserved");
-        u.assert(s.log.some(l => l.includes("Changing course")), "Log mentions course change");
-      }
-    },
-    {
-      name: "E.NAV.04 Reroute to same destination is no-op",
-      run: (u) => {
-        const state = makeState({
-          screen: "map",
-          destination: "tortuga",
-          sailingDaysLeft: 4,
-          route: {
-            originPort: "portRoyal",
-            destinationPort: "tortuga",
-            originPos: D.PORTS.portRoyal,
-            destinationPos: D.PORTS.tortuga,
-            progressDays: 2,
-            totalDays: 6,
-            seaPosition: { x: 450, y: 200 },
-            enduranceBudget: 10,
-            enduranceSpent: 2,
-          },
-        });
-        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "tortuga" });
-        u.assertEqual(s.route.destinationPort, "tortuga");
-        u.assertEqual(s.route.progressDays, 2, "Progress unchanged");
-      }
-    },
-    {
-      name: "E.NAV.05 Reroute blocked when no endurance remaining",
-      run: (u) => {
-        u.resetRandomStub();
-        const state = makeState({
-          screen: "map",
-          destination: "tortuga",
-          sailingDaysLeft: 2,
-          route: {
-            originPort: "portRoyal",
-            destinationPort: "tortuga",
-            originPos: D.PORTS.portRoyal,
-            destinationPos: D.PORTS.tortuga,
-            progressDays: 2,
-            totalDays: 6,
-            seaPosition: { x: 300, y: 200 },
-            enduranceBudget: 5,
-            enduranceSpent: 5, // no remaining
-          },
-          wind: { angle: 0, speed: 15 },
-          crew: { roster: fillRoster(10), max: 50, morale: 80 },
-          hold: { items: { food: 10, water: 10 } },
-        });
-        const s = E.reducer(state, { type: E.A.SAIL_TO, port: "havana" });
-        u.assertEqual(s.route.destinationPort, "tortuga", "Destination unchanged");
-        u.assert(s.log.some(l => l.includes("Cannot reach")), "Block message logged");
-      }
-    },
-    {
-      name: "E.NAV.06 Current route still completes after conditions worsen",
-      run: (u) => {
-        u.resetRandomStub();
-        const state = makeState({
-          screen: "sailing",
-          destination: "tortuga",
-          sailingDaysLeft: 1,
-          sailingDaysTotal: 3,
-          route: {
-            originPort: "portRoyal",
-            destinationPort: "tortuga",
-            originPos: D.PORTS.portRoyal,
-            destinationPos: D.PORTS.tortuga,
-            progressDays: 2,
-            totalDays: 3,
-            seaPosition: { x: 450, y: 200 },
-            enduranceBudget: 10,
-            enduranceSpent: 2,
-          },
-          wind: { angle: 0, speed: 15 },
-          crew: { roster: fillRoster(30), max: 50, morale: 20 }, // low morale would normally add days
-          hold: { items: { food: 10, water: 10 } },
-          gold: 1000,
-          reputation: { portRoyal: 50, tortuga: 50 },
-        });
-        // Advance day — arrival should still happen despite low morale
-        const s = E.reducer(state, { type: E.A.ADVANCE_DAY });
-        u.assertEqual(s.sailingDaysLeft, 0, "Arrived despite worsened conditions");
-        u.assertEqual(s.route.progressDays, 3);
-      }
-    },
-  ]
-});
+    const s1 = dispatch(s0, A.COMPLETE_MISSION);
+    u.assertEqual(s1.gold, 1300, "gold +300");
+    u.assertEqual(s1.hold.items.sugar, 5, "sugar consumed");
+    u.assert(s1.activeMission === null, "mission cleared");
+    u.assert(s1.fame >= 2, "fame increased");
+  });
+
+  reg("E.MISS.04", "COMPLETE_MISSION: blocked at wrong port", (u) => {
+    const mission = makeMission({ targetPort: "tortuga" });
+    const s0 = makePortState("portRoyal", { activeMission: mission });
+    const s1 = dispatch(s0, A.COMPLETE_MISSION);
+    u.assert(s1.activeMission !== null, "mission not cleared");
+    u.assertEqual(s1.gold, s0.gold, "gold unchanged");
+  });
+
+  reg("E.MISS.05", "COMPLETE_MISSION: blocked without required goods", (u) => {
+    const mission = makeMission({
+      targetPort: "portRoyal",
+      requiredGood: "spices",
+      requiredQty: 10,
+    });
+    const s0 = makePortState("portRoyal", {
+      hold: makeHold({ spices: 2 }), // only 2, need 10
+      activeMission: mission,
+    });
+    const s1 = dispatch(s0, A.COMPLETE_MISSION);
+    u.assert(s1.activeMission !== null, "mission not cleared");
+    u.assert(s1.log.some(l => l.includes("required")), "requirement message logged");
+  });
+
+  reg("E.MISS.06", "COMPLETE_MISSION patrol: blocked when enemyDefeated is false", (u) => {
+    const mission = makeMission({
+      type: "patrol",
+      targetPort: "portRoyal",
+      requiredGood: null,
+      requiredQty: 0,
+      enemyDefeated: false,
+    });
+    const s0 = makePortState("portRoyal", { activeMission: mission });
+    const s1 = dispatch(s0, A.COMPLETE_MISSION);
+    u.assert(s1.activeMission !== null, "patrol mission not cleared without defeat");
+    u.assert(s1.log.some(l => l.includes("enemy") || l.includes("defeated") || l.includes("searching")),
+      "informative message logged");
+  });
+
+  reg("E.MISS.07", "COMPLETE_MISSION: marks completedCombatThisVisit for combat type", (u) => {
+    const mission = makeMission({
+      type: "combat",
+      targetPort: "portRoyal",
+      requiredGood: null,
+      requiredQty: 0,
+      enemyDefeated: true,
+    });
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      activeMission: mission,
+    });
+    const s1 = dispatch(s0, A.COMPLETE_MISSION);
+    u.assert(s1.completedCombatThisVisit, "flag set after combat mission");
+  });
+
+  reg("E.MISS.08", "ABANDON_MISSION: clears activeMission", (u) => {
+    const mission = makeMission({ faction: "english" });
+    const s0 = makePortState("portRoyal", { activeMission: mission });
+    const s1 = dispatch(s0, A.ABANDON_MISSION);
+    u.assert(s1.activeMission === null, "mission cleared");
+  });
+
+  reg("E.MISS.09", "ABANDON_MISSION: applies reputation penalty to mission faction", (u) => {
+    const mission = makeMission({ faction: "english" });
+    const repBefore = {};
+    Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === "english")
+      .forEach(k => { repBefore[k] = 60; });
+
+    const s0 = makePortState("portRoyal", {
+      activeMission: mission,
+      reputation: { ...window.E.initialState.reputation, ...repBefore },
+    });
+    const s1 = dispatch(s0, A.ABANDON_MISSION);
+    const portKey = Object.keys(D.PORTS).find(k => D.PORTS[k].faction === "english");
+    if (portKey && repBefore[portKey] !== undefined) {
+      u.assert(s1.reputation[portKey] < repBefore[portKey],
+        "rep decreased at english port after abandonment");
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.TRADE — CONFIRM_TRADE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.TRADE.01", "CONFIRM_TRADE: buying goods costs gold and fills hold", (u) => {
+    // Build a minimal market with sugar available
+    const market = {
+      goods: {
+        sugar: { buyFromPort: 50, sellToPort: 40, available: 20, price: 50 },
+      },
+    };
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      portMarket: market,
+      hold: makeHold(),
+    });
+    const s1 = dispatch(s0, A.CONFIRM_TRADE, {
+      buys: { sugar: 5 },
+      sells: {},
+    });
+    u.assertEqual(s1.gold, 750, "1000 - 5*50 = 750");
+    u.assertEqual(s1.hold.items.sugar, 5, "5 sugar in hold");
+  });
+
+  reg("E.TRADE.02", "CONFIRM_TRADE: selling goods earns gold and clears hold", (u) => {
+    const market = {
+      goods: {
+        cloth: { buyFromPort: 60, sellToPort: 45, available: 100, price: 60 },
+      },
+    };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      portMarket: market,
+      hold: makeHold({ cloth: 10 }),
+    });
+    const s1 = dispatch(s0, A.CONFIRM_TRADE, {
+      buys: {},
+      sells: { cloth: 10 },
+    });
+    u.assertEqual(s1.gold, 950, "500 + 10*45 = 950");
+    u.assertEqual(s1.hold.items.cloth, 0, "cloth sold");
+  });
+
+  reg("E.TRADE.03", "CONFIRM_TRADE: no-op when portMarket is null", (u) => {
+    const s0 = makePortState("portRoyal", { portMarket: null });
+    const s1 = dispatch(s0, A.CONFIRM_TRADE, { buys: { sugar: 1 }, sells: {} });
+    u.assertEqual(s1.gold, s0.gold, "no gold change without market");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.COMBAT — INTERCEPT_SURRENDER, INTERCEPT_BRIBE, DISMISS_BATTLE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.CMB.01", "INTERCEPT_SURRENDER random type: morale penalty applied", (u) => {
+    const consequence = D.SURRENDER_CONSEQUENCE.random;
+    const ctx = {
+      type: "random",
+      enemy: { faction: "pirate", name: "The Test Brigand" },
+      options: [],
+    };
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      encounterContext: ctx,
+    });
+    const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
+    u.assert(s1.crew.morale < s0.crew.morale, "morale decreased");
+    u.assertEqual(s1.crew.morale, 80 - consequence.moralePenalty, "correct morale penalty");
+    u.assert(s1.encounterContext === null, "encounter context cleared");
+  });
+
+  reg("E.CMB.02", "INTERCEPT_SURRENDER random type: cargo loss applied", (u) => {
+    const ctx = { type: "random", enemy: { faction: "pirate" }, options: [] };
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      hold: makeHold({ sugar: 100 }),
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      encounterContext: ctx,
+    });
+    const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
+    const consequence = D.SURRENDER_CONSEQUENCE.random;
+    if (consequence.loseCargoPercent) {
+      u.assert(s1.hold.items.sugar < 100, "cargo reduced by surrender");
+    }
+  });
+
+  reg("E.CMB.03", "INTERCEPT_BRIBE: deducts bribe cost from gold", (u) => {
+    const bribeCost = 150;
+    const ctx = {
+      type: "patrol",
+      options: [{ id: "bribe", cost: bribeCost }],
+    };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      destination: "tortuga",
+      encounterContext: ctx,
+    });
+    const s1 = dispatch(s0, A.INTERCEPT_BRIBE);
+    u.assertEqual(s1.gold, 350, "gold reduced by bribe cost");
+    u.assert(s1.encounterContext === null, "encounter cleared");
+  });
+
+  reg("E.CMB.04", "DISMISS_BATTLE victory: battleState cleared, screen returns", (u) => {
+    const s0 = makeBattleState({ phase: "victory" });
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+    u.assert(s1.battleState === null, "battleState cleared");
+    u.assert(s1.screen === "port" || s1.screen === "sailing", "back to port or sailing");
+  });
+
+  reg("E.CMB.05", "DISMISS_BATTLE defeat: battleState cleared, gold/hull adjusted", (u) => {
+    // Defeat: handleDefeat reduces hull to 1 and removes gold
+    const s0 = makeBattleState({ phase: "defeat" }, {
+      gold: 1000,
+      ship: { ...makeShip("sloop"), hull: 100 },
+    });
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+    u.assert(s1.battleState === null, "battleState cleared");
+    u.assert(s1.ship.hull <= 30, "hull reduced after defeat");
+  });
+
+  reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears battleState", (u) => {
+    const s0 = makeBattleState({
+      phase: "victory",
+      canPlunder: true,
+      goldReward: 200,
+      enemyCargo: [],
+    });
+    const newHold = { ...s0.hold.items };
+    const s1 = dispatch(s0, A.TAKE_PLUNDER, { holdItems: newHold });
+    u.assertEqual(s1.gold, s0.gold + 200, "gold reward added");
+    u.assert(s1.battleState === null, "battleState cleared");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.EVENT — RESOLVE_EVENT (deterministic gold/rep choices)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.EVT.01", "RESOLVE_EVENT: gold outcome adds gold to state", (u) => {
+    // Build a minimal event with a gold choice
+    const event = {
+      id: "test_gold_event",
+      title: "Lucky Find",
+      choices: [{
+        id: "take_gold",
+        label: "Take the gold",
+        outcome: { gold: 150, log: "You take the gold." },
+      }],
+    };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      activeEvent: event,
+    });
+    const s1 = dispatch(s0, A.RESOLVE_EVENT, { choiceId: "take_gold" });
+    u.assertEqual(s1.gold, 650, "gold increased by event reward");
+    u.assert(s1.activeEvent === null, "event cleared");
+  });
+
+  reg("E.EVT.02", "RESOLVE_EVENT: hull damage outcome reduces hull", (u) => {
+    const event = {
+      id: "test_hull_event",
+      title: "Storm Damage",
+      choices: [{
+        id: "ride_it_out",
+        label: "Ride it out",
+        outcome: { hullDamage: 10, log: "The storm batters your hull." },
+      }],
+    };
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 100 },
+      activeEvent: event,
+    });
+    const s1 = dispatch(s0, A.RESOLVE_EVENT, { choiceId: "ride_it_out" });
+    u.assertEqual(s1.ship.hull, 90, "hull reduced by 10");
+    u.assert(s1.activeEvent === null, "event cleared");
+  });
+
+  reg("E.EVT.03", "RESOLVE_EVENT: no-op when activeEvent is null", (u) => {
+    const s0 = makePortState("portRoyal", { activeEvent: null });
+    const s1 = dispatch(s0, A.RESOLVE_EVENT, { choiceId: "any" });
+    u.assertEqual(s1.gold, s0.gold, "no change when no active event");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.SAVE — SAVE_GAME, LOAD_GAME, EXPORT_SAVE, IMPORT_SAVE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.SAVE.01", "SAVE_GAME + LOAD_GAME: round-trips gold, fame, captainName", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 7777,
+      fame: 99,
+      captainName: "Round Trip Captain",
+    });
+    dispatch(s0, A.SAVE_GAME);
+    const s1 = dispatch(makeState(), A.LOAD_GAME);
+    u.assertEqual(s1.gold, 7777, "gold round-tripped");
+    u.assertEqual(s1.fame, 99, "fame round-tripped");
+    u.assertEqual(s1.captainName, "Round Trip Captain", "captain name round-tripped");
+  });
+
+  reg("E.SAVE.02", "EXPORT_SAVE: returns an encoded string via action.onExport", (u) => {
+    let exported = null;
+    const s0 = makePortState("portRoyal", { gold: 1234 });
+    // EXPORT_SAVE calls action.onExport with the encoded string
+    dispatch(s0, A.EXPORT_SAVE, {
+      onExport: (encoded) => { exported = encoded; },
+    });
+    u.assert(typeof exported === "string" && exported.length > 0,
+      "onExport called with non-empty string");
+  });
+
+  reg("E.SAVE.03", "IMPORT_SAVE: loads state from valid encoded string", (u) => {
+    const s0 = makePortState("portRoyal", {
+      gold: 5555,
+      captainName: "Imported Captain",
+    });
+    const encoded = L.encodeSave(s0);
+    const s1 = dispatch(makeState(), A.IMPORT_SAVE, { data: encoded });
+    u.assertEqual(s1.gold, 5555, "gold imported");
+    u.assertEqual(s1.captainName, "Imported Captain", "captainName imported");
+  });
+
+  reg("E.SAVE.04", "IMPORT_SAVE: tampered data leaves state unchanged", (u) => {
+    const s0 = makePortState("portRoyal", { gold: 999 });
+    const encoded = L.encodeSave(s0);
+    const tampered = encoded.slice(0, -8) + "TAMPERED";
+    const s1 = dispatch(makeState(), A.IMPORT_SAVE, { data: tampered });
+    // State should remain the initial state (import rejected)
+    u.assert(s1.gold !== 999, "tampered save not loaded");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.MIGRATE — migrateState
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.MIG.01", "migrateState: adds onboarding object to old save", (u) => {
+    const oldSave = { gold: 100, ship: makeShip("sloop"), crew: { roster: [], morale: 80, max: 40 } };
+    const migrated = window.E.migrateState(oldSave);
+    u.assert(migrated.onboarding !== undefined, "onboarding added");
+    u.assert(migrated.onboarding.stepsCompleted !== undefined, "stepsCompleted added");
+  });
+
+  reg("E.MIG.02", "migrateState: adds career object to old save", (u) => {
+    const oldSave = { gold: 100, ship: makeShip("sloop"), crew: { roster: [], morale: 80, max: 40 } };
+    const migrated = window.E.migrateState(oldSave);
+    u.assert(migrated.career !== undefined, "career added");
+    u.assertEqual(migrated.career.goldEarned, 0, "career starts zeroed");
+  });
+
+  reg("E.MIG.03", "migrateState: adds daysWithoutFood / daysWithoutWater", (u) => {
+    const oldSave = { gold: 100, ship: makeShip("sloop"), crew: { roster: [], morale: 80, max: 40 } };
+    const migrated = window.E.migrateState(oldSave);
+    u.assertEqual(migrated.daysWithoutFood, 0, "daysWithoutFood added");
+    u.assertEqual(migrated.daysWithoutWater, 0, "daysWithoutWater added");
+  });
+
+  reg("E.MIG.04", "migrateState: existing fields preserved", (u) => {
+    const oldSave = {
+      gold: 1234,
+      fame: 77,
+      captainName: "Old Save Captain",
+      ship: makeShip("sloop"),
+      crew: { roster: [], morale: 80, max: 40 },
+    };
+    const migrated = window.E.migrateState(oldSave);
+    u.assertEqual(migrated.gold, 1234, "gold preserved");
+    u.assertEqual(migrated.fame, 77, "fame preserved");
+    u.assertEqual(migrated.captainName, "Old Save Captain", "captainName preserved");
+  });
+
+  reg("E.MIG.05", "migrateState: upgrades shape converted to equipment slots", (u) => {
+    // Simulate a pre-refactor save with upgrades field
+    const oldSave = {
+      gold: 100,
+      ship: {
+        type: "sloop",
+        name: "Old Ship",
+        hull: 100,
+        cannons: 10,
+        upgrades: ["reinforced_hull"],
+        // no equipment field
+      },
+      crew: { roster: [], morale: 80, max: 40 },
+    };
+    const migrated = window.E.migrateState(oldSave);
+    u.assert(migrated.ship.equipment !== undefined, "equipment field added");
+    u.assert(!migrated.ship.upgrades, "upgrades field removed or ignored");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // E.STATE — initialState shape completeness
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.STATE.01", "initialState has all required top-level fields", (u) => {
+    const s = window.E.initialState;
+    const required = [
+      "version", "screen", "day", "startDate", "log", "gold", "fame", "infamy",
+      "factionAlerts", "currentPort", "route", "captainName", "faction",
+      "tutorialMode", "onboarding", "autoSave", "completedCombatThisVisit",
+      "daysWithoutFood", "daysWithoutWater", "ship", "crew", "hold",
+      "missions", "activeMission", "reputation", "battleState", "activeEvent",
+      "encounterContext", "career", "equipmentInventory", "discoveredPorts",
+    ];
+    for (const field of required) {
+      u.assert(s.hasOwnProperty(field), `initialState missing field: ${field}`);
+    }
+  });
+
+  reg("E.STATE.02", "initialState onboarding has all step flags", (u) => {
+    const steps = window.E.initialState.onboarding.stepsCompleted;
+    const required = [
+      "contractsOpened", "firstContractAccepted", "marketOpened",
+      "provisionsAndGoodsBought", "mapOpened", "firstVoyageStarted",
+      "firstArrival", "firstContractDelivered", "crewOpened", "firstCrewHired",
+      "tutorialHuntAccepted", "tutorialHuntCompleted", "shipyardOpened",
+      "shipRepaired", "journalOpened",
+    ];
+    for (const step of required) {
+      u.assert(steps.hasOwnProperty(step), `onboarding.stepsCompleted missing: ${step}`);
+    }
+  });
+
+  reg("E.STATE.03", "initialState career has all tracking fields", (u) => {
+    const c = window.E.initialState.career;
+    const required = [
+      "goldEarned", "goldSpent", "battles", "shipsSunk", "shipsPlundered",
+      "crewHired", "crewLost", "crewDismissed", "longestCrewTenure",
+      "portsVisited", "shipsOwned", "stormsSurvived", "contrabandSeized",
+      "missionLog", "combatLog",
+    ];
+    for (const field of required) {
+      u.assert(c.hasOwnProperty(field), `career missing field: ${field}`);
+    }
+  });
+
+  reg("E.STATE.04", "initialState hold has no capacity field", (u) => {
+    // Architecture rule: hold.capacity must not exist; use L.getHoldCapacity(state) instead
+    u.assert(!window.E.initialState.hold.hasOwnProperty("capacity"),
+      "hold.capacity should not be on initialState");
+  });
+
+  reg("E.STATE.05", "initialState ship equipment is empty for all slots", (u) => {
+    const eq = window.E.initialState.ship.equipment;
+    u.assert(Array.isArray(eq.hull)      && eq.hull.length === 0,      "hull slot empty");
+    u.assert(Array.isArray(eq.armament)  && eq.armament.length === 0,  "armament slot empty");
+    u.assert(Array.isArray(eq.rigging)   && eq.rigging.length === 0,   "rigging slot empty");
+    u.assert(Array.isArray(eq.special)   && eq.special.length === 0,   "special slot empty");
+  });
+
+})();

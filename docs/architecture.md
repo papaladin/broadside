@@ -231,7 +231,7 @@ Port-related screens, port engine actions, and port-related generators are organ
 | Tool | Role |
 |---|---|
 | React 18 (CDN) | UI rendering |
-| Babel Standalone (CDN) | JSX → JS in-browser |
+| Babel Standalone (CDN) | JSX → JS in-browser (! use Babel 7.29, currently incompatible with Babel 8 and above)|
 | Vanilla JS (ES2020) | All game logic, engine, data |
 | localStorage | Save/load |
 | No build step | Files loaded via `<script>` tags in `index.html` |

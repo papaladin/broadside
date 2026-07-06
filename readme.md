@@ -112,11 +112,11 @@ Start a local server, then open:
 | Tool | URL | Purpose |
 |---|---|---|
 | **Unit & integration tests** | `tests/tests.html` | Logic, engine, flow, and UI tests |
-| **Balance dashboard** | `tests/tests_balance.html` | Reachability, economy, combat, patrol, trade, event, gossip checks |
-| **Economy simulator** | `tests/sim.html` | Monte Carlo economy simulation (6 strategies) |
-| **Crew lifecycle sim** | `tests/crew_sim.html` | Crew survival curves across 6 playstyles |
-| **Bio/log analyser** | `tests/crew_bio_log_sim.html` | Bio uniqueness and log pattern detection |
-| **Equipment combos** | `tests/equipment_combo_analyzer.html` | Equipment combination analysis and stat deltas |
+| **Balance dashboard** | `tools/tests_balance.html` | Reachability, economy, combat, patrol, trade, event, gossip checks |
+| **Economy simulator** | `tools/sim.html` | Monte Carlo economy simulation (6 strategies) |
+| **Crew lifecycle sim** | `tools/crew_sim.html` | Crew survival curves across 6 playstyles |
+| **Bio/log analyser** | `tools/crew_bio_log_sim.html` | Bio uniqueness and log pattern detection |
+| **Equipment combos** | `tools/equipment_combo_analyzer.html` | Equipment combination analysis and stat deltas |
 
 Tests run automatically in the browser.
 
