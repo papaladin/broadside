@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
     IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -155,7 +155,7 @@ window.S = window.S || {};
         )}
 
         {/* Section 1: Captain Identity */}
-        <div style={panelStyle({ borderColor: T.gold })}>
+        <Panel color={T.gold}>
           <div style={{ display: "flex", flexDirection: isNarrowStatus ? "column" : "row", gap: T.spacing.md, alignItems: isNarrowStatus ? "flex-start" : "center" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em" }}>Captain</div>
@@ -183,10 +183,10 @@ window.S = window.S || {};
               </div>
             </div>
           </div>
-        </div>
+        </Panel>
 
         {/* Section 2: Career Highlights */}
-        <div style={panelStyle()}>
+        <Panel>
           <SectionTitle>CAREER</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
             {highlights.map((line, i) => (
@@ -230,10 +230,10 @@ window.S = window.S || {};
               </div>
             </div>
           )}
-        </div>
+        </Panel>
 
         {/* Section 3: The World's View */}
-        <div style={panelStyle()}>
+        <Panel>
           <SectionTitle><IconHandshake size={14} color={T.gold} /> THE WORLD'S VIEW</SectionTitle>
           <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 10 }}>How each faction sees you, and how your crew aligns with them.</p>
           <div style={{ display: "grid", gridTemplateColumns: isNarrowStatus ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))", gap: T.spacing.md }}>
@@ -243,7 +243,7 @@ window.S = window.S || {};
               const { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct } = summary;
               const repColor = avgRep >= 60 ? T.greenBr : avgRep >= 30 ? T.gold : T.redBr;
               return (
-                <div key={factionKey} style={panelStyle({ background: T.panelAlt, borderLeft: `3px solid ${fac.color}`, padding: T.spacing.md })}>
+                <Panel key={factionKey} style={{ background: T.panelAlt }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                     <div>
                       <div style={{ color: fac.color, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{fac.label}</div>
@@ -277,14 +277,14 @@ window.S = window.S || {};
                        `${crewOfFaction} of ${totalCrew} crew (${crewPct}%) are ${fac.label}.`}
                     </div>
                   )}
-                </div>
+                </Panel>
               );
             })}
           </div>
           <p style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.6, marginTop: 10 }}>
             Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction. Heat decays naturally as you stay clear of trouble.
           </p>
-        </div>
+        </Panel>
       </div>
     );
   }
@@ -352,28 +352,30 @@ window.S = window.S || {};
           />
           {search && <div style={{ color: T.textFaint, fontSize: 9, marginTop: 4, textAlign: "right" }}>{filtered.length} entr{filtered.length === 1 ? "y" : "ies"} found</div>}
         </div>
-        <div style={{ ...panelStyle(), flex: 1, overflowY: "auto" }}>
-          {filtered.length === 0 ? <EmptyState message="No entries found." /> : (
-            filtered.map((entry, i) => {
-              const showDay = entry.day !== null && entry.day !== lastDay;
-              lastDay = entry.day;
-              return (
-                <React.Fragment key={i}>
-                  {showDay && <div style={{ color: T.textFaint, fontSize: 9, borderBottom: `1px solid ${T.borderFaint}`, marginTop: 12, marginBottom: 6, paddingBottom: 2 }}>Day {entry.day}</div>}
-                  <div style={{ fontSize: T.narrativeFontSize, color: T.textDim, lineHeight: T.narrativeLineHeight, marginBottom: 6, display: "flex", alignItems: "baseline", gap: 6 }}>
-                    {(() => {
-                      const categoryKey = L.classifyLogLine(entry.text);
-                      const LOG_ICONS = window.UI.LOG_ICONS || {};
-                      const IconComponent = categoryKey ? LOG_ICONS[categoryKey] : null;
-                      return IconComponent ? <IconComponent size={12} color={T.textDim} style={{ marginRight: 6, flexShrink: 0, verticalAlign: "middle" }} /> : null;
-                    })()}
-                    <span>{entry.text}</span>
-                  </div>
-                </React.Fragment>
-              );
-            })
-          )}
-        </div>
+        <Panel style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {filtered.length === 0 ? <EmptyState message="No entries found." /> : (
+              filtered.map((entry, i) => {
+                const showDay = entry.day !== null && entry.day !== lastDay;
+                lastDay = entry.day;
+                return (
+                  <React.Fragment key={i}>
+                    {showDay && <div style={{ color: T.textFaint, fontSize: 9, borderBottom: `1px solid ${T.borderFaint}`, marginTop: 12, marginBottom: 6, paddingBottom: 2 }}>Day {entry.day}</div>}
+                    <div style={{ fontSize: T.narrativeFontSize, color: T.textDim, lineHeight: T.narrativeLineHeight, marginBottom: 6, display: "flex", alignItems: "baseline", gap: 6 }}>
+                      {(() => {
+                        const categoryKey = L.classifyLogLine(entry.text);
+                        const LOG_ICONS = window.UI.LOG_ICONS || {};
+                        const IconComponent = categoryKey ? LOG_ICONS[categoryKey] : null;
+                        return IconComponent ? <IconComponent size={12} color={T.textDim} style={{ marginRight: 6, flexShrink: 0, verticalAlign: "middle" }} /> : null;
+                      })()}
+                      <span>{entry.text}</span>
+                    </div>
+                  </React.Fragment>
+                );
+              })
+            )}
+          </div>
+        </Panel>
       </div>
     );
   }

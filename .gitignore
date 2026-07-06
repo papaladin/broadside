@@ -3,4 +3,5 @@ Archive.zip
 tools/*.png
 feedbacks/
 *.log
+*.bak
 .vscode/

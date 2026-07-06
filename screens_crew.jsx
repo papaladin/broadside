@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { SHIPS, FACTIONS, PORTS } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip,
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip, Panel,
     IconCheers,IconAnchor, IconCannon, IconHammer, IconChefHat, IconCompass, IconShield } = window.UI;
   const G = window.G;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -39,27 +39,22 @@ window.S = window.S || {};
     const [selectedMember, setSelectedMember] = React.useState(null);
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"crew"));
 
-  // ── Bio cache: generated once per port visit, keyed by crew member id ──
-  const bioCache = React.useRef({});
+    const bioCache = React.useRef({});
+    React.useEffect(() => {
+      bioCache.current = {};
+    }, [state.currentPort]);
 
-  // Clear the cache when the port changes
-  React.useEffect(() => {
-    bioCache.current = {};
-  }, [state.currentPort]);
-
-  // Get bio for a member (cached per port visit)
-  const getCrewBio = (member) => {
-    if (!member) return "";
-    if (member.bio) return member.bio;
-    if (bioCache.current[member.id]) return bioCache.current[member.id];
-    if (typeof G.generateCrewBio === 'function') {
-      const newBio = G.generateCrewBio(member, state);
-      bioCache.current[member.id] = newBio;
-      return newBio;
-    }
-    return `${member.firstName} is a crew member.`;
-  };
-
+    const getCrewBio = (member) => {
+      if (!member) return "";
+      if (member.bio) return member.bio;
+      if (bioCache.current[member.id]) return bioCache.current[member.id];
+      if (typeof G.generateCrewBio === 'function') {
+        const newBio = G.generateCrewBio(member, state);
+        bioCache.current[member.id] = newBio;
+        return newBio;
+      }
+      return `${member.firstName} is a crew member.`;
+    };
 
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
@@ -85,7 +80,7 @@ window.S = window.S || {};
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: T.spacing.md }}>
           {/* ── ROSTER PANEL ──────────────────────────────── */}
-          <div style={panelStyle()}>
+          <Panel>
             <SectionTitle>ROSTER</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: T.spacing.sm, marginBottom: 10 }}>
               <StatBlock label="Aboard" value={`${state.crew.roster.length}/${state.crew.max}`} />
@@ -121,25 +116,24 @@ window.S = window.S || {};
                 <IconCheers size={12} color={T.greenBr} /> Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale
               </Btn>
             </div>
-          </div>
+          </Panel>
 
           {/* ── HIRE PANEL ────────────────────────────────── */}
-          <div style={panelStyle()}>
+          <Panel>
             <SectionTitle>HIRE</SectionTitle>
             <p style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
             {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
             </div>
             {open === 0 && <EmptyState message="Ship is at full capacity." />}
-          </div>
+          </Panel>
 
           {/* ── CREW DETAIL / LEGEND PANEL ────────────────── */}
-          <div style={panelStyle()}>
+          <Panel>
             <SectionTitle>CREW DETAILS</SectionTitle>
             {selectedMember ? (
               (() => {
                 const visibleTags = (selectedMember.tags || []).filter(t => !t.startsWith("hidden_"));
-
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -152,7 +146,6 @@ window.S = window.S || {};
                       <div>Faction: <span style={{ color: FACTIONS[selectedMember.faction]?.color || T.text }}>{FACTIONS[selectedMember.faction]?.label || selectedMember.faction}</span></div>
                       <div>Role: {selectedMember.role}</div>
                       <div>Days aboard: {selectedMember.daysAboard ?? 0}</div>
-
                       {visibleTags.length > 0 && (
                         <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
                           {visibleTags.map(tag => {
@@ -180,7 +173,6 @@ window.S = window.S || {};
                           })}
                         </div>
                       )}
-
                       <div style={{ marginTop: 8, color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, fontStyle: "italic" }}>
                         {getCrewBio(selectedMember)}
                       </div>
@@ -204,11 +196,11 @@ window.S = window.S || {};
                 Click on any crew member icon for details.
               </div>
             )}
-          </div>
+          </Panel>
         </div>
 
         {/* ── MANIFEST ───────────────────────────────────── */}
-        <div style={{ ...panelStyle() }}>
+        <Panel>
           <SectionTitle>MANIFEST</SectionTitle>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {state.crew.roster.map(member => {
@@ -242,7 +234,6 @@ window.S = window.S || {};
                     position: "relative",
                   }}
                 >
-                  {/* Render role icon here */}
                   <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {getRoleIcon(member.role)}
                   </span>
@@ -262,7 +253,7 @@ window.S = window.S || {};
               );
             })}
           </div>
-        </div>
+        </Panel>
       </div>
     );
   }

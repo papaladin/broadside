@@ -1,3 +1,9 @@
+### 2026‑07‑06
+- **GUI improvement**: Rework of pannel and buttons borders to have a plank/hand-drawed style more fitting the game.
+- **Backend cleaning** to improve testability.
+
+
+
 ### 2026‑07‑02
 - **Menu screen**: a Menu button on the port screen opens a modal with Save, Load, Export, Import, Start New Game (with confirmation), and an autosave toggle.
 - **Captain's Handbook**: quick in-game reference covering all stats, hidden mechanics, mission types, and crew traits — opens in a new tab.

@@ -16,7 +16,7 @@ window.S = window.S || {};
   const A = window.E.A;
   const {
     T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState,
-    TutorialPopup, BackButton,
+    TutorialPopup, BackButton, Panel,
     IconSailboat, IconAnchor, IconSwords, IconCannon, IconTarget,
     IconGrapple, IconWind, IconSkull,
     getGoodIcon, useFlashOnChange,
@@ -73,10 +73,7 @@ const getVisualEquipment = (state) => {
         flex: 1, padding: T.spacing.xl,
         background: `radial-gradient(ellipse at 50% 40%, #0a1828 0%, ${T.bg} 70%)`,
       }}>
-        <div style={{
-          ...panelStyle({ maxWidth: 500, width: "100%" }),
-          borderColor: typeColor[ev.type] ?? T.border,
-        }}>
+        <Panel color={typeColor[ev.type] ?? T.border} style={{ maxWidth: 500, width: "100%" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Pill label={ev.type} color={typeColor[ev.type] ?? T.textDim} />
             <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Day {state.day}</span>
@@ -90,19 +87,19 @@ const getVisualEquipment = (state) => {
           }}>{ev.desc}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
             {ev.choices.map((c, i) => (
-              <div
+              <Panel
                 key={i}
+                style={{ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }}
                 onClick={() => dispatch({ type: A.RESOLVE_EVENT, choiceIndex: i })}
-                style={{ ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }) }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr}
                 onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
               >
                 <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 3 }}>{c.label}</div>
                 <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{c.outcome.log}</div>
-              </div>
+              </Panel>
             ))}
           </div>
-        </div>
+        </Panel>
       </div>
     );
   }
@@ -120,11 +117,11 @@ const getVisualEquipment = (state) => {
           ⚠ ENCOUNTER
         </div>
 
-        <div style={panelStyle({ borderColor: T.borderBr })}>
+        <Panel color={T.borderBr}>
           <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{flavourText}</p>
-        </div>
+        </Panel>
 
-        <div style={panelStyle()}>
+        <Panel>
           <div style={{ color: T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 8 }}>
             {enemy.name}
             <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.captionFontSize }}>
@@ -147,9 +144,9 @@ const getVisualEquipment = (state) => {
           <div style={{ marginTop: 8 }}>
             <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={10} />
           </div>
-        </div>
+        </Panel>
 
-        <div style={panelStyle()}>
+        <Panel>
           <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, letterSpacing: "0.08em" }}>
             CHOOSE YOUR RESPONSE:
           </div>
@@ -179,7 +176,7 @@ const getVisualEquipment = (state) => {
               )}
             </div>
           ))}
-        </div>
+        </Panel>
       </div>
     );
   };
@@ -214,7 +211,6 @@ const getVisualEquipment = (state) => {
       prevLogLen.current = newLen;
     }, [state.battleState?.log?.length]);
 
-    // ── Responsive breakpoint for sprites ────────────────────────
     const [isNarrowBattle, setIsNarrowBattle] = React.useState(window.innerWidth < 700);
     React.useEffect(() => {
       const handle = () => setIsNarrowBattle(window.innerWidth < 700);
@@ -256,7 +252,6 @@ const getVisualEquipment = (state) => {
 
         {/* ── Ship panels with sprites ────────────────────────────── */}
         {(() => {
-          // Resolve ship types and visual configs for proportional sizing
           const playerType = state.ship.type;
           const enemyType = L.guessShipType(bs.enemy);
           const playerVisual = window.D.SHIP_VISUALS?.[playerType];
@@ -268,14 +263,13 @@ const getVisualEquipment = (state) => {
           const playerSize = playerLen / maxLen;
           const enemySize = enemyLen / maxLen;
 
-          // Responsive sprite canvas size
           const baseW = isNarrowBattle ? 150 : 270;
           const baseH = isNarrowBattle ? 100 : 175;
 
           return (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "stretch" }}>
               {/* Player ship panel */}
-              <div style={panelStyle({ borderColor: T.blueBr, padding: 8 })}>
+              <Panel color={T.blueBr} style={{ padding: 8 }}>
                 <div style={{
                   background: T.bgDeep,
                   borderRadius: 3,
@@ -306,13 +300,12 @@ const getVisualEquipment = (state) => {
                   </>
                 )}
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
-              </div>
+              </Panel>
 
-              {/* Lightning bolt center */}
               <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
 
               {/* Enemy ship panel */}
-              <div style={panelStyle({ borderColor: T.red, padding: 8 })}>
+              <Panel color={T.red} style={{ padding: 8 }}>
                 <div style={{
                   background: T.bgDeep,
                   borderRadius: 3,
@@ -338,12 +331,11 @@ const getVisualEquipment = (state) => {
                 <Bar value={bs.enemyHull} max={bs.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
                 <div style={{ marginTop: 5 }}><FactionPill faction={bs.enemy.faction} /></div>
-              </div>
+              </Panel>
             </div>
           );
         })()}
 
-        {/* Landscape suggestion for very narrow screens */}
         {isNarrowBattle && window.innerWidth < 400 && (
           <div style={{
             fontSize: 9,
@@ -357,21 +349,23 @@ const getVisualEquipment = (state) => {
         )}
 
         {/* ── Log panel ──────────────────────────────────────────── */}
-        <div className={missFlash ? 'miss-flash-border' : ''} style={{
-          ...panelStyle({ background: T.bgDeep, height: 130, overflowY: "auto" }),
-        }}>
-          {[...bs.log].reverse().map((e, i) => {
-            const isLatest = i === 0;
-            const isMissFlash = isLatest && missFlash && isPlayerMissOrFail(e);
-            return (
-              <div key={i} className={isMissFlash ? 'flash-red' : ''} style={{
-                color: isLatest ? T.text : T.textDim,
-                fontSize: T.narrativeFontSize,
-                marginBottom: 3,
-                lineHeight: T.narrativeLineHeight,
-              }}>{e}</div>
-            );
-          })}
+        <div className={missFlash ? 'miss-flash-border' : ''}>
+          <Panel style={{ background: T.bgDeep, display: "flex", flexDirection: "column" }}>
+            <div style={{ height: 130, overflowY: "auto" }}>
+              {[...bs.log].reverse().map((e, i) => {
+                const isLatest = i === 0;
+                const isMissFlash = isLatest && missFlash && isPlayerMissOrFail(e);
+                return (
+                  <div key={i} className={isMissFlash ? 'flash-red' : ''} style={{
+                    color: isLatest ? T.text : T.textDim,
+                    fontSize: T.narrativeFontSize,
+                    marginBottom: 3,
+                    lineHeight: T.narrativeLineHeight,
+                  }}>{e}</div>
+                );
+              })}
+            </div>
+          </Panel>
         </div>
 
         {!done ? (
@@ -388,16 +382,14 @@ const getVisualEquipment = (state) => {
                 { a: "grapple",   label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple",   desc: "Board them. Requires crew advantage.", glow: T.blueBr },
                 { a: "evade",     label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade",     desc: "Flee if faster. Reduced incoming fire.", glow: T.greenBr },
               ].map(({ a, label, lbl, desc, glow }) => (
-                <div
+                <Panel
                   key={a}
                   className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
+                  style={{ background: T.panelAlt, cursor: "pointer", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s" }}
                   onClick={() => {
                     dispatch({ type: A.BATTLE_ACTION, action: a });
                     setPulsedAction(a);
                     setTimeout(() => setPulsedAction(null), 150);
-                  }}
-                  style={{
-                    ...panelStyle({ background: T.panelAlt, cursor: "pointer", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s" }),
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = T.borderBr;
@@ -414,7 +406,7 @@ const getVisualEquipment = (state) => {
                     {label}{lbl}
                   </div>
                   <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
-                </div>
+                </Panel>
               ))}
             </div>
           </div>
@@ -477,7 +469,6 @@ const getVisualEquipment = (state) => {
     const used = Object.values(playerItems).reduce((s, q) => s + q, 0);
     const free = Math.max(0, holdCapacity - used);
 
-    // ── Compute total value ───────────────────────────────────────
     const goodsValue = Object.entries(enemyItems).reduce((sum, [good, qty]) => {
       const res = window.D.RESOURCES[good];
       const price = res?.basePrice ?? 0;
@@ -487,7 +478,6 @@ const getVisualEquipment = (state) => {
 
     const totalFlash = useFlashOnChange(totalValue, { direction: 'up' });
 
-    // Illegal goods warning
     const hasIllegal = Object.keys(enemyItems).some(
       g => window.D.RESOURCES[g]?.illegal
     );
@@ -539,7 +529,7 @@ const getVisualEquipment = (state) => {
         </div>
 
         {/* ── Top summary panel ──────────────────────────────────── */}
-        <div style={panelStyle()}>
+        <Panel>
           <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
               <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase" }}>Plunder gold</div>
@@ -566,7 +556,7 @@ const getVisualEquipment = (state) => {
               ⚠ Illegal goods detected — patrols may inspect
             </div>
           )}
-        </div>
+        </Panel>
 
         {/* ── Two‑column transfer layout ─────────────────────────── */}
         <TransferLayout
@@ -631,14 +621,14 @@ const getVisualEquipment = (state) => {
         />
 
         {/* ── Confirm ────────────────────────────────────────────── */}
-        <div style={panelStyle({ textAlign: "center" })}>
+        <Panel style={{ textAlign: "center" }}>
           <div style={{ color: T.gold, fontSize: T.heading3FontSize, marginBottom: 10 }}>
             Plunder gold: +{goldReward}g
           </div>
           <Btn v="gold" onClick={handleConfirm} style={{ fontSize: T.heading3FontSize, padding: "8px 20px" }}>
             Confirm Plunder
           </Btn>
-        </div>
+        </Panel>
       </div>
     );
   }

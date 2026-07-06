@@ -82,14 +82,72 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
     return () => window.removeEventListener("resize", handle);
   }, []);
 
-  const Cell = ({ label, tip, children }) => (
-    <div title={tip} style={{ border: `1px solid ${T.borderFaint}`, background: "rgba(255,255,255,0.015)",
-      padding: "4px 6px 5px", minWidth: 0 }}>
-      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
-        color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
-      {children}
-    </div>
-  );
+  // ── Rough border for each cell (single stroke, like Btn/Pill) ──
+  const Cell = ({ label, tip, children }) => {
+    const [dims, setDims] = React.useState({ w: 0, h: 0 });
+    const ref = React.useRef(null);
+    const jitter = React.useRef(null);
+    if (!jitter.current) {
+      jitter.current = Array.from({ length: 8 }, () => (Math.random() - 0.5) * 2.5);
+    }
+    const j = (i) => jitter.current[i];
+
+    React.useLayoutEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+      const obs = new ResizeObserver(() => {
+        setDims({ w: el.offsetWidth, h: el.offsetHeight });
+      });
+      obs.observe(el);
+      return () => obs.disconnect();
+    }, []);
+
+    const { w, h } = dims;
+    const pad = 4;
+    const path = w > 0 && h > 0 ? [
+      `M ${j(0)} ${j(1)}`,
+      `L ${w + j(2)} ${j(3)}`,
+      `L ${w + j(4)} ${h + j(5)}`,
+      `L ${j(6)} ${h + j(7)}`,
+      `Z`
+    ].join(' ') : '';
+
+    return (
+      <div
+        ref={ref}
+        title={tip}
+        style={{
+          position: "relative",
+          background: "rgba(255,255,255,0.015)",
+          padding: "4px 6px 5px",
+          minWidth: 0,
+        }}
+      >
+        {path && (
+          <svg
+            style={{
+              position: "absolute",
+              top: -pad, left: -pad,
+              width: w + pad * 2, height: h + pad * 2,
+              overflow: "visible",
+              pointerEvents: "none",
+            }}
+          >
+            <g transform={`translate(${pad}, ${pad})`}>
+              <path d={path} fill="none" stroke={T.borderFaint} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </svg>
+        )}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.7px",
+            color: T.textDim, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden" }}>{label}</div>
+          {children}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Value component ──────────────────────────────────────────────
   const Val = ({ children, color, small, className = "" }) => (
     <div className={className} style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: color || T.text, lineHeight: 1 }}>{children}</div>
   );
@@ -144,53 +202,91 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
   };
 
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 100,
-      background: "linear-gradient(180deg, #1e1812, #161210)",
-      borderBottom: `1px solid ${T.border}`, padding: "5px 8px",
-      fontFamily: T.font, boxShadow: "0 6px 18px rgba(0,0,0,0.4)" }}>
+    <div
+      style={{
+        position: "sticky", top: 0, zIndex: 100,
+        // No background or padding here — we'll put them on the inner container
+        padding: 0,
+        fontFamily: T.font,
+        boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+        overflow: "visible", // allow border to extend below
+      }}
+    >
+      {/* Inner container with background and content */}
+      <div style={{
+        background: "linear-gradient(180deg, #1e1812, #161210)",
+        padding: "5px 8px 6px", // reduced bottom padding to give room for border
+      }}>
+        {isNarrowHUD ? (
+          <>
+            {renderCellRow(cells.slice(0, 5), 5)}
+            {renderCellRow(cells.slice(5), cells.length - 5)}
+            {isDebug && (
+              <div style={{ textAlign: "right", marginTop: 4 }}>
+                <button onClick={() => setDebugOpen(v => !v)}
+                  style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                    padding: "2px 6px", borderRadius: 2, cursor: "pointer",
+                    fontSize: T.captionFontSize, fontFamily: T.fontMono }}>
+                  ⚙
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={wideGridStyle}>
+            {cells.map((c, i) => (
+              <Cell key={i} label={c.label} tip={c.tip}>{c.content}</Cell>
+            ))}
+            {isDebug && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <button onClick={() => setDebugOpen(v => !v)}
+                  style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
+                    padding: "2px 6px", borderRadius: 2, cursor: "pointer",
+                    fontSize: T.captionFontSize, fontFamily: T.fontMono, width: "100%", height: "100%" }}>
+                  ⚙
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-      {isNarrowHUD ? (
-        <>
-          {renderCellRow(cells.slice(0, 5), 5)}
-          {renderCellRow(cells.slice(5), cells.length - 5)}
-          {isDebug && (
-            <div style={{ textAlign: "right", marginTop: 4 }}>
-              <button onClick={() => setDebugOpen(v => !v)}
-                style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
-                  padding: "2px 6px", borderRadius: 2, cursor: "pointer",
-                  fontSize: T.captionFontSize, fontFamily: T.fontMono }}>
-                ⚙
-              </button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div style={wideGridStyle}>
-          {cells.map((c, i) => (
-            <Cell key={i} label={c.label} tip={c.tip}>{c.content}</Cell>
-          ))}
-          {isDebug && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <button onClick={() => setDebugOpen(v => !v)}
-                style={{ background: T.panel, border: `1px solid ${T.gold}`, color: T.gold,
-                  padding: "2px 6px", borderRadius: 2, cursor: "pointer",
-                  fontSize: T.captionFontSize, fontFamily: T.fontMono, width: "100%", height: "100%" }}>
-                ⚙
-              </button>
-            </div>
-          )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginTop: 3, fontSize: T.captionFontSize, color: T.textDim, paddingLeft: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
+            {currentPort && (
+              <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
+                {currentPort.name}
+              </span>
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginTop: 3, fontSize: T.captionFontSize, color: T.textDim, paddingLeft: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
-          {currentPort && (
-            <span style={{ color: FACTIONS[currentPort.faction]?.color || T.textDim, fontWeight: 700 }}>
-              {currentPort.name}
-            </span>
-          )}
-        </div>
+      {/* ── Bottom double‑stroke border (hand‑drawn style) ──────────── */}
+      <div style={{
+        position: "relative",
+        height: 4,
+        width: "100%",
+        marginTop: 0, // no extra spacing – sits directly below inner container
+      }}>
+        {/* First stroke: horizontal, solid, full opacity */}
+        <div style={{
+          position: "absolute",
+          left: 0, right: 0, top: 0,
+          height: 1.5,
+          background: T.border,
+          opacity: 0.9,
+        }} />
+        {/* Second stroke: sloped and offset, slightly lower opacity */}
+        <div style={{
+          position: "absolute",
+          left: 0, right: 0, top: 2,
+          height: 1.5,
+          background: T.border,
+          opacity: 0.7,
+          transform: "skewX(-1.5deg)",
+          transformOrigin: "left center",
+        }} />
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES, QM_DIALOGUE } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
+  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
   IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette, IconCoins, IconAttention, } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -60,7 +60,7 @@ function PortScreen({ state, dispatch }) {
       flexDirection: isNarrow ? "column" : "row",
       gap: T.spacing.md,
       padding: T.spacing.lg,
-      overflowY: "auto",
+      //overflowY: "auto",
       flex: 1,
       alignItems: "stretch",
     }}>
@@ -91,10 +91,10 @@ function PortScreen({ state, dispatch }) {
         flexDirection: "column",
         gap: T.spacing.md,
         minWidth: 280,
-        overflowY: "auto",
+        //overflowY: "auto",
       }}>
         {/* Port header + description + gossip */}
-        <div style={panelStyle()}>
+        <Panel>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
             <div>
               <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold" }}>{port.name}</div>
@@ -111,7 +111,8 @@ function PortScreen({ state, dispatch }) {
           </p>
 
           {state.portGossip?.length > 0 && (
-<NarrativePanel title={<><IconTalking size={14} color={T.gold} /> WORD ON THE DOCKS</>} variant="gossip">              {state.portGossip.map((line, i) => (
+            <NarrativePanel title={<><IconTalking size={14} color={T.gold} /> WORD ON THE DOCKS</>} variant="gossip">
+              {state.portGossip.map((line, i) => (
                 <NarrativeLine key={i}>{line}</NarrativeLine>
               ))}
             </NarrativePanel>
@@ -120,11 +121,16 @@ function PortScreen({ state, dispatch }) {
           {perk.servicesBlocked && (
             <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
           )}
-        </div>
+        </Panel>
 
       {/* Action buttons */}
-      <div style={panelStyle()}>
-        <SectionTitle>ACTIONS</SectionTitle>
+      <Panel>
+        <SectionTitle action= {
+        <Tooltip text="Manage your game and access community links.">
+          <Btn v="ghost" onClick={() => setMenuOpen(true)}>Game Menu</Btn>
+        </Tooltip> }
+  >
+        ACTIONS</SectionTitle>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           {canNavigation && (
             <Tooltip text="Open your chart and choose your next destination.">
@@ -168,16 +174,14 @@ function PortScreen({ state, dispatch }) {
             )}
           </>
         )}
-        <Tooltip text="Manage your game and access community links.">
-          <Btn v="ghost" onClick={() => setMenuOpen(true)}>Menu</Btn>
-        </Tooltip>
+        
       
          <div style={{ marginTop: 8 }}>
         </div>
-      </div>
+      </Panel>
 
         {/* Mission board */}
-        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1 })}>
+        <Panel style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           <SectionTitle action={
             <Tooltip text="Check for new missions posted at this port.">
               <Btn sm v="ghost" onClick={() => dispatch({ type: A.REFRESH_MISSIONS })}>Refresh</Btn>
@@ -193,7 +197,7 @@ function PortScreen({ state, dispatch }) {
             </div>
           )}
           {state.activeMission && (
-            <div style={panelStyle({ background: "T.greenBg", borderColor: T.greenBr, marginTop: 6 })}>
+            <Panel color={T.greenBr} style={{ background: T.greenBg, marginTop: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ color: T.greenBr, fontSize: T.metadataFontSize, fontWeight: "bold" }}>ACTIVE: {state.activeMission.name}</span>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -263,7 +267,6 @@ function PortScreen({ state, dispatch }) {
                 <Tooltip text={state.activeMission?.tutorial ? "You must complete this mission to continue." : "Abandon your current mission. You will lose reputation with the issuing faction."}>
                   <Btn v="ghost" sm onClick={() => {
                     if (state.activeMission?.tutorial && state.onboarding?.enabled && !state.onboarding?.completed) {
-                      // Show QM popup telling player they can't abandon the tutorial
                       const qm = state.crew?.roster?.find(m => (m.tags || []).includes('quartermaster'));
                       const qmName = qm ? `${qm.firstName} ${qm.lastName}` : 'Quartermaster';
                       const msg = QM_DIALOGUE?.tutorialAbandonRefuse
@@ -281,16 +284,16 @@ function PortScreen({ state, dispatch }) {
                   Sail to {PORTS[state.activeMission.targetPort]?.name} to complete.
                 </div>
               )}
-            </div>
+            </Panel>
           )}
           {!port.services.includes("missions") ? (
             <EmptyState message="No mission board in this port." />
           ) : state.missions.length === 0 ? (
             <EmptyState message="No missions posted. Try refreshing." />
           ) : (
-            <div style={{ overflowY: "auto", flex: 1 }}>
+            <div style={{ overflowY: "auto", flex: 1, padding: "3px"  }}>
               {state.missions.map((m, i) => (
-                <div key={i} style={{ ...panelStyle({ background: T.panelAlt, marginBottom: 8 }), opacity: state.activeMission ? 0.55 : 1 }}>
+                <Panel key={i} style={{ background: T.panelAlt, marginBottom: 8, opacity: state.activeMission ? 0.55 : 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                     <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{m.name}</span>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -394,11 +397,11 @@ function PortScreen({ state, dispatch }) {
                       <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
                     </Tooltip>
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
           )}
-        </div>
+        </Panel>
       </div>
 
       {/* ── Column 2: Captain's Log ──────────────────────────── */}
@@ -408,10 +411,12 @@ function PortScreen({ state, dispatch }) {
         flexDirection: "column",
         minWidth: 240,
       }}>
-        <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
+        <Panel style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           <SectionTitle>CAPTAIN'S LOG</SectionTitle>
-          <LogList entries={state.log} />
-        </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <LogList entries={state.log} />
+          </div>
+        </Panel>
       </div>
 
       {/* ── QM Popup for tutorial abandon refusal ───────────────── */}

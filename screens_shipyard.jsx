@@ -6,7 +6,7 @@ const { useState, useEffect, useMemo } = React;
 const { SHIPS, EQUIPMENT, PORTS } = window.D;
 const L = window.L;
 const A = window.E.A;
-const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton,
+const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Panel,
     IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip,ShipSideSprite,
 } = window.UI;
 const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -117,7 +117,7 @@ function ShipyardScreen({ state, dispatch }) {
             const canAfford = state.gold >= totalCost;
 
             return (
-                <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
+                <Panel color={T.gold} style={{ marginBottom: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
                         <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
                             {isFromLocker
@@ -163,7 +163,7 @@ function ShipyardScreen({ state, dispatch }) {
                             {isFromLocker ? `Install (${item.installFee}g)` : `Buy & Install (${totalCost}g)`}
                         </Btn>
                     )}
-                </div>
+                </Panel>
             );
         }
 
@@ -175,7 +175,7 @@ function ShipyardScreen({ state, dispatch }) {
             const lack = shipReq.allowed && state.gold < s.cost ? s.cost - state.gold : 0;
 
             return (
-                <div style={panelStyle({ borderColor: T.gold, marginBottom: 10 })}>
+                <Panel color={T.gold} style={{ marginBottom: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
                         <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
                             <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
@@ -253,7 +253,7 @@ function ShipyardScreen({ state, dispatch }) {
                             Purchase ({s.cost.toLocaleString()}g)
                         </Btn>
                     )}
-                </div>
+                </Panel>
             );
         }
 
@@ -287,7 +287,7 @@ function ShipyardScreen({ state, dispatch }) {
                     facing="left"
                 />
             </div>
-            <div style={panelStyle()}>
+            <Panel>
                 <SectionTitle>CURRENT VESSEL — {state.ship.name}</SectionTitle>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                     <StatBlock label="Hull" value={`${state.ship.hull}/${effectiveStats.maxHull}`} />
@@ -297,9 +297,9 @@ function ShipyardScreen({ state, dispatch }) {
                     <StatBlock label="Hold" value={effectiveStats.holdCapacity} />
                     <StatBlock label="Max Days" value={effectiveStats.maxDays} />
                 </div>
-            </div>
+            </Panel>
 
-            <div style={panelStyle()}>
+            <Panel>
                 <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
                     Hull: {state.ship.hull} / {effectiveStats.maxHull}
                 </div>
@@ -317,9 +317,9 @@ function ShipyardScreen({ state, dispatch }) {
                         Full Repair ({repCost}g)
                     </Btn>
                 </div>
-            </div>
+            </Panel>
 
-            <div style={panelStyle()}>
+            <Panel>
                 <div
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isNarrow ? "pointer" : "default" }}
                     onClick={() => isNarrow && setEquippedOpen(v => !v)}
@@ -374,7 +374,7 @@ function ShipyardScreen({ state, dispatch }) {
                         })}
                     </div>
                 )}
-            </div>
+            </Panel>
         </div>
     );
 
@@ -415,23 +415,23 @@ function ShipyardScreen({ state, dispatch }) {
                     gap: T.spacing.sm,
                     maxHeight: isNarrow ? "none" : 420,
                     overflowY: isNarrow ? "visible" : "auto",
+                    padding: "3px",
                     paddingRight: isNarrow ? 0 : 4,
                 }}>
                     {shopItems.map(item => {
                         const isSelected = selectedEquip === item.key;
                         const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
                         return (
-                            <div key={item.key}
-                                onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+                            <Panel key={item.key}
+                                color={isSelected ? T.gold : undefined}
                                 style={{
-                                    ...panelStyle({
-                                        background: isSelected ? T.panelAlt : T.panel,
-                                        borderColor: isSelected ? T.gold : T.border,
-                                        cursor: "pointer",
-                                        transition: "border-color 0.15s",
-                                    }),
+                                    background: isSelected ? T.panelAlt : T.panel,
+                                    cursor: "pointer",
+                                    transition: "border-color 0.15s",
                                     opacity: item.validation.ok ? 1 : 0.55,
-                                }}>
+                                }}
+                                onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+                            >
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                     <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
                                     <span style={{ color: T.gold, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
@@ -451,7 +451,7 @@ function ShipyardScreen({ state, dispatch }) {
                                 {!item.validation.ok && (
                                     <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
                                 )}
-                            </div>
+                            </Panel>
                         );
                     })}
                 </div>
@@ -467,6 +467,7 @@ function ShipyardScreen({ state, dispatch }) {
                 gap: T.spacing.sm,
                 maxHeight: isNarrow ? "none" : 500,
                 overflowY: isNarrow ? "visible" : "auto",
+                padding: "3px",
                 paddingRight: isNarrow ? 0 : 4,
             }}>
                 {Object.entries(SHIPS).map(([key, s]) => {
@@ -475,22 +476,21 @@ function ShipyardScreen({ state, dispatch }) {
                     const isSelected = selectedShip === key;
 
                     return (
-                        <div key={key}
+                        <Panel key={key}
+                            color={isCur ? T.greenBr : (isSelected ? T.gold : undefined)}
+                            style={{
+                                background: isCur ? T.greenBg : (isSelected ? T.panelAlt : T.panel),
+                                cursor: isCur ? "default" : "pointer",
+                                transition: "border-color 0.15s",
+                                opacity: shipReq.allowed ? 1 : 0.55,
+                            }}
                             onClick={() => {
                                 if (!isCur) {
                                     setSelectedShip(isSelected ? null : key);
                                     setSelectedShipName(SHIPS[key].name);
                                 }
                             }}
-                            style={{
-                                ...panelStyle({
-                                    background: isCur ? T.greenBg : (isSelected ? T.panelAlt : T.panel),
-                                    borderColor: isCur ? T.greenBr : (isSelected ? T.gold : T.border),
-                                    cursor: isCur ? "default" : "pointer",
-                                    transition: "border-color 0.15s",
-                                }),
-                                opacity: shipReq.allowed ? 1 : 0.55,
-                            }}>
+                        >
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                 <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{s.name}</span>
                                 {isCur
@@ -507,7 +507,7 @@ function ShipyardScreen({ state, dispatch }) {
                             {!shipReq.allowed && (
                                 <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {shipReq.reason}</div>
                             )}
-                        </div>
+                        </Panel>
                     );
                 })}
             </div>
@@ -526,23 +526,23 @@ function ShipyardScreen({ state, dispatch }) {
                 gap: T.spacing.sm,
                 maxHeight: isNarrow ? "none" : 420,
                 overflowY: isNarrow ? "visible" : "auto",
+                padding: "3px",
                 paddingRight: isNarrow ? 0 : 4,
             }}>
                 {lockerItems.map(item => {
                     const isSelected = selectedEquip === item.key;
                     const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
                     return (
-                        <div key={item.key}
-                            onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+                        <Panel key={item.key}
+                            color={isSelected ? T.gold : undefined}
                             style={{
-                                ...panelStyle({
-                                    background: isSelected ? T.panelAlt : T.panel,
-                                    borderColor: isSelected ? T.gold : T.border,
-                                    cursor: "pointer",
-                                    transition: "border-color 0.15s",
-                                }),
+                                background: isSelected ? T.panelAlt : T.panel,
+                                cursor: "pointer",
+                                transition: "border-color 0.15s",
                                 opacity: item.validation.ok ? 1 : 0.55,
-                            }}>
+                            }}
+                            onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+                        >
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                 <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
                                 <span style={{ color: T.textDim, fontSize: 9 }}>Install: {item.installFee}g</span>
@@ -559,7 +559,7 @@ function ShipyardScreen({ state, dispatch }) {
                             {!item.validation.ok && (
                                 <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
                             )}
-                        </div>
+                        </Panel>
                     );
                 })}
             </div>

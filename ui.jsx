@@ -65,7 +65,7 @@ const T = {
 const panelStyle = (overrides = {}) => {
   const variant = overrides.variant || "default";
   const variantStyles = {
-    default: { border: `1px solid ${T.border}` },
+    default: { border: `1px solid ${T.borderBr}` },
     danger:  { border: `1px solid ${T.redBr}` },
     gold:    { border: `1px solid ${T.gold}` },
     subtle:  { border: `1px solid ${T.borderFaint}` },
@@ -77,6 +77,7 @@ const panelStyle = (overrides = {}) => {
     padding: T.spacing.md,
     color: T.text,
     boxSizing: 'border-box',
+    //filter: "url(#rough-l2)", 
     ...variantStyles[variant],
     ...rest,
   };
@@ -92,28 +93,78 @@ const Btn = ({ children, onClick, disabled, v = "default", sm = false, style = {
     blue:    { bg: "linear-gradient(180deg, #243948, #1d2d38)", border: T.blueBr, color: T.blueBr },
   };
   const { bg, border, color } = variants[v] || variants.default;
-  const glow = glowColor || T.gold;   // default glow = gold
+  const glow = glowColor || T.gold;
+
+  // ── Rough border (single‑stroke, like Pill) ──────────────────────
+  const [dims, setDims] = React.useState({ w: 0, h: 0 });
+  const ref = React.useRef(null);
+  const jitter = React.useRef(null);
+  if (!jitter.current) {
+    jitter.current = Array.from({ length: 8 }, () => (Math.random() - 0.5) * 2.2);
+  }
+  const j = (i) => jitter.current[i];
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      setDims({ w: el.offsetWidth, h: el.offsetHeight });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const { w, h } = dims;
+  const path = w > 0 && h > 0 ? [
+    `M ${j(0)} ${j(1)}`,
+    `L ${w + j(2)} ${j(3)}`,
+    `L ${w + j(4)} ${h + j(5)}`,
+    `L ${j(6)} ${h + j(7)}`,
+    `Z`
+  ].join(' ') : '';
 
   return (
     <button
+      ref={ref}
       onClick={onClick}
       disabled={disabled}
       className={`${className} btn-hover-glow btn-click-pulse`}
       style={{
-        background: bg, border: `1px solid ${border}`, color: color,
-        padding: sm ? "4px 8px" : "8px 12px", borderRadius: 2,
+        position: "relative",
+        background: bg,
+        border: "none",               // CSS border removed – SVG does the job
+        color: color,
+        padding: sm ? "4px 8px" : "8px 12px",
+        borderRadius: 2,
         cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: sm ? 11 : 13, opacity: disabled ? 0.5 : 1,
-        fontFamily: T.font, minHeight: T.btnMinHeight,
-        touchAction: 'manipulation',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-        letterSpacing: '0.2px',
-        '--btn-glow': `rgba(${parseInt(glow.slice(1,3),16)}, ${parseInt(glow.slice(3,5),16)}, ${parseInt(glow.slice(5,7),16)}, 0.4)`,
-        ...style
+        fontSize: sm ? 11 : 13,
+        opacity: disabled ? 0.5 : 1,
+        fontFamily: T.font,
+        minHeight: T.btnMinHeight,
+        touchAction: "manipulation",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+        letterSpacing: "0.2px",
+        "--btn-glow": `rgba(${parseInt(glow.slice(1,3),16)}, ${parseInt(glow.slice(3,5),16)}, ${parseInt(glow.slice(5,7),16)}, 0.4)`,
+        ...style,
       }}
       {...rest}
     >
-      {children}
+      {path && (
+        <svg
+          style={{
+            position: "absolute",
+            top: -2, left: -2,
+            width: w + 4, height: h + 4,
+            overflow: "visible",
+            pointerEvents: "none",
+          }}
+        >
+          <g transform="translate(2, 2)">
+            <path d={path} fill="none" stroke={color} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        </svg>
+      )}
+      <span style={{ position: "relative", zIndex: 1 }}>{children}</span>
     </button>
   );
 };
@@ -172,23 +223,225 @@ const PulseBtn = ({ visible, children, pulseKey, ...btnProps }) => {
   );
 
 // Line-Edged Pill (Square, All-Side Borders Matching Text Color)
-const Pill = ({ label, color = T.textDim, style = {} }) => (
-  <div style={{
-    display: "inline-block",
-    background: T.panelAlt,
-    color: color,
-    padding: "3px 7px",
-    fontSize: T.metadataFontSize,
-    border: `1px solid ${T.goldDim}`, // All sides, matching text color
-    borderRadius: 0, // Square corners
-    margin: "2px",
-    letterSpacing: "0.5px",
-    textTransform: "uppercase",
-    ...style
-  }}>
-    {label}
-  </div>
-);
+const Pill = ({ label, color = T.textDim, style = {} }) => {
+  const { useState, useRef, useLayoutEffect } = React;
+  const jitter = useRef(null);
+  if (!jitter.current) {
+    // 8 values: 4 corners × 2 coords, each offset within ±3px (range 0..6 after scaling)
+    jitter.current = Array.from({ length: 8 }, () => (Math.random() - 0.5) * 3);
+  }
+  const j = (i) => jitter.current[i];
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+  const ref = useRef(null);
+  const rafRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setDims({ w: el.offsetWidth, h: el.offsetHeight });
+      });
+    });
+    obs.observe(el);
+    return () => { obs.disconnect(); cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const { w, h } = dims;
+  let path = "";
+  if (w > 0 && h > 0) {
+    // Corner offsets — subtle, at most ±1.5px from true corner
+    const tl = { x: j(0) * 0.5, y: j(1) * 0.5 };
+    const tr = { x: w + j(2) * 0.5, y: j(3) * 0.5 };
+    const br = { x: w + j(4) * 0.5, y: h + j(5) * 0.5 };
+    const bl = { x: j(6) * 0.5, y: h + j(7) * 0.5 };
+
+    // Midpoints — barely deviated, used only to smooth the curve
+    const top1  = { x: w * 0.35 + j(0) * 0.2, y: j(1) * 0.2 };
+    const top2  = { x: w * 0.65 + j(2) * 0.2, y: j(3) * 0.2 };
+    const right1 = { x: w + j(2) * 0.2, y: h * 0.35 + j(3) * 0.2 };
+    const right2 = { x: w + j(4) * 0.2, y: h * 0.65 + j(5) * 0.2 };
+    const bottom1 = { x: w * 0.65 + j(4) * 0.2, y: h + j(5) * 0.2 };
+    const bottom2 = { x: w * 0.35 + j(6) * 0.2, y: h + j(7) * 0.2 };
+    const left1 = { x: j(6) * 0.2, y: h * 0.65 + j(7) * 0.2 };
+    const left2 = { x: j(0) * 0.2, y: h * 0.35 + j(1) * 0.2 };
+
+    path = [
+      `M ${tl.x} ${tl.y}`,
+      `C ${top1.x} ${top1.y} ${top2.x} ${top2.y} ${tr.x} ${tr.y}`,
+      `C ${right1.x} ${right1.y} ${right2.x} ${right2.y} ${br.x} ${br.y}`,
+      `C ${bottom1.x} ${bottom1.y} ${bottom2.x} ${bottom2.y} ${bl.x} ${bl.y}`,
+      `C ${left1.x} ${left1.y} ${left2.x} ${left2.y} ${tl.x} ${tl.y}`,
+      `Z`,
+    ].join(" ");
+  }
+
+  return (
+    <div ref={ref} style={{
+      position: "relative",
+      display: "inline-block",
+      background: T.panelAlt,
+      color: color,
+      padding: "4px 8px",
+      fontSize: T.metadataFontSize,
+      margin: "2px",
+      letterSpacing: "0.5px",
+      textTransform: "uppercase",
+      ...style,
+    }}>
+      {path && (
+        <svg style={{
+          position: "absolute",
+          top: 0, left: 0,
+          width: w, height: h,
+          overflow: "visible", pointerEvents: "none",
+          zIndex: 0,
+        }}>
+          <path d={path} fill="none" stroke={color}
+            strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      <span style={{ position: "relative", zIndex: 1 }}>{label}</span>
+    </div>
+  );
+};
+
+const Panel = ({
+  children,
+  color,
+  variant,          // "default" | "danger" | "gold" | "subtle"
+  padding,
+  style = {},
+  className = "",
+  ...rest            // ← forwards onClick, onMouseEnter, etc.
+}) => {
+  const { useState, useRef, useLayoutEffect } = React;
+
+  // Resolve border color from variant (same logic as panelStyle)
+  const borderColor = color || {
+    danger: T.redBr, gold: T.gold, subtle: T.borderFaint,
+  }[variant] || T.border;
+
+  // Two independent jitter arrays for double‑stroke effect
+  const jitter1 = useRef(null);
+  const jitter2 = useRef(null);
+  if (!jitter1.current) {
+    jitter1.current = Array.from({ length: 16 }, () => (Math.random() - 0.5) * 10);
+    jitter2.current = Array.from({ length: 16 }, () => (Math.random() - 0.5) * 10);
+  }
+  const j1 = (i) => jitter1.current[i];
+  const j2 = (i) => jitter2.current[i];
+
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+  const containerRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setDims({ w: el.offsetWidth, h: el.offsetHeight });
+      });
+    });
+    obs.observe(el);
+    return () => { obs.disconnect(); cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const { w, h } = dims;
+
+  // Build a smooth cubic‑Bézier path with gentle corner offsets and mid‑side control points.
+  const buildPath = (w, h, j) => {
+    if (w <= 0 || h <= 0) return "";
+    const tl = { x: j(0) * 0.4,  y: j(1) * 0.4 };
+    const tr = { x: w + j(2) * 0.4, y: j(3) * 0.4 };
+    const br = { x: w + j(4) * 0.4, y: h + j(5) * 0.4 };
+    const bl = { x: j(6) * 0.4,     y: h + j(7) * 0.4 };
+
+    const top1  = { x: w * 0.35 + j(8) * 0.25,  y: j(9) * 0.25 };
+    const top2  = { x: w * 0.65 + j(10) * 0.25, y: j(11) * 0.25 };
+    const right1 = { x: w + j(10) * 0.25,        y: h * 0.35 + j(9) * 0.25 };
+    const right2 = { x: w + j(12) * 0.25,        y: h * 0.65 + j(13) * 0.25 };
+    const bottom1 = { x: w * 0.65 + j(12) * 0.25, y: h + j(13) * 0.25 };
+    const bottom2 = { x: w * 0.35 + j(14) * 0.25, y: h + j(15) * 0.25 };
+    const left1 = { x: j(14) * 0.25,              y: h * 0.65 + j(15) * 0.25 };
+    const left2 = { x: j(8) * 0.25,               y: h * 0.35 + j(9) * 0.25 };
+
+    return [
+      `M ${tl.x} ${tl.y}`,
+      `C ${top1.x} ${top1.y} ${top2.x} ${top2.y} ${tr.x} ${tr.y}`,
+      `C ${right1.x} ${right1.y} ${right2.x} ${right2.y} ${br.x} ${br.y}`,
+      `C ${bottom1.x} ${bottom1.y} ${bottom2.x} ${bottom2.y} ${bl.x} ${bl.y}`,
+      `C ${left1.x} ${left1.y} ${left2.x} ${left2.y} ${tl.x} ${tl.y}`,
+      `Z`,
+    ].join(" ");
+  };
+
+  const path1 = buildPath(w, h, j1);
+  const path2 = buildPath(w, h, j2);
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{
+        position: "relative",
+        background: T.panel,
+        padding: padding ?? T.spacing.md,
+        color: T.text,
+        boxSizing: "border-box",
+        ...style,
+      }}
+      {...rest}   // ← onClick, onMouseEnter, etc. forwarded here
+    >
+      {(path1 || path2) && (
+        <svg
+          style={{
+            position: "absolute",
+            top: -2,
+            left: -2,
+            width: w + 4,
+            height: h + 4,
+            overflow: "visible",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        >
+          <g transform="translate(2, 2)">
+            {path1 && (
+              <path
+                d={path1}
+                fill="none"
+                stroke={borderColor}
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="1"
+              />
+            )}
+            {path2 && (
+              <path
+                d={path2}
+                fill="none"
+                stroke={borderColor}
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="1"
+                transform="translate(1, 0.6)"
+              />
+            )}
+          </g>
+        </svg>
+      )}
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {children}
+      </div>
+    </div>
+  );
+};
 
   const StatBlock = ({ label, value, color }) => (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -226,10 +479,10 @@ const Pill = ({ label, color = T.textDim, style = {} }) => (
     };
     const v = variants[variant] || variants.neutral;
     return (
-      <div style={{
+      <Panel variant={variant} style={{
   background: v.bg,
-  border: `1px solid ${v.border}`,
-  borderRadius: 2,
+  //border: `1px solid ${v.border}`,
+  //borderRadius: 2,
   padding: 12,
   marginBottom: 10,
   color: T.text,
@@ -242,7 +495,7 @@ const Pill = ({ label, color = T.textDim, style = {} }) => (
           {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{title}
         </div>}
         {children}
-      </div>
+      </Panel>
     );
   };
 
@@ -257,8 +510,9 @@ const TutorialPopup = ({ title, children, onDismiss }) => {
   return React.createElement('div', {
     style: { position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)",
       display: "flex", alignItems: "center", justifyContent: "center" }
-  }, React.createElement('div', {
-    style: { ...panelStyle({ maxWidth: 460, width: "90%" }), borderColor: T.gold }
+  }, React.createElement(Panel, {
+    variant: "gold",
+    style: { maxWidth: 460, width: "90%" }
   },
     React.createElement('div', { style: { color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 10 } }, title),
     React.createElement('div', { style: { color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6, marginBottom: 16 } }, children),
@@ -490,24 +744,24 @@ const TransferLayout = ({
   <div style={{ display: "flex", gap: T.spacing.md, alignItems: "stretch", ...style }}>
     {/* Left panel */}
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-      <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
-        {leftTitle && <SectionTitle>{leftTitle}</SectionTitle>}
+      <Panel style={{ display: "flex", flexDirection: "column", flex: 1}}>
+          {leftTitle && <SectionTitle>{leftTitle}</SectionTitle>}
         <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
           {leftContent}
         </div>
         {leftFooter}
-      </div>
+      </Panel>
     </div>
 
     {/* Right panel */}
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-      <div style={panelStyle({ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" })}>
+      <Panel style={{ display: "flex", flexDirection: "column", flex: 1}}>
         {rightTitle && <SectionTitle>{rightTitle}</SectionTitle>}
         <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
           {rightContent}
         </div>
         {rightFooter}
-      </div>
+      </Panel>
     </div>
   </div>
 );
@@ -547,7 +801,7 @@ const src = `port-${factionKey}.svg`;
 
   // ── Attach all public primitives to window.UI (icons live in icons.jsx) ──
   Object.assign(window.UI, {
-    T, panelStyle, Btn, PulseBtn, Bar, Pill, StatBlock, SectionTitle, ScreenHeader,
+    T, panelStyle, Btn, PulseBtn, Bar, Pill, Panel, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, ShipSideSprite, BackButton, useFlashOnChange,
     Tooltip,getGoodIcon,TransferLayout,PortSilhouette,
