@@ -910,7 +910,24 @@ const IconSparkles = ({ size = 14, color = "currentColor" }) => (
   </svg>
 );
 
-
+const IconLock = ({ size = 14, color = "currentColor" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    style={{ display: "inline-block", verticalAlign: "middle" }}
+  >
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
 
 //  identify wich log category will get wich icon
 window.UI.LOG_ICONS = {
@@ -931,7 +948,7 @@ window.UI.LOG_ICONS = {
     IconStar, IconSkull, IconShield, IconHeart, IconCrew, IconFood, IconWater, IconGold,
     IconBarrel, IconCoins, IconAttention, IconFruit, IconPirate, IconCalendar, IconChest, IconMarket, IconMap, IconFloppy, IconJournal, IconAnchor,
     IconSwords, IconSailboat, IconWind, IconParchment, IconCloth, IconTimber, IconCoffee, IconRhum, IconSugar, IconSpice,
-    IconTobacco, IconSilk, IconShip, IconGoldBag, IconCocoa, IconPerson, IconGoblet,
+    IconTobacco, IconSilk, IconShip, IconGoldBag, IconCocoa, IconPerson, IconGoblet, IconLock,
     IconGrapple, IconSpear, IconCog, IconCompass, IconPlay, IconCheers, IconCannon, IconChefHat, IconHammer, IconTalking,
     IconBarChart, IconDice, IconContinue, IconFileTransfer, IconFlame, IconTarget,IconHandshake, IconSparkles, IconSearch,
   });

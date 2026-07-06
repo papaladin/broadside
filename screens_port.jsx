@@ -6,8 +6,11 @@ window.S = window.S || {};
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS, RESOURCES, QM_DIALOGUE } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
-  IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette, IconCoins, IconAttention, } = window.UI;
+  const { 
+    T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
+    IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette, IconCoins, IconAttention, IconSailboat,
+    SubPanel   // <-- import SubPanel
+  } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -54,13 +57,105 @@ function PortScreen({ state, dispatch }) {
     return worstFaction ? { faction: worstFaction, delta: worstDelta } : null;
   };
 
+  // ── Helper to render the mission details box (used by both active and listed missions) ──
+  const renderMissionDetailsBox = (mission) => {
+    const res = mission.requiredGood ? window.D.RESOURCES[mission.requiredGood] : null;
+    const inHold = state.hold?.items?.[mission.requiredGood] || 0;
+    const hasGoods = inHold >= mission.requiredQty;
+    const partialHave = inHold > 0 && inHold < mission.requiredQty;
+    const isIllegal = res?.illegal;
+    const holdFree = (L.getHoldCapacity(state) || 0) - L.getHoldUsed(state.hold?.items || {});
+    const canFit = holdFree >= (mission.requiredQty - inHold);
+    const harmed = getHarmedFaction(mission);
+    const harmedColor = FACTIONS[harmed?.faction]?.color || T.redBr;
+
+    if (!mission.enemy && !mission.requiredGood && !harmed && mission.type !== "patrol") return null;
+
+    return (
+      <SubPanel
+        color={isIllegal ? T.redBr : T.gold}
+        style={{ margin: "0 0 6px" }}
+      >
+        {/* 1. Cargo / contraband section */}
+        {mission.requiredGood && (
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: T.captionFontSize, color: isIllegal ? T.red : T.textDim, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+              {isIllegal ? <IconAttention size={12} color={T.red} /> : null}
+              {mission.type === "smuggle" ? "Contraband required" : "Cargo required"}
+            </div>
+            <div style={{ fontSize: T.metadataFontSize, color: isIllegal ? T.red : T.text }}>
+              {mission.requiredQty} × {res?.name || mission.requiredGood}
+              {isIllegal && <span style={{ color: T.red, fontSize: T.captionFontSize }}> (Illegal)</span>}
+            </div>
+            <div style={{ fontSize: T.captionFontSize, marginTop: 3 }}>
+              {hasGoods
+                ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready)</span>
+                : partialHave
+                  ? <span style={{ color: T.gold }}>{inHold}/{mission.requiredQty} in hold — need {mission.requiredQty - inHold} more</span>
+                  : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
+              }
+            </div>
+            {!hasGoods && !canFit && (
+              <div style={{ fontSize: T.captionFontSize, color: T.redBr, marginTop: 2 }}>
+                ⚠ Only {holdFree} hold space free — sell cargo first
+              </div>
+            )}
+            {mission.type === "smuggle" && res?.sourceHint && (
+              <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
+                {res.sourceHint}
+              </div>
+            )}
+            {mission.type === "trade" && (
+              <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
+                Est. cost: ~{res?.basePrice * mission.requiredQty}g · Payment on delivery: {mission.gold}g · Est. profit: ~{mission.gold - res?.basePrice * mission.requiredQty}g
+              </div>
+            )}
+            {mission.type === "smuggle" && (
+              <div style={{ fontSize: T.captionFontSize, color: T.red, marginTop: 2 }}>
+                +{mission.infamyGain} infamy on completion
+                {mission.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. Enemy info */}
+        {mission.enemy && (
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: T.captionFontSize, color: T.textDim, marginBottom: 2 }}>Enemy</div>
+            <div style={{ fontSize: T.metadataFontSize, color: T.text }}>
+              {mission.enemy.name} ({FACTIONS[mission.enemy.faction]?.label || mission.enemy.faction}) — {mission.enemy.cannons} cannons, hull {mission.enemy.hull}, crew {mission.enemy.crew}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Faction impact */}
+        {harmed && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: harmed && mission.type === "patrol" ? 4 : 0 }}>
+            <IconAttention size={12} color={harmedColor} />
+            <span style={{ fontSize: T.captionFontSize, color: T.textDim }}>Will impact negatively the {FACTIONS[harmed.faction]?.label || harmed.faction}</span>
+          </div>
+        )}
+
+        {/* 4. Patrol instruction */}
+        {mission.type === "patrol" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <IconSailboat size={12} color={T.gold} />
+            <span style={{ fontSize: T.captionFontSize, color: T.textDim }}>
+              Sail near {PORTS[mission.targetPort]?.name || "the target port"} and advance days. The enemy will appear with time.
+            </span>
+          </div>
+        )}
+      </SubPanel>
+    );
+  };
+
   return (
     <div style={{
       display: "flex",
       flexDirection: isNarrow ? "column" : "row",
       gap: T.spacing.md,
       padding: T.spacing.lg,
-      //overflowY: "auto",
       flex: 1,
       alignItems: "stretch",
     }}>
@@ -91,18 +186,15 @@ function PortScreen({ state, dispatch }) {
         flexDirection: "column",
         gap: T.spacing.md,
         minWidth: 280,
-        //overflowY: "auto",
       }}>
         {/* Port header + description + gossip */}
         <Panel>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-            <div>
-              <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold" }}>{port.name}</div>
-              <div style={{ color: FACTIONS[port.faction]?.color, fontSize: T.captionFontSize, letterSpacing: "0.1em" }}>
-                {FACTIONS[port.faction]?.label.toUpperCase()} PORT
-              </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ color: T.gold, fontSize: 28, fontWeight: "bold" }}>{port.name}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: T.spacing.sm }}>
+              <FactionPill faction={port.faction} />
+              <RepPill rep={rep} />
             </div>
-            <RepPill rep={rep} />
           </div>
           <PortSilhouette portKey={state.currentPort} />
 
@@ -219,42 +311,15 @@ function PortScreen({ state, dispatch }) {
               </div>
               <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Destination: {PORTS[state.activeMission.targetPort]?.name || "At sea"}</div>
               <div style={{ display: "flex", gap: T.spacing.md, marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ color: T.gold, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 3 }}>
-                  <IconCoins size={12} color={T.gold} /> {state.activeMission.gold}
+                <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                  <IconCoins size={14} color={T.gold} /> {state.activeMission.gold}
                 </span>
-                <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {state.activeMission.fame}</span>
+                <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {state.activeMission.fame}</span>
               </div>
-              {(() => {
-                const harmed = getHarmedFaction(state.activeMission);
-                if (!harmed) return null;
-                const harmedColor = FACTIONS[harmed.faction]?.color || T.redBr;
-                return (
-                  <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8, display: "flex", alignItems: "center", gap: 3 }}>
-                    <IconAttention size={12} color={harmedColor} />
-                    Will impact negatively the {FACTIONS[harmed.faction]?.label || harmed.faction}
-                  </div>
-                );
-              })()}
-              {state.activeMission.type === "patrol" && (
-                <div style={{ color: T.gold, fontSize: T.captionFontSize, marginBottom: 8 }}>
-                  ⚡ Sail near {PORTS[state.activeMission.targetPort]?.name || "the target port"} and advance days. The enemy will appear with time.
-                </div>
-              )}
-              {state.activeMission.requiredGood && state.activeMission.requiredQty && (() => {
-                const res = window.D.RESOURCES[state.activeMission.requiredGood];
-                const inHold = state.hold?.items?.[state.activeMission.requiredGood] || 0;
-                const hasGoods = inHold >= state.activeMission.requiredQty;
-                const goodName = res?.name || state.activeMission.requiredGood;
-                return (
-                  <div style={{ marginBottom: 8, fontSize: T.captionFontSize }}>
-                    <div style={{ color: hasGoods ? T.greenBr : T.redBr }}>
-                      {hasGoods
-                        ? `✓ ${inHold} ${goodName} in hold — ready`
-                        : `✗ ${inHold}/${state.activeMission.requiredQty} ${goodName} — visit market`}
-                    </div>
-                  </div>
-                );
-              })()}
+
+              {/* Unified details box */}
+              {renderMissionDetailsBox(state.activeMission)}
+
               <div style={{ display: "flex", gap: T.spacing.sm }}>
                 {canFinish && (
                   <Tooltip text="Complete the mission and claim your reward.">
@@ -311,87 +376,15 @@ function PortScreen({ state, dispatch }) {
                     </div>
                   </div>
                   <p style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
-                  {m.enemy && (
-                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px" }}>
-                      Enemy: {m.enemy.name} ({FACTIONS[m.enemy.faction]?.label || m.enemy.faction}) — {m.enemy.cannons} cannons, hull {m.enemy.hull}, crew {m.enemy.crew}
-                    </div>
-                  )}
-                  {(m.requiredGood && m.requiredQty) && (() => {
-                    const res = window.D.RESOURCES[m.requiredGood];
-                    const inHold = state.hold?.items?.[m.requiredGood] || 0;
-                    const alreadyHave = inHold >= m.requiredQty;
-                    const partialHave = inHold > 0 && inHold < m.requiredQty;
-                    const isIllegal = res?.illegal;
-                    const holdFree = (L.getHoldCapacity(state) || 0) - L.getHoldUsed(state.hold?.items || {});
-                    const canFit = holdFree >= (m.requiredQty - inHold);
-                    return (
-                      <div style={{
-                        margin: "0 0 6px", padding: "5px 8px", borderRadius: 3,
-                        background: T.bgDeep,
-                        border: `1px solid ${isIllegal ? T.red + "55" : T.border}`,
-                      }}>
-                        <div style={{ fontSize: T.captionFontSize, color: isIllegal ? T.red : T.textDim, marginBottom: 2 }}>
-                          {m.type === "smuggle" ? "⚠ Contraband required" : "Cargo required"}
-                        </div>
-                        <div style={{ fontSize: T.metadataFontSize, color: isIllegal ? T.red : T.text }}>
-                          {m.requiredQty} × {res?.name || m.requiredGood}
-                          {isIllegal && <span style={{ color: T.red, fontSize: T.captionFontSize }}> (Illegal)</span>}
-                        </div>
-                        <div style={{ fontSize: T.captionFontSize, marginTop: 3 }}>
-                          {alreadyHave
-                            ? <span style={{ color: T.greenBr }}>✓ In hold ({inHold} — ready to deliver)</span>
-                            : partialHave
-                              ? <span style={{ color: T.gold }}>{inHold}/{m.requiredQty} in hold — need {m.requiredQty - inHold} more</span>
-                              : <span style={{ color: T.textDim }}>Not yet sourced — check market or source elsewhere</span>
-                          }
-                        </div>
-                        {!alreadyHave && !canFit && (
-                          <div style={{ fontSize: T.captionFontSize, color: T.redBr, marginTop: 2 }}>
-                            ⚠ Only {holdFree} hold space free — sell cargo first
-                          </div>
-                        )}
-                        {m.type === "smuggle" && res?.sourceHint && (
-                          <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2, fontStyle: "italic" }}>
-                            {res.sourceHint}
-                          </div>
-                        )}
-                        {m.type === "trade" && (
-                          <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
-                            Est. cost: ~{res?.basePrice * m.requiredQty}g
-                            · Payment on delivery: {m.gold}g
-                            · Est. profit: ~{m.gold - res?.basePrice * m.requiredQty}g
-                          </div>
-                        )}
-                        {m.type === "smuggle" && (
-                          <div style={{ fontSize: T.captionFontSize, color: T.red, marginTop: 2 }}>
-                            +{m.infamyGain} infamy on completion
-                            {m.requiredGood === "slaves" ? " · +1 infamy on purchase" : ""}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+
+                  {/* Unified details box */}
+                  {renderMissionDetailsBox(m)}
+
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ color: T.gold, fontSize: T.metadataFontSize, display: "flex", alignItems: "center", gap: 3 }}>
-                      <IconCoins size={12} color={T.gold} /> {m.gold}
+                    <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                      <IconCoins size={14} color={T.gold} /> {m.gold}
                     </span>
-                    <span style={{ color: T.blueBr, fontSize: T.metadataFontSize }}>★ {m.fame}</span>
-                    {(() => {
-                      const harmed = getHarmedFaction(m);
-                      if (!harmed) return null;
-                      const harmedColor = FACTIONS[harmed.faction]?.color || T.redBr;
-                      return (
-                        <div style={{ color: T.textDim, fontSize: T.captionFontSize, display: "flex", alignItems: "center", gap: 3 }}>
-                          <IconAttention size={12} color={harmedColor} />
-                          Will impact negatively the {FACTIONS[harmed.faction]?.label || harmed.faction}
-                        </div>
-                      );
-                    })()}
-                    {m.type === "patrol" && (
-                      <div style={{ color: T.gold, fontSize: T.captionFontSize }}>
-                        ⚡ Sail near {PORTS[m.targetPort]?.name || "the target port"} and advance days. The enemy will appear with time.
-                      </div>
-                    )}
+                    <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {m.fame}</span>
                     <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
                     <Tooltip text="Take this mission as your active objective.">
                       <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>

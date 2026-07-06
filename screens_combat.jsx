@@ -122,9 +122,9 @@ const getVisualEquipment = (state) => {
         </Panel>
 
         <Panel>
-          <div style={{ color: T.redBr, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 8 }}>
+          <div style={{ color: T.redBr, fontSize: T.heading1FontSize, fontWeight: "bold", marginBottom: 8 }}>
             {enemy.name}
-            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.captionFontSize }}>
+            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.narrativeFontSize }}>
               {enemyShip.name ?? enemy.ship}
             </span>
           </div>
@@ -290,7 +290,7 @@ const getVisualEquipment = (state) => {
                     facing="right"
                   />
                 </div>
-                <div style={{ color: T.blueBr, fontSize: T.captionFontSize, marginBottom: 4 }}>{state.ship.name}</div>
+                <div style={{ color: T.blueBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{state.ship.name}</div>
                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
                 <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
                 {bs.convoyHull !== undefined && (
@@ -326,7 +326,7 @@ const getVisualEquipment = (state) => {
                     facing="left"
                   />
                 </div>
-                <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginBottom: 4 }}>{bs.enemy.name}</div>
+                <div style={{ color: T.redBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{bs.enemy.name}</div>
                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.enemyHull} / {bs.enemy.hull}</div>
                 <Bar value={bs.enemyHull} max={bs.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
@@ -376,7 +376,7 @@ const getVisualEquipment = (state) => {
               gridTemplateColumns: window.innerWidth < 480 ? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
               gap: T.spacing.sm,
             }}>
-              {[
+              {[ 
                 { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: "Full cannon volley. Reliable damage.", glow: T.redBr },
                 { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: "Aimed shot. Miss or massive damage.", glow: T.yellow },
                 { a: "grapple",   label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple",   desc: "Board them. Requires crew advantage.", glow: T.blueBr },
@@ -384,6 +384,7 @@ const getVisualEquipment = (state) => {
               ].map(({ a, label, lbl, desc, glow }) => (
                 <Panel
                   key={a}
+                  color={glow}                                   // <-- static border color matches the icon
                   className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
                   style={{ background: T.panelAlt, cursor: "pointer", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s" }}
                   onClick={() => {
@@ -392,12 +393,12 @@ const getVisualEquipment = (state) => {
                     setTimeout(() => setPulsedAction(null), 150);
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = T.borderBr;
+                    e.currentTarget.style.borderColor = glow;    // keep consistent with color prop
                     e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
                     e.currentTarget.style.transform = "scale(1.03)";
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = T.border;
+                    e.currentTarget.style.borderColor = '';      // revert to prop
                     e.currentTarget.style.boxShadow = "none";
                     e.currentTarget.style.transform = "scale(1)";
                   }}

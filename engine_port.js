@@ -626,6 +626,7 @@ if (
         };
       }
 
+        // ── Instant combat mission: jump straight into intercept ──────
        if (mission.type === "combat" && mission.enemy) {
         return {
           ...state,
@@ -653,8 +654,12 @@ if (
               ? `${firstCoward.firstName} ${updatedCoward.lastName} is visibly shaking. He didn't sign up for this kind of work.`
               : `${firstCoward.firstName} ${updatedCoward.lastName} looks terrified. Again.`;
 
+            // Remove the mission from the list even if coward triggers (acceptance still happens)
+            const newMissions = state.missions.filter(m => m !== mission);
+
             return {
               ...state,
+              missions: newMissions,
               activeMission: { ...mission, encounterOccurred: false },
               acceptedDay: state.day,
               crew: { ...state.crew, roster: newRoster, morale: newMorale },
@@ -663,8 +668,11 @@ if (
           }
         }
 
+          const newMissions = state.missions.filter(m => m !== mission);
+
           return {
             ...state,
+            missions: newMissions, 
             activeMission: { ...mission, encounterOccurred: false },
             acceptedDay: state.day,
             log: [...state.log, `Accepted mission: ${mission.name}.`],

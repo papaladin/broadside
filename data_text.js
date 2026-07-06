@@ -731,7 +731,23 @@ const PLUNDER_MESSAGES = [
 
 };
 
-
+const FACTION_RELATIONSHIP_TEMPLATES = {
+  allied_clean:   (f, p) => `The ${f} regard you as one of their own. Your name opens doors in every ${f} port.`,
+  allied_watched: (f, p) => `The ${f} call you a friend in public. In private, they have questions they haven't asked yet.`,
+  allied_hunted:  (f, p) => `You have powerful friends among the ${f}. Their patrols are still looking for you. It won't stay comfortable.`,
+  friendly_clean: (f, p) => `The ${f} know your reputation and approve. You're welcome in their waters.`,
+  friendly_watched:(f,p) => `The ${f} respect what you've built, but your recent actions have caught attention. A watchful peace.`,
+  friendly_hunted:(f, p) => `The ${f} would rather not admit how much trouble you've caused them. Don't test it.`,
+  neutral_clean:  (f, p) => `The ${f} consider you a known quantity. You've given them neither reason to celebrate nor to worry.`,
+  neutral_watched:(f, p) => `The ${f} have your description. You're not welcome, but you're not yet hunted.`,
+  neutral_hunted: (f, p) => `The ${f} are actively looking for you. A dangerous neutrality.`,
+  hostile_clean:  (f, p) => `The ${f} have long memories. Your name is on their lists. Keep your distance.`,
+  hostile_watched:(f, p) => `The ${f} want you gone. Their patrols don't need much excuse.`,
+  hostile_hunted: (f, p) => `Every ${f} captain has your description. You will not be welcomed at any of their ports.`,
+  war_clean:      (f, p) => `You are at war with the ${f}. There is no welcome for you in their waters.`,
+  war_watched:    (f, p) => `You are at war with the ${f} and they are watching. You will not see a ${f} ship before it fires.`,
+  war_hunted:     (f, p) => `The ${f} have declared you an enemy. Bounties, warships, and hostility at every port. There is no path to peace that doesn't cost blood.`,
+};
 
   // ── Merge into window.D ──────────────────────────────────
   Object.assign(window.D, {
@@ -755,5 +771,6 @@ const PLUNDER_MESSAGES = [
   PURCHASE_MESSAGES,
   PLUNDER_MESSAGES,
     QM_DIALOGUE,
+    FACTION_RELATIONSHIP_TEMPLATES,
   });
 })();

@@ -7,7 +7,8 @@ const { SHIPS, EQUIPMENT, PORTS } = window.D;
 const L = window.L;
 const A = window.E.A;
 const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Panel,
-    IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip,ShipSideSprite,
+    IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip, ShipSideSprite,
+    IconLock, // <-- Import the new IconLock here
 } = window.UI;
 const { shouldShowTutorial, markTutorialSeen } = window.L;
 
@@ -43,7 +44,7 @@ function StatDelta({ label, before, after }) {
     return (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: T.metadataFontSize, marginBottom: 3, gap: T.spacing.md }}>
             <span style={{ color: T.textDim, minWidth: 70, flexShrink: 0 }}>{label}</span>
-            <span style={{ color, textAlign: "right", whiteSpace: "nowrap" }}>
+            <span style={{ color, textAlign: "right", whiteSpace: "nowrap", fontSize: 16 }}>
                 {before} → {after}{arrow}
             </span>
         </div>
@@ -148,7 +149,7 @@ function ShipyardScreen({ state, dispatch }) {
                     </div>
 
                     {!validation.ok ? (
-                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}>🔒 {validation.reason}</div>
+                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {validation.reason}</div>
                     ) : !canAfford ? (
                         <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {totalCost - state.gold}g more</div>
                     ) : (
@@ -238,7 +239,7 @@ function ShipyardScreen({ state, dispatch }) {
                     </div>
 
                     {!shipReq.allowed ? (
-                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}>🔒 {shipReq.reason}</div>
+                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {shipReq.reason}</div>
                     ) : lack > 0 ? (
                         <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {lack.toLocaleString()}g more</div>
                     ) : (
@@ -421,6 +422,8 @@ function ShipyardScreen({ state, dispatch }) {
                     {shopItems.map(item => {
                         const isSelected = selectedEquip === item.key;
                         const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
+                        const priceColor = item.validation.ok && !item.canAfford ? T.redBr : T.gold;
+
                         return (
                             <Panel key={item.key}
                                 color={isSelected ? T.gold : undefined}
@@ -434,7 +437,7 @@ function ShipyardScreen({ state, dispatch }) {
                             >
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                     <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
-                                    <span style={{ color: T.gold, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
+                                    <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
                                 </div>
                                 <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
                                     {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
@@ -449,7 +452,9 @@ function ShipyardScreen({ state, dispatch }) {
                                     ) : null}
                                 </div>
                                 {!item.validation.ok && (
-                                    <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
+                                    <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                                        <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
+                                    </div>
                                 )}
                             </Panel>
                         );
@@ -473,6 +478,8 @@ function ShipyardScreen({ state, dispatch }) {
                 {Object.entries(SHIPS).map(([key, s]) => {
                     const isCur = key === state.ship.type;
                     const shipReq = L.meetsRequirement(state, s);
+                    const isAffordable = state.gold >= s.cost;
+                    const priceColor = shipReq.allowed && !isAffordable ? T.redBr : T.gold;
                     const isSelected = selectedShip === key;
 
                     return (
@@ -495,7 +502,7 @@ function ShipyardScreen({ state, dispatch }) {
                                 <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{s.name}</span>
                                 {isCur
                                     ? <Pill label="Current" color={T.greenBr} />
-                                    : <span style={{ color: T.gold, fontSize: T.captionFontSize }}>{s.cost.toLocaleString()}g</span>
+                                    : <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{s.cost.toLocaleString()}g</span>
                                 }
                             </div>
                             <p style={{ color: T.textDim, fontSize: 9, margin: "0 0 6px", lineHeight: 1.4 }}>{s.desc}</p>
@@ -505,7 +512,9 @@ function ShipyardScreen({ state, dispatch }) {
                                 )}
                             </div>
                             {!shipReq.allowed && (
-                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {shipReq.reason}</div>
+                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {shipReq.reason}
+                                </div>
                             )}
                         </Panel>
                     );
@@ -532,6 +541,8 @@ function ShipyardScreen({ state, dispatch }) {
                 {lockerItems.map(item => {
                     const isSelected = selectedEquip === item.key;
                     const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
+                    const priceColor = item.validation.ok && !item.canAfford ? T.redBr : T.gold;
+
                     return (
                         <Panel key={item.key}
                             color={isSelected ? T.gold : undefined}
@@ -545,7 +556,7 @@ function ShipyardScreen({ state, dispatch }) {
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                 <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
-                                <span style={{ color: T.textDim, fontSize: 9 }}>Install: {item.installFee}g</span>
+                                <span style={{ color: priceColor, fontSize: 9 }}>Install: {item.installFee}g</span>
                             </div>
                             <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
                                 {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
@@ -557,7 +568,9 @@ function ShipyardScreen({ state, dispatch }) {
                                 {SLOT_LABELS[item.slot]?.label || item.slot}
                             </div>
                             {!item.validation.ok && (
-                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>🔒 {item.validation.reason}</div>
+                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
+                                </div>
                             )}
                         </Panel>
                     );

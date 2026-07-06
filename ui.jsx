@@ -222,7 +222,7 @@ const PulseBtn = ({ visible, children, pulseKey, ...btnProps }) => {
     </div>
   );
 
-// Line-Edged Pill (Square, All-Side Borders Matching Text Color)
+// Handdrawed rectangle, All-Side Borders Matching Text Color)
 const Pill = ({ label, color = T.textDim, style = {} }) => {
   const { useState, useRef, useLayoutEffect } = React;
   const jitter = useRef(null);
@@ -439,6 +439,77 @@ const Panel = ({
       <div style={{ position: "relative", zIndex: 1 }}>
         {children}
       </div>
+    </div>
+  );
+};
+
+// ── SubPanel (block-level rough border, like Pill but for children) ──
+const SubPanel = ({ children, color = T.border, style = {}, ...rest }) => {
+  const { useState, useRef, useLayoutEffect } = React;
+  const jitter = useRef(null);
+  if (!jitter.current) {
+    jitter.current = Array.from({ length: 8 }, () => (Math.random() - 0.5) * 3);
+  }
+  const j = (i) => jitter.current[i];
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+  const ref = useRef(null);
+  const rafRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        // Use offsetWidth/offsetHeight to include padding
+        setDims({ w: el.offsetWidth, h: el.offsetHeight });
+      });
+    });
+    obs.observe(el);
+    return () => { obs.disconnect(); cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const { w, h } = dims;
+  const pad = 4;
+  const path = w > 0 && h > 0 ? [
+    `M ${j(0)} ${j(1)}`,
+    `L ${w + j(2)} ${j(3)}`,
+    `L ${w + j(4)} ${h + j(5)}`,
+    `L ${j(6)} ${h + j(7)}`,
+    `Z`
+  ].join(' ') : '';
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "relative",
+        display: "block",
+        background: T.bgDeep,
+        padding: "8px 10px",
+        boxSizing: "border-box",
+        width: "100%",
+        overflow: "visible",
+        ...style,
+      }}
+      {...rest}
+    >
+      {path && (
+        <svg style={{
+          position: "absolute",
+          top: -pad, left: -pad,
+          width: w + pad * 2, height: h + pad * 2,
+          overflow: "visible", pointerEvents: "none",
+        }}>
+          <g transform={`translate(${pad}, ${pad})`}>
+            <path d={path} fill="none" stroke={color}
+              strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        </svg>
+      )}
+      <span style={{ position: "relative", zIndex: 1, display: "block" }}>
+        {children}
+      </span>
     </div>
   );
 };
@@ -801,7 +872,7 @@ const src = `port-${factionKey}.svg`;
 
   // ── Attach all public primitives to window.UI (icons live in icons.jsx) ──
   Object.assign(window.UI, {
-    T, panelStyle, Btn, PulseBtn, Bar, Pill, Panel, StatBlock, SectionTitle, ScreenHeader,
+    T, panelStyle, Btn, PulseBtn, Bar, Pill, Panel, SubPanel, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, ShipSideSprite, BackButton, useFlashOnChange,
     Tooltip,getGoodIcon,TransferLayout,PortSilhouette,

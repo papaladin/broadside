@@ -1,6 +1,7 @@
 ### 2026‑07‑06
 - **GUI improvement**: Rework of pannel and buttons borders to have a plank/hand-drawed style more fitting the game.
 - **Backend cleaning** to improve testability.
+- **Status Screen** reworked to describe faction relations with text. This will in time be completed by more sentences depending on arc story progress (when implemented).
 
 
 

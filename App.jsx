@@ -328,8 +328,33 @@ const App = () => {
 
   const prevDiscoveredRef = React.useRef(state.discoveredPorts || []);
   const [discoveryPopup, setDiscoveryPopup] = React.useState(null);
+  const seededForSessionRef = React.useRef(false);
 
+  // ── Seed the seen list once, when the game first reaches a port screen ──
   React.useEffect(() => {
+    if (!seededForSessionRef.current && state.screen === "port") {
+      const seen = getSeenDiscoveries();
+      const discoveredHidden = state.discoveredPorts.filter(p => window.D.PORTS[p]?.hidden);
+      let changed = false;
+      for (const portKey of discoveredHidden) {
+        const portName = window.D.PORTS[portKey]?.name || portKey;
+        if (!seen.includes(portName)) {
+          seen.push(portName);
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(SEEN_DISCOVERY_KEY, JSON.stringify(seen));
+      }
+      seededForSessionRef.current = true;
+      prevDiscoveredRef.current = state.discoveredPorts || [];
+    }
+  }, [state.screen, state.discoveredPorts]);
+
+  // ── Detect new discoveries (only runs after seeding) ──────────────
+  React.useEffect(() => {
+    if (!seededForSessionRef.current) return; // wait for seeding
+
     const prev = prevDiscoveredRef.current || [];
     const current = state.discoveredPorts || [];
     const newPorts = current.filter(p => !prev.includes(p));

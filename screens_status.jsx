@@ -127,14 +127,6 @@ window.S = window.S || {};
       return { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct };
     };
 
-    const getServiceNote = (rep) => {
-      if (rep >= 80) return "−20% repair · +20% missions";
-      if (rep >= 50) return "−10% repair · +10% missions";
-      if (rep >= 30) return "Standard prices";
-      if (rep >= 10) return "−25% missions";
-      return "No services available";
-    };
-
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
         <Tooltip text="Return to the harbour.">
@@ -185,106 +177,128 @@ window.S = window.S || {};
           </div>
         </Panel>
 
-        {/* Section 2: Career Highlights */}
-        <Panel>
+        {/* Section 2: Career – title OUTSIDE the panel */}
+        <div>
           <SectionTitle>CAREER</SectionTitle>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-            {highlights.map((line, i) => (
-              <div key={i} style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, paddingLeft: 10, borderLeft: `2px solid ${T.borderFaint}` }}>{line}</div>
-            ))}
-          </div>
-          <div onClick={() => setShowFullLedger(v => !v)} style={{ color: T.textFaint, fontSize: T.captionFontSize, cursor: "pointer", marginTop: 4, padding: 4, borderTop: `1px solid ${T.borderFaint}` }}>
-            {showFullLedger ? "▾ Hide full ledger" : "▸ Show full ledger"}
-          </div>
-          {showFullLedger && (
-            <div style={{ marginTop: 10, padding: 8, background: T.bgDeep, borderRadius: 3 }}>
-              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Economic</div>
-              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
-                <StatBlock label="Gold Earned" value={`${(career.goldEarned || 0).toLocaleString()}g`} color={T.gold} />
-                <StatBlock label="Gold Spent"  value={`${(career.goldSpent || 0).toLocaleString()}g`} color={T.redBr} />
-                <StatBlock label="Storms Survived" value={career.stormsSurvived || 0} />
-                <StatBlock label="Contraband Seized" value={career.contrabandSeized || 0} color={T.redBr} />
-              </div>
-              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Combat</div>
-              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
-                <StatBlock label="Battles Won"  value={career.battles?.won || 0} color={T.greenBr} />
-                <StatBlock label="Battles Lost" value={career.battles?.lost || 0} color={T.redBr} />
-                <StatBlock label="Battles Fled" value={career.battles?.fled || 0} color={T.textDim} />
-                <StatBlock label="Ships Sunk"   value={career.shipsSunk || 0} />
-                <StatBlock label="Ships Plundered" value={career.shipsPlundered || 0} color={T.gold} />
-              </div>
-              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Crew</div>
-              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
-                <StatBlock label="Hired"     value={career.crewHired || 0} color={T.greenBr} />
-                <StatBlock label="Dismissed" value={career.crewDismissed || 0} />
-                <StatBlock label="Lost in Battle" value={career.crewLost?.inBattle || 0} color={T.redBr} />
-                <StatBlock label="Lost in Storm"  value={career.crewLost?.inStorm || 0} color={T.redBr} />
-                <StatBlock label="Deserted"       value={career.crewLost?.deserted || 0} color={T.redBr} />
-                <StatBlock label="Other Losses"   value={career.crewLost?.other || 0} color={T.redBr} />
-                <StatBlock label="Longest Tenure" value={`${career.longestCrewTenure || 0}d`} color={T.blueBr} />
-              </div>
-              <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>World</div>
-              <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap" }}>
-                <StatBlock label="Ports Visited" value={`${portsVisitedCount} / ${portsTotal}`} />
-                <StatBlock label="Ships Owned"   value={(career.shipsOwned || []).length} />
-              </div>
+          <Panel>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+              {highlights.map((line, i) => (
+                <div key={i} style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, paddingLeft: 10, borderLeft: `2px solid ${T.borderFaint}` }}>{line}</div>
+              ))}
             </div>
-          )}
-        </Panel>
+            <div onClick={() => setShowFullLedger(v => !v)} style={{ color: T.textFaint, fontSize: T.captionFontSize, cursor: "pointer", marginTop: 4, padding: 4, borderTop: `1px solid ${T.borderFaint}` }}>
+              {showFullLedger ? "▾ Hide full ledger" : "▸ Show full ledger"}
+            </div>
+            {showFullLedger && (
+              <div style={{ marginTop: 10, padding: 8, background: T.bgDeep, borderRadius: 3 }}>
+                <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Economic</div>
+                <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                  <StatBlock label="Gold Earned" value={`${(career.goldEarned || 0).toLocaleString()}g`} color={T.gold} />
+                  <StatBlock label="Gold Spent"  value={`${(career.goldSpent || 0).toLocaleString()}g`} color={T.redBr} />
+                  <StatBlock label="Storms Survived" value={career.stormsSurvived || 0} />
+                  <StatBlock label="Contraband Seized" value={career.contrabandSeized || 0} color={T.redBr} />
+                </div>
+                <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Combat</div>
+                <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                  <StatBlock label="Battles Won"  value={career.battles?.won || 0} color={T.greenBr} />
+                  <StatBlock label="Battles Lost" value={career.battles?.lost || 0} color={T.redBr} />
+                  <StatBlock label="Battles Fled" value={career.battles?.fled || 0} color={T.textDim} />
+                  <StatBlock label="Ships Sunk"   value={career.shipsSunk || 0} />
+                  <StatBlock label="Ships Plundered" value={career.shipsPlundered || 0} color={T.gold} />
+                </div>
+                <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Crew</div>
+                <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap", marginBottom: 10 }}>
+                  <StatBlock label="Hired"     value={career.crewHired || 0} color={T.greenBr} />
+                  <StatBlock label="Dismissed" value={career.crewDismissed || 0} />
+                  <StatBlock label="Lost in Battle" value={career.crewLost?.inBattle || 0} color={T.redBr} />
+                  <StatBlock label="Lost in Storm"  value={career.crewLost?.inStorm || 0} color={T.redBr} />
+                  <StatBlock label="Deserted"       value={career.crewLost?.deserted || 0} color={T.redBr} />
+                  <StatBlock label="Other Losses"   value={career.crewLost?.other || 0} color={T.redBr} />
+                  <StatBlock label="Longest Tenure" value={`${career.longestCrewTenure || 0}d`} color={T.blueBr} />
+                </div>
+                <div style={{ color: T.textFaint, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>World</div>
+                <div style={{ display: "flex", gap: T.spacing.lg, flexWrap: "wrap" }}>
+                  <StatBlock label="Ports Visited" value={`${portsVisitedCount} / ${portsTotal}`} />
+                  <StatBlock label="Ships Owned"   value={(career.shipsOwned || []).length} />
+                </div>
+              </div>
+            )}
+          </Panel>
+        </div>
 
-        {/* Section 3: The World's View */}
-        <Panel>
-          <SectionTitle><IconHandshake size={14} color={T.gold} /> THE WORLD'S VIEW</SectionTitle>
-          <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 10 }}>How each faction sees you, and how your crew aligns with them.</p>
-          <div style={{ display: "grid", gridTemplateColumns: isNarrowStatus ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))", gap: T.spacing.md }}>
+        {/* Section 3: The World's View – title OUTSIDE the panel, left-aligned */}
+        <div>
+          <SectionTitle style={{ justifyContent: "flex-start" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <IconHandshake size={14} color={T.gold} />
+              THE WORLD'S VIEW
+            </span>
+          </SectionTitle>
+          <Panel>
+            <p style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic", marginBottom: 10 }}>
+              How each faction sees you, and how your crew aligns with them.
+            </p>
+
             {Object.entries(FACTIONS).map(([factionKey, fac]) => {
               const summary = getFactionSummary(factionKey);
               if (!summary) return null;
-              const { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct } = summary;
+              const { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew } = summary;
               const repColor = avgRep >= 60 ? T.greenBr : avgRep >= 30 ? T.gold : T.redBr;
+              const isOwnFaction = factionKey === state.faction;
+
+              // Build sentence – colorize faction name inline
+              const repTier = repLabel.toLowerCase();
+              const heatTier = heat >= 7 ? "hunted" : heat >= 3 ? "watched" : "clean";
+              const templateKey = `${repTier}_${heatTier}`;
+              const template = window.D.FACTION_RELATIONSHIP_TEMPLATES?.[templateKey];
+              let sentence = template
+                ? template(fac.label, avgRep)
+                : `The ${fac.label} regard you with ${repTier} standing.`;
+
+              // If own faction, replace initial "The [Faction] " with "Your people, the [Faction], "
+              if (isOwnFaction) {
+                sentence = sentence.replace(new RegExp(`^The ${fac.label} `, 'i'), `Your people, the ${fac.label}, `);
+              }
+
+              // Insert colored span around the faction label in the sentence
+              const coloredFaction = `<span style="color:${fac.color};font-weight:bold">${fac.label}</span>`;
+              const htmlSentence = sentence.replace(new RegExp(fac.label, 'g'), coloredFaction);
+
               return (
-                <Panel key={factionKey} style={{ background: T.panelAlt }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ color: fac.color, fontSize: T.heading3FontSize, fontWeight: "bold" }}>{fac.label}</div>
-                      <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>
-                        {fac.rivalFactions?.length ? `Rivals: ${fac.rivalFactions.map(r => FACTIONS[r]?.label ?? r).join(", ")}` : "No known rivals"}
-                      </div>
+                <div key={factionKey} style={{ marginBottom: 16, paddingLeft: 10, borderLeft: `2px solid ${fac.color}` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                    {/* Prose – left side */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ color: T.textDim, fontSize: 12, lineHeight: 1.6, margin: "4px 0 2px 0", fontStyle: "italic" }}
+                         dangerouslySetInnerHTML={{ __html: htmlSentence }} />
                     </div>
-                    <RepPill rep={avgRep} />
+
+                    {/* Stats – right side, stacked vertically */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: T.captionFontSize, color: T.textFaint }}>
+                      <span>
+                        Rep: <span style={{ color: repColor, fontWeight: "bold" }}>{avgRep}</span> ({repLabel})
+                      </span>
+                      {heat > 0 && (
+                        <span>
+                          Heat: <span style={{ color: T.redBr, fontWeight: "bold" }}>{heat}</span> ({heatLabel})
+                        </span>
+                      )}
+                      {totalCrew > 0 && (
+                        <span>
+                          Crew: <span style={{ color: T.text }}>{crewOfFaction}</span> / {totalCrew}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Standing</span>
-                      <span style={{ color: repColor, fontSize: T.captionFontSize, fontWeight: "bold" }}>{repLabel} ({avgRep})</span>
-                    </div>
-                    <Bar value={avgRep} max={100} color={repColor} h={8} />
-                    <div style={{ color: T.textFaint, fontSize: 9, marginTop: 3 }}>{getServiceNote(avgRep)}</div>
-                  </div>
-                  {heat > 0 && (
-                    <div style={{ marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                        <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Heat</span>
-                        <span style={{ color: T.redBr, fontSize: T.captionFontSize, fontWeight: "bold" }}>{heatLabel} ({heat}/10)</span>
-                      </div>
-                      <Bar value={heat} max={10} color={T.redBr} h={6} />
-                    </div>
-                  )}
-                  {totalCrew > 0 && (
-                    <div style={{ color: T.textFaint, fontSize: 9, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.borderFaint}` }}>
-                      {crewOfFaction === 0 ? `None of your crew are ${fac.label}.` :
-                       crewOfFaction === totalCrew ? `Your entire crew is ${fac.label}.` :
-                       `${crewOfFaction} of ${totalCrew} crew (${crewPct}%) are ${fac.label}.`}
-                    </div>
-                  )}
-                </Panel>
+                </div>
               );
             })}
-          </div>
-          <p style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.6, marginTop: 10 }}>
-            Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction. Heat decays naturally as you stay clear of trouble.
-          </p>
-        </Panel>
+
+            <p style={{ color: T.textDim, fontSize: T.captionFontSize, lineHeight: 1.6, marginTop: 10 }}>
+              Reputation decays slowly toward neutral (50) over time. Complete missions, aid distressed ships, or parley with faction vessels to improve standing. Attacking their ships will anger all ports of that faction. Heat decays naturally as you stay clear of trouble.
+            </p>
+          </Panel>
+        </div>
       </div>
     );
   }
