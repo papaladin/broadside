@@ -47,137 +47,66 @@
     return { valid: true };
   };
 
+  // mission completion effects helper :
 
-// ── Desertion check ─────────────────────────────────────────
-const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
-  const destFaction = PORTS[currentPort]?.faction;
-  const deserters = [];
-  const settlers = [];
-  const newRoster = [];
+  const applyMissionCompletion = (state, mission) => {
+  const rep = state.reputation[state.currentPort] ?? 50;
+  const perk = L.getRepPerk(rep);
 
-  for (const member of crewRoster) {
-    if (L.hasTag(member, "loyal")) {
-      newRoster.push(member);
-      continue;
-    }
-
-    if (L.hasTag(member, "protected")) {
-      newRoster.push(member);
-      continue; // QM never deserts
-    }
-
-  if (L.hasTag(member, "upset")) {
-    // Base desertion chance (any port), independent of morale
-    let desertChance = 0.15;
-    if (L.hasTag(member, "mutineer")) desertChance *= 2;
-    if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
-    if (destFaction && member.faction === destFaction) desertChance += 0.20;
-
-    if (Math.random() < desertChance) {
-      deserters.push(`${member.firstName} ${member.lastName}`);
-    } else {
-      settlers.push(`${member.firstName} ${member.lastName}`);
-      newRoster.push(L.removeTag(member, "upset"));
-    }
+  // ── Gold ──────────────────────────────────────────────────────
+  let finalGold, bonusNote;
+  if (mission.type === "trade" || mission.type === "smuggle") {
+    finalGold = mission.gold;
+    bonusNote = "";
   } else {
-    newRoster.push(member);
-  }
-  }
-
-  const logLines = [];
-
-  if (deserters.length > 0) {
-    let deserterMsg = "";
-    if (deserters.length === 1)
-      deserterMsg = `${deserters[0]} has left the crew.`;
-    else if (deserters.length === 2)
-      deserterMsg = `${deserters[0]} and ${deserters[1]} have left the crew.`;
-    else
-      deserterMsg = `${deserters.length} crew members have left the crew.`;
-
-    const repFaction = FACTIONS[crewRoster.find(m =>
-      `${m.firstName} ${m.lastName}` === deserters[0]
-    )?.faction]?.label || "their former faction";
-    deserterMsg += ` They could not forgive the attack on ${repFaction} ships.`;
-    logLines.push(window.E.logEntry(state, deserterMsg));
+    const baseGold = mission.gold;
+    finalGold = Math.floor(baseGold * perk.missionMult);
+    const goldDelta = finalGold - baseGold;
+    bonusNote = goldDelta > 0
+      ? ` (+${goldDelta}g ${perk.tier} bonus)`
+      : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
   }
 
-  if (settlers.length > 0) {
-    const settledTemplates = [
-      "👥 The rest of the upset crew seem to have settled down.",
-      "👥 The mood aboard has improved. Tensions are easing.",
-      "👥 Your upset crew appear to have calmed down. For now.",
-    ];
-    const settledMsg = settledTemplates[Math.floor(Math.random() * settledTemplates.length)];
-    logLines.push(window.E.logEntry(state, settledMsg));
+  // ── Reputation impact ─────────────────────────────────────────
+  const repImpact = { ...mission.repImpact };
+  const repBonus = L.getEquipmentEffect(state, "repGainBonus") || 0;
+  if (repBonus > 0) {
+    for (const faction in repImpact) {
+      if (repImpact[faction] > 0) repImpact[faction] += repBonus;
+    }
+  }
+  const newRep = L.applyReputationImpact(state, repImpact);
+
+  // ── Infamy ────────────────────────────────────────────────────
+  const infamyGain = mission.infamyGain || 0;
+  const oldInfamy = state.infamy ?? 0;
+  const newInfamy = Math.min(999, oldInfamy + infamyGain);
+  const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
+
+  // ── Morale ────────────────────────────────────────────────────
+  const alignment = L.getAlignmentModifier(state, mission.faction);
+  const moraleGain = Math.round(3 * alignment);
+  const newMorale = Math.min(100, state.crew.morale + moraleGain);
+
+  // ── Fame ──────────────────────────────────────────────────────
+  let finalFame = mission.fame || 0;
+  const isWarPennantMission = (
+    (mission.type === "combat" || mission.type === "patrol" || mission.type === "assault")
+    && !mission.starter
+  );
+  if (isWarPennantMission) {
+    finalFame += L.getEquipmentEffect(state, "missionCombatFameBonus");
   }
 
-  return { roster: newRoster, logLines };
+  // ── Log lines ─────────────────────────────────────────────────
+  const logLines = [
+    window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${finalFame} fame.`),
+  ];
+  if (infamyGain > 0) logLines.push(`+${infamyGain} infamy.`);
+  if (crossedThreshold) logLines.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
+
+  return { finalGold, finalFame, newInfamy, newRep, newMorale, logLines };
 };
-
-// ── Positive traits (seasoned → veteran → loyal) ────────────
-const processPositiveTraits = (crewRoster, state) => {
-  const newSeasoned = [];
-  const newVeterans = [];
-  const newLoyal = [];
-
-  const newRoster = crewRoster.map(member => {
-    const days = member.daysAboard || 0;
-    const tags = member.tags || [];
-    let updated = member;
-
-    if (tags.includes("loyal")) return updated;
-
-    if (days >= 200 && !tags.includes("upset")) {
-      const memberFaction = member.faction;
-      const factionPorts = Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === memberFaction);
-      const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
-      if (maxRep >= 80) {
-        updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
-        updated = L.addTag(updated, "loyal");
-        newLoyal.push(`${updated.firstName} ${updated.lastName}`);
-        return updated;
-      }
-    }
-
-    if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
-      updated = L.removeTag(member, "seasoned");
-      updated = L.addTag(updated, "veteran");
-      newVeterans.push(`${updated.firstName} ${updated.lastName}`);
-      return updated;
-    }
-
-    if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
-      updated = L.addTag(member, "seasoned");
-      newSeasoned.push(`${updated.firstName} ${updated.lastName}`);
-      return updated;
-    }
-
-    return updated;
-  });
-
-  const promoLines = [];
-  if (newSeasoned.length === 1)
-    promoLines.push(`${newSeasoned[0]} has found their sea legs. A seasoned hand now.`);
-  else if (newSeasoned.length > 1)
-    promoLines.push(`${newSeasoned.length} crew members have found their sea legs.`);
-
-  if (newVeterans.length === 1)
-    promoLines.push(`${newVeterans[0]} has served 100 days aboard. A true veteran.`);
-  else if (newVeterans.length > 1)
-    promoLines.push(`${newVeterans.length} crew members are now veterans.`);
-
-  if (newLoyal.length === 1)
-    promoLines.push(`${newLoyal[0]} has pledged their loyalty. 'This ship is my home now, Captain.'`);
-  else if (newLoyal.length > 1)
-    promoLines.push(`${newLoyal.length} crew members have sworn their loyalty.`);
-
-  const logLines = promoLines.map(l => window.E.logEntry(state, l));
-
-  return { roster: newRoster, logLines };
-};
-
-
 
 
   //----------------------------------------------------------------------------------------------
@@ -226,7 +155,6 @@ case A.START_GAME: {
 
   // ── Hold ────────────────────────────────────────────────────
   newState.hold = {
-    capacity: shipData.holdCapacity,
     items: {
       food: 0, water: 0, rum: 0, sugar: 0, timber: 0, cloth: 0,
       spices: 0, silk: 0, coffee: 0, cocoa: 0, weapons: 0,
@@ -422,7 +350,7 @@ case A.ENTER_PORT: {
   };
 
   // Run post‑arrival logic
-  const desertionResult = processDesertion(
+  const desertionResult = L.processDesertion(
     nextState.crew.roster,
     nextState.crew.morale,
     nextState.currentPort,
@@ -433,7 +361,7 @@ case A.ENTER_PORT: {
     nextState.log = [...nextState.log, ...desertionResult.logLines];
   }
 
-  const traitResult = processPositiveTraits(nextState.crew.roster, state);
+  const traitResult = L.processPositiveTraits(nextState.crew.roster, state);
   nextState.crew = { ...nextState.crew, roster: traitResult.roster };
   if (traitResult.logLines.length > 0) {
     nextState.log = [...nextState.log, ...traitResult.logLines];
@@ -473,7 +401,7 @@ if (
         const shipStats = L.getShipStats(state);
         const rep = state.reputation[state.currentPort] ?? 50;
         const perk = L.getRepPerk(rep);
-        const baseCost = (shipStats.maxHull - state.ship.hull) * 2;
+        const baseCost = L.shipRepairCost(state);
         const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
         const combinedMult = perk.repairMult * (1 + eqRepairPct);
         const cost = Math.floor(baseCost * combinedMult);
@@ -512,7 +440,7 @@ if (
             equipment: { hull: [], armament: [], rigging: [], special: [] },
           },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
-          hold: { ...state.hold, capacity: ship.holdCapacity },
+          hold: { ...state.hold},
           log: [...state.log, purchaseMsg],
         };
       }
@@ -743,153 +671,104 @@ if (
           };
       }
 
-       case A.COMPLETE_MISSION: {
-        const mission = state.activeMission;
-        if (!mission) return state;
-        if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
+ case A.COMPLETE_MISSION: {
+  const mission = state.activeMission;
+  if (!mission) return state;
+  if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
 
-        // Patrol must have defeated enemy
-        if (mission.type === "patrol" && !mission.enemyDefeated) {
-          return {
-            ...state,
-            log: [...state.log, "You have not yet found and defeated the enemy in the patrol zone. Keep searching."]
-          };
-        }
+  // Patrol must have defeated enemy
+  if (mission.type === "patrol" && !mission.enemyDefeated) {
+    return {
+      ...state,
+      log: [...state.log, "You have not yet found and defeated the enemy in the patrol zone. Keep searching."]
+    };
+  }
 
-        if (mission.requiredGood && mission.requiredQty) {
-          const inHold = state.hold?.items?.[mission.requiredGood] || 0;
-          if (inHold < mission.requiredQty) {
-            return {
-              ...state,
-              log: [...state.log,
-                `Cannot complete: ${mission.requiredQty} ${window.D.RESOURCES[mission.requiredGood]?.name} required, ${inHold} in hold.`
-              ]
-            };
-          }
-        }
+  // Required good check
+  if (mission.requiredGood && mission.requiredQty) {
+    const inHold = state.hold?.items?.[mission.requiredGood] || 0;
+    if (inHold < mission.requiredQty) {
+      return {
+        ...state,
+        log: [...state.log,
+          `Cannot complete: ${mission.requiredQty} ${window.D.RESOURCES[mission.requiredGood]?.name} required, ${inHold} in hold.`
+        ]
+      };
+    }
+  }
 
-        let holdItems = { ...(state.hold?.items || {}) };
-        if (mission.requiredGood && mission.requiredQty) {
-          holdItems[mission.requiredGood] = Math.max(0, (holdItems[mission.requiredGood] || 0) - mission.requiredQty);
-        }
+  // Remove required goods from hold
+  let holdItems = { ...(state.hold?.items || {}) };
+  if (mission.requiredGood && mission.requiredQty) {
+    holdItems[mission.requiredGood] = Math.max(0, (holdItems[mission.requiredGood] || 0) - mission.requiredQty);
+  }
 
-        let finalGold, bonusNote;
-        if (mission.type === "trade" || mission.type === "smuggle") {
-          finalGold = mission.gold;
-          bonusNote = "";
-        } else {
-          const rep = state.reputation[state.currentPort] ?? 50;
-          const perk = L.getRepPerk(rep);
-          const baseGold = mission.gold;
-          finalGold = Math.floor(baseGold * perk.missionMult);
-          const goldDelta = finalGold - baseGold;
-          bonusNote = goldDelta > 0 ? ` (+${goldDelta}g ${perk.tier} bonus)`
-                    : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
-        }
+  // Compute all rewards and log lines via the new helper
+  const { finalGold, finalFame, newInfamy, newRep, newMorale, logLines } =
+    applyMissionCompletion(state, mission);
 
-        // Apply Ornate Figurehead bonus to positive rep gains
-        const repImpact = { ...mission.repImpact };
-        const repBonus = L.getEquipmentEffect(state, "repGainBonus") || 0;
-        if (repBonus > 0) {
-          for (const faction in repImpact) {
-            if (repImpact[faction] > 0) {
-              repImpact[faction] += repBonus;
-            }
-          }
-        }
-        const newRep = L.applyReputationImpact(state, repImpact);
-        const infamyGain = mission.infamyGain || 0;
-        const oldInfamy = state.infamy ?? 0;
-        const newInfamy = Math.min(999, oldInfamy + infamyGain);
-        const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
+  let nextState = {
+    ...state,
+    gold: state.gold + finalGold,
+    fame: state.fame + finalFame,
+    infamy: newInfamy,
+    reputation: newRep,
+    activeMission: null,
+    hold: { ...state.hold, items: holdItems },
+    crew: { ...state.crew, morale: newMorale },
+    missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
+    log: [...state.log, ...logLines],
+  };
 
-        // ── MSorale gain for mission completion ────────────────
-        const alignment = L.getAlignmentModifier(state, mission.faction);
-        const moraleGain = Math.round(3 * alignment);
-        const newMorale = Math.min(100, state.crew.morale + moraleGain);
+  // Prevent chaining combat missions in the same visit
+  if (mission.type === "combat") {
+    nextState.completedCombatThisVisit = true;
+  }
 
-        // War Pennants fame bonus
-        let finalFame = mission.fame || 0;
-        const isWarPennantMission = (
-          mission.type === "combat" ||
-          mission.type === "patrol" ||
-          mission.type === "assault"
-        ) && !mission.starter;
-        if (isWarPennantMission) {
-          finalFame += L.getEquipmentEffect(state, "missionCombatFameBonus");
-        }
+  // Smuggle mission: add heat to target faction
+  if (mission.type === "smuggle" && mission.targetPort) {
+    const targetFaction = PORTS[mission.targetPort]?.faction;
+    if (targetFaction && targetFaction !== "pirate") {
+      const alerts = { ...(nextState.factionAlerts || {}) };
+      alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
+      nextState.factionAlerts = alerts;
+    }
+  }
 
-        const newLog = [
-          ...state.log,
-          window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${finalFame} fame.`)
-        ];
-        if (infamyGain > 0) newLog.push(`+${infamyGain} infamy.`);
-        if (crossedThreshold) newLog.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
-        if (mission.plotItem) holdItems = { ...holdItems, plot_item: 0 };
+  // Greedy trait: demands bonus
+  const greedyMembers = nextState.crew.roster.filter(m =>
+    m.tags?.includes("hidden_greedy") || m.tags?.includes("revealed_greedy")
+  );
+  if (greedyMembers.length > 0) {
+    const greedy = greedyMembers[0];
+    const wasHidden = greedy.tags?.includes("hidden_greedy");
+    if (nextState.gold >= 50) {
+      nextState.gold -= 50;
+      nextState.crew.roster = nextState.crew.roster.map(m =>
+        m.id === greedy.id ? (wasHidden ? L.revealTag(m, "greedy") : m) : m
+      );
+      nextState.log = [...nextState.log,
+        wasHidden
+          ? `${greedy.firstName} ${greedy.lastName} demands a larger share. "I did my part," he says, hand out.`
+          : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
+      ];
+    } else {
+      nextState.crew.roster = nextState.crew.roster.map(m =>
+        m.id === greedy.id
+          ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
+          : m
+      );
+      nextState.log = [...nextState.log,
+        wasHidden
+          ? `${greedy.firstName} ${greedy.lastName} demands a larger share. When refused, he grows bitter.`
+          : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
+      ];
+    }
+  }
 
-        let nextState = {
-          ...state,
-          gold: state.gold + finalGold,
-          fame: state.fame + finalFame,
-          infamy: newInfamy,
-          reputation: newRep,
-          activeMission: null,
-          hold: { ...state.hold, items: holdItems },
-          crew: { ...state.crew, morale: newMorale },
-          missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
-          log: newLog,
-        };
-
-        // set flag to avoid chaining hunt mission in same port.
-        if (mission.type === "combat") {
-          nextState.completedCombatThisVisit = true;
-        }
-
-        // ── Smuggle mission: add heat to target faction ────────────
-        if (mission.type === "smuggle" && mission.targetPort) {
-          const targetFaction = PORTS[mission.targetPort]?.faction;
-          if (targetFaction && targetFaction !== "pirate") {
-            const alerts = { ...(nextState.factionAlerts || {}) };
-            alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
-            nextState.factionAlerts = alerts;
-          }
-        }
-
-        // ── Greedy trait: demands bonus ──────────────────────────────
-        const greedyMembers = nextState.crew.roster.filter(m =>
-          m.tags?.includes("hidden_greedy") || m.tags?.includes("revealed_greedy")
-        );
-        if (greedyMembers.length > 0) {
-          const greedy = greedyMembers[0]; // only one triggers per mission
-          const wasHidden = greedy.tags?.includes("hidden_greedy");
-          if (nextState.gold >= 50) {
-            nextState.gold -= 50;
-            nextState.crew.roster = nextState.crew.roster.map(m =>
-              m.id === greedy.id ? (wasHidden ? L.revealTag(m, "greedy") : m) : m
-            );
-            nextState.log = [...nextState.log,
-              wasHidden
-                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. "I did my part," he says, hand out.`
-                : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
-            ];
-          } else {
-            // Can't afford : becomes upset
-            nextState.crew.roster = nextState.crew.roster.map(m =>
-              m.id === greedy.id
-                ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
-                : m
-            );
-            nextState.log = [...nextState.log,
-              wasHidden
-                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. When refused, he grows bitter.`
-                : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
-            ];
-          }
-        }
-
-        if (state.autoSave !== false) autoSave(nextState);
-        return nextState;
-      }
+  if (state.autoSave !== false) autoSave(nextState);
+  return nextState;
+}
 
       case A.ABANDON_MISSION:
         return {

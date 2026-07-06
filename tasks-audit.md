@@ -706,35 +706,35 @@ shifts the window resize event misses.
 
 ## Summary Table
 
-| ID | Category | Priority | File(s) |
-|---|---|---|---|
-| BUG-01 | Functional bug | High | `engine_port.js`, `logic.js` |
-| BUG-02 | Functional bug | High | `engine_combat.js` |
-| BUG-03 | Architecture violation + bug | High | `logic.js`, `generators.js`, `engine_combat.js` |
-| BUG-04 | Typo | Low | `engine_combat.js` |
-| BUG-05 | Functional bug | Medium | `engine_port.js` |
-| ARCH-01 | Wrong file | Medium | `engine_core.js`, `engine_career.js` |
-| ARCH-02 | Structural fragility | Medium | `engine_voyage.js` |
-| ARCH-03 | Stale state field | Low | `engine_port.js`, `engine_core.js` |
-| ARCH-04 | Wrong file | Low | `engine_port.js`, `engine_voyage.js`, `logic.js` |
-| ARCH-05 | File too long | Low | `screens_port.jsx` |
-| ARCH-06 | RNG in wrong layer | Low | `engine_combat.js`, `generators.js` |
-| ARCH-07 | Pure fn in wrong layer | Low | `engine_combat.js`, `logic.js` |
-| REFACTOR-01 | Case too long | Medium | `engine_port.js` |
-| REFACTOR-02 | Function too long | Low | `logic.js` |
-| REFACTOR-03 | Case too long | Medium | `engine_combat.js` |
-| REFACTOR-04 | Data in function body | Low | `generators.js`, `data_text.js` |
-| QUALITY-01 | AI soup / indentation | Low | `engine_port.js` |
-| QUALITY-02 | AI soup / indentation | Low | `engine_core.js`, `engine_port.js` |
-| QUALITY-03 | Needless `let` pattern | Low | `engine_port.js` |
-| QUALITY-04 | Duplicate utility | Low | `engine_combat.js`, `logic.js` |
-| QUALITY-05 | Dead code | Low | `data_text.js` |
-| QUALITY-06 | Style inconsistency | Low | `engine_combat.js` |
-| DATA-01 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |
-| DATA-02 | Strings in engine | Low | `engine_port.js`, `data_text.js` |
-| DATA-03 | Strings in engine | Low | `engine_voyage.js`, `data_text.js` |
-| DATA-04 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |
-| DATA-05 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |
-| MAP-01 | Performance / correctness | Medium | `screens_voyage.jsx` |
-| MAP-02 | Mobile UX bug | Medium | `screens_voyage.jsx` |
-| MAP-03 | Fragile magic numbers | Low | `screens_voyage.jsx` |
+| ID | Category | Priority | File(s) | Status |
+|---|---|---|---|---|
+| BUG-01 | Functional bug | High | `engine_port.js`, `logic.js` |DONE| 
+| BUG-02 | Functional bug | High | `engine_combat.js` |DONE|
+| BUG-03 | Architecture violation + bug | High | `logic.js`, `generators.js`, `engine_combat.js` |DONE|
+| BUG-04 | Typo | Low | `engine_combat.js` |DONE|
+| BUG-05 | Functional bug | Medium | `engine_port.js` |DONE|
+| ARCH-01 | Wrong file | Medium | `engine_core.js`, `engine_career.js` |DONE|
+| ARCH-02 | Structural fragility | Medium | `engine_voyage.js` |DONE|
+| ARCH-03 | Stale state field | Low | `engine_port.js`, `engine_core.js` |DONE|
+| ARCH-04 | Wrong file | Low | `engine_port.js`, `engine_voyage.js`, `logic.js` |DONE|
+| ARCH-05 | File too long | Low | `screens_port.jsx` |DONE|
+| ARCH-06 | RNG in wrong layer | Low | `engine_combat.js`, `generators.js` |REJECTED|
+| ARCH-07 | Pure fn in wrong layer | Low | `engine_combat.js`, `logic.js` |REJECTED|
+| REFACTOR-01 | Case too long | Medium | `engine_port.js` |DONE|
+| REFACTOR-02 | Function too long | Low | `logic.js` ||
+| REFACTOR-03 | Case too long | Medium | `engine_combat.js` |DONE|
+| REFACTOR-04 | Data in function body | Low | `generators.js`, `data_text.js` ||
+| QUALITY-01 | AI soup / indentation | Low | `engine_port.js` |REJECTED|
+| QUALITY-02 | AI soup / indentation | Low | `engine_core.js`, `engine_port.js` |REJECTED|
+| QUALITY-03 | Needless `let` pattern | Low | `engine_port.js` |REJECTED|
+| QUALITY-04 | Duplicate utility | Low | `engine_combat.js`, `logic.js` |REJECTED|
+| QUALITY-05 | Dead code | Low | `data_text.js` |REJECTED|
+| QUALITY-06 | Style inconsistency | Low | `engine_combat.js` |REJECTED|
+| DATA-01 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |REJECTED|
+| DATA-02 | Strings in engine | Low | `engine_port.js`, `data_text.js` |REJECTED|
+| DATA-03 | Strings in engine | Low | `engine_voyage.js`, `data_text.js` |REJECTED|
+| DATA-04 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |REJECTED|
+| DATA-05 | Strings in engine | Low | `engine_combat.js`, `data_text.js` |REJECTED|
+| MAP-01 | Performance / correctness | Medium | `screens_voyage.jsx` ||
+| MAP-02 | Mobile UX bug | Medium | `screens_voyage.jsx` |DONE|
+| MAP-03 | Fragile magic numbers | Low | `screens_voyage.jsx` |REJECTED|

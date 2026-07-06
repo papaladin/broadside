@@ -384,6 +384,69 @@ const getUnreachableReason = (state, portKey) => {
   return null;
 };
 
+const processStarvation = (state, prov, currentRoster) => {
+  const roster = currentRoster || [];
+  const daysWithoutFood  = state.daysWithoutFood ?? 0;
+  const daysWithoutWater = state.daysWithoutWater ?? 0;
+
+  const FOOD_GRACE  = 14;
+  const WATER_GRACE = 3;
+
+  let newDaysWithoutFood  = daysWithoutFood;
+  let newDaysWithoutWater = daysWithoutWater;
+  const warningLogs = [];
+  let deathLog = null;
+  let newRoster = roster;
+
+  if (prov.foodEmpty) {
+    newDaysWithoutFood += 1;
+  } else {
+    newDaysWithoutFood = 0;
+  }
+
+  if (prov.waterEmpty) {
+    newDaysWithoutWater += 1;
+  } else {
+    newDaysWithoutWater = 0;
+  }
+
+  if (newDaysWithoutFood === FOOD_GRACE - 1) {
+    warningLogs.push("The crew grows gaunt. Without food, starvation is imminent.");
+  }
+  if (newDaysWithoutWater === WATER_GRACE - 1) {
+    warningLogs.push("Tongues are swollen. The crew is desperate for fresh water.");
+  }
+
+  if (roster.length > 0) {
+    const foodDeath  = newDaysWithoutFood >= FOOD_GRACE;
+    const waterDeath = newDaysWithoutWater >= WATER_GRACE;
+
+    if (waterDeath || foodDeath) {
+      const { newRoster: tempRoster, removed } = L.removeRandomCrew(roster, 1);
+      if (removed.length > 0) {
+        const name = `${removed[0].firstName} ${removed[0].lastName}`;
+        if (waterDeath && foodDeath) {
+          deathLog = `Hunger and thirst claim a crew member. ${name} has died.`;
+        } else if (waterDeath) {
+          deathLog = `Thirst claims a crew member. ${name} has died.`;
+        } else {
+          deathLog = `Starvation claims a crew member. ${name} has died.`;
+        }
+        newRoster = tempRoster;
+      }
+    }
+  }
+
+  return {
+    daysWithoutFood: newDaysWithoutFood,
+    daysWithoutWater: newDaysWithoutWater,
+    warningLogs,
+    deathLog,
+    roster: newRoster,
+  };
+};
+
+
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REPUTATION FUNCTIONS
@@ -603,10 +666,9 @@ const revealTag = (member, traitName) => {
         if (playerCrew < 5) loss = 0;
         out.enemy.crewLoss = loss;
 
-        const risk = state.activeMission?.risk || "medium";
-        const plunder = G.generateEnemyCargo(state, state.battleState.enemy, risk);
-        out.goldReward = plunder.gold;
-        out.enemyCargo = plunder.cargo;
+        // Store the risk level so engine_combat can generate the plunder cargo
+         out.plunderRisk = state.activeMission?.risk || "medium";
+        
       } else {
         const crewLossPct = 0.3 + Math.random() * 0.2;
         out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
@@ -1048,6 +1110,146 @@ const applyLoseContraband = (holdItems) => {
   return result;
 };
 
+
+// PORT LOGIC
+
+const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
+  const destFaction = PORTS[currentPort]?.faction;
+  const deserters = [];
+  const settlers = [];
+  const newRoster = [];
+
+  for (const member of crewRoster) {
+    if (L.hasTag(member, "loyal")) {
+      newRoster.push(member);
+      continue;
+    }
+    if (L.hasTag(member, "protected")) {
+      newRoster.push(member);
+      continue;
+    }
+    if (L.hasTag(member, "upset")) {
+      let desertChance = 0.15;
+      if (L.hasTag(member, "mutineer")) desertChance *= 2;
+      if (L.hasTag(member, "seasoned") || L.hasTag(member, "veteran")) desertChance *= 0.5;
+      if (destFaction && member.faction === destFaction) desertChance += 0.20;
+
+      if (Math.random() < desertChance) {
+        deserters.push(`${member.firstName} ${member.lastName}`);
+      } else {
+        settlers.push(`${member.firstName} ${member.lastName}`);
+        newRoster.push(L.removeTag(member, "upset"));
+      }
+    } else {
+      newRoster.push(member);
+    }
+  }
+
+  const logLines = [];
+
+  // Group deserters by faction
+  const byFaction = {};
+  for (const name of deserters) {
+    const member = crewRoster.find(m => `${m.firstName} ${m.lastName}` === name);
+    const fac = member?.faction || "unknown";
+    if (!byFaction[fac]) byFaction[fac] = [];
+    byFaction[fac].push(name);
+  }
+
+  for (const [faction, names] of Object.entries(byFaction)) {
+    const isFactionGrievance = faction !== "pirate" && destFaction && faction !== destFaction;
+    const reason = isFactionGrievance
+      ? ` They could not forgive the attack on ${FACTIONS[faction]?.label || faction} ships.`
+      : "";
+    let msg;
+    if (names.length === 1) {
+      msg = `${names[0]} has deserted.${reason}`;
+    } else if (names.length <= 3) {
+      msg = `${names.join(", ")} have deserted.${reason}`;
+    } else {
+      const shown = names.slice(0, 3).join(", ");
+      msg = `${shown} and ${names.length - 3} others have deserted.${reason}`;
+    }
+    logLines.push(window.E.logEntry(state, msg));
+  }
+
+  if (settlers.length > 0) {
+    const settledTemplates = [
+      " The rest of the upset crew seem to have settled down.",
+      " The mood aboard has improved. Tensions are easing.",
+      " Your upset crew appear to have calmed down. For now.",
+    ];
+    const settledMsg = settledTemplates[Math.floor(Math.random() * settledTemplates.length)];
+    logLines.push(window.E.logEntry(state, settledMsg));
+  }
+
+  return { roster: newRoster, logLines };
+};
+
+const processPositiveTraits = (crewRoster, state) => {
+  const newSeasoned = [];
+  const newVeterans = [];
+  const newLoyal = [];
+
+  const newRoster = crewRoster.map(member => {
+    const days = member.daysAboard || 0;
+    const tags = member.tags || [];
+    let updated = member;
+
+    if (tags.includes("loyal")) return updated;
+
+    if (days >= 200 && !tags.includes("upset")) {
+      const memberFaction = member.faction;
+      const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === memberFaction);
+      const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
+      if (maxRep >= 80) {
+        updated = L.removeTag(L.removeTag(member, "veteran"), "seasoned");
+        updated = L.addTag(updated, "loyal");
+        newLoyal.push(`${updated.firstName} ${updated.lastName}`);
+        return updated;
+      }
+    }
+
+    if (days >= 100 && !tags.includes("veteran") && !tags.includes("loyal")) {
+      updated = L.removeTag(member, "seasoned");
+      updated = L.addTag(updated, "veteran");
+      newVeterans.push(`${updated.firstName} ${updated.lastName}`);
+      return updated;
+    }
+
+    if (days >= 50 && !tags.includes("seasoned") && !tags.includes("veteran") && !tags.includes("loyal")) {
+      updated = L.addTag(member, "seasoned");
+      newSeasoned.push(`${updated.firstName} ${updated.lastName}`);
+      return updated;
+    }
+
+    return updated;
+  });
+
+  const promoLines = [];
+  if (newSeasoned.length === 1)
+    promoLines.push(`${newSeasoned[0]} has found their sea legs. A seasoned hand now.`);
+  else if (newSeasoned.length > 1)
+    promoLines.push(`${newSeasoned.length} crew members have found their sea legs.`);
+
+  if (newVeterans.length === 1)
+    promoLines.push(`${newVeterans[0]} has served 100 days aboard. A true veteran.`);
+  else if (newVeterans.length > 1)
+    promoLines.push(`${newVeterans.length} crew members are now veterans.`);
+
+  if (newLoyal.length === 1)
+    promoLines.push(`${newLoyal[0]} has pledged their loyalty. 'This ship is my home now, Captain.'`);
+  else if (newLoyal.length > 1)
+    promoLines.push(`${newLoyal.length} crew members have sworn their loyalty.`);
+
+  const logLines = promoLines.map(l => window.E.logEntry(state, l));
+
+  return { roster: newRoster, logLines };
+};
+
+
+
+
   // Expose all functions globally
   return {
 
@@ -1080,6 +1282,7 @@ const applyLoseContraband = (holdItems) => {
   travelDaysFromPosition,
   canReachFromPosition,
   getReachablePortsFromSea,
+  processStarvation,
 
     // Reputation
     decayReputation,
@@ -1121,6 +1324,12 @@ const applyLoseContraband = (holdItems) => {
     getDaysOfProvisions,
     applyLoseCargoPercent,
     applyLoseContraband,
+
+
+    // PORT
+
+    processPositiveTraits,
+    processDesertion, 
 
   };
 })();

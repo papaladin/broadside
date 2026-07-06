@@ -261,7 +261,7 @@ window.E.reducer = (state, action) => {
           ...state,
           ship: { type: action.shipType, name: s.name, hull: s.maxHull, cannons: s.cannons, equipment: { hull: [], armament: [], rigging: [], special: [] } },
           equipmentInventory: [],
-          hold: { ...state.hold, capacity: s.holdCapacity },
+          hold: { ...state.hold},
           crew: { ...state.crew, max: s.maxCrew },
         };
       }
@@ -397,40 +397,5 @@ window.E.reducer = (state, action) => {
         return state;
     }
   });
-
-  // ── Morale threshold crossing logger ──────────────────────────────
-const MORALE_THRESHOLDS = [
-  { value: 90, label: "excellent", upVerb: "soars to", downVerb: "falls from" },
-  { value: 70, label: "good",    upVerb: "improves to", downVerb: "drops from" },
-  { value: 50, label: "average",  upVerb: "steadies to", downVerb: "slips from" },
-  { value: 30, label: "low",     upVerb: "recovers to", downVerb: "sinks to" },
-];
-
-window.E._reducers.push((state, action) => {
-  const prevState = action.__prevState;
-  if (!prevState) return state;                // no previous state (e.g., START_GAME)
-
-  const prevMorale = window.L.getEffectiveMorale(prevState);
-  const currMorale = window.L.getEffectiveMorale(state);
-  if (prevMorale === currMorale) return state;  // nothing to report
-
-  // Find the single most significant threshold crossed
-  let best = null;
-  let direction = null;
-  for (const t of MORALE_THRESHOLDS) {
-    if (prevMorale < t.value && currMorale >= t.value) {
-      if (!best || t.value > best.value) { best = t; direction = "up"; }
-    } else if (prevMorale >= t.value && currMorale < t.value) {
-      if (!best || t.value < best.value) { best = t; direction = "down"; }
-    }
-  }
-
-  if (!best) return state;
-
-  const verb = direction === "up" ? best.upVerb : best.downVerb;
-  const logLine = window.E.logEntry(state, `Crew morale ${verb} ${best.label} (${currMorale}%).`);
-  return { ...state, log: [...state.log, logLine] };
-});
-
 
 })();

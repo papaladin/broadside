@@ -37,128 +37,59 @@
     };
   };
 
-  const processStarvation = (state, prov, currentRoster) => {
-  const roster = currentRoster || [];
-  const daysWithoutFood  = state.daysWithoutFood ?? 0;
-  const daysWithoutWater = state.daysWithoutWater ?? 0;
 
-  const FOOD_GRACE  = 14;
-  const WATER_GRACE = 3;
+  // ── All ADVANCE_DAY event helpers now accept only baseState ──
 
-  let newDaysWithoutFood  = daysWithoutFood;
-  let newDaysWithoutWater = daysWithoutWater;
-  const warningLogs = [];
-  let deathLog = null;
-  let newRoster = roster;
-
-  if (prov.foodEmpty) {
-    newDaysWithoutFood += 1;
-  } else {
-    newDaysWithoutFood = 0;
-  }
-
-  if (prov.waterEmpty) {
-    newDaysWithoutWater += 1;
-  } else {
-    newDaysWithoutWater = 0;
-  }
-
-  if (newDaysWithoutFood === FOOD_GRACE - 1) {
-    warningLogs.push("The crew grows gaunt. Without food, starvation is imminent.");
-  }
-  if (newDaysWithoutWater === WATER_GRACE - 1) {
-    warningLogs.push("Tongues are swollen. The crew is desperate for fresh water.");
-  }
-
-  if (roster.length > 0) {
-    const foodDeath  = newDaysWithoutFood >= FOOD_GRACE;
-    const waterDeath = newDaysWithoutWater >= WATER_GRACE;
-
-    if (waterDeath || foodDeath) {
-      const { newRoster: tempRoster, removed } = L.removeRandomCrew(roster, 1);
-      if (removed.length > 0) {
-        const name = `${removed[0].firstName} ${removed[0].lastName}`;
-        if (waterDeath && foodDeath) {
-          deathLog = `Hunger and thirst claim a crew member. ${name} has died.`;
-        } else if (waterDeath) {
-          deathLog = `Thirst claims a crew member. ${name} has died.`;
-        } else {
-          deathLog = `Starvation claims a crew member. ${name} has died.`;
-        }
-        newRoster = tempRoster;
-      }
-    }
-  }
-
-  return {
-    daysWithoutFood: newDaysWithoutFood,
-    daysWithoutWater: newDaysWithoutWater,
-    warningLogs,
-    deathLog,
-    roster: newRoster,
-  };
-};
-
-  const maybeSmugglePatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-    if (!state.activeMission || state.activeMission.type !== "smuggle" || state.activeMission.encounterOccurred) return null;
-    const interceptChance = state.activeMission.interceptChance || 0.70;
+  const maybeSmugglePatrol = (baseState) => {
+    const mission = baseState.activeMission;
+    if (!mission || mission.type !== "smuggle" || mission.encounterOccurred) return null;
+    const interceptChance = mission.interceptChance || 0.70;
     if (Math.random() >= interceptChance) return null;
-    const destPort = D.PORTS[state.destination];
+    const destPort = D.PORTS[baseState.destination];
     const faction = destPort?.faction || "english";
-    const enemy = G.generateEnemy("medium", state.fame, faction);
+    const enemy = G.generateEnemy("medium", baseState.fame, faction);
     enemy.name = `${FACTIONS[faction]?.label || "Colonial"} Revenue Cutter`;
-    const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
     return {
-      ...state,
-      wind: newWind,
-      day: state.day + 1,
-      sailingDaysLeft: newDays,
-      gold: newGold,
-      reputation: newRep,
-      crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-      hold: { ...state.hold, items: newHoldItems },
-      activeMission: { ...state.activeMission, encounterOccurred: true },
+      activeMission: { ...mission, encounterOccurred: true },
       encounterContext: context,
       screen: "intercept",
-      log: [...state.log, "A patrol vessel approaches, flying inspection colours."]
+      log: [...baseState.log, "A patrol vessel approaches, flying inspection colours."],
     };
   };
 
-  const maybeMissionEncounter = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-    if (!state.activeMission || state.activeMission.encounterOccurred) return null;
-    if (state.destination !== state.activeMission.targetPort) return null;
+  const maybeMissionEncounter = (baseState) => {
+    const mission = baseState.activeMission;
+    if (!mission || mission.encounterOccurred) return null;
+    if (baseState.destination !== mission.targetPort) return null;
+    const newDays = baseState.sailingDaysLeft;
     if (newDays < 1) return null;
 
-    const mission = state.activeMission;
-    const progress = 1 - (newDays / state.sailingDaysTotal);
+    const progress = 1 - (newDays / baseState.sailingDaysTotal);
 
     if (mission.type === "escort" && !mission.starter) {
       const chance = 0.20 + 0.60 * progress;
       if (newDays <= 1 || Math.random() < chance) {
-        const enemy = mission.enemy || G.generateEnemy("medium", state.fame, mission.faction);
-        const ctx = L.buildEncounterContext(state, "escort_defend", enemy);
-        const newActiveMission = { ...mission, encounterOccurred: true };
+        const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
+        const ctx = L.buildEncounterContext(baseState, "escort_defend", enemy);
         return {
-          ...state,
-          activeMission: newActiveMission,
+          activeMission: { ...mission, encounterOccurred: true },
           encounterContext: ctx,
           screen: "intercept",
-          log: [...state.log, "The convoy is under attack!"]
+          log: [...baseState.log, "The convoy is under attack!"],
         };
       }
     } else if (mission.type === "patrol") {
       if (progress > 0.60) {
         const chance = 0.20 + 0.60 * (progress - 0.60) / 0.40;
         if (Math.random() < chance) {
-          const enemy = mission.enemy || G.generateEnemy("medium", state.fame, mission.faction);
-          const ctx = L.buildEncounterContext(state, "mission_combat", enemy);
-          const newActiveMission = { ...mission, encounterOccurred: true };
+          const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
+          const ctx = L.buildEncounterContext(baseState, "mission_combat", enemy);
           return {
-            ...state,
-            activeMission: newActiveMission,
+            activeMission: { ...mission, encounterOccurred: true },
             encounterContext: ctx,
             screen: "intercept",
-            log: [...state.log, "You spot a hostile vessel in the patrol zone!"]
+            log: [...baseState.log, "You spot a hostile vessel in the patrol zone!"],
           };
         }
       }
@@ -167,46 +98,60 @@
     return null;
   };
 
-  const maybeRandomEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-    if (newDays < 1 || Math.random() >= 0.05) return null;
-    const event = L.triggerRandomEvent(state);
+  const maybeRandomEvent = (baseState) => {
+    if (baseState.sailingDaysLeft < 1 || Math.random() >= 0.05) return null;
+    const event = L.triggerRandomEvent(baseState);
     if (!event) return null;
     return {
-      ...state,
-      wind: newWind,
       screen: "event",
-      day: state.day + 1,
-      sailingDaysLeft: newDays,
-      gold: newGold,
-      reputation: newRep,
-      crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-      hold: { ...state.hold, items: newHoldItems },
       activeEvent: event,
-      log: [...state.log, `Day ${state.day + 1}: ${event.title}`]
+      log: [...baseState.log, `Day ${baseState.day}: ${event.title}`],
     };
   };
 
-  const checkRandomPatrol = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-    if (newDays < 1 || state.activeEvent || state.encounterContext) return null;
-    if (!L.maybeRandomPatrol(state)) return null;
-    const port = D.PORTS[state.currentPort];
+  const checkRandomPatrol = (baseState) => {
+    if (baseState.sailingDaysLeft < 1 || baseState.activeEvent || baseState.encounterContext) return null;
+    if (!L.maybeRandomPatrol(baseState)) return null;
+    const port = D.PORTS[baseState.currentPort];
     const faction = port.faction;
-    const heatLevel = state.factionAlerts?.[faction] || 0;
+    const heatLevel = baseState.factionAlerts?.[faction] || 0;
     const patrolRisk = heatLevel >= 7 ? "high" : heatLevel >= 3 ? "medium" : "low";
-    const enemy = G.generateEnemy(patrolRisk, state.fame, faction);
-    const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+    const enemy = G.generateEnemy(patrolRisk, baseState.fame, faction);
+    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
     return {
-      ...state,
-      wind: newWind,
-      day: state.day + 1,
-      sailingDaysLeft: newDays,
-      gold: newGold,
-      reputation: newRep,
-      crew: { ...state.crew, roster: updatedRoster, morale: newMorale },
-      hold: { ...state.hold, items: newHoldItems },
       encounterContext: context,
       screen: "intercept",
-      log: ["A navy patrol hails you and demands to inspect your cargo.", ...state.log]
+      log: ["A navy patrol hails you and demands to inspect your cargo.", ...baseState.log],
+    };
+  };
+
+  const maybeDrunkardEvent = (baseState) => {
+    if (baseState.sailingDaysLeft < 1) return null;
+    if (Math.random() >= 0.20) return null;
+
+    const rumInHold = baseState.hold?.items?.rum || 0;
+    if (rumInHold <= 0) return null;
+
+    if (baseState.activeMission?.type === "smuggle" && baseState.activeMission.requiredGood !== "rum") return null;
+
+    const drunkards = baseState.crew.roster.filter(m =>
+      (m.tags || []).includes("hidden_drunkard") || (m.tags || []).includes("revealed_drunkard")
+    );
+    if (drunkards.length === 0) return null;
+
+    const drunkard = drunkards[Math.floor(Math.random() * drunkards.length)];
+    const wasHidden = (drunkard.tags || []).includes("hidden_drunkard");
+    const updatedDrunkard = wasHidden ? L.revealTag(drunkard, "drunkard") : drunkard;
+
+    const newRoster = baseState.crew.roster.map(m => m.id === updatedDrunkard.id ? updatedDrunkard : m);
+    const newLogLine = wasHidden
+      ? `Someone stole some rum from the hold. The Bosun found it was ${drunkard.firstName} ${drunkard.lastName}.`
+      : `${drunkard.firstName} ${drunkard.lastName} took some rum from the hold. Again.`;
+
+    return {
+      crew: { ...baseState.crew, roster: newRoster },
+      hold: { ...baseState.hold, items: { ...baseState.hold.items, rum: rumInHold - 1 } },
+      log: [...baseState.log, newLogLine],
     };
   };
 
@@ -240,148 +185,109 @@
   };
 
 
-  const maybeDrunkardEvent = (state, newDays, newWind, newGold, newRep, newMorale, updatedRoster, newHoldItems) => {
-  if (newDays < 1) return null;
-  // 20% chance to even check for drunkards
-  if (Math.random() >= 0.20) return null;
-
-  const rumInHold = state.hold?.items?.rum || 0;
-  if (rumInHold <= 0) return null;
-
-  // Skip if on a smuggling mission (except smuggling rum specifically)
-  if (state.activeMission?.type === "smuggle" && state.activeMission.requiredGood !== "rum") return null;
-
-  const drunkards = state.crew.roster.filter(m =>
-    (m.tags || []).includes("hidden_drunkard") || (m.tags || []).includes("revealed_drunkard")
-  );
-  if (drunkards.length === 0) return null;
-
-  const drunkard = drunkards[Math.floor(Math.random() * drunkards.length)];
-  const wasHidden = (drunkard.tags || []).includes("hidden_drunkard");
-  const updatedDrunkard = wasHidden ? L.revealTag(drunkard, "drunkard") : drunkard;
-
-  const newRoster = state.crew.roster.map(m => m.id === updatedDrunkard.id ? updatedDrunkard : m);
-  const newLogLine = wasHidden
-    ? `Someone stole some rum from the hold. The Bosun found it was ${drunkard.firstName} ${drunkard.lastName}.`
-    : `${drunkard.firstName} ${drunkard.lastName} took some rum from the hold. Again.`;
-
-  return {
-    ...state,
-    wind: newWind,
-    day: state.day + 1,
-    sailingDaysLeft: newDays,
-    gold: newGold,
-    reputation: newRep,
-    crew: { ...state.crew, roster: newRoster, morale: newMorale },
-    hold: { ...state.hold, items: { ...newHoldItems, rum: rumInHold - 1 } },
-    log: [...state.log, newLogLine],
-  };
-};
-
-
-
   // ── Reducer ──────────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
     switch (action.type) {
 
       // --- ADVANCE DAY ---
-    case A.ADVANCE_DAY: {
-      if (state.sailingDaysLeft <= 0) return state;
+      case A.ADVANCE_DAY: {
+        if (state.sailingDaysLeft <= 0) return state;
 
-      const newDays = state.sailingDaysLeft - 1;
-      const newWind = advanceWind(state.wind);
-      const wages = L.payCrewWages(state);
-      const newGold = Math.max(0, state.gold - wages);
-      const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
-      let newCrew = advanceCrew(state.crew);
-      const prov = advanceProvisions(state);
+        const newDays = state.sailingDaysLeft - 1;
+        const newWind = advanceWind(state.wind);
+        const wages = L.payCrewWages(state);
+        const newGold = Math.max(0, state.gold - wages);
+        const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
+        let newCrew = advanceCrew(state.crew);
+        const prov = advanceProvisions(state);
 
-      // Morale decay
-      let newMorale = newCrew.morale;
-      const wagesCrisis = state.gold < wages;
-      if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
-        newMorale = Math.max(0, newMorale - 1);
-      }
+        // Morale decay
+        let newMorale = newCrew.morale;
+        const wagesCrisis = state.gold < wages;
+        if (prov.foodEmpty || prov.waterEmpty || wagesCrisis) {
+          newMorale = Math.max(0, newMorale - 1);
+        }
 
-      // Faction alert decay
-      let newAlerts = { ...(state.factionAlerts || {}) };
-      if (state.day % 2 === 0) {
-        Object.keys(newAlerts).forEach(faction => {
-          newAlerts[faction] = Math.max(0, (newAlerts[faction] || 0) - 1);
-        });
-      }
+        // Faction alert decay
+        let newAlerts = { ...(state.factionAlerts || {}) };
+        if (state.day % 2 === 0) {
+          Object.keys(newAlerts).forEach(faction => {
+            newAlerts[faction] = Math.max(0, (newAlerts[faction] || 0) - 1);
+          });
+        }
 
-      // ── Build new log (must be done before starvation to use it there) ──
-      const newLog = [...state.log];
-      if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
-      if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
+        // ── Build new log (must be done before starvation to use it there) ──
+        const newLog = [...state.log];
+        if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
+        if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
 
-      // ── Starvation tracking ──────────────────────────────────────
-      const starvation = processStarvation(state, prov, newCrew.roster);
-      newCrew = { ...newCrew, roster: starvation.roster };
-      newLog.push(...starvation.warningLogs);
-      if (starvation.deathLog) {
-        newLog.push(window.E.logEntry(state, starvation.deathLog));
-      }
-      
-      // ── Route progression ──────────────────────────────────────
-      let newRoute = state.route;
-      if (newRoute) {
-        const progressedDays = newRoute.progressDays + 1;
-        const seaPos = L.getSeaPosition({ ...newRoute, progressDays: progressedDays });
-        newRoute = {
-          ...newRoute,
-          progressDays: progressedDays,
-          seaPosition: seaPos,
-          enduranceSpent: newRoute.enduranceSpent + 1,
+        // ── Starvation tracking ──────────────────────────────────────
+        const starvation = L.processStarvation(state, prov, newCrew.roster);
+        newCrew = { ...newCrew, roster: starvation.roster };
+        newLog.push(...starvation.warningLogs);
+        if (starvation.deathLog) {
+          newLog.push(window.E.logEntry(state, starvation.deathLog));
+        }
+
+        // ── Route progression ──────────────────────────────────────
+        let newRoute = state.route;
+        if (newRoute) {
+          const progressedDays = newRoute.progressDays + 1;
+          const seaPos = L.getSeaPosition({ ...newRoute, progressDays: progressedDays });
+          newRoute = {
+            ...newRoute,
+            progressDays: progressedDays,
+            seaPosition: seaPos,
+            enduranceSpent: newRoute.enduranceSpent + 1,
+          };
+        }
+
+        // Base state with all day‑advance changes applied
+        const baseState = {
+          ...state,
+          wind: newWind,
+          day: state.day + 1,
+          sailingDaysLeft: newDays,
+          gold: newGold,
+          reputation: newRep,
+          crew: { ...newCrew, morale: newMorale },
+          hold: { ...state.hold, items: prov.items },
+          factionAlerts: newAlerts,
+          log: newLog,
+          route: newRoute,
+          daysWithoutFood: starvation.daysWithoutFood,
+          daysWithoutWater: starvation.daysWithoutWater,
         };
+
+        const isOnboarding = state.onboarding?.enabled && !state.onboarding?.completed;
+
+        // Skip random events during onboarding (protect new players)
+        if (!isOnboarding) {
+          let result;
+          result = maybeSmugglePatrol(baseState);
+          if (result) return { ...baseState, ...result };
+
+          result = maybeRandomEvent(baseState);
+          if (result) return { ...baseState, ...result };
+
+          result = checkRandomPatrol(baseState);
+          if (result) return { ...baseState, ...result };
+
+          result = maybeDrunkardEvent(baseState);
+          if (result) return { ...baseState, ...result };
+        }
+
+        // Mission encounters ALWAYS fire (tutorial hunt needs this)
+        const missionEncResult = maybeMissionEncounter(baseState);
+        if (missionEncResult) return { ...baseState, ...missionEncResult };
+
+        // Hidden port discovery
+        const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
+        if (discoveryLog.length) baseState.log.push(...discoveryLog);
+        baseState.discoveredPorts = discoveredPorts;
+
+        return baseState;
       }
-
-      // Base state with all day‑advance changes applied
-      const baseState = {
-        ...state,
-        wind: newWind,
-        day: state.day + 1,
-        sailingDaysLeft: newDays,
-        gold: newGold,
-        reputation: newRep,
-        crew: { ...newCrew, morale: newMorale },
-        hold: { ...state.hold, items: prov.items },
-        factionAlerts: newAlerts,
-        log: newLog,
-        route: newRoute,
-        daysWithoutFood: starvation.daysWithoutFood,
-        daysWithoutWater: starvation.daysWithoutWater,
-      };
-
-      const isOnboarding = state.onboarding?.enabled && !state.onboarding?.completed;
-
-      // Skip random events during onboarding (protect new players)
-      if (!isOnboarding) {
-        const smuggleResult = maybeSmugglePatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (smuggleResult) return { ...baseState, ...smuggleResult };
-
-        const eventResult = maybeRandomEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (eventResult) return { ...baseState, ...eventResult };
-
-        const patrolResult = checkRandomPatrol(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (patrolResult) return { ...baseState, ...patrolResult };
-
-        const drunkardResult = maybeDrunkardEvent(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-        if (drunkardResult) return { ...baseState, ...drunkardResult };
-      }
-
-      // Mission encounters ALWAYS fire (tutorial hunt needs this)
-      const missionEncResult = maybeMissionEncounter(state, newDays, newWind, newGold, newRep, newMorale, newCrew.roster, prov.items);
-      if (missionEncResult) return { ...baseState, ...missionEncResult };
-
-      // Hidden port discovery
-      const { discoveredPorts, log: discoveryLog } = advanceHiddenPorts(state);
-      if (discoveryLog.length) baseState.log.push(...discoveryLog);
-      baseState.discoveredPorts = discoveredPorts;
-
-      return baseState;
-    }
 
       // --- DISCOVER PORT ---
       case A.DISCOVER_PORT: {
