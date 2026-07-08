@@ -267,9 +267,9 @@ window.S = window.S || {};
               return (
                 <div key={factionKey} style={{ marginBottom: 16, paddingLeft: 10, borderLeft: `2px solid ${fac.color}` }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                    {/* Prose – left side */}
+                    {/* Prose – left side, same style as career sentences */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ color: T.textDim, fontSize: 12, lineHeight: 1.6, margin: "4px 0 2px 0", fontStyle: "italic" }}
+                      <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: "4px 0 2px 0", paddingLeft: 2 }}
                          dangerouslySetInnerHTML={{ __html: htmlSentence }} />
                     </div>
 
