@@ -812,10 +812,10 @@ const generateEnemy = (risk, fame, faction, enemyFactionOverride = null) => {
     const risk = pickMissionRisk(type, state.fame ?? 0);
 
     if (type === "trade") {
-      return generateTradeMission(portKey, state, missionFaction, risk);
+      return G.generateTradeMission(portKey, state, missionFaction, risk);
     }
     if (type === "smuggle") {
-      return generateSmuggleMission(portKey, state, risk);
+      return G.generateSmuggleMission(portKey, state, risk);
     }
 
     // escort, patrol, combat, assault

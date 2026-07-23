@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Broadside — Return Coverage (Pass 1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0d1520; --panel: #131f2e; --panel-alt: #1a2a3a;
+    --border: #2a3f52; --border-faint: #1e2e3e;
+    --text: #c4b896; --text-dim: #8a7a60; --text-faint: #5a4a38;
+    --gold: #c9a84c; --gold-br: #e8c870;
+    --green: #5aaa5a; --red: #cc6060; --amber: #c89040;
+    --font: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+         font-family: var(--font); font-size: 12px; line-height: 1.5; }
+  h1 { color: var(--gold-br); font-size: 16px; letter-spacing: 1px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-dim); font-size: 11px; margin-bottom: 6px; }
+  .method-note {
+    background: var(--panel); border: 1px solid var(--border-faint);
+    padding: 10px 14px; margin-bottom: 14px; font-size: 11px; color: var(--text-dim);
+  }
+  .method-note b { color: var(--gold); }
+  .summary { display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+             background: var(--panel); border: 1px solid var(--border);
+             padding: 10px 14px; margin-bottom: 12px; }
+  .stat-label { color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+  .stat-value { font-size: 20px; font-weight: bold; color: var(--gold-br); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+  button { background: var(--panel-alt); color: var(--gold); border: 1px solid var(--border);
+           padding: 5px 12px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+  button:hover { background: var(--gold); color: var(--bg); }
+
+  .file-group { background: var(--panel); border: 1px solid var(--border-faint);
+                padding: 10px 14px; margin-bottom: 8px; }
+  .file-group h2 { color: var(--gold); font-size: 12px; letter-spacing: 0.5px;
+                    border-bottom: 1px solid var(--border-faint); padding-bottom: 4px; margin: 0 0 6px; }
+
+  .row { padding: 4px 0; border-bottom: 1px solid var(--border-faint); }
+  .row:last-child { border-bottom: none; }
+  .row-head { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+  .fn-name { color: var(--text); flex: 1; }
+  .ratio { font-size: 11px; min-width: 50px; text-align: right; }
+  .ratio.full   { color: var(--green); }
+  .ratio.partial{ color: var(--amber); }
+  .ratio.zero   { color: var(--red); }
+  .ratio.static-only { color: var(--text-faint); font-style: italic; }
+  .badge { font-size: 9px; padding: 1px 5px; border: 1px solid var(--red); color: var(--red);
+           text-transform: uppercase; letter-spacing: 1px; }
+  .details { display: none; padding: 6px 0 4px 16px; font-size: 11px; color: var(--text-dim); }
+  .details.open { display: block; }
+  .collision-line { color: var(--amber); margin: 2px 0; }
+  .collision-line .ln { color: var(--text-faint); }
+  .no-issues { color: var(--text-faint); font-style: italic; }
+
+  .running { color: var(--text-dim); font-style: italic; padding: 8px 0; }
+  .footer { color: var(--text-faint); font-size: 10px; margin-top: 14px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>⚓ Broadside — Return Coverage (Pass 1)</h1>
+<div class="subtitle">Static AST return-point counting + runtime return-shape fingerprinting. Zero source edits.</div>
+
+<div class="method-note">
+  <b>What this measures:</b> for every exported function in <code>logic.js</code> / <code>generators.js</code>,
+  and every action case in the engine reducers, this tool statically counts how many distinct
+  <code>return</code> points exist (via a real AST parse — not a text guess), then runs the full test suite
+  and records how many <i>distinct return shapes</i> were actually observed at runtime.<br/><br/>
+  <b>Honest limitation:</b> two different branches that both return an unchanged/no-op value in the same
+  shape (e.g. two different blocked-conditions that both <code>return state;</code>) will fingerprint
+  identically and appear as one observed shape even though they're two separate code paths. Rows flagged
+  <span class="badge">collision risk</span> have this ambiguity — the static analysis lists the exact lines
+  involved so you can decide whether to add a one-line disambiguation mark there. Everything else is exact.
+</div>
+
+<div class="summary">
+  <div><div class="stat-label">Functions/Cases</div><div class="stat-value" id="total">—</div></div>
+  <div><div class="stat-label">Fully Covered</div><div class="stat-value green" id="full">—</div></div>
+  <div><div class="stat-label">Under-covered</div><div class="stat-value red" id="under">—</div></div>
+  <div><div class="stat-label">Collision Risk</div><div class="stat-value" id="collisions">—</div></div>
+  <div style="margin-left:auto;"><button onclick="location.reload()">↻ Re-run</button></div>
+</div>
+
+<div id="results"><div class="running">Loading game scripts…</div></div>
+<div class="footer">
+  Targets: logic.js, generators.js (exported functions) · engine_port.js, engine_voyage.js, engine_combat.js
+  (reducer action cases). Runs tests_helpers.js + tests_logic.js + tests_engine.js to generate call data
+  (tests_ui.js is skipped — it exercises screens, not the functions this tool measures).
+</div>
+
+<!-- ── Babel standalone — used here purely as an AST parser, no JSX in target files ── -->
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+
+<!-- ── Game scripts (plain JS, no Babel transform needed to execute) ─────────────── -->
+<script src="../data.js"></script>
+<script src="../data_text.js"></script>
+<script src="../ship-sprite.js"></script>
+<script src="../logic.js"></script>
+<script src="../storage.js"></script>
+<script src="../generators.js"></script>
+<script src="../engine_core.js"></script>
+<script src="../engine_port.js"></script>
+<script src="../engine_voyage.js"></script>
+<script src="../engine_combat.js"></script>
+<script src="../engine_onboarding.js"></script>
+<script src="../engine_career.js"></script>
+<script src="../engine_scripted.js"></script>
+
+<!-- ── Test files — plain JS, populate window._tests, not executed yet ───────────── -->
+<script>window._tests = [];</script>
+<script src="tests_helpers.js"></script>
+<script src="tests_logic.js"></script>
+<script src="tests_generators.js"></script>
+<script src="tests_engine.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PART 1 — STATIC ANALYSIS (AST-based, zero source edits)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Generic recursive walk over every node/array-of-nodes in an object.
+  // visitor(node) is called for every node; return false from visitor to
+  // stop descending into that node's children (used to stop at function
+  // boundaries when counting returns for an outer scope).
+  function walk(node, visitor) {
+    if (!node || typeof node !== "object") return;
+    const keepGoing = visitor(node);
+    if (keepGoing === false) return;
+    for (const key in node) {
+      if (key === "loc" || key === "start" || key === "end" || key === "range") continue;
+      const child = node[key];
+      if (Array.isArray(child)) {
+        for (const c of child) walk(c, visitor);
+      } else if (child && typeof child.type === "string") {
+        walk(child, visitor);
+      }
+    }
+  }
+
+  const FUNCTION_TYPES = new Set([
+    "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression",
+  ]);
+
+  // Classify a return statement's argument into a signature bucket for
+  // static collision detection. Two returns in the same function with the
+  // same signature MIGHT fingerprint identically at runtime.
+  function classifyReturnArg(argNode) {
+    if (!argNode) return "VOID";
+    switch (argNode.type) {
+      case "Identifier":       return "IDENT:" + argNode.name;
+      case "NullLiteral":      return "LIT:null";
+      case "BooleanLiteral":   return "LIT:" + argNode.value;
+      case "NumericLiteral":   return "LIT:" + argNode.value;
+      case "StringLiteral":    return "LIT:" + argNode.value;
+      default:
+        if (argNode.type === "Literal") return "LIT:" + JSON.stringify(argNode.value);
+        // Objects, calls, spreads, template literals, etc. — assume distinguishable.
+        // Give each a unique tag so it never falsely collides with another COMPLEX return.
+        return "COMPLEX#" + (argNode.start ?? Math.random());
+    }
+  }
+
+  // Count top-level return statements within a function body (or an array
+  // of statements, for switch-case consequents). Does NOT descend into
+  // nested functions — a `.map(x => { return ... })` inside is not a
+  // branch of the outer function.
+  function collectReturns(bodyNodeOrStmts) {
+    const returns = [];
+
+    const visitStatements = (stmts) => {
+      for (const stmt of stmts) {
+        walk(stmt, (node) => {
+          if (node.type === "ReturnStatement") {
+            returns.push({
+              line: node.loc ? node.loc.start.line : -1,
+              signature: classifyReturnArg(node.argument),
+            });
+          }
+          // Stop descending into nested function bodies.
+          if (FUNCTION_TYPES.has(node.type) && node !== bodyNodeOrStmts) {
+            return false;
+          }
+          return true;
+        });
+      }
+    };
+
+    if (Array.isArray(bodyNodeOrStmts)) {
+      visitStatements(bodyNodeOrStmts);
+    } else if (bodyNodeOrStmts.type === "BlockStatement") {
+      visitStatements(bodyNodeOrStmts.body);
+    }
+
+    return returns;
+  }
+
+  // Group returns by signature; anything with >1 member is a collision risk.
+  function computeCollisions(returns) {
+    const groups = {};
+    for (const r of returns) {
+      if (!groups[r.signature]) groups[r.signature] = [];
+      groups[r.signature].push(r.line);
+    }
+    return Object.entries(groups)
+      .filter(([sig, lines]) => lines.length > 1 && !sig.startsWith("COMPLEX#"))
+      .map(([sig, lines]) => ({ signature: sig, lines }));
+  }
+
+  // Find every name exported via `Object.assign(window.<ns>, { a, b, c })`
+  // or `window.<ns>.a = ...`. Only functions in this set are counted,
+  // since only these are instrumentable at runtime.
+function findExportedNames(ast, nsVarName) {
+  const names = new Set();
+  // Track IIFEs that reference window.<ns> via a local variable (e.g., `const L = window.L;`)
+  const nsRefs = new Set(); // Stores local variable names that reference window.<ns>
+
+  walk(ast, (node) => {
+    // --- Pattern 1: Object.assign(window.L, { a, b, c }) ---
+    if (
+      node.type === "CallExpression" &&
+      node.callee?.type === "MemberExpression" &&
+      node.callee.object?.name === "Object" &&
+      node.callee.property?.name === "assign" &&
+      node.arguments?.[0]?.type === "MemberExpression" &&
+      node.arguments[0].object?.name === "window" &&
+      node.arguments[0].property?.name === nsVarName &&
+      node.arguments?.[1]?.type === "ObjectExpression"
+    ) {
+      for (const prop of node.arguments[1].properties) {
+        if (prop.key?.name) names.add(prop.key.name);
+        else if (prop.key?.value) names.add(prop.key.value);
+      }
+    }
+
+    // --- Pattern 2: window.L.foo = ... ---
+    if (
+      node.type === "AssignmentExpression" &&
+      node.left?.type === "MemberExpression" &&
+      node.left.object?.type === "MemberExpression" &&
+      node.left.object.object?.name === "window" &&
+      node.left.object.property?.name === nsVarName &&
+      node.left.property?.name
+    ) {
+      names.add(node.left.property.name);
+    }
+
+    // --- Pattern 3: window.L = (() => { return { a, b, c }; })() ---
+    if (
+      node.type === "AssignmentExpression" &&
+      node.left?.type === "MemberExpression" &&
+      node.left.object?.name === "window" &&
+      node.left.property?.name === nsVarName &&
+      node.right?.type === "CallExpression" &&
+      (node.right.callee?.type === "FunctionExpression" || node.right.callee?.type === "ArrowFunctionExpression") &&
+      node.right.callee.body?.type === "BlockStatement"
+    ) {
+      const returnStmt = node.right.callee.body.body.find(
+        n => n.type === "ReturnStatement" && n.argument?.type === "ObjectExpression"
+      );
+      if (returnStmt?.argument) {
+        for (const prop of returnStmt.argument.properties) {
+          if (prop.key?.name) names.add(prop.key.name);
+          else if (prop.key?.value) names.add(prop.key.value);
+        }
+      }
+    }
+
+    // --- Pattern 4: Track local references to window.<ns> (e.g., `const L = window.L;`) ---
+    if (
+      node.type === "VariableDeclarator" &&
+      node.id?.type === "Identifier" &&
+      node.init?.type === "MemberExpression" &&
+      node.init.object?.name === "window" &&
+      node.init.property?.name === nsVarName
+    ) {
+      nsRefs.add(node.id.name); // e.g., add "L" to nsRefs
+    }
+
+    // --- Pattern 5: Assignments to local refs (e.g., `L.foo = ...` where L = window.L) ---
+    if (
+      node.type === "AssignmentExpression" &&
+      node.left?.type === "MemberExpression" &&
+      node.left.object?.type === "Identifier" &&
+      nsRefs.has(node.left.object.name) && // Check if this local var references window.<ns>
+      node.left.property?.name
+    ) {
+      names.add(node.left.property.name);
+    }
+
+    return true;
+  });
+  return names;
+}
+
+  // Find all top-level function declarations (at any depth inside the IIFE)
+  // whose name is in the exported set. Returns { name -> { returns, collisions, line } }.
+  function analyzeFunctions(ast, exportedNames) {
+    const results = {};
+    walk(ast, (node) => {
+      let name = null, fnNode = null;
+
+      if (node.type === "VariableDeclarator" && node.id?.type === "Identifier" &&
+          FUNCTION_TYPES.has(node.init?.type)) {
+        name = node.id.name;
+        fnNode = node.init;
+      } else if (node.type === "FunctionDeclaration" && node.id?.name) {
+        name = node.id.name;
+        fnNode = node;
+      }
+
+      if (name && fnNode && exportedNames.has(name) && !results[name]) {
+        let returns;
+        if (fnNode.body?.type === "BlockStatement") {
+          returns = collectReturns(fnNode.body);
+        } else {
+          // Arrow function with implicit return, e.g. `(x) => x * 2`
+          returns = [{ line: fnNode.loc?.start.line ?? -1, signature: "IMPLICIT" }];
+        }
+        results[name] = {
+          line: fnNode.loc ? fnNode.loc.start.line : -1,
+          returnCount: returns.length,
+          collisions: computeCollisions(returns),
+        };
+      }
+      return true;
+    });
+    return results;
+  }
+
+  // Find the main reducer switch (discriminant === action.type) and analyze
+  // each case. Returns { actionLabel -> { returnCount, collisions, line } }.
+  function analyzeSwitchCases(ast) {
+    const results = {};
+    walk(ast, (node) => {
+      if (
+        node.type === "SwitchStatement" &&
+        node.discriminant?.type === "MemberExpression" &&
+        node.discriminant.property?.name === "type"
+      ) {
+        for (const c of node.cases) {
+          let label;
+          if (c.test === null) label = "default";
+          else if (c.test.type === "MemberExpression") label = c.test.property?.name ?? "?";
+          else if (c.test.type === "StringLiteral") label = c.test.value;
+          else label = "?";
+
+          if (label === "?" || results[label]) continue; // skip unknowns/dupes across files
+
+          const returns = collectReturns(c.consequent);
+          results[label] = {
+            line: c.loc ? c.loc.start.line : -1,
+            returnCount: returns.length,
+            collisions: computeCollisions(returns),
+          };
+        }
+      }
+      return true;
+    });
+    return results;
+  }
+
+  async function parseFile(path) {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`Failed to fetch ${path}: ${res.status}`);
+    const source = await res.text();
+    const ast = Babel.transform(source, {
+      ast: true, code: false, sourceType: "script", presets: [],
+    }).ast.program;
+    return ast;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PART 2 — RUNTIME INSTRUMENTATION (wraps existing exports, no source edits)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function fingerprintValue(val) {
+    try {
+      if (val === null || val === undefined) return "NULLISH:" + String(val);
+      if (Array.isArray(val)) return "ARRAY:len" + val.length;
+      const t = typeof val;
+      if (t !== "object") return t + ":" + String(val);
+      // Shallow key:value signature — primitive leaves included, objects/arrays abstracted.
+      return "OBJ:" + Object.keys(val).sort().map(k => {
+        const v = val[k];
+        if (v === null || v === undefined) return k + ":" + v;
+        if (typeof v === "object") return k + ":[obj]";
+        return k + ":" + String(v);
+      }).join("|");
+    } catch (e) {
+      return "UNFINGERPRINTABLE";
+    }
+  }
+
+  function fingerprintStateDiff(before, after) {
+    if (before === after) return "UNCHANGED";
+    if (typeof after !== "object" || after === null) return fingerprintValue(after);
+    const changed = Object.keys(after)
+      .filter(k => after[k] !== before?.[k])
+      .sort()
+      .join(",");
+    return changed ? "CHANGED:" + changed : "UNCHANGED";
+  }
+
+  const observedFn = {};   // "L.functionName" -> Set of fingerprints
+  const observedAction = {}; // "ACTION_TYPE" -> Set of fingerprints
+
+  function instrumentNamespace(ns, prefix) {
+    for (const key of Object.keys(ns)) {
+      if (typeof ns[key] !== "function") continue;
+      const fullName = prefix + "." + key;
+      observedFn[fullName] = new Set();
+      const original = ns[key];
+      ns[key] = function (...args) {
+        const result = original.apply(this, args);
+        observedFn[fullName].add(fingerprintValue(result));
+        return result;
+      };
+    }
+  }
+
+  function instrumentReducer() {
+    const original = window.E.reducer;
+    window.E.reducer = function (state, action) {
+      const result = original(state, action);
+      if (!observedAction[action.type]) observedAction[action.type] = new Set();
+      observedAction[action.type].add(fingerprintStateDiff(state, result));
+      return result;
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PART 3 — Run the test suite (generates the call data instrumentation reads)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function runTestsForCoverage() {
+    const _realLS = window.localStorage;
+    let _store = {};
+    const _mockLS = {
+      getItem: (k) => (_store[k] !== undefined ? _store[k] : null),
+      setItem: (k, v) => { _store[k] = String(v); },
+      removeItem: (k) => { delete _store[k]; },
+      clear: () => { _store = {}; },
+    };
+    const _realRandom = Math.random;
+
+    const u = {
+      assert: (cond, msg) => { if (!cond) throw new Error(msg || "Assertion failed"); },
+      assertEqual: (a, e, msg) => { if (a !== e) throw new Error(msg || `Expected ${e}, got ${a}`); },
+      assertApprox: (a, e, tol = 0.001, msg) => { if (Math.abs(a - e) > tol) throw new Error(msg || `Expected ≈${e}, got ${a}`); },
+      assertThrows: (fn, msg) => {
+        let threw = false; try { fn(); } catch (e) { threw = true; }
+        if (!threw) throw new Error(msg || "Expected throw");
+      },
+    };
+
+    let ran = 0, failed = 0;
+    for (const test of window._tests) {
+      try { Object.defineProperty(window, "localStorage", { value: _mockLS, writable: true, configurable: true }); }
+      catch (e) { window.localStorage = _mockLS; }
+      Math.random = _realRandom;
+      try {
+        test.run(u);
+        ran++;
+      } catch (e) {
+        failed++; // Coverage tool doesn't need to report individual failures — tests.html does that.
+      } finally {
+        Math.random = _realRandom;
+        try { Object.defineProperty(window, "localStorage", { value: _realLS, writable: true, configurable: true }); }
+        catch (e) { window.localStorage = _realLS; }
+      }
+    }
+    return { ran, failed };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PART 4 — Cross-reference static + dynamic, render report
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function main() {
+    // Instrument BEFORE running tests so calls are captured.
+    instrumentNamespace(window.L, "L");
+    instrumentNamespace(window.G, "G");
+    instrumentReducer();
+
+    const { ran, failed } = runTestsForCoverage();
+
+    // Static analysis — parse raw source of the five target files.
+    const [logicAst, genAst, portAst, voyageAst, combatAst] = await Promise.all([
+      parseFile("../logic.js"),
+      parseFile("../generators.js"),
+      parseFile("../engine_port.js"),
+      parseFile("../engine_voyage.js"),
+      parseFile("../engine_combat.js"),
+    ]);
+
+    const logicExports = findExportedNames(logicAst, "L");
+    const genExports    = findExportedNames(genAst, "G");
+    const logicFns = analyzeFunctions(logicAst, logicExports);
+    const genFns    = analyzeFunctions(genAst, genExports);
+
+    // Switch cases are spread across three files — merge them.
+    const actionCases = {
+      ...analyzeSwitchCases(portAst),
+      ...analyzeSwitchCases(voyageAst),
+      ...analyzeSwitchCases(combatAst),
+    };
+
+    // Build report rows.
+    const fileGroups = [];
+
+    const buildFnRows = (staticMap, observedMap, prefix) => {
+      const rows = [];
+      for (const [name, info] of Object.entries(staticMap)) {
+        const observed = observedMap[prefix + "." + name];
+        rows.push({
+          name,
+          staticCount: info.returnCount,
+          observedCount: observed ? observed.size : 0,
+          wasCalled: !!observed,
+          collisions: info.collisions,
+        });
+      }
+      rows.sort((a, b) => a.name.localeCompare(b.name));
+      return rows;
+    };
+
+    fileGroups.push({ file: "logic.js", rows: buildFnRows(logicFns, observedFn, "L") });
+    fileGroups.push({ file: "generators.js", rows: buildFnRows(genFns, observedFn, "G") });
+
+    const actionRows = [];
+    for (const [label, info] of Object.entries(actionCases)) {
+      const observed = observedAction[label];
+      actionRows.push({
+        name: label,
+        staticCount: info.returnCount,
+        observedCount: observed ? observed.size : 0,
+        wasCalled: !!observed,
+        collisions: info.collisions,
+      });
+    }
+    actionRows.sort((a, b) => a.name.localeCompare(b.name));
+    fileGroups.push({ file: "engine reducers (action cases)", rows: actionRows });
+
+    render(fileGroups, { ran, failed });
+  }
+
+  function render(fileGroups, testStats) {
+    const root = document.getElementById("results");
+    root.innerHTML = "";
+
+    let total = 0, full = 0, under = 0, collisionCount = 0;
+
+    for (const group of fileGroups) {
+      const sec = document.createElement("div");
+      sec.className = "file-group";
+      const h = document.createElement("h2");
+      h.textContent = group.file;
+      sec.appendChild(h);
+
+      for (const row of group.rows) {
+        total++;
+        const hasCollision = row.collisions.length > 0;
+        if (hasCollision) collisionCount++;
+
+        let ratioClass, ratioText;
+        if (!row.wasCalled) {
+          ratioClass = "zero"; ratioText = `0/${row.staticCount}`; under++;
+        } else if (row.observedCount >= row.staticCount) {
+          ratioClass = "full"; ratioText = `${row.observedCount}/${row.staticCount}`; full++;
+        } else {
+          ratioClass = "partial"; ratioText = `${row.observedCount}/${row.staticCount}`; under++;
+        }
+
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+
+        const head = document.createElement("div");
+        head.className = "row-head";
+        head.onclick = () => {
+          const d = rowEl.querySelector(".details");
+          if (d) d.classList.toggle("open");
+        };
+
+        const nameEl = document.createElement("span");
+        nameEl.className = "fn-name";
+        nameEl.textContent = row.name + (row.staticCount > 1 ? ` (${row.staticCount} returns)` : "");
+
+        const ratioEl = document.createElement("span");
+        ratioEl.className = "ratio " + ratioClass;
+        ratioEl.textContent = ratioText;
+
+        head.appendChild(nameEl);
+        if (hasCollision) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = "collision risk";
+          head.appendChild(badge);
+        }
+        head.appendChild(ratioEl);
+        rowEl.appendChild(head);
+
+        const details = document.createElement("div");
+        details.className = "details";
+        if (hasCollision) {
+          for (const c of row.collisions) {
+            const line = document.createElement("div");
+            line.className = "collision-line";
+            line.innerHTML = `<span class="ln">lines ${c.lines.join(", ")}</span> — ${row.collisions.length} return(s) share signature <code>${c.signature}</code>: may fingerprint identically at runtime`;
+            details.appendChild(line);
+          }
+        } else {
+          const none = document.createElement("div");
+          none.className = "no-issues";
+          none.textContent = "No static collision risk — all return points have distinguishable shapes.";
+          details.appendChild(none);
+        }
+        rowEl.appendChild(details);
+
+        sec.appendChild(rowEl);
+      }
+      root.appendChild(sec);
+    }
+
+    document.getElementById("total").textContent = total;
+    document.getElementById("full").textContent  = full;
+    document.getElementById("under").textContent = under;
+    document.getElementById("collisions").textContent = collisionCount;
+  }
+
+  // ── Wait for all game scripts + test files to be ready, then run ──────────
+  function waitAndStart(attempt) {
+    const ready = window.D && window.L && window.G && window.E &&
+                  window._tests && window._tests.length > 0;
+    if (ready) {
+      main().catch(err => {
+        document.getElementById("results").innerHTML =
+          `<div class="running" style="color:var(--red)">⚠ ${err.message}<br/><br/>` +
+          `If this is a fetch/CORS error, this page must be served over http(s) ` +
+          `(e.g. VS Code Live Server), not opened directly as a file.</div>`;
+      });
+    } else if (attempt >= 60) {
+      document.getElementById("results").innerHTML =
+        '<div class="running" style="color:var(--red)">⚠ Timed out waiting for scripts to load.</div>';
+    } else {
+      setTimeout(() => waitAndStart(attempt + 1), 100);
+    }
+  }
+
+  window.addEventListener("load", () => waitAndStart(0));
+})();
+</script>
+</body>
+</html>

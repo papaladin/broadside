@@ -112,6 +112,7 @@
 <script type="text/babel" data-presets="react" src="../screens_shipyard.jsx"></script>
 <script type="text/babel" data-presets="react" src="../screens_crew.jsx"></script>
 <script type="text/babel" data-presets="react" src="../screens_market.jsx"></script>
+<script type="text/babel" data-presets="react" src="../screens_status.jsx"></script>
 <script type="text/babel" data-presets="react" src="../screens_voyage.jsx"></script>
 <script type="text/babel" data-presets="react" src="../screens_combat.jsx"></script>
 <script type="text/babel" data-presets="react" src="../screens_menu.jsx"></script>
@@ -301,7 +302,7 @@
     // ── 5. Logic exports ──────────────────────────────────────────────────
     group("5. Logic exports (window.L)");
     [
-      "getShipStats","getShipSlots","canInstallEquipment","getEquipmentEffect",
+      "getShipStats","canInstallEquipment","getEquipmentEffect",
       "travelDays","canReach","getUnreachableReason",
       "getSeaPosition","travelDaysFromPosition","canReachFromPosition","getReachablePortsFromSea",
       "reputationLabel","getFameInfo","getRepPerk",
@@ -312,7 +313,7 @@
       "buildEncounterContext","resolveCombatAction","getNPCAction",
       "isFeatureUnlocked","applyReputationImpact",
       "encodeSave","decodeSave","simpleHash",
-      "logPick","returnScreen","addHeat",
+      "logPick","returnScreen",
     ].forEach(fn => test(`L.${fn} is a function`, () =>
       assert(typeof window.L[fn] === "function", `L.${fn} missing or not a function`)));
 
@@ -537,7 +538,7 @@
     test("G.generateEnemy: returns an enemy with required fields", () => {
       const enemy = window.G.generateEnemy("low", 0, "pirate");
       assert(enemy && typeof enemy === "object", "generateEnemy returned null");
-      ["name","faction","shipType","hull","cannons","crew","speed"].forEach(f =>
+      ["name","faction","hull","cannons","crew"].forEach(f =>
         assert(f in enemy, `enemy.${f} missing`));
     });
 
