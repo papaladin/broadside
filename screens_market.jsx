@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, RESOURCES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip, Panel,
+  const { T, panelStyle, Bar, Pill, Btn, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip, Panel, Divider,
     IconAnchor,
     IconFood, IconWater, IconRhum, IconSugar, IconTimber, IconCloth,
     IconSpice, IconSilk, IconCoffee, IconCocoa, IconSpear, IconTobacco,
@@ -14,7 +14,7 @@ window.S = window.S || {};
   } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
-  // Map good keys to their icon components (use IconSpear for weapons, IconPerson for slaves)
+  // Map good keys to their icon components
   const GOOD_ICONS = {
     food: IconFood,
     water: IconWater,
@@ -45,7 +45,7 @@ window.S = window.S || {};
     return aIllegal - bIllegal;
   };
 
-const MarketScreen = ({ state, dispatch }) => {
+  const MarketScreen = ({ state, dispatch }) => {
     const market = state.portMarket;
     const portName = PORTS[state.currentPort]?.name || "Port";
     const [buyPending, setBuyPending] = useState({});
@@ -139,6 +139,101 @@ const MarketScreen = ({ state, dispatch }) => {
     const pendingBuyGoods = Object.keys(buyPending).filter(g => (buyPending[g]||0) > 0);
     const pendingSellGoods = Object.keys(sellPending).filter(g => (sellPending[g]||0) > 0);
 
+    // ── Get trade profile for the current port ──────────────────────
+    const tradeProfile = L.getPortTradeProfile(state.currentPort);
+    const goodDealSet = new Set(tradeProfile.goodDeals);
+    const inDemandSet  = new Set(tradeProfile.inDemand);
+
+    // Helper to render a section title with underline
+    const SectionHeader = ({ title, color }) => (
+      <>
+        <div style={{
+          fontSize: 10,
+          letterSpacing: 2,
+          textTransform: "uppercase",
+          color: color,
+          marginBottom: 4,
+        }}>
+          {title}
+        </div>
+        <div style={{ borderBottom: `1px solid ${color}`, marginBottom: 8 }} />
+      </>
+    );
+
+    // Helper to render a row in the hold (left) column
+    const renderHoldRow = (good) => {
+      const pg = market.goods[good];
+      const price = pg ? pg.sellToPort : 0;
+      const inHold = holdItems[good] || 0;
+      const pending = sellPending[good] || 0;
+      const max = inHold + (buyPending[good] || 0);
+      return (
+        <div key={good} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 10, flexWrap:"wrap" }}>
+          <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
+            {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
+            {window.D.RESOURCES[good]?.name || good}
+            <span style={{ color: T.textDim, marginLeft: 6 }}>×{inHold}</span>
+          </span>
+          <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
+            <Btn sm v="ghost" onClick={() => adjustSell(good, -1)} disabled={(sellPending[good]||0) <= 0}>-</Btn>
+            <input type="number" value={sellPending[good]||0}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10) || 0;
+                setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+              }}
+              style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
+            />
+            <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= max}>+</Btn>
+            <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
+              {price}g
+              <div style={{ color: T.textFaint, fontSize: 8 }}>
+                (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
+              </div>
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    // Helper to render a row in the market (right) column
+    const renderMarketRow = (good) => {
+      const pg = market.goods[good];
+      const price = pg.buyFromPort;
+      const available = pg.available;
+      const pending = buyPending[good] || 0;
+      const freeSpace = capacity - used + (sellPending[good] || 0);
+      const max = Math.min(available, freeSpace + pending);
+      const isIllegal = RESOURCES[good]?.illegal;
+      return (
+        <div key={good} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 10, flexWrap:"wrap" }}>
+          <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
+            {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
+            {RESOURCES[good]?.name || good}
+            {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: T.captionFontSize }}>(Illegal)</span>}
+            <span style={{ color: T.textDim, marginLeft: 6 }}>×{available}</span>
+          </span>
+          <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
+            <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={(buyPending[good]||0) <= 0}>-</Btn>
+            <input type="number" value={buyPending[good]||0}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10) || 0;
+                setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
+              }}
+              style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
+            />
+            <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
+            <Btn sm v="ghost" onClick={() => adjustBuy(good, 20)} disabled={(buyPending[good]||0) + 20 > max}>x20</Btn>
+            <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
+              {price}g
+              <div style={{ color: T.textFaint, fontSize: 8 }}>
+                (Base: {pg.basePrice}g)
+              </div>
+            </span>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div style={{ padding: T.spacing.lg, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
@@ -229,112 +324,65 @@ const MarketScreen = ({ state, dispatch }) => {
             </div>
           }
           leftContent={
-            <div style={{ padding: "8px 4px 0 0" }}>   {/* Added top padding */}
+            <div style={{ padding: "8px 4px 0 0" }}>
               {Object.keys(holdItems).filter(good => (holdItems[good]||0) > 0 || (sellPending[good]||0) > 0).length === 0 ? (
                 <EmptyState message="Your hold is empty." />
               ) : (
-                <div>
-                  {Object.keys(holdItems)
+                (() => {
+                  // Categorize hold goods
+                  const allHoldGoods = Object.keys(holdItems)
                     .filter(good => (holdItems[good]||0) > 0 || (sellPending[good]||0) > 0)
-                    .sort(sortLegalFirst)
-                    .map(good => {
-                      const pg = market.goods[good];
-                      const price = pg ? pg.sellToPort : 0;
-                      const inHold = holdItems[good] || 0;
-                      const pending = sellPending[good] || 0;
-                      const max = inHold + (buyPending[good] || 0);
+                    .sort(sortLegalFirst);
 
-                      return (
-                        <div key={good} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 10, flexWrap:"wrap" }}> {/* Increased marginBottom from 6 to 10 */}
-                          <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
-                            {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
-                            {window.D.RESOURCES[good]?.name || good}
-                            <span style={{ color: T.textDim, marginLeft: 6 }}>×{inHold}</span>
-                          </span>
-                          <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
-                            <Btn sm v="ghost" onClick={() => adjustSell(good, -1)} disabled={(sellPending[good]||0) <= 0}>-</Btn>
-                            <input type="number" value={sellPending[good]||0}
-                              onChange={e => {
-                                const v = parseInt(e.target.value, 10) || 0;
-                                setSellPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
-                              }}
-                              style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
-                            />
-                            <Btn sm v="ghost" onClick={() => adjustSell(good, 1)} disabled={(sellPending[good]||0) >= max}>+</Btn>
-                            <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
-                              {price}g
-                              <div style={{ color: T.textFaint, fontSize: 8 }}>
-                                (Base: {window.D.RESOURCES[good]?.basePrice || 0}g)
-                              </div>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
+                  const inDemandGoods = allHoldGoods.filter(g => inDemandSet.has(g));
+                  const otherGoods = allHoldGoods.filter(g => !inDemandSet.has(g) && !RESOURCES[g]?.illegal);
+                  const illegalGoods = allHoldGoods.filter(g => RESOURCES[g]?.illegal);
+
+                  // Define sections in order
+                  const sections = [
+                    { id: 'demand', title: 'In Demand', color: T.greenBr, goods: inDemandGoods },
+                    { id: 'other', title: 'Other Goods', color: T.gold, goods: otherGoods },
+                    { id: 'illegal', title: 'Illegal Goods', color: T.redBr, goods: illegalGoods },
+                  ].filter(s => s.goods.length > 0);
+
+                  return sections.map((section, idx) => (
+                    <React.Fragment key={section.id}>
+                      <SectionHeader title={section.title} color={section.color} />
+                      {section.goods.map(good => renderHoldRow(good))}
+                    </React.Fragment>
+                  ));
+                })()
               )}
             </div>
           }
           rightTitle="PORT MARKET"
           rightContent={
-            <div style={{ padding: "8px 4px 0 0" }}>   {/* Added top padding */}
+            <div style={{ padding: "8px 4px 0 0" }}>
               {Object.keys(market.goods).filter(g => market.goods[g].available > 0).length === 0 ? (
                 <EmptyState message="No goods available for purchase." />
               ) : (
                 (() => {
-                  let illegalDividerShown = false;
-                  return Object.keys(market.goods)
+                  // Categorize market goods
+                  const allGoods = Object.keys(market.goods)
                     .filter(good => market.goods[good].available > 0)
-                    .sort(sortLegalFirst)
-                    .map(good => {
-                      const pg = market.goods[good];
-                      const price = pg.buyFromPort;
-                      const available = pg.available;
-                      const pending = buyPending[good] || 0;
-                      const freeSpace = capacity - used + (sellPending[good] || 0);
-                      const max = Math.min(available, freeSpace + pending);
-                      const isIllegal = RESOURCES[good]?.illegal;
-                      const showDivider = isIllegal && !illegalDividerShown;
-                      if (showDivider) illegalDividerShown = true;
+                    .sort(sortLegalFirst);
 
-                      return (
-                        <React.Fragment key={good}>
-                          {showDivider && (
-                            <div style={{
-                              borderTop: `1px solid ${T.redBr}`,
-                              margin: "4px 0",
-                              opacity: 0.5,
-                            }} />
-                          )}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 10, flexWrap:"wrap" }}> {/* Increased marginBottom from 6 to 10 */}
-                            <span style={{ color: T.text, fontSize: T.narrativeFontSize, display:"flex", alignItems:"center" }}>
-                              {getGoodIcon(good, { size: 12, style: { marginRight: 4 } })}
-                              {RESOURCES[good]?.name || good}
-                              {isIllegal && <span style={{ color: T.red, marginLeft: 4, fontSize: T.captionFontSize }}>(Illegal)</span>}
-                              <span style={{ color: T.textDim, marginLeft: 6 }}>×{available}</span>
-                            </span>
-                            <div style={{ display:"flex", gap: 4, alignItems:"center" }}>
-                              <Btn sm v="ghost" onClick={() => adjustBuy(good, -1)} disabled={(buyPending[good]||0) <= 0}>-</Btn>
-                              <input type="number" value={buyPending[good]||0}
-                                onChange={e => {
-                                  const v = parseInt(e.target.value, 10) || 0;
-                                  setBuyPending(prev => ({ ...prev, [good]: Math.max(0, Math.min(v, max)) }));
-                                }}
-                                style={{ width:40, textAlign:"center", background:T.panel, border:`1px solid ${T.border}`, color:T.text, borderRadius:2, fontSize:11, fontFamily:T.font, minHeight: 32 }}
-                              />
-                              <Btn sm v="ghost" onClick={() => adjustBuy(good, 1)} disabled={(buyPending[good]||0) >= max}>+</Btn>
-                              <Btn sm v="ghost" onClick={() => adjustBuy(good, 20)} disabled={(buyPending[good]||0) + 20 > max}>x20</Btn>
-                              <span style={{ color: T.gold, fontSize: T.captionFontSize, minWidth: 48, textAlign:"right" }}>
-                                {price}g
-                                <div style={{ color: T.textFaint, fontSize: 8 }}>
-                                  (Base: {pg.basePrice}g)
-                                </div>
-                              </span>
-                            </div>
-                          </div>
-                        </React.Fragment>
-                      );
-                    });
+                  const dealGoods   = allGoods.filter(g => goodDealSet.has(g) && !RESOURCES[g]?.illegal);
+                  const otherGoods  = allGoods.filter(g => !goodDealSet.has(g) && !RESOURCES[g]?.illegal);
+                  const illegalGoods = allGoods.filter(g => RESOURCES[g]?.illegal);
+
+                  const sections = [
+                    { id: 'deals', title: 'Local Produce & Good Deals', color: T.greenBr, goods: dealGoods },
+                    { id: 'other', title: 'Other Goods', color: T.gold, goods: otherGoods },
+                    { id: 'illegal', title: 'Illegal Goods', color: T.redBr, goods: illegalGoods },
+                  ].filter(s => s.goods.length > 0);
+
+                  return sections.map((section, idx) => (
+                    <React.Fragment key={section.id}>
+                      <SectionHeader title={section.title} color={section.color} />
+                      {section.goods.map(good => renderMarketRow(good))}
+                    </React.Fragment>
+                  ));
                 })()
               )}
             </div>
@@ -353,7 +401,7 @@ const MarketScreen = ({ state, dispatch }) => {
         </Panel>
       </div>
     );
-};
+  };
 
   Object.assign(window.S, { MarketScreen });
 })();

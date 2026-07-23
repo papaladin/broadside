@@ -879,6 +879,66 @@ window.L = (() => {
     return result;
   };
 
+
+  // Returns the static trade profile of a port — which goods are structurally cheap
+// (Good Deals) and which are structurally scarce (In Demand / good to sell here).
+// This is derived purely from GOODS_AVAILABILITY + FACTION_PRICE_MODIFIERS and
+// does NOT change between visits unless the underlying data changes.
+const getPortTradeProfile = (portKey) => {
+  const port  = window.D.PORTS[portKey];
+  const avail = window.D.GOODS_AVAILABILITY[portKey];
+  if (!port || !avail) return { goodDeals: [], inDemand: [] };
+
+  // Must match the column order in GOODS_AVAILABILITY rows (same as generators.js)
+  const colOrder = [
+    "food","water","rum","sugar","timber","cloth","spices","silk",
+    "coffee","cocoa","weapons","tobacco","silver","slaves"
+  ];
+
+  const factionMods = window.D.FACTION_PRICE_MODIFIERS[port.faction] ?? {};
+  const illegalGoods = new Set(
+    Object.entries(window.D.RESOURCES)
+      .filter(([, r]) => r.illegal)
+      .map(([k]) => k)
+  );
+  const provisionGoods = new Set(["food", "water"]);
+
+  const goodDeals = [];
+  const inDemand  = [];
+
+  colOrder.forEach((good, idx) => {
+    const tier = avail[idx] || "never";
+
+    // Good Deal: always available at this port OR port faction has a production modifier.
+    if (tier === "always" || (good in factionMods)) {
+      goodDeals.push(good);
+    }
+
+    // In Demand: rarely or never stocked → high structural price → good to sell here.
+    // Exclude provisions and illegal goods.
+    if (
+      (tier === "rarely" || tier === "never") &&
+      !provisionGoods.has(good) &&
+      !illegalGoods.has(good)
+    ) {
+      // Sort "never" before "rarely" (higher price = more valuable sell opportunity)
+      inDemand.push({ good, tier });
+    }
+  });
+
+  // Sort In Demand: "never" tier first (1.40× multiplier > 1.20× for "rarely")
+  inDemand.sort((a, b) => {
+    if (a.tier === "never" && b.tier === "rarely") return -1;
+    if (a.tier === "rarely" && b.tier === "never") return 1;
+    return 0;
+  });
+
+  return {
+    goodDeals,
+    inDemand: inDemand.map(x => x.good),
+  };
+};
+
   // PORT LOGIC
   const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
     const destFaction = PORTS[currentPort]?.faction;
@@ -1059,5 +1119,6 @@ window.L = (() => {
     getDaysOfProvisions,
     applyLoseCargoPercent,
     applyLoseContraband,
+    getPortTradeProfile,
   };
 })();

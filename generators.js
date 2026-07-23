@@ -52,13 +52,19 @@ const shuffleArray = (arr) => {
 const isExtremePrice = (good, buyPrice) => {
   const res = window.D.RESOURCES[good];
   if (!res || res.variance === 0) return null; // fixed-price goods like food/water
-  const min = res.basePrice * (1 - res.variance);
-  const max = res.basePrice * (1 + res.variance);
-  const range = max - min;
-  if (range <= 0) return null;
-  const pct = (buyPrice - min) / range; // 0 = min, 1 = max
-  if (pct <= 0.20) return { type: "surplus", deviation: 0.20 - pct };
-  if (pct >= 0.80) return { type: "shortage", deviation: pct - 0.80 };
+
+  // Neutral buyFromPort = basePrice × 1.10 (no availability or faction modifier)
+  const neutral = res.basePrice * 1.10;
+  const ratio   = buyPrice / neutral;
+
+  // Flag goods that are structurally cheap (≤−18%) or expensive (≥+18%).
+  // This corresponds to:
+  //   "always" tier (0.72×) = ratio ~0.72–0.79 → surplus
+  //   "rarely" tier (1.20×) = ratio ~1.20–1.26 → shortage
+  //   "sometimes" (1.00×)   = ratio ~0.99–1.01 → not flagged
+  if (ratio <= 0.82) return { type: "surplus",  deviation: 0.82 - ratio };
+  if (ratio >= 1.18) return { type: "shortage", deviation: ratio - 1.18 };
+
   return null;
 };
 
@@ -328,88 +334,92 @@ const generateCrewBio = (member, state) => {
 
 // ---- MARKET GENRATORS ---------------------------------
 
-  // ── port market generator ─────────────────────────────────────
 const generatePortMarket = (portKey, state) => {
-    const resources   = window.D.RESOURCES;
-    const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
+  const resources   = window.D.RESOURCES;
+  const availability = window.D.GOODS_AVAILABILITY[portKey] || [];
 
-    // Column order in GOODS_AVAILABILITY rows (must match data.js comment):
-    const colOrder = [
-      "food","water","rum","sugar","timber","cloth","spices","silk",
-      "coffee","cocoa","weapons","tobacco","silver","slaves"
-    ];
+  // Column order in GOODS_AVAILABILITY rows (must match data.js comment):
+  const colOrder = [
+    "food","water","rum","sugar","timber","cloth","spices","silk",
+    "coffee","cocoa","weapons","tobacco","silver","slaves"
+  ];
 
-    // Appearance chance per tier
-    const tierChance = {
-      always:     1.0,
-      frequently: 0.66,
-      sometimes:  0.33,
-      rarely:     0.10,
-      never:      0.0,
-    };
+  // Appearance chance per tier
+  const tierChance = {
+    always:     1.0,
+    frequently: 0.66,
+    sometimes:  0.33,
+    rarely:     0.10,
+    never:      0.0,
+  };
 
-    const tierQtyRanges = {
-      always:     { min: 40, max: 80  },
-      frequently: { min: 20, max: 40  },
-      sometimes:  { min: 8,  max: 20  },
-      rarely:     { min: 2,  max: 8   },
-      never:      null,
-    };
+  const tierQtyRanges = {
+    always:     { min: 40, max: 80  },
+    frequently: { min: 20, max: 40  },
+    sometimes:  { min: 8,  max: 20  },
+    rarely:     { min: 2,  max: 8   },
+    never:      null,
+  };
 
-    const fameTier = window.L.getFameInfo(state?.fame ?? 0).tier;
-    const scale = 1 + fameTier;
+  const fameTier = window.L.getFameInfo(state?.fame ?? 0).tier;
+  const scale = 1 + fameTier;
 
-    const goods = {};
+  const goods = {};
 
-    colOrder.forEach((good, idx) => {
-      const res = resources[good];
-      if (!res) return;
+  colOrder.forEach((good, idx) => {
+    const res = resources[good];
+    if (!res) return;
 
-      // ── Always generate price (independent of availability) ────────
-      const isFixed = res.variance === 0;
-      const variance = res.basePrice * res.variance;
-      const marketPrice = isFixed
-        ? res.basePrice
-        : Math.round(res.basePrice + randBetween(-variance, variance));
+    // ── Hoist tier so the price formula can use the availability multiplier ──
+    const tier = availability[idx] || "never";
 
-      // Buy from port (player pays) and sell to port (player receives)
-      const buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
-      const sellToPort  = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
+    // ── Structural price: basePrice × availabilityMult × factionMod × (1 ± 5%) ──
+    const isFixed = res.variance === 0;
+    const port = window.D.PORTS[portKey];
+    const availMult = window.D.AVAILABILITY_PRICE_MODIFIERS[tier] ?? 1.00;
+    const factionMods = window.D.FACTION_PRICE_MODIFIERS[port?.faction] ?? {};
+    const factionMod = factionMods[good] ?? 1.00;
 
-      // ── Roll availability separately ───────────────────────────────
-      const tier = availability[idx] || "never";
-      const chance = tierChance[tier] ?? 0;
-      let available = 0;
-      if (chance > 0 && Math.random() <= chance) {
-        if (good === "food" || good === "water") {
-          available = 999;
-        } else {
-          const range = tierQtyRanges[tier];
-          available = range ? randInt(range.min * scale, range.max * scale) : 0;
-        }
-      }
+    const marketPrice = isFixed
+      ? res.basePrice
+      : Math.round(res.basePrice * availMult * factionMod * (1 + res.variance * (Math.random() * 2 - 1)));
 
-      goods[good] = {
-        basePrice: res.basePrice,
-        buyFromPort,
-        sellToPort,
-        available,
-      };
-    });
+    const buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
+    const sellToPort  = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
 
-    // Force‑stock tutorial goods during onboarding
-    // (Entry now always exists, so we just bump availability if it's zero)
-    if (state?.onboarding?.enabled && !state?.onboarding?.completed && state?.activeMission?.tutorial) {
-      const requiredGood = state.activeMission.requiredGood;
-      if (requiredGood && goods[requiredGood] && goods[requiredGood].available === 0) {
-        goods[requiredGood].available = 20;
+    // ── Roll availability separately (unchanged) ─────────────────────────────
+    const chance = tierChance[tier] ?? 0;
+    let available = 0;
+    if (chance > 0 && Math.random() <= chance) {
+      if (good === "food" || good === "water") {
+        available = 999;
+      } else {
+        const range = tierQtyRanges[tier];
+        available = range ? randInt(range.min * scale, range.max * scale) : 0;
       }
     }
 
-    return { portKey, goods };
-  };
+    goods[good] = {
+      basePrice: res.basePrice,
+      buyFromPort,
+      sellToPort,
+      available,
+    };
+  });
 
-  // -------- PLUNDER /CARGO GENERATOR ----------------------
+  // Force‑stock tutorial goods during onboarding
+  // (Entry now always exists, so we just bump availability if it's zero)
+  if (state?.onboarding?.enabled && !state?.onboarding?.completed && state?.activeMission?.tutorial) {
+    const requiredGood = state.activeMission.requiredGood;
+    if (requiredGood && goods[requiredGood] && goods[requiredGood].available === 0) {
+      goods[requiredGood].available = 20;
+    }
+  }
+
+  return { portKey, goods };
+};
+
+// -------- PLUNDER /CARGO GENERATOR ----------------------
 
 
   const generateEnemyCargo = (state, enemy, risk = "medium") => {

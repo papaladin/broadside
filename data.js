@@ -776,18 +776,18 @@ const EQUIPMENT = {
 const RESOURCES = {
   food:    { name: "Food",    basePrice: 3,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "ration" },
   water:   { name: "Water",   basePrice: 2,   variance: 0, illegal: false, infamyOnBuy: 0, unit: "barrel" },
-  rum:     { name: "Rum",     basePrice: 30,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "cask", smuggleHint: "Commonly found in pirate ports and French islands.",   },
-  sugar:   { name: "Sugar",   basePrice: 40,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "sack"   },
-  timber:  { name: "Timber",  basePrice: 25,  variance: 0.15, illegal: false, infamyOnBuy: 0, unit: "plank"  },
-  cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.20, illegal: false, infamyOnBuy: 0, unit: "bale"   },
-  spices:  { name: "Spices",  basePrice: 120, variance: 0.45, illegal: false, infamyOnBuy: 0, unit: "chest"  },
-  silk:    { name: "Silk",    basePrice: 160, variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
-  coffee:  { name: "Coffee",  basePrice: 70,  variance: 0.25, illegal: false, infamyOnBuy: 0, unit: "bag"    },
-  cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.30, illegal: false, infamyOnBuy: 0, unit: "crate"  },
-  weapons: { name: "Weapons", basePrice: 80,  variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "crate"  },
-  tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.30, illegal: true, infamyOnBuy: 0, unit: "bale" , sourceHint: "Found in Havana, Tortuga, Providencia, and Nassau.",  },
-  silver:  { name: "Silver",  basePrice: 250, variance: 0.35, illegal: false, infamyOnBuy: 0, unit: "chest"  },
-  slaves:  { name: "Slaves",  basePrice: 220, variance: 0.60, illegal: true,  infamyOnBuy: 1, unit: "person",  sourceHint: "Available in Portobelo, Cartagena, Libertalia, and Veracruz.", },
+  rum:     { name: "Rum",     basePrice: 30,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "cask", smuggleHint: "Commonly found in pirate ports and French islands." },
+  sugar:   { name: "Sugar",   basePrice: 40,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "sack"   },
+  timber:  { name: "Timber",  basePrice: 25,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "plank"  },
+  cloth:   { name: "Cloth",   basePrice: 55,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "bale"   },
+  spices:  { name: "Spices",  basePrice: 120, variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  silk:    { name: "Silk",    basePrice: 160, variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "bolt"   },
+  coffee:  { name: "Coffee",  basePrice: 70,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "bag"    },
+  cocoa:   { name: "Cocoa",   basePrice: 90,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "crate"  },
+  weapons: { name: "Weapons", basePrice: 80,  variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "crate"  },
+  tobacco: { name: "Tobacco", basePrice: 90,  variance: 0.05, illegal: true, infamyOnBuy: 0, unit: "bale" , sourceHint: "Found in Havana, Tortuga, Providencia, and Nassau."  },
+  silver:  { name: "Silver",  basePrice: 250, variance: 0.05, illegal: false, infamyOnBuy: 0, unit: "chest"  },
+  slaves:  { name: "Slaves",  basePrice: 220, variance: 0.05, illegal: true,  infamyOnBuy: 1, unit: "person",  sourceHint: "Available in Portobelo, Cartagena, Libertalia, and Veracruz." },
 };
 
 // Column order:
@@ -827,12 +827,35 @@ const GOODS_AVAILABILITY = {
   roatan:      [ "always","always","rarely","never","rarely","rarely","never","never","sometimes","never","frequently","sometimes","never","rarely" ],
 
   //hidden, to unlock.
+  roatan:      [ "always","always","rarely","never","rarely","rarely","never","never","sometimes","never","frequently","sometimes","never","rarely" ],
   dryTortugas: [ "always","always","sometimes","never","never","never","never","never","never","never","rarely","sometimes","rarely","never" ],
   lasAves:     [ "always","always","never","never","never","never","never","never","never","never","never","rarely","rarely","rarely" ],
   libertalia:  [ "always","always","always","rarely","rarely","rarely","rarely","sometimes","sometimes","sometimes","frequently","frequently","sometimes","frequently" ],
 };
 
+// Price multiplier applied to basePrice based on how readily a port stocks a good.
+// "always"  → port produces this good locally → cheap
+// "never"   → port must import it at great cost → expensive
+const AVAILABILITY_PRICE_MODIFIERS = {
+  always:     0.72,   // −28% vs neutral
+  frequently: 0.88,   // −12%
+  sometimes:  1.00,   // neutral
+  rarely:     1.20,   // +20%
+  never:      1.40,   // +40%
+};
 
+// Additional production discount applied when a port belongs to a faction that
+// historically produced or traded a specific good. Stacks multiplicatively with
+// the availability tier multiplier.
+// Dutch gets 4 goods (historically the dominant trading faction of this era).
+// This affects port prices only — there is no link between PLAYER faction and prices.
+const FACTION_PRICE_MODIFIERS = {
+  english: { sugar: 0.90,  cloth:   0.90 },
+  spanish: { silver: 0.90, cocoa:   0.90 },
+  french:  { rum: 0.90,    coffee:  0.90 },
+  dutch:   { spices: 0.85, silk:    0.90, timber: 0.90, weapons: 0.90 },
+  pirate:  { rum: 0.90,    tobacco: 0.90 },
+};
 
 
 
@@ -1472,6 +1495,8 @@ const DEFAULT_CAREER = {
     EQUIPMENT,
     RESOURCES,
     GOODS_AVAILABILITY,
+    AVAILABILITY_PRICE_MODIFIERS,
+  FACTION_PRICE_MODIFIERS,
     MISSION_GOLD_RANGES,
     MISSION_ENEMY_RANGES,
     PLUNDER_TARGET,
