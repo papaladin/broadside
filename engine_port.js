@@ -232,6 +232,17 @@ case A.START_GAME: {
 
       // --- SAIL_TO ---
     case A.SAIL_TO: {
+        const isDinghy = state.ship.type === "dinghy";
+        const minCrew = L.getMinViableCrew(state.ship.type);
+
+        if (state.ship.hull === 0) {
+          return { ...state, log: [...state.log,
+            window.E.logEntry(state, "The ship cannot sail — the hull is destroyed.")] };
+        }
+        if (!isDinghy && state.crew.roster.length < minCrew) {
+          return { ...state, log: [...state.log,
+            window.E.logEntry(state, `You need at least ${minCrew} crew to sail this ship.`)] };
+        }
       const destPort = PORTS[action.port];
       if (!destPort) return state;
 
@@ -388,6 +399,14 @@ if (
   //reset hunger/thirst counter
   nextState.daysWithoutFood  = 0;
   nextState.daysWithoutWater = 0;
+
+  // ── Unrecoverable check ──
+  const check = L.isUnrecoverable(nextState);
+  if (check.unrecoverable) {
+    // Skip autosave entirely — preserve whatever save existed before this.
+    return { ...nextState, screen: "gameover", gameOverReason: check.reason };
+  }
+
 
   if (state.autoSave !== false) autoSave(nextState);
   return nextState;
@@ -618,6 +637,13 @@ if (
       case A.TAKE_MISSION: {
         const mission = action.mission;
         if (!mission) return state;
+
+      //cant take fight mission with 0HP
+      const FIGHT_INVOLVED_TYPES = ["combat", "patrol", "assault", "escort"];
+        if (state.ship.hull === 0 && FIGHT_INVOLVED_TYPES.includes(mission.type)) {
+          return { ...state, log: [...state.log,
+            window.E.logEntry(state, "The ship is unfit for a fight in this condition.")] };
+        }
 
       if (action.mission.type === "combat" && state.completedCombatThisVisit) {
         return {

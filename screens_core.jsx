@@ -7,7 +7,7 @@ window.S = window.S || {};
   const L = window.L;
   const A = window.E.A;
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
-    IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat, IconJournal  } = window.UI;
+    IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat, IconJournal,IconFloppy,  } = window.UI;
 
   // ── TITLE SCREEN (moved from screens_port.jsx) ───────────────────
 function TitleScreen({ dispatch }) {
@@ -525,10 +525,91 @@ function TitleScreen({ dispatch }) {
     );
   }
 
+// ── GAME OVER SCREEN (non-dismissible) ───────────────────────────────
+function GameOverScreen({ state, dispatch }) {
+  const captainTag = L.getCaptainTag(state);
+  const highlights = L.getCareerHighlights(state);
+  const canLoad = L.hasSave();
+
+  const handleLoad = () => dispatch({ type: A.LOAD_GAME });
+  const handleMainMenu = () => dispatch({ type: A.NAVIGATE, screen: "title" });
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 2000,
+      background: "rgba(0,0,0,0.85)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20,
+      // Deliberately NO onClick handler – non-dismissible.
+    }}>
+      <div style={{
+        background: T.panel,
+        border: `1px solid ${T.redBr}`,
+        borderRadius: 2,
+        padding: T.spacing.lg,
+        width: 480,
+        maxWidth: "95vw",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+      }}>
+        <div style={{
+          fontSize: T.heading1FontSize, fontWeight: "bold",
+          color: T.redBr, marginBottom: 4, textAlign: "center",
+        }}>
+          Your Voyage Ends Here
+        </div>
+        <div style={{
+          fontSize: T.metadataFontSize, color: T.textDim,
+          textAlign: "center", marginBottom: 4,
+        }}>
+          {captainTag.text}
+        </div>
+
+        <div style={{
+          fontStyle: "italic", color: T.text,
+          textAlign: "center", margin: "16px 0",
+          padding: "12px 16px",
+          background: T.bgDeep,
+          borderLeft: `2px solid ${T.redBr}`,
+        }}>
+          {state.gameOverReason || "Your journey has come to an end."}
+        </div>
+
+        <div style={{
+          fontSize: T.captionFontSize, letterSpacing: 1.5, textTransform: "uppercase",
+          color: T.gold, marginTop: 20, marginBottom: 8,
+        }}>
+          The Voyage of {state.captainName || "an Unknown Captain"}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {highlights.map((line, i) => (
+            <p key={i} style={{ color: T.textDim, fontSize: T.narrativeFontSize, margin: 0, lineHeight: 1.5 }}>
+              {line}
+            </p>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
+          {canLoad && (
+            <Btn v="gold" style={{ width: "100%" }} onClick={handleLoad}>
+              <IconFloppy size={12} color={T.gold} /> Load Last Save
+            </Btn>
+          )}
+          <Btn style={{ width: "100%" }} onClick={handleMainMenu}>
+            Return to Main Menu
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   // ── EXPORTS ─────────────────────────────────────────────────────
   Object.assign(window.S, {
     TitleScreen,
     NewGameScreen,
     OnboardingPopup,
+    GameOverScreen,
   });
 })();

@@ -128,6 +128,7 @@ window.E.autoSave = (state) => {
     if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
     if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
     if (s.daysWithoutWater === undefined) s.daysWithoutWater = 0;
+    if (s.gameOverReason === undefined) s.gameOverReason = null;
     return s;
   };
 
@@ -197,6 +198,7 @@ window.E.autoSave = (state) => {
     },
     autoSave: true,
     scenarioId: null,
+    gameOverReason: null,
     previousPort: null,
     destination: null,
     discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),

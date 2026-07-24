@@ -31,86 +31,8 @@ window.S = window.S || {};
     const totalCrewLost = (career.crewLost?.inBattle || 0) + (career.crewLost?.inStorm || 0)
                          + (career.crewLost?.deserted || 0) + (career.crewLost?.other || 0);
 
-    const getCaptainTag = () => {
-      const fame = state.fame || 0;
-      const infamy = state.infamy || 0;
-      if (infamy >= 100) return { text: "Legendary Outlaw of the Caribbean", color: T.redBr };
-      if (infamy >= 50)  return { text: "Notorious Across the Caribbean", color: T.redBr };
-      if (fame >= 200)   return { text: "A Legend of the Caribbean", color: T.gold };
-      if (fame >= 100)   return { text: "A Notorious Captain", color: T.gold };
-      if (fame >= 50)    return { text: "A Recognised Captain", color: T.gold };
-      if (infamy >= 25)  return { text: "Wanted by the Law", color: T.redBr };
-      if (infamy >= 10)  return { text: "A Suspect in Several Ports", color: T.gold };
-      return { text: "An Unknown Captain", color: T.textDim };
-    };
-    const captainTag = getCaptainTag();
-
-    const getHighlights = () => {
-      const lines = [];
-      lines.push(`You have sailed for ${daysSurvived} day${daysSurvived === 1 ? "" : "s"}.`);
-
-      if (totalBattles > 0) {
-        const won = career.battles?.won || 0;
-        const lost = career.battles?.lost || 0;
-        const fled = career.battles?.fled || 0;
-        const parts = [];
-        if (won > 0) parts.push(`won ${won}`);
-        if (lost > 0) parts.push(`lost ${lost}`);
-        if (fled > 0) parts.push(`fled ${fled}`);
-        lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(", ")}.`);
-        const sunk = career.shipsSunk || 0;
-        const plundered = career.shipsPlundered || 0;
-        if (sunk > 0 || plundered > 0) {
-          const detailParts = [];
-          if (sunk > 0) detailParts.push(`sunk ${sunk}`);
-          if (plundered > 0) detailParts.push(`boarded and plundered ${plundered}`);
-          lines.push(`Of those, you ${detailParts.join(" and ")}.`);
-        }
-      }
-
-      if (totalCrewLost > 0) {
-        const inBattle = career.crewLost?.inBattle || 0;
-        const inStorm = career.crewLost?.inStorm || 0;
-        const deserted = career.crewLost?.deserted || 0;
-        const parts = [];
-        if (inBattle > 0) parts.push(`${inBattle} to combat`);
-        if (inStorm > 0) parts.push(`${inStorm} to the storms`);
-        if (deserted > 0) parts.push(`${deserted} who walked away`);
-        if (parts.length > 0) {
-          lines.push(`You have lost ${totalCrewLost} crew: ${parts.join(", ")}.`);
-        }
-      }
-
-      if (career.longestCrewTenure && career.longestCrewTenure >= 50) {
-        lines.push(`Your longest-serving crew member sailed with you for ${career.longestCrewTenure} days.`);
-      }
-
-      if (portsVisitedCount > 0) {
-        lines.push(`You have made landfall at ${portsVisitedCount} of ${portsTotal} ports across the Caribbean.`);
-      }
-
-      const earned = career.goldEarned || 0;
-      const spent = career.goldSpent || 0;
-      if (earned > 0 || spent > 0) {
-        lines.push(`You have earned ${earned.toLocaleString()}g and spent ${spent.toLocaleString()}g.`);
-      }
-
-      if (career.stormsSurvived > 0) {
-        lines.push(`You have weathered ${career.stormsSurvived} storm${career.stormsSurvived === 1 ? "" : "s"}.`);
-      }
-
-      const ships = (career.shipsOwned || []).length;
-      if (ships > 1) {
-        lines.push(`You have commanded ${ships} ship${ships === 1 ? "" : "s"} over your career.`);
-      }
-
-      if (career.contrabandSeized > 0) {
-        lines.push(`You have been caught smuggling contraband ${career.contrabandSeized} time${career.contrabandSeized === 1 ? "" : "s"}.`);
-      }
-
-      return lines;
-    };
-    const highlights = getHighlights();
+    const captainTag = L.getCaptainTag(state);
+    const highlights = L.getCareerHighlights(state);
 
     const getFactionSummary = (factionKey) => {
       const ports = Object.entries(PORTS).filter(([_, p]) => p.faction === factionKey);

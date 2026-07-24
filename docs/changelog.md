@@ -1,4 +1,8 @@
 
+### 2026‑07‑24
+- **Game Over conditions** have been added and a dedicated Game Over screen now exists when the player ends up in a deadlock (no gold, crew and 0HP for example).
+- **Minimum crew** is now necessary to sail any ship other than the starting Dinghy (10% of max crew size is the minimum skeleton crew).
+
 ### 2026‑07‑23
 - **Economy revamp**: changed how goods price are calculated (now port and faction dependant, with less variance) so that trade route can be learned and exploited, and are stable through the game.
 - **Backend autotesting** coverage improved to prepare for GitHub integration.

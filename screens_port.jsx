@@ -35,6 +35,18 @@ function PortScreen({ state, dispatch }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // ── Sailing & mission acceptance gates ──────────────────────────────
+  const FIGHT_TYPES = ["combat", "patrol", "assault", "escort"];
+  const isDinghy = state.ship.type === "dinghy";
+  const minCrew = L.getMinViableCrew(state.ship.type);
+  const isHullBlocked = state.ship.hull === 0;
+  const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
+  const sailDisabled = isHullBlocked || isCrewBlocked;
+
+  let sailTooltip = "";
+  if (isHullBlocked) sailTooltip = "Hull is destroyed – repair needed.";
+  else if (isCrewBlocked) sailTooltip = `Need at least ${minCrew} crew to sail.`;
+
   // ── Feature unlocking gates ──────────────────────────────────────
   const canContracts = true; // always available
   const canMarket = L.isFeatureUnlocked(state, 'market');
@@ -225,8 +237,8 @@ function PortScreen({ state, dispatch }) {
         ACTIONS</SectionTitle>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           {canNavigation && (
-            <Tooltip text="Open your chart and choose your next destination.">
-              <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}><IconMap size={12} color={T.text} /> World Map</PulseBtn>
+            <Tooltip text={sailDisabled ? sailTooltip : "Open your chart and choose your next destination."}>
+              <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={sailDisabled}><IconMap size={12} color={T.text} /> World Map</PulseBtn>
             </Tooltip>
           )}
           <Tooltip text="Review your standing with the factions of the Caribbean.">
@@ -357,41 +369,49 @@ function PortScreen({ state, dispatch }) {
             <EmptyState message="No missions posted. Try refreshing." />
           ) : (
             <div style={{ overflowY: "auto", flex: 1, padding: "3px"  }}>
-              {state.missions.map((m, i) => (
-                <Panel key={i} style={{ background: T.panelAlt, marginBottom: 8, opacity: state.activeMission ? 0.55 : 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                    <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{m.name}</span>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
-                      <Tooltip text={
-                        m.type === "trade" ? "Buy and deliver goods for profit." :
-                        m.type === "smuggle" ? "Deliver illegal goods. Patrols may inspect you." :
-                        m.type === "combat" ? "Hunt down an enemy ship." :
-                        m.type === "patrol" ? "Patrol the waters near the target port until the enemy appears." :
-                        m.type === "escort" ? "Protect a convoy to its destination." :
-                        m.type === "assault" ? "Attack a port's garrison by force." : ""
-                      }>
-                        <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+              {state.missions.map((m, i) => {
+                const isFight = FIGHT_TYPES.includes(m.type);
+                const acceptDisabled = !!state.activeMission || (state.ship.hull === 0 && isFight);
+                const acceptTooltip = acceptDisabled 
+                  ? (state.ship.hull === 0 && isFight ? "Your ship is unfit for a fight." : "You already have an active mission.")
+                  : "Take this mission as your active objective.";
+
+                return (
+                  <Panel key={i} style={{ background: T.panelAlt, marginBottom: 8, opacity: state.activeMission ? 0.55 : 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                      <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{m.name}</span>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <Pill label={m.faction} color={FACTIONS[m.faction]?.color ?? T.textDim} />
+                        <Tooltip text={
+                          m.type === "trade" ? "Buy and deliver goods for profit." :
+                          m.type === "smuggle" ? "Deliver illegal goods. Patrols may inspect you." :
+                          m.type === "combat" ? "Hunt down an enemy ship." :
+                          m.type === "patrol" ? "Patrol the waters near the target port until the enemy appears." :
+                          m.type === "escort" ? "Protect a convoy to its destination." :
+                          m.type === "assault" ? "Attack a port's garrison by force." : ""
+                        }>
+                          <Pill label={m.risk} color={T.riskColor?.[m.risk] ?? T.textDim} />
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <p style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
+
+                    {/* Unified details box */}
+                    {renderMissionDetailsBox(m)}
+
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
+                        <IconCoins size={14} color={T.gold} /> {m.gold}
+                      </span>
+                      <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {m.fame}</span>
+                      <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
+                      <Tooltip text={acceptTooltip}>
+                        <Btn sm v="gold" disabled={acceptDisabled} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
                       </Tooltip>
                     </div>
-                  </div>
-                  <p style={{ color: T.textDim, fontSize: T.captionFontSize, margin: "0 0 6px", lineHeight: 1.4 }}>{m.description || m.desc}</p>
-
-                  {/* Unified details box */}
-                  {renderMissionDetailsBox(m)}
-
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
-                      <IconCoins size={14} color={T.gold} /> {m.gold}
-                    </span>
-                    <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {m.fame}</span>
-                    <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
-                    <Tooltip text="Take this mission as your active objective.">
-                      <Btn sm v="gold" disabled={!!state.activeMission} onClick={() => dispatch({ type: A.TAKE_MISSION, mission: m })}>Accept</Btn>
-                    </Tooltip>
-                  </div>
-                </Panel>
-              ))}
+                  </Panel>
+                );
+              })}
             </div>
           )}
         </Panel>

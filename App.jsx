@@ -395,6 +395,7 @@ const App = () => {
       case "plunder": return <S.PlunderScreen state={state} dispatch={dispatch} />;
       case "market": return <S.MarketScreen state={state} dispatch={dispatch} />;
       case "journal": return <S.JournalScreen state={state} dispatch={dispatch} />;
+      case "gameover": return <S.GameOverScreen state={state} dispatch={dispatch} />;
       default: return <div style={{ color: T.text, padding: 20 }}>Unknown screen: {state.screen}</div>;
     }
   };

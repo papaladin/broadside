@@ -116,14 +116,23 @@
   };
 
   // ── DISMISS_BATTLE helpers ───────────────────────────────────
-  const handleDefeat = (state, battleState, patrolLog) => {
+
+  // Generalized wash-ashore helper – handles both combat defeat and event-triggered hull-zero.
+  // `battleState` is optional – if provided, it's a combat defeat; otherwise, an event triggered it.
+  const washAshore = (state, battleState = null, extraLog = []) => {
     const returnPort = state.previousPort || state.currentPort;
     const portName = D.PORTS[returnPort]?.name || "a nearby port";
-    const isMissionFight = battleState.encounterType === "mission_combat"
-                        || battleState.encounterType === "escort_defend";
+    const isMissionFight = battleState && (
+      battleState.encounterType === "mission_combat" ||
+      battleState.encounterType === "escort_defend"
+    );
     const missionFailed = isMissionFight && state.activeMission;
 
-    return {
+    const defeatLog = battleState
+      ? L.logPick(D.DEFEAT_MESSAGES, state, battleState.enemy.name, portName)
+      : `The ship, crippled and adrift, washes ashore near ${portName}.`;
+
+    const result = {
       ...state,
       battleState: null,
       activeMission: missionFailed ? null : state.activeMission,
@@ -138,15 +147,24 @@
       },
       portMarket: G.generatePortMarket(returnPort, state),
       missions: G.generateMissions(returnPort, state),
-      infamy: Math.min(999, (state.infamy ?? 0) + (patrolLog.length > 0 ? 2 : 0)),
+      infamy: battleState
+        ? Math.min(999, (state.infamy ?? 0) + (extraLog.length > 0 ? 2 : 0))
+        : state.infamy,
       log: [
         ...state.log,
-        window.E.logEntry(state, L.logPick(D.DEFEAT_MESSAGES, state, battleState.enemy.name, portName)),
+        window.E.logEntry(state, defeatLog),
         window.E.logEntry(state, "All cargo lost."),
         ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
-        ...patrolLog,
+        ...extraLog,
       ],
     };
+
+    // Check for unrecoverable state before returning
+    const check = L.isUnrecoverable(result);
+    if (check.unrecoverable) {
+      return { ...result, screen: "gameover", gameOverReason: check.reason };
+    }
+    return result;
   };
 
   const applyVictoryAftermath = (currentState, battleState) => {
@@ -308,6 +326,11 @@
       // ── INTERCEPT ACTIONS ──────────────────────────────────
 
       case A.INTERCEPT_FIGHT: {
+        //guardrail against starting a fight with 0HP
+        if (state.ship.hull === 0) {
+          return { ...state, log: [...state.log,
+            window.E.logEntry(state, "There is no fighting to be done — the ship is already lost.")] };
+        }
         const ctx = state.encounterContext;
         if (!ctx) return state;
         let bs = window.E.createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
@@ -324,7 +347,7 @@
         // Heat for fighting a navy patrol
         let s = { ...state, encounterContext: null, battleState: bs, screen: "battle" };
         if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
-          s = L.addheat(s, ctx.enemy.faction, 3);
+          s = L.addHeat(s, ctx.enemy.faction, 3);
         }
         return s;
       }
@@ -339,7 +362,7 @@
         if (playerRoll >= enemyRoll) {
           let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
           if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
-            s = L.addheat(s, ctx.enemy.faction, 2);
+            s = L.addHeat(s, ctx.enemy.faction, 2);
           }
           return s;
         }
@@ -629,7 +652,7 @@
           : [];
 
         if (battleState.phase === "defeat") {
-          return handleDefeat(state, battleState, patrolLog);
+          return washAshore(state, battleState, patrolLog);
         }
 
         let currentState = applyVictoryAftermath(state, battleState);
@@ -655,7 +678,7 @@
           ],
         };
 
-        return L.addheat(finalState, battleState.enemy.faction, heatAmount);
+        return L.addHeat(finalState, battleState.enemy.faction, heatAmount);
       }
 
       case A.TAKE_PLUNDER: {
@@ -671,7 +694,7 @@
         ) && !state.activeMission?.starter;
         const heatMult = isWarPennantMission
           ? L.getEquipmentEffect(state, "combatHeatMult") : 1;
-        currentState = L.addheat(currentState, bs.enemy.faction, Math.round(3 * heatMult));
+        currentState = L.addHeat(currentState, bs.enemy.faction, Math.round(3 * heatMult));
 
         const goldReward = bs.goldReward || 0;
         const finalHoldItems = action.holdItems;
@@ -716,7 +739,12 @@
           if (event.id === "storm" && L.getEquipmentEffect(newState, "stormHullImmune")) {
             newState.log = [...newState.log, "The storm batters your ship, but the reinforced rigging holds."];
           } else {
-            newState.ship = { ...state.ship, hull: Math.max(0, state.ship.hull - choice.outcome.hullDamage) };
+            const newHull = Math.max(0, state.ship.hull - choice.outcome.hullDamage);
+            newState.ship = { ...state.ship, hull: newHull };
+            // If hull reaches 0, wash ashore immediately
+            if (newHull === 0) {
+              return washAshore(newState);
+            }
           }
         }
         if (choice.outcome.crewLoss) {
@@ -868,7 +896,7 @@
         merchantEnemy.name = "Merchant Vessel";
         const encounterContext = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
 
-        return L.addheat(
+        return L.addHeat(
           {
             ...state,
             encounterContext,

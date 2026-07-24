@@ -156,6 +156,141 @@ window.L = (() => {
     }
   };
 
+  // ── Minimum viable crew (hard sailing requirement, not a warning) ──
+const MIN_CREW_RATIO = 0.10;
+
+const getMinViableCrew = (shipType) => {
+  if (shipType === "dinghy") return 0;
+  const maxCrew = window.D.SHIPS[shipType]?.maxCrew ?? 0;
+  return Math.floor(maxCrew * MIN_CREW_RATIO);
+};
+
+// ── Captain identity tag ──────────────────────────────────────────────
+const getCaptainTag = (state) => {
+  const fame = state.fame || 0;
+  const infamy = state.infamy || 0;
+  if (infamy >= 100) return { text: "Legendary Outlaw of the Caribbean", colorKey: "redBr" };
+  if (infamy >= 50)  return { text: "Notorious Across the Caribbean", colorKey: "redBr" };
+  if (fame >= 200)   return { text: "A Legend of the Caribbean", colorKey: "gold" };
+  if (fame >= 100)   return { text: "A Notorious Captain", colorKey: "gold" };
+  if (fame >= 50)    return { text: "A Recognised Captain", colorKey: "gold" };
+  if (infamy >= 25)  return { text: "Wanted by the Law", colorKey: "redBr" };
+  if (infamy >= 10)  return { text: "A Suspect in Several Ports", colorKey: "gold" };
+  return { text: "An Unknown Captain", colorKey: "textDim" };
+};
+
+// ── Career narrative highlights ─────────────────────────────────────
+const getCareerHighlights = (state) => {
+  const career = state.career || {};
+  const daysSurvived = state.day;
+  const portsTotal = Object.keys(window.D.PORTS).length;
+  const portsVisitedCount = (career.portsVisited || []).length;
+  const totalBattles = (career.battles?.won || 0) + (career.battles?.lost || 0) + (career.battles?.fled || 0);
+  const totalCrewLost = (career.crewLost?.inBattle || 0) + (career.crewLost?.inStorm || 0)
+                     + (career.crewLost?.deserted || 0) + (career.crewLost?.other || 0);
+  const lines = [];
+
+  lines.push(`You have sailed for ${daysSurvived} day${daysSurvived === 1 ? "" : "s"}.`);
+
+  if (totalBattles > 0) {
+    const won = career.battles?.won || 0;
+    const lost = career.battles?.lost || 0;
+    const fled = career.battles?.fled || 0;
+    const parts = [];
+    if (won > 0) parts.push(`won ${won}`);
+    if (lost > 0) parts.push(`lost ${lost}`);
+    if (fled > 0) parts.push(`fled ${fled}`);
+    lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(", ")}.`);
+
+    const sunk = career.shipsSunk || 0;
+    const plundered = career.shipsPlundered || 0;
+    if (sunk > 0 || plundered > 0) {
+      const detailParts = [];
+      if (sunk > 0) detailParts.push(`sunk ${sunk}`);
+      if (plundered > 0) detailParts.push(`boarded and plundered ${plundered}`);
+      lines.push(`Of those, you ${detailParts.join(" and ")}.`);
+    }
+  }
+
+  if (totalCrewLost > 0) {
+    const inBattle = career.crewLost?.inBattle || 0;
+    const inStorm = career.crewLost?.inStorm || 0;
+    const deserted = career.crewLost?.deserted || 0;
+    const parts = [];
+    if (inBattle > 0) parts.push(`${inBattle} to combat`);
+    if (inStorm > 0) parts.push(`${inStorm} to the storms`);
+    if (deserted > 0) parts.push(`${deserted} who walked away`);
+    if (parts.length > 0) lines.push(`You have lost ${totalCrewLost} crew: ${parts.join(", ")}.`);
+  }
+
+  if (career.longestCrewTenure && career.longestCrewTenure >= 50) {
+    lines.push(`Your longest-serving crew member sailed with you for ${career.longestCrewTenure} days.`);
+  }
+
+  if (portsVisitedCount > 0) {
+    lines.push(`You have made landfall at ${portsVisitedCount} of ${portsTotal} ports across the Caribbean.`);
+  }
+
+  const earned = career.goldEarned || 0;
+  const spent = career.goldSpent || 0;
+  if (earned > 0 || spent > 0) {
+    lines.push(`You have earned ${earned.toLocaleString()}g and spent ${spent.toLocaleString()}g.`);
+  }
+
+  if (career.stormsSurvived > 0) {
+    lines.push(`You have weathered ${career.stormsSurvived} storm${career.stormsSurvived === 1 ? "" : "s"}.`);
+  }
+
+  const ships = (career.shipsOwned || []).length;
+  if (ships > 1) {
+    lines.push(`You have commanded ${ships} ship${ships === 1 ? "" : "s"} over your career.`);
+  }
+
+  if (career.contrabandSeized > 0) {
+    lines.push(`You have been caught smuggling contraband ${career.contrabandSeized} time${career.contrabandSeized === 1 ? "" : "s"}.`);
+  }
+
+  return lines;
+};
+
+// ── Unrecoverable state check ──────────────────────────────────────
+const isUnrecoverable = (state) => {
+  const hull0     = state.ship.hull === 0;
+  const noCrew    = state.crew.roster.length === 0;
+  const notDinghy = state.ship.type !== "dinghy";
+  const crewCrisis = noCrew && notDinghy;
+
+  if (!hull0 && !crewCrisis) {
+    return { unrecoverable: false, reason: null };
+  }
+
+  const portGoods = state.portMarket?.goods || {};
+  const holdValue = Object.entries(state.hold.items).reduce((sum, [good, qty]) => {
+    const sellPrice = portGoods[good]?.sellToPort ?? 0;
+    return sum + qty * sellPrice;
+  }, 0);
+  const liquidValue = state.gold + holdValue;
+
+  const repairCost = hull0 ? window.L.shipRepairCost(state) : 0;
+  const minCrew = window.L.getMinViableCrew(state.ship.type);
+  const crewNeeded = Math.max(0, minCrew - state.crew.roster.length);
+  const crewCost = crewNeeded * 50; // matches HIRE_CREW cost
+
+  const minRecoveryCost = repairCost + crewCost;
+
+  if (liquidValue >= minRecoveryCost) {
+    return { unrecoverable: false, reason: null };
+  }
+
+
+  return {
+    unrecoverable: true,
+    reason: hull0
+      ? "Your ship is wrecked, your crew is gone, and there is nothing left to trade or sail with."
+      : "There is no one left to crew your ship, no gold to hire more, and nothing left to sell.",
+  };
+};
+
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
 
@@ -1063,6 +1198,10 @@ const getPortTradeProfile = (portKey) => {
     getLogTabCategory,
     logPick,
     isFeatureUnlocked,
+     getMinViableCrew,
+  getCaptainTag,
+  getCareerHighlights,
+  isUnrecoverable,
     returnScreen,
 
     // Ship/Repair
