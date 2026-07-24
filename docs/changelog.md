@@ -1,9 +1,12 @@
+
+### 2026‑07‑23
+- **Economy revamp**: changed how goods price are calculated (now port and faction dependant, with less variance) so that trade route can be learned and exploited, and are stable through the game.
+- **Backend autotesting** coverage improved to prepare for GitHub integration.
+
 ### 2026‑07‑06
 - **GUI improvement**: Rework of pannel and buttons borders to have a plank/hand-drawed style more fitting the game.
 - **Backend cleaning** to improve testability.
 - **Status Screen** reworked to describe faction relations with text. This will in time be completed by more sentences depending on arc story progress (when implemented).
-
-
 
 ### 2026‑07‑02
 - **Menu screen**: a Menu button on the port screen opens a modal with Save, Load, Export, Import, Start New Game (with confirmation), and an autosave toggle.

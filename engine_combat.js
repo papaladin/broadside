@@ -8,18 +8,6 @@
   const L = window.L;
   const G = window.G;
 
-  const pickMerchantFaction = () => {
-    const factions = Object.keys(FACTIONS).filter(f => f !== "pirate");
-    return factions[Math.floor(Math.random() * factions.length)];
-  };
-
-  // ── Heat helper ──────────────────────────────────────────────
-  const addHeat = (state, faction, heatAmount) => {
-    if (faction === "pirate") return state;
-    const alerts = { ...(state.factionAlerts || {}) };
-    alerts[faction] = Math.min(10, (alerts[faction] || 0) + heatAmount);
-    return { ...state, factionAlerts: alerts };
-  };
 
   // --- BATTLE_ACTION Helpers ---------------------------------------
 
@@ -336,7 +324,7 @@
         // Heat for fighting a navy patrol
         let s = { ...state, encounterContext: null, battleState: bs, screen: "battle" };
         if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
-          s = addHeat(s, ctx.enemy.faction, 3);
+          s = L.addheat(s, ctx.enemy.faction, 3);
         }
         return s;
       }
@@ -351,7 +339,7 @@
         if (playerRoll >= enemyRoll) {
           let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
           if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
-            s = addHeat(s, ctx.enemy.faction, 2);
+            s = L.addheat(s, ctx.enemy.faction, 2);
           }
           return s;
         }
@@ -667,7 +655,7 @@
           ],
         };
 
-        return addHeat(finalState, battleState.enemy.faction, heatAmount);
+        return L.addheat(finalState, battleState.enemy.faction, heatAmount);
       }
 
       case A.TAKE_PLUNDER: {
@@ -683,7 +671,7 @@
         ) && !state.activeMission?.starter;
         const heatMult = isWarPennantMission
           ? L.getEquipmentEffect(state, "combatHeatMult") : 1;
-        currentState = addHeat(currentState, bs.enemy.faction, Math.round(3 * heatMult));
+        currentState = L.addheat(currentState, bs.enemy.faction, Math.round(3 * heatMult));
 
         const goldReward = bs.goldReward || 0;
         const finalHoldItems = action.holdItems;
@@ -872,7 +860,7 @@
       }
 
       case A.ATTACK_MERCHANT: {
-        const faction = pickMerchantFaction();
+        const faction = G.pickMerchantFaction();
         const currentTier = L.getFameInfo(state.fame).tier;
         const lowerTier = Math.max(0, currentTier - 1);
         const lowerFame = lowerTier === 0 ? 0 : lowerTier * 50;
@@ -880,7 +868,7 @@
         merchantEnemy.name = "Merchant Vessel";
         const encounterContext = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
 
-        return addHeat(
+        return L.addheat(
           {
             ...state,
             encounterContext,

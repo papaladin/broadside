@@ -796,13 +796,13 @@ const RESOURCES = {
 const GOODS_AVAILABILITY = {
   //english
   portRoyal:   [ "always","always","frequently","sometimes","frequently","frequently","sometimes","rarely","sometimes","rarely","sometimes","sometimes","rarely","rarely" ],
-  kingston:    [ "always","always","sometimes","sometimes","frequently","sometimes","rarely","rarely","frequently","rarely","rarely","frequently","never","never" ],
+kingston:    [ "always","always","sometimes","always","frequently","sometimes","rarely","rarely","frequently","rarely","rarely","frequently","never","never" ],
   bridgetown:  [ "always","always","frequently","always","rarely","frequently","sometimes","rarely","frequently","sometimes","rarely","sometimes","rarely","rarely" ],
   bermuda:     [ "always","always","rarely","rarely","rarely","sometimes","frequently","rarely","rarely","never","sometimes","sometimes","never","never" ],
 
   //spanish
   havana:      [ "always","always","frequently","frequently","rarely","frequently","sometimes","rarely","sometimes","sometimes","sometimes","always","sometimes","rarely" ],
-  santiagoDeCuba:[ "always","always","frequently","sometimes","rarely","frequently","sometimes","rarely","sometimes","sometimes","rarely","frequently","sometimes","rarely" ],
+santiagoDeCuba:[ "always","always","frequently","sometimes","rarely","frequently","sometimes","rarely","sometimes","sometimes","rarely","frequently","always","rarely" ],
   santoDomingo:[ "always","always","sometimes","sometimes","sometimes","frequently","sometimes","rarely","sometimes","frequently","rarely","sometimes","sometimes","rarely" ],
   cartagena:   [ "always","always","sometimes","sometimes","rarely","frequently","sometimes","sometimes","sometimes","frequently","rarely","sometimes","frequently","sometimes" ],
   maracaibo:   [ "always","always","rarely","sometimes","frequently","sometimes","rarely","rarely","sometimes","frequently","rarely","sometimes","sometimes","rarely" ],

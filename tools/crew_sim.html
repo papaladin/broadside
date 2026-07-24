@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>⚓ Broadside — Crew Lifecycle Simulator</title>
+<title>⚓ Broadside — Crew Lifecycle Simulator (Voyage Model)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0a141e;color:#e0e0e0;font-family:'Courier New',monospace;font-size:12px;padding:16px;min-height:100vh}
@@ -17,6 +17,9 @@ input[type=number]{background:#0d1620;border:1px solid #2a3a4a;color:#e0e0e0;pad
 button#runBtn{background:#cc9900;border:1px solid #ffd700;color:#000;padding:8px 20px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold;min-height:36px}
 button#runBtn:hover{background:#ffd700}
 button#runBtn:disabled{opacity:.5;cursor:not-allowed}
+.btn-copy{background:#2a3a4a;border:1px solid #4caf50;color:#4caf50;padding:5px 12px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;margin-left:auto}
+.btn-copy:hover{background:#4caf50;color:#000}
+#copy-msg{color:#4caf50;font-size:11px;display:none;margin-left:8px}
 .progress-bar{width:100%;height:6px;background:#1a2a3a;border-radius:3px;margin:8px 0;overflow:hidden}
 .progress-fill{height:100%;background:#ffd700;border-radius:3px;transition:width .1s;width:0}
 #status{color:#a0a0a0;font-size:10px;min-height:14px}
@@ -31,8 +34,8 @@ canvas{border:1px solid #2a3a4a;border-radius:4px;margin:6px 0}
 </head>
 <body>
 
-<h1>⚓ Broadside — Crew Lifecycle Simulator</h1>
-<div class="subtitle">Simulates crew attachment, turnover, and lifespan across playstyles · Reads from game files</div>
+<h1>⚓ Broadside — Crew Lifecycle Simulator (Voyage Model)</h1>
+<div class="subtitle">Travel → Port → Mission → Resolve. Uses actual game logic.</div>
 
 <script>
 window.E={A:{},_reducers:[]};window.UI={T:{}};window.S={};
@@ -41,12 +44,13 @@ window.E={A:{},_reducers:[]};window.UI={T:{}};window.S={};
 <script src="../data_text.js"></script>
 <script src="../logic.js"></script>
 <script src="../generators.js"></script>
+<script src="../engine_core.js"></script>
 
 <div class="panel">
   <h3>⚙ Configuration</h3>
   <div class="row" style="margin-top:8px">
     <div><label>Runs / Profile</label><br><input type="number" id="nRuns" value="100" min="10" max="500"></div>
-    <div><label>Max Days</label><br><input type="number" id="maxDays" value="500" min="100" max="2000"></div>
+    <div><label>Max Days</label><br><input type="number" id="maxDays" value="1000" min="100" max="2000"></div>
     <div style="margin-left:auto"><button id="runBtn" onclick="runSim()">▶ Run Simulation</button></div>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -60,39 +64,64 @@ const D=window.D, L=window.L, G=window.G;
 const SHIPS=D.SHIPS, FACTIONS=D.FACTIONS, PORTS=D.PORTS;
 const SHIPS_ORDER=Object.keys(SHIPS);
 
-// ══════════════════════════════════════════════════════════
-//  PLAYSTYLE PROFILES
-// ══════════════════════════════════════════════════════════
+// Helpers
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const weightedPick = (weights) => {
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (const [key, weight] of Object.entries(weights)) {
+    r -= weight;
+    if (r <= 0) return key;
+  }
+  return Object.keys(weights)[0];
+};
 
+// ── Mission Types ──────────────────────────────────────────────────
+const MISSION_TYPES = {
+  trade:    { combatChance: 0.00, fame: 1, morale: 2, crewRisk: "none",   duration: [4,8] },
+  smuggle:  { combatChance: 0.30, fame: 1, morale: 3, crewRisk: "low",    duration: [4,8] },
+  escort:   { combatChance: 0.60, fame: 2, morale: 4, crewRisk: "medium", duration: [4,8] },
+  combat:   { combatChance: 1.00, fame: 3, morale: 5, crewRisk: "high",   duration: [4,8] },
+  patrol:   { combatChance: 0.80, fame: 2, morale: 3, crewRisk: "medium", duration: [4,8] },
+  assault:  { combatChance: 1.00, fame: 4, morale: 5, crewRisk: "veryhigh",duration: [4,8] },
+};
+
+// ── Playstyle Profiles ──────────────────────────────────────────────
 const PROFILES={
   "Peaceful Trader":{
-    combatPer10Days:1, crewType:"mixed", alignment:"aligned", riskPref:"low",
+    missionWeights: { trade: 80, smuggle: 5, escort: 10, combat: 0, patrol: 5, assault: 0 },
+    crewType:"mixed", alignment:"aligned", riskPref:"low",
     desc:"Avoids combat, mixed crew, aligned missions",color:"#4caf50",
   },
   "Faction Loyalist":{
-    combatPer10Days:3, crewType:"single", alignment:"aligned", riskPref:"medium",
+    missionWeights: { trade: 30, smuggle: 0, escort: 30, combat: 20, patrol: 20, assault: 0 },
+    crewType:"single", alignment:"aligned", riskPref:"medium",
     desc:"Single-faction crew, fights faction enemies only",color:"#2196f3",
   },
   "Reckless Pirate":{
-    combatPer10Days:5, crewType:"pirate", alignment:"indifferent", riskPref:"high",
+    missionWeights: { trade: 10, smuggle: 30, escort: 0, combat: 40, patrol: 0, assault: 20 },
+    crewType:"pirate", alignment:"indifferent", riskPref:"high",
     desc:"Pirate crew, fights everyone, high risk",color:"#9c27b0",
   },
   "Turncoat":{
-    combatPer10Days:5, crewType:"single", alignment:"opposed", riskPref:"high",
+    missionWeights: { trade: 10, smuggle: 10, escort: 0, combat: 40, patrol: 0, assault: 40 },
+    crewType:"single", alignment:"opposed", riskPref:"high",
     desc:"Single-faction crew, attacks OWN faction",color:"#f44336",
   },
   "Cautious Mixed":{
-    combatPer10Days:2, crewType:"mixed", alignment:"indifferent", riskPref:"low",
+    missionWeights: { trade: 50, smuggle: 10, escort: 20, combat: 10, patrol: 10, assault: 0 },
+    crewType:"mixed", alignment:"indifferent", riskPref:"low",
     desc:"Mixed crew, some combat, low risk",color:"#ff9800",
   },
   "War Captain":{
-    combatPer10Days:4, crewType:"mixed", alignment:"indifferent", riskPref:"high",
+    missionWeights: { trade: 10, smuggle: 10, escort: 10, combat: 40, patrol: 30, assault: 0 },
+    crewType:"mixed", alignment:"indifferent", riskPref:"high",
     desc:"Mixed crew, heavy combat, high risk",color:"#ffd700",
   },
 };
 
 // ══════════════════════════════════════════════════════════
-//  SIMULATION ENGINE
+//  SIMULATION ENGINE – Voyage-based
 // ══════════════════════════════════════════════════════════
 
 function getFameTier(fame){
@@ -105,203 +134,237 @@ function getShipAtFame(fame){
   if(fame>=5)return"cutter";return"dinghy";
 }
 
-let crewIdCounter=0;
-function makeCrew(faction,day,fame){
-  return{
-    id:crewIdCounter++,faction,
-    hiredDay:day,hiredFame:fame,
-    departedDay:null,departedFame:null,
-    departureReason:null,
-    tags:[],daysServed:0,
+// Simulated state – mimics the game state needed by L.processDesertion, etc.
+function makeSimState(day, fame, morale, roster, currentPort, shipType, reputation) {
+  return {
+    day,
+    fame,
+    crew: { roster, morale, max: SHIPS[shipType].maxCrew },
+    currentPort,
+    reputation: reputation || {},
+    ship: { type: shipType },
+    log: [],
   };
 }
 
-function simRun(profile,maxDays){
-  const P=PROFILES[profile];
-  let day=0,fame=0,morale=70,ship="dinghy";
-  const roster=[];
-  const departed=[];
+// Helper to generate a single crew member
+function makeCrew(faction, existingNames, hireDay, hireFame) {
+  const member = G.generateCrewMember(faction, existingNames);
+  member.hiredDay = hireDay;
+  member.hiredFame = hireFame;
+  return member;
+}
+
+function calcCrewLoss(missionType, fameTier, riskPref) {
+  const riskMult = { low: 0.4, medium: 0.8, high: 1.2 }[riskPref] || 1.0;
+  const base = 1 + Math.floor(Math.random() * 2) + fameTier;
+  let mod = 1;
+  if (missionType === 'assault') mod = 2.0;
+  else if (missionType === 'combat') mod = 1.5;
+  else if (missionType === 'patrol' || missionType === 'escort') mod = 1.2;
+  return Math.max(1, Math.floor(base * riskMult * mod));
+}
+
+function advanceDays(days, roster, morale, holdItems, day) {
+  // Apply daily effects for the given number of days
+  for(let d=0; d<days; d++){
+    day++;
+    // Morale decay
+    if(morale < 30) morale = Math.max(0, morale - 1);
+    // Gradual decay when morale > 50
+    if(morale > 50 && d % 2 === 0) morale = Math.max(0, morale - 1);
+    // Provisions consumption
+    const consumption = L.getProvisionConsumptionPerDay({ crew: { roster } });
+    if(holdItems.food) holdItems.food = Math.max(0, holdItems.food - consumption.food);
+    if(holdItems.water) holdItems.water = Math.max(0, holdItems.water - consumption.water);
+    // Check starvation (simplified)
+    if(holdItems.food === 0 || holdItems.water === 0) morale = Math.max(0, morale - 1);
+    // Update crew days
+    roster.forEach(m => m.daysAboard = (m.daysAboard || 0) + 1);
+  }
+  return { day, morale, holdItems };
+}
+
+function simRun(profile, maxDays){
+  const P = PROFILES[profile];
+  let day=0, fame=0, morale=70, ship="dinghy";
+  const roster=[], departed=[];
   const factions=["english","spanish","french","dutch","pirate"];
-  const crewFaction=P.crewType==="single"?factions[Math.floor(Math.random()*4)]
-    :P.crewType==="pirate"?"pirate":null;
+  const crewFaction = P.crewType==="single" ? factions[Math.floor(Math.random()*4)]
+    : P.crewType==="pirate" ? "pirate" : null;
 
-  // Start with 1-2 crew
-  const startFac=crewFaction||factions[Math.floor(Math.random()*5)];
-  roster.push(makeCrew(startFac,0,0));
-  if(Math.random()<0.5)roster.push(makeCrew(startFac,0,0));
+  const startFac = crewFaction || factions[Math.floor(Math.random()*5)];
+  const existingNames = [];
+  roster.push(makeCrew(startFac, existingNames, day, fame));
+  existingNames.push(`${roster[0].firstName} ${roster[0].lastName}`);
+  if(Math.random()<0.5){
+    const c2 = makeCrew(startFac, existingNames, day, fame);
+    roster.push(c2);
+    existingNames.push(`${c2.firstName} ${c2.lastName}`);
+  }
 
-  let portVisits=0;
+  // Provisions (high enough to not die early, but realistic)
+  let holdItems = { food: 200, water: 200 };
+  const reputation = {};
+  Object.keys(PORTS).forEach(k=>reputation[k]=50);
 
-  while(day<maxDays){
-    const tier=getFameTier(fame);
-    const idealShip=getShipAtFame(fame);
-    if(SHIPS_ORDER.indexOf(idealShip)>SHIPS_ORDER.indexOf(ship))ship=idealShip;
-    const s=SHIPS[ship];
-    const maxCrew=s.maxCrew;
+  let portVisits = 0;
 
-    // ── Hire crew at port (every ~8 days we visit port) ──
-    const isPortDay=day%8===0;
-    if(isPortDay){
-      portVisits++;
-      // Morale recovery
-      morale=Math.min(100,morale+5);
+  while(day < maxDays){
+    const fameTier = getFameTier(fame);
+    const idealShip = getShipAtFame(fame);
+    if(SHIPS_ORDER.indexOf(idealShip) > SHIPS_ORDER.indexOf(ship)) ship = idealShip;
+    const maxCrew = SHIPS[ship].maxCrew;
 
-      // Hire to ~70% capacity
-      const target=Math.floor(maxCrew*0.7);
-      while(roster.length<target){
-        let fac;
-        if(P.crewType==="single")fac=crewFaction;
-        else if(P.crewType==="pirate")fac="pirate";
-        else fac=factions[Math.floor(Math.random()*5)];
-        roster.push(makeCrew(fac,day,fame));
-      }
+    // ── 1. Travel to port ───────────────────────────────────────────
+    const travelDays = randInt(3, 12);
+    const result = advanceDays(travelDays, roster, morale, holdItems, day);
+    day = result.day;
+    morale = result.morale;
+    holdItems = result.holdItems;
 
-      // Cap roster to ship max
-      while(roster.length>maxCrew){
-        const removed=roster.pop();
-        removed.departedDay=day;removed.departedFame=fame;
-        removed.departureReason="ship_downgrade";
-        removed.daysServed=day-removed.hiredDay;
-        departed.push(removed);
-      }
-
-      // ── Port: Desertion check for upset crew ──
-      const upsetMembers=roster.filter(m=>m.tags.includes("upset"));
-      const toRemove=[];
-      upsetMembers.forEach(m=>{
-        let desertChance=0.30;
-        if(morale>60)desertChance=0.10;
-        if(m.tags.includes("mutineer"))desertChance*=2;
-        // Port faction bonus - simplified: 20% of time port matches
-        if(Math.random()<0.20)desertChance+=0.20;
-        desertChance=Math.min(0.90,desertChance);
-
-        if(Math.random()<desertChance){
-          m.departedDay=day;m.departedFame=fame;
-          m.departureReason="deserted";
+    // Random event during travel (storm / desertion)
+    if(Math.random() < 0.05 && roster.length > 2){
+      const evRoll = Math.random();
+      if(evRoll < 0.15){
+        // Storm: lose 1-2 crew
+        const loss = Math.min(1 + Math.floor(Math.random()*2), roster.length-1);
+        if(loss > 0){
+          const removed = L.removeRandomCrew(roster, loss);
+          removed.removed.forEach(m=>{
+            m.departedDay=day; m.departedFame=fame;
+            m.departureReason="storm";
+            m.daysServed=day-m.hiredDay;
+            departed.push(m);
+          });
+          roster.length = 0;
+          roster.push(...removed.newRoster);
+          morale = Math.max(0, morale - 5);
+        }
+      } else if(evRoll < 0.30 && morale < 40 && roster.length > 2){
+        // Desertion event: lose 2-3
+        const loss = Math.min(2+Math.floor(Math.random()*2), roster.length-1);
+        const removed = L.removeRandomCrew(roster, loss);
+        removed.removed.forEach(m=>{
+          m.departedDay=day; m.departedFame=fame;
+          m.departureReason="event_deserter";
           m.daysServed=day-m.hiredDay;
           departed.push(m);
-          toRemove.push(m.id);
-        } else {
-          // Calmed down
-          m.tags=m.tags.filter(t=>t!=="upset");
-        }
-      });
-      if(toRemove.length>0){
-        const ids=new Set(toRemove);
-        for(let i=roster.length-1;i>=0;i--){
-          if(ids.has(roster[i].id))roster.splice(i,1);
-        }
+        });
+        roster.length = 0;
+        roster.push(...removed.newRoster);
       }
-
-      // Mission completion: +1 fame, +3 morale (simplified)
-      fame+=1;
-      morale=Math.min(100,morale+3);
     }
 
-    // ── Daily: combat check ──
-    const combatChance=P.combatPer10Days/10;
-    if(Math.random()<combatChance && roster.length>0){
-      // Combat: determine enemy faction
-      let enemyFaction;
-      if(P.alignment==="aligned"){
-        // Fight enemies of crew faction
-        const rivals=crewFaction?FACTIONS[crewFaction]?.rivalFactions||["pirate"]:["pirate"];
-        enemyFaction=rivals[Math.floor(Math.random()*rivals.length)];
-      } else if(P.alignment==="opposed"){
-        // Fight own crew's faction
-        enemyFaction=crewFaction||factions[Math.floor(Math.random()*4)];
+    // ── 2. Port Actions ─────────────────────────────────────────────
+    portVisits++;
+    morale = Math.min(100, morale + 3); // shore leave boost (reduced from +5)
+
+    // Hire to ~70% of capacity
+    const target = Math.floor(maxCrew * 0.7);
+    while(roster.length < target){
+      let fac;
+      if(P.crewType==="single") fac=crewFaction;
+      else if(P.crewType==="pirate") fac="pirate";
+      else fac=factions[Math.floor(Math.random()*5)];
+      const member = makeCrew(fac, existingNames, day, fame);
+      existingNames.push(`${member.firstName} ${member.lastName}`);
+      roster.push(member);
+    }
+
+    // Cap roster to ship max
+    while(roster.length > maxCrew){
+      const removed = roster.pop();
+      removed.departedDay=day; removed.departedFame=fame;
+      removed.departureReason="ship_downgrade";
+      removed.daysServed=day-removed.hiredDay;
+      departed.push(removed);
+    }
+
+    // Desertion
+    const simState = makeSimState(day, fame, morale, roster, "portRoyal", ship, reputation);
+    const prevRoster = roster.slice();
+    const desertionResult = L.processDesertion(roster, morale, "portRoyal", simState);
+    roster.length = 0;
+    roster.push(...desertionResult.roster);
+    // Find deserters by comparing IDs
+    const prevIds = new Set(prevRoster.map(m => m.id));
+    const newIds = new Set(roster.map(m => m.id));
+    const deserterIds = [...prevIds].filter(id => !newIds.has(id));
+    deserterIds.forEach(id => {
+      const m = prevRoster.find(m => m.id === id);
+      if (m) {
+        m.departedDay=day; m.departedFame=fame;
+        m.departureReason="deserted";
+        m.daysServed=day-m.hiredDay;
+        departed.push(m);
+      }
+    });
+
+    // Positive traits
+    const traitResult = L.processPositiveTraits(roster, simState);
+    roster.length = 0;
+    roster.push(...traitResult.roster);
+
+    // ── 3. Choose and Resolve Mission ──────────────────────────────
+    const missionKey = weightedPick(P.missionWeights);
+    const mission = MISSION_TYPES[missionKey];
+    const missionDur = randInt(mission.duration[0], mission.duration[1]);
+
+    // Advance mission days
+    const res2 = advanceDays(missionDur, roster, morale, holdItems, day);
+    day = res2.day;
+    morale = res2.morale;
+    holdItems = res2.holdItems;
+
+    // Combat check
+    if(Math.random() < mission.combatChance && roster.length > 0){
+      const loss = calcCrewLoss(missionKey, fameTier, P.riskPref);
+      if(loss > 0 && roster.length > loss){
+        const removed = L.removeRandomCrew(roster, loss);
+        removed.removed.forEach(m=>{
+          m.departedDay=day; m.departedFame=fame;
+          m.departureReason="combat_death";
+          m.daysServed=day-m.hiredDay;
+          departed.push(m);
+        });
+        roster.length = 0;
+        roster.push(...removed.newRoster);
+        morale = Math.max(0, morale - (5 + fameTier));
       } else {
-        // Indifferent: random faction
-        enemyFaction=factions[Math.floor(Math.random()*5)];
+        morale = Math.min(100, morale + 5); // victory morale
       }
 
-      // Risk modifier for combat losses
-      const riskMod=P.riskPref==="high"?1.5:P.riskPref==="low"?0.5:1.0;
-
-      // Combat crew loss: 0-3 based on tier + risk
-      const baseLoss=Math.floor(Math.random()*(1+tier*0.5)*riskMod);
-      const combatLoss=Math.min(baseLoss,Math.max(0,roster.length-1));
-      for(let i=0;i<combatLoss;i++){
-        if(roster.length<=1)break;
-        const idx=Math.floor(Math.random()*roster.length);
-        const killed=roster.splice(idx,1)[0];
-        killed.departedDay=day;killed.departedFame=fame;
-        killed.departureReason="combat_death";
-        killed.daysServed=day-killed.hiredDay;
-        departed.push(killed);
-      }
-
-      // Victory morale
-      morale=Math.min(100,morale+5);
-
-      // Upset check: 15% per matching-faction crew
+      // Upset tagging (15% chance for matching faction)
+      const enemyFaction = (P.alignment === "aligned") 
+        ? (crewFaction ? FACTIONS[crewFaction]?.rivalFactions?.[Math.floor(Math.random()*FACTIONS[crewFaction]?.rivalFactions?.length)] || "pirate" : "pirate")
+        : (P.alignment === "opposed") 
+          ? crewFaction || factions[Math.floor(Math.random()*4)]
+          : factions[Math.floor(Math.random()*5)];
       roster.forEach(m=>{
-        if(m.faction===enemyFaction && !m.tags.includes("upset")){
-          if(Math.random()<0.15)m.tags.push("upset");
+        if(m.faction===enemyFaction && !L.hasTag(m,"upset") && !L.hasTag(m,"loyal")){
+          if(Math.random()<0.15){
+            const updated = L.addTag(m, "upset");
+            Object.assign(m, updated);
+          }
         }
       });
 
       // Alignment morale penalty
-      const matching=roster.filter(m=>m.faction===enemyFaction).length;
-      const ratio=roster.length>0?matching/roster.length:0;
-      const alignMod=0.5+ratio;
-      const penalty=Math.round(3*alignMod);
-      morale=Math.max(0,morale-penalty);
+      const simStateForAlign = makeSimState(day, fame, morale, roster, "portRoyal", ship, reputation);
+      const alignMod = L.getAlignmentModifier(simStateForAlign, enemyFaction);
+      const penalty = Math.round(3 * alignMod);
+      morale = Math.max(0, morale - penalty);
+    } else {
+      morale = Math.min(100, morale + mission.morale);
     }
 
-    // ── Daily: random events (5% chance) ──
-    if(Math.random()<0.05){
-      const evRoll=Math.random();
-      if(evRoll<0.15 && roster.length>1){
-        // Storm: lose 1-2 crew
-        const loss=Math.min(1+Math.floor(Math.random()*2),roster.length-1);
-        for(let i=0;i<loss;i++){
-          const idx=Math.floor(Math.random()*roster.length);
-          const lost=roster.splice(idx,1)[0];
-          lost.departedDay=day;lost.departedFame=fame;
-          lost.departureReason="storm";
-          lost.daysServed=day-lost.hiredDay;
-          departed.push(lost);
-        }
-        morale=Math.max(0,morale-5);
-      } else if(evRoll<0.20 && morale<20 && roster.length>3){
-        // Mutiny: tag 30% as mutineer
-        const count=Math.ceil(roster.length*0.3);
-        const shuffled=[...roster].sort(()=>Math.random()-0.5);
-        for(let i=0;i<count;i++){
-          if(!shuffled[i].tags.includes("mutineer"))shuffled[i].tags.push("mutineer");
-        }
-        morale=Math.min(100,morale+20);
-      } else if(evRoll<0.30 && morale<40 && roster.length>2){
-        // Deserter event: lose 2-3
-        const loss=Math.min(2+Math.floor(Math.random()*2),roster.length-1);
-        for(let i=0;i<loss;i++){
-          const idx=Math.floor(Math.random()*roster.length);
-          const lost=roster.splice(idx,1)[0];
-          lost.departedDay=day;lost.departedFame=fame;
-          lost.departureReason="event_deserter";
-          lost.daysServed=day-lost.hiredDay;
-          departed.push(lost);
-        }
-      }
-    }
-
-    // ── Daily: morale decay if <30 ──
-    if(morale<30)morale=Math.max(0,morale-1);
-
-    // ── Daily: starvation (simplified: 5% chance if provisions low) ──
-    if(Math.random()<0.03)morale=Math.max(0,morale-1);
-
-    // Update days served
-    roster.forEach(m=>m.daysServed=day-m.hiredDay);
-
-    day++;
+    fame += mission.fame;
   }
 
   // Mark survivors
   roster.forEach(m=>{
-    m.departedDay=null;m.departedFame=null;
+    m.departedDay=null; m.departedFame=null;
     m.departureReason="alive";
     m.daysServed=day-m.hiredDay;
   });
@@ -310,7 +373,7 @@ function simRun(profile,maxDays){
 }
 
 // ══════════════════════════════════════════════════════════
-//  ANALYSIS
+//  ANALYSIS & CHARTS (unchanged)
 // ══════════════════════════════════════════════════════════
 
 function analyzeRuns(runs,maxDays){
@@ -323,11 +386,9 @@ function analyzeRuns(runs,maxDays){
   const alive=allCrew.filter(m=>m.departureReason==="alive");
   const dead=allCrew.filter(m=>m.departureReason!=="alive");
 
-  // Departure reasons
   const reasons={};
   dead.forEach(m=>{reasons[m.departureReason]=(reasons[m.departureReason]||0)+1;});
 
-  // Survival curve: % still alive at each day (sampled every 10 days)
   const survivalCurve=[];
   for(let d=0;d<=maxDays;d+=5){
     const totalHiredByD=allCrew.filter(m=>m.hiredDay<=d).length;
@@ -335,28 +396,20 @@ function analyzeRuns(runs,maxDays){
     survivalCurve.push({day:d,pct:totalHiredByD>0?aliveAtD/totalHiredByD:1});
   }
 
-  // Original crew (hired day 0) survival
   const origCrew=allCrew.filter(m=>m.hiredDay===0);
   const origAtFame50=origCrew.filter(m=>m.departureReason==="alive"||(m.departedFame!==null&&m.departedFame>=50)).length;
   const origAtFame100=origCrew.filter(m=>m.departureReason==="alive"||(m.departedFame!==null&&m.departedFame>=100)).length;
 
-  // Longest serving
   const longestServed=Math.max(...lifespans,0);
-
-  // Attachment threshold: % of runs where at least 1 crew served 100+ days
   const runsWithVeteran=runs.filter(r=>{
     return[...r.roster,...r.departed].some(m=>m.daysServed>=100);
   }).length;
 
-  // Turnover: total departures / total days / runs
   const totalDepartures=dead.length;
   const totalDays=runs.reduce((s,r)=>s+r.finalDay,0);
 
-  // Upset and desertion counts
   const desertions=dead.filter(m=>m.departureReason==="deserted").length;
   const combatDeaths=dead.filter(m=>m.departureReason==="combat_death").length;
-
-  // Average crew size over time
   const avgCrewSize=runs.reduce((s,r)=>s+r.roster.length,0)/runs.length;
 
   return{
@@ -370,17 +423,13 @@ function analyzeRuns(runs,maxDays){
     runsWithVeteranPct:Math.round(runsWithVeteran/runs.length*100),
     turnoverPer10Days:totalDays>0?Math.round(totalDepartures/totalDays*100)/10:0,
     desertionsPer10Ports:runs.length>0?Math.round(desertions/runs.reduce((s,r)=>s+r.portVisits,0)*100)/10:0,
-    combatDeathsPer10Battles:0,// simplified
+    combatDeathsPer10Battles:0,
     reasons,
     survivalCurve,
     avgFinalCrew:avgCrewSize,
     avgFinalFame:Math.round(runs.reduce((s,r)=>s+r.finalFame,0)/runs.length),
   };
 }
-
-// ══════════════════════════════════════════════════════════
-//  CHARTS
-// ══════════════════════════════════════════════════════════
 
 function drawSurvivalChart(canvasId,allAnalysis,maxDays){
   const canvas=document.getElementById(canvasId);
@@ -390,7 +439,6 @@ function drawSurvivalChart(canvasId,allAnalysis,maxDays){
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
   ctx.fillStyle="#0d1620";ctx.fillRect(0,0,W,H);
 
-  // Grid
   ctx.strokeStyle="#1a2a3a";ctx.lineWidth=0.5;
   for(let p=0;p<=100;p+=25){
     const y=pad.t+ph-(p/100)*ph;
@@ -404,7 +452,6 @@ function drawSurvivalChart(canvasId,allAnalysis,maxDays){
     ctx.fillText(d,x,H-4);
   }
 
-  // Lines
   Object.entries(allAnalysis).forEach(([name,a])=>{
     const color=PROFILES[name].color;
     ctx.strokeStyle=color;ctx.lineWidth=2;ctx.globalAlpha=0.9;
@@ -417,7 +464,6 @@ function drawSurvivalChart(canvasId,allAnalysis,maxDays){
     ctx.stroke();ctx.globalAlpha=1;
   });
 
-  // Legend
   let ly=pad.t+10;
   ctx.font="9px monospace";
   Object.entries(allAnalysis).forEach(([name])=>{
@@ -435,8 +481,8 @@ function drawReasonsChart(canvasId,allAnalysis){
   ctx.fillStyle="#0d1620";ctx.fillRect(0,0,W,H);
 
   const profiles=Object.keys(allAnalysis);
-  const allReasons=["combat_death","deserted","storm","event_deserter","mutiny","ship_downgrade"];
-  const reasonColors={"combat_death":"#f44336","deserted":"#ff9800","storm":"#2196f3","event_deserter":"#9c27b0","mutiny":"#ffd700","ship_downgrade":"#606060"};
+  const allReasons=["combat_death","deserted","storm","event_deserter","ship_downgrade"];
+  const reasonColors={"combat_death":"#f44336","deserted":"#ff9800","storm":"#2196f3","event_deserter":"#9c27b0","ship_downgrade":"#606060"};
 
   const barW=Math.floor((W-80)/profiles.length);
   const maxH=H-60;
@@ -459,12 +505,10 @@ function drawReasonsChart(canvasId,allAnalysis){
       y+=h;
     });
 
-    // Label
     ctx.fillStyle=PROFILES[name].color;ctx.font="8px monospace";ctx.textAlign="center";
     ctx.fillText(name.split(" ")[0],x+barW/2,H-4);
   });
 
-  // Legend
   let lx=10,ly=12;
   ctx.font="8px monospace";
   allReasons.forEach(r=>{
@@ -485,7 +529,7 @@ async function runSim(){
   const fill=document.getElementById("progressFill");
   const status=document.getElementById("status");
   const nRuns=parseInt(document.getElementById("nRuns").value)||100;
-  const maxDays=parseInt(document.getElementById("maxDays").value)||500;
+  const maxDays=parseInt(document.getElementById("maxDays").value)||1000;
 
   const allAnalysis={};
   const allRuns={};
@@ -494,7 +538,6 @@ async function runSim(){
 
   for(const name of profileNames){
     const runs=[];
-    crewIdCounter=0;
     for(let i=0;i<nRuns;i++){
       runs.push(simRun(name,maxDays));
       done++;
@@ -512,11 +555,9 @@ async function runSim(){
 
   fill.style.width="100%";status.textContent="✓ Rendering results...";
 
-  // ── RENDER ──
   const out=document.getElementById("results");out.style.display="block";
   let html="";
 
-  // Summary table
   html+=`<h2>📊 Crew Lifecycle Summary (${nRuns} runs × ${maxDays} days)</h2>`;
   html+="<table><tr><th>Profile</th><th>Avg Lifespan</th><th>Median</th><th>Longest</th>"
     +"<th>Turnover/10d</th><th>Orig @F50</th><th>Orig @F100</th>"
@@ -537,7 +578,6 @@ async function runSim(){
   });
   html+="</table>";
 
-  // Departure reasons table
   html+=`<h2>💀 Departure Reasons (% of all departures)</h2>`;
   const allReasons=["combat_death","deserted","storm","event_deserter","ship_downgrade"];
   html+="<table><tr><th>Profile</th>"+allReasons.map(r=>`<th>${r.replace(/_/g," ")}</th>`).join("")+"<th>Total Lost</th></tr>";
@@ -552,7 +592,6 @@ async function runSim(){
   });
   html+="</table>";
 
-  // Attachment analysis
   html+=`<h2>❤️ Attachment Analysis</h2>`;
   html+="<table><tr><th>Profile</th><th>% runs with 100d+ veteran</th><th>% runs with 200d+ veteran</th><th>Avg days of longest-serving</th></tr>";
   profileNames.forEach(name=>{
@@ -568,13 +607,11 @@ async function runSim(){
   });
   html+="</table>";
 
-  // Charts
   html+=`<h2>📈 Charts</h2><div class="chart-grid">`;
   html+=`<div><h3>Crew Survival Curve (% alive vs days since hire)</h3><canvas id="chartSurvival" width="560" height="360"></canvas></div>`;
   html+=`<div><h3>Departure Reasons Breakdown</h3><canvas id="chartReasons" width="560" height="360"></canvas></div>`;
   html+=`</div>`;
 
-  // Target assessment
   html+=`<h2>🎯 Balance Assessment</h2>`;
   html+=`<div class="dim" style="margin-bottom:8px">Target: Faction Loyalist should have at least 1-2 original crew at Fame 100. Turncoat should have high turnover (that's the consequence).</div>`;
   profileNames.forEach(name=>{
@@ -598,9 +635,79 @@ async function runSim(){
 
   out.innerHTML=html;
 
-  // Draw charts
   drawSurvivalChart("chartSurvival",allAnalysis,maxDays);
   drawReasonsChart("chartReasons",allAnalysis);
+
+  // Copy button
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "btn-copy";
+  copyBtn.textContent = "📋 Copy Results";
+  copyBtn.onclick = () => {
+    let text = "BROADSIDE — CREW LIFECYCLE SIMULATOR RESULTS (Voyage Model)\n";
+    text += "================================================\n\n";
+    text += `Crew Lifecycle Summary (${nRuns} runs × ${maxDays} days)\n`;
+    text += "Profile\tAvg Lifespan\tMedian\tLongest\tTurnover/10d\tOrig @F50\tOrig @F100\tRuns w/ Veteran\tAvg Final Crew\tAvg Fame\n";
+    profileNames.forEach(name=>{
+      const a=allAnalysis[name];
+      text += `${name}\t${a.avgLifespan}d\t${a.medianLifespan}d\t${a.longestServed}d\t${a.turnoverPer10Days}\t${a.origAtFame50Pct}%\t${a.origAtFame100Pct}%\t${a.runsWithVeteranPct}%\t${Math.round(a.avgFinalCrew)}\t${a.avgFinalFame}\n`;
+    });
+    text += "\nDeparture Reasons (% of all departures)\n";
+    text += "Profile\t" + allReasons.map(r=>r.replace(/_/g," ")).join("\t") + "\tTotal Lost\n";
+    profileNames.forEach(name=>{
+      const a=allAnalysis[name];
+      const total=Object.values(a.reasons).reduce((s,v)=>s+v,0)||1;
+      text += `${name}`;
+      allReasons.forEach(r=>{
+        const c=a.reasons[r]||0;
+        const p=Math.round(c/total*100);
+        text += `\t${p}% (${c})`;
+      });
+      text += `\t${total}\n`;
+    });
+    text += "\nAttachment Analysis\n";
+    text += "Profile\t% runs with 100d+ veteran\t% runs with 200d+ veteran\tAvg days of longest-serving\n";
+    profileNames.forEach(name=>{
+      const runs=allRuns[name];
+      const v100=runs.filter(r=>[...r.roster,...r.departed].some(m=>m.daysServed>=100)).length;
+      const v200=runs.filter(r=>[...r.roster,...r.departed].some(m=>m.daysServed>=200)).length;
+      const longestPerRun=runs.map(r=>Math.max(...[...r.roster,...r.departed].map(m=>m.daysServed),0));
+      const avgLongest=Math.round(longestPerRun.reduce((a,b)=>a+b,0)/runs.length);
+      text += `${name}\t${Math.round(v100/runs.length*100)}%\t${Math.round(v200/runs.length*100)}%\t${avgLongest}d\n`;
+    });
+    text += "\nBalance Assessment\n";
+    profileNames.forEach(name=>{
+      const a=allAnalysis[name];
+      let verdict;
+      if(name==="Turncoat") verdict=a.turnoverPer10Days>2?"✅ High turnover (intended consequence)":"⚠ Turnover too low — no consequence for attacking own faction";
+      else if(name==="Faction Loyalist") verdict=a.origAtFame100Pct>=20?"✅ Crew survives — attachment possible":"❌ Crew dies too fast — loyalty not rewarded";
+      else if(name==="Peaceful Trader") verdict=a.origAtFame100Pct>=40?"✅ Very stable crew":"⚠ Trading should be safest — crew dying too fast";
+      else verdict=a.runsWithVeteranPct>=50?"✅ Veterans possible":"⚠ Turnover may be too high";
+      text += `${name}: ${verdict} (avg lifespan: ${a.avgLifespan}d, orig@F100: ${a.origAtFame100Pct}%)\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(()=>{
+      const msg = document.getElementById("copy-msg");
+      if(msg) msg.style.display="inline";
+      setTimeout(()=>{ if(msg) msg.style.display="none"; }, 2000);
+    }).catch(()=>{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      const msg = document.getElementById("copy-msg");
+      if(msg) msg.style.display="inline";
+      setTimeout(()=>{ if(msg) msg.style.display="none"; }, 2000);
+    });
+  };
+
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.appendChild(copyBtn);
+  const msgSpan = document.createElement("span");
+  msgSpan.id = "copy-msg";
+  msgSpan.textContent = "Copied!";
+  copyBtn.parentNode.insertBefore(msgSpan, copyBtn.nextSibling);
 
   status.textContent=`✓ Done. ${Object.keys(allAnalysis).length} profiles × ${nRuns} runs.`;
   btn.disabled=false;

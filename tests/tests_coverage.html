@@ -33,6 +33,12 @@
   button { background: var(--panel-alt); color: var(--gold); border: 1px solid var(--border);
            padding: 5px 12px; font-family: var(--font); font-size: 12px; cursor: pointer; }
   button:hover { background: var(--gold); color: var(--bg); }
+  button.active { border-color: var(--gold-br); color: var(--gold-br); background: var(--panel); }
+  .btn-copy { background: var(--panel-alt); color: var(--green); border: 1px solid var(--green); }
+  .btn-copy:hover { background: var(--green); color: var(--bg); }
+  #copy-msg { color: var(--green); font-size: 11px; display: none; margin-left: 8px; }
+
+  #toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 
   .file-group { background: var(--panel); border: 1px solid var(--border-faint);
                 padding: 10px 14px; margin-bottom: 8px; }
@@ -77,12 +83,23 @@
   involved so you can decide whether to add a one-line disambiguation mark there. Everything else is exact.
 </div>
 
-<div class="summary">
+<div class="summary" id="summary">
   <div><div class="stat-label">Functions/Cases</div><div class="stat-value" id="total">—</div></div>
   <div><div class="stat-label">Fully Covered</div><div class="stat-value green" id="full">—</div></div>
   <div><div class="stat-label">Under-covered</div><div class="stat-value red" id="under">—</div></div>
   <div><div class="stat-label">Collision Risk</div><div class="stat-value" id="collisions">—</div></div>
-  <div style="margin-left:auto;"><button onclick="location.reload()">↻ Re-run</button></div>
+  <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+    <button id="copy-btn" class="btn-copy">📋 Copy undercoverage & collision risks</button>
+    <span id="copy-msg">Copied!</span>
+    <button onclick="location.reload()">↻ Re-run</button>
+  </div>
+</div>
+
+<div id="toolbar">
+  <button class="active" data-filter="all">All</button>
+  <button data-filter="L">Logic</button>
+  <button data-filter="G">Generators</button>
+  <button data-filter="E">Engine</button>
 </div>
 
 <div id="results"><div class="running">Loading game scripts…</div></div>
@@ -483,6 +500,8 @@ function findExportedNames(ast, nsVarName) {
   // PART 4 — Cross-reference static + dynamic, render report
   // ══════════════════════════════════════════════════════════════════════════
 
+  let __coverageData = null; // store fileGroups and testStats for filtering
+
   async function main() {
     // Instrument BEFORE running tests so calls are captured.
     instrumentNamespace(window.L, "L");
@@ -548,14 +567,109 @@ function findExportedNames(ast, nsVarName) {
     actionRows.sort((a, b) => a.name.localeCompare(b.name));
     fileGroups.push({ file: "engine reducers (action cases)", rows: actionRows });
 
-    render(fileGroups, { ran, failed });
+    __coverageData = { fileGroups, testStats: { ran, failed } };
+    render("all");
   }
 
-  function render(fileGroups, testStats) {
+  // ── Helper to generate copy text based on current filter ──────────────────
+  function generateCopyText(filter) {
+    const filteredData = getFilteredData(filter);
+    const { fileGroups } = filteredData;
+    let lines = [];
+    lines.push("BROADSIDE — RETURN COVERAGE (PASS 1)");
+    lines.push("======================================");
+    lines.push("");
+    lines.push("FUNCTIONS/ACTIONS NOT FULLY COVERED (observed < static):");
+    lines.push("---------------------------------------------------------");
+
+    let foundUnder = false;
+    for (const group of fileGroups) {
+      for (const row of group.rows) {
+        if (row.staticCount > 0 && row.observedCount < row.staticCount) {
+          foundUnder = true;
+          lines.push(`  ${group.file} :: ${row.name}`);
+          lines.push(`    Static returns: ${row.staticCount}  Observed shapes: ${row.observedCount}`);
+          if (row.collisions.length > 0) {
+            for (const c of row.collisions) {
+              lines.push(`    COLLISION: lines ${c.lines.join(", ")} share signature "${c.signature}"`);
+            }
+          }
+        }
+      }
+    }
+    if (!foundUnder) {
+      lines.push("  (none)");
+    }
+
+    lines.push("");
+    lines.push("FUNCTIONS/ACTIONS WITH COLLISION RISK (even if fully covered):");
+    lines.push("-------------------------------------------------------------");
+    let foundCollision = false;
+    for (const group of fileGroups) {
+      for (const row of group.rows) {
+        if (row.collisions.length > 0) {
+          foundCollision = true;
+          lines.push(`  ${group.file} :: ${row.name} (static returns: ${row.staticCount}, observed: ${row.observedCount})`);
+          for (const c of row.collisions) {
+            lines.push(`    lines ${c.lines.join(", ")} share signature "${c.signature}"`);
+          }
+        }
+      }
+    }
+    if (!foundCollision) {
+      lines.push("  (none)");
+    }
+
+    const stats = computeStats(fileGroups);
+    lines.push("");
+    lines.push("SUMMARY:");
+    lines.push(`  Total items: ${stats.total}`);
+    lines.push(`  Fully covered: ${stats.full}`);
+    lines.push(`  Under-covered: ${stats.under}`);
+    lines.push(`  With collision risk: ${stats.collisions}`);
+    return lines.join("\n");
+  }
+
+  // ── Compute stats from a filtered group list ──────────────────────────────
+  function computeStats(fileGroups) {
+    let total = 0, full = 0, under = 0, collisions = 0;
+    for (const group of fileGroups) {
+      for (const row of group.rows) {
+        total++;
+        if (row.collisions.length > 0) collisions++;
+        if (!row.wasCalled) {
+          under++;
+        } else if (row.observedCount >= row.staticCount) {
+          full++;
+        } else {
+          under++;
+        }
+      }
+    }
+    return { total, full, under, collisions };
+  }
+
+  // ── Filter fileGroups based on filter string ──────────────────────────────
+  function getFilteredData(filter) {
+    if (filter === "all") {
+      return { fileGroups: __coverageData.fileGroups };
+    }
+    const map = {
+      "L": "logic.js",
+      "G": "generators.js",
+      "E": "engine reducers (action cases)",
+    };
+    const targetFile = map[filter];
+    if (!targetFile) return { fileGroups: [] };
+    const filtered = __coverageData.fileGroups.filter(g => g.file === targetFile);
+    return { fileGroups: filtered };
+  }
+
+  function render(filter) {
     const root = document.getElementById("results");
     root.innerHTML = "";
 
-    let total = 0, full = 0, under = 0, collisionCount = 0;
+    const { fileGroups } = getFilteredData(filter);
 
     for (const group of fileGroups) {
       const sec = document.createElement("div");
@@ -565,17 +679,15 @@ function findExportedNames(ast, nsVarName) {
       sec.appendChild(h);
 
       for (const row of group.rows) {
-        total++;
         const hasCollision = row.collisions.length > 0;
-        if (hasCollision) collisionCount++;
 
         let ratioClass, ratioText;
         if (!row.wasCalled) {
-          ratioClass = "zero"; ratioText = `0/${row.staticCount}`; under++;
+          ratioClass = "zero"; ratioText = `0/${row.staticCount}`;
         } else if (row.observedCount >= row.staticCount) {
-          ratioClass = "full"; ratioText = `${row.observedCount}/${row.staticCount}`; full++;
+          ratioClass = "full"; ratioText = `${row.observedCount}/${row.staticCount}`;
         } else {
-          ratioClass = "partial"; ratioText = `${row.observedCount}/${row.staticCount}`; under++;
+          ratioClass = "partial"; ratioText = `${row.observedCount}/${row.staticCount}`;
         }
 
         const rowEl = document.createElement("div");
@@ -628,11 +740,43 @@ function findExportedNames(ast, nsVarName) {
       root.appendChild(sec);
     }
 
-    document.getElementById("total").textContent = total;
-    document.getElementById("full").textContent  = full;
-    document.getElementById("under").textContent = under;
-    document.getElementById("collisions").textContent = collisionCount;
+    // Update summary stats
+    const stats = computeStats(fileGroups);
+    document.getElementById("total").textContent = stats.total;
+    document.getElementById("full").textContent  = stats.full;
+    document.getElementById("under").textContent = stats.under;
+    document.getElementById("collisions").textContent = stats.collisions;
+
+    // Copy button
+    const copyBtn = document.getElementById("copy-btn");
+    copyBtn.onclick = () => {
+      const text = generateCopyText(filter);
+      navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById("copy-msg");
+        msg.style.display = "inline";
+        setTimeout(() => { msg.style.display = "none"; }, 2500);
+      }).catch(() => {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        const msg = document.getElementById("copy-msg");
+        msg.style.display = "inline";
+        setTimeout(() => { msg.style.display = "none"; }, 2500);
+      });
+    };
   }
+
+  // ── Filter buttons ──────────────────────────────────────────────────────────
+  document.querySelectorAll("[data-filter]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-filter]").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      render(btn.dataset.filter);
+    });
+  });
 
   // ── Wait for all game scripts + test files to be ready, then run ──────────
   function waitAndStart(attempt) {

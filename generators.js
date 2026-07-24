@@ -1145,9 +1145,16 @@ if (market?.goods?.slaves?.available > 0) {
   return selected;
 };
 
+// ---------EVENTS -------------------
+
+const pickMerchantFaction = () => {
+  const factions = Object.keys(FACTIONS).filter(f => f !== "pirate");
+  return factions[Math.floor(Math.random() * factions.length)];
+};
+
   // ── exports ───────────────────────────────────────────────────
   return {
-    // crew (migrated)
+    // crew 
     generateCrewMember,
     generateRoster,
     generateCrewBio,
@@ -1167,6 +1174,8 @@ if (market?.goods?.slaves?.available > 0) {
     generatePortMarket,
     generatePortGossip,
     generateMarketFlavour,
+    // events
+    pickMerchantFaction,
   };
 
 })();

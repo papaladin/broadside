@@ -185,8 +185,8 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: define a clear direction for making trade viable and missions feel distinct, before committing to implementation. This is the discovery layer behind the quick numeric fix already shipped in B5.5.
 
 #### B8.1 — Trade & economy viability
-- [ ] Beyond the B5.5 quantity-scaling fix, decide on a price/availability **memory** system: surface last-known prices and stock for ports the player has already visited (status screen? a dedicated tab?) so trading isn't "searching in the dark," as described by Ren
-- [ ] Audit reputation decay vs. mission completion timing — trade missions cost travel days (during which reputation decays toward 50), while combat/patrol chains can complete same-day. Confirm whether this structurally disadvantages trade-faction reputation gain, and adjust decay timing or trade rewards if so (DocTheYounger)
+- [X] Beyond the B5.5 quantity-scaling fix, decide on a price/availability **memory** system: surface last-known prices and stock for ports the player has already visited (status screen? a dedicated tab?) so trading isn't "searching in the dark," as described by Ren
+- [X] Audit reputation decay vs. mission completion timing — trade missions cost travel days (during which reputation decays toward 50), while combat/patrol chains can complete same-day. Confirm whether this structurally disadvantages trade-faction reputation gain, and adjust decay timing or trade rewards if so (DocTheYounger)
 - [ ] Minor data balance: review port-per-faction distribution — Spanish ports are currently over-represented relative to the other four factions (DocTheYounger)
 
 #### B8.2 — Provisions depth

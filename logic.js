@@ -409,6 +409,13 @@ window.L = (() => {
     return { tier: "at_war", repairMult: 1.00, missionMult: 0, servicesBlocked: true };
   };
 
+  function addHeat(state, faction, amount) {
+  if (faction === "pirate") return state;
+  const alerts = { ...(state.factionAlerts || {}) };
+  alerts[faction] = Math.min(10, (alerts[faction] || 0) + amount);
+  return { ...state, factionAlerts: alerts };
+}
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  CREW FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1077,6 +1084,7 @@ const getPortTradeProfile = (portKey) => {
     decayReputation,
     applyReputationImpact,
     getRepPerk,
+    addHeat,
 
     // Crew
     payCrewWages,

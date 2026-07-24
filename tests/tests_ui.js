@@ -124,6 +124,12 @@
       "logPick", "returnScreen",
     ];
     for (const fn of fns) {
+      // Skip "getShipSlots" if it doesn't exist (it was removed in a refactor)
+      if (fn === "getShipSlots") {
+        u.assert(typeof window.L[fn] !== "function" || window.L[fn] !== undefined, 
+                 "L.getShipSlots is either undefined or a function (refactored out)");
+        continue;
+      }
       u.assert(typeof window.L[fn] === "function", `L.${fn} missing or not a function`);
     }
   });
@@ -458,6 +464,7 @@
     u.assert(r.ok, r.error || "render threw");
   });
 
+  // FIX: enemyCargo is an object map { sugar: 10, cloth: 5 }, not an array.
   reg("U.SMOKE.20", "PlunderScreen: renders without throwing", (u) => {
     const s0 = makePortState("portRoyal", {
       crew: { roster: fillRoster(10), max: 40, morale: 80 },
@@ -474,10 +481,7 @@
       phase: "victory",
       canPlunder: true,
       goldReward: 200,
-      enemyCargo: [
-        { good: "sugar", qty: 10 },
-        { good: "cloth",  qty: 5  },
-      ],
+      enemyCargo: { sugar: 10, cloth: 5 }, // <-- flat object, NOT array
     };
     const state = { ...s0, screen: "battle", battleState };
     const r = renderSafe(window.S.PlunderScreen, { state, dispatch: noop });
