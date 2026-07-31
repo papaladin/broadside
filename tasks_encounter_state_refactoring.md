@@ -3,7 +3,16 @@
 **Roadmap item:** B1.4 — Implement encounter architecture refactor
 **Discovery source:** B1.3 — Discovery: encounter vs activeMission vs battleState
 **Status:** Plan approved, implementation pending
-**Last updated:** 2026-06-22
+**Last updated:** amended for B11 combat rework integration
+
+> **Amendment note**: this document was updated after the B11 combat rework's design
+> (`design_combat_rework.md`) and implementation task list (`tasks_combat_rework.md`)
+> were finalized. Changes from the original version are marked **[B11 AMENDMENT]**
+> inline. The core migration plan and phase structure are unchanged — the amendments
+> are additive: two new fields in the target `battle` shape, two scope-clarifying notes
+> on existing phases, one integration note on the modifier system, and one new parked
+> question. **`tasks_combat_rework.md` depends on this refactor being complete through
+> Phase B1.4.8 before it begins — see the note at the end of this document.**
 
 ---
 
@@ -23,7 +32,9 @@ The migration is broken into 10 small, individually testable phases. Each phase 
 - Enables persistent rivals (the same enemy across multiple encounters, hull state preserved)
 - Enables a combat modifier system (ambush, surprise, weather effects, tutorial setup)
 - Reduces the cost of adding new encounter types (most additions become data, not code)
-- Unblocks downstream roadmap items B6 (combat depth), B10 (world events), B11 (story arc & rivals)
+- Unblocks downstream roadmap items B9 (softlock detection, already integrates with the existing `battleState`/wash-ashore path), **B11 (combat depth rework — distance, boarding, the full naval/boarding resolution pipeline; see `design_combat_rework.md` and `tasks_combat_rework.md`)**, and world/story-arc items (B19/B20)
+
+**[B11 AMENDMENT]** The combat rework is no longer a hypothetical future consumer of this architecture — it's a fully designed and task-listed piece of work (`design_combat_rework.md`, `tasks_combat_rework.md`) that depends directly on this refactor's `encounterSession.battle` shape. The amendments below reflect exactly what that dependency requires.
 
 ---
 
@@ -96,6 +107,8 @@ state.notableNPCs = {
     speed: 14,
     shipType: "brigantine",
     faction: "pirate",
+    risk: "high",                    // [B11 AMENDMENT] persisted here too, not just on
+                                      // the disposable enemy snapshot — see Task B1.4.2 note
     flags: {
       hostile: true,
       hasParleyed: false,
@@ -105,6 +118,9 @@ state.notableNPCs = {
     history: [
       { day: 12, event: "first_sighting" },
       { day: 23, event: "fled_combat", hullDelta: -33 },
+      // [B11 AMENDMENT] new event types the combat rework can now produce:
+      // "captured_player_ship" | "was_captured" | "boarding_repelled" — not required
+      // for B1.4, but worth knowing the history log should accept these once B11 ships.
     ],
     spawn: {
       preferredRegions: ["east_caribbean"],
@@ -144,6 +160,9 @@ state.encounterSession = {
     cannons: 18,
     speed: 14,
     faction: "pirate",
+    risk: "high",                        // [B11 AMENDMENT] carried on the snapshot too —
+                                          // needed by L.getBoardingRatio's morale stand-in
+                                          // (design_combat_rework.md Section 7.1)
   },
 
   // Where this came from
@@ -177,12 +196,25 @@ state.encounterSession = {
     initialPlayerCrew: 20,
     lostCrewNames: [ "Maria Vargas" ],
     convoyHull: 45,                      // escort missions only; otherwise undefined
+    distance: "close",                   // [B11 AMENDMENT] "far" | "medium" | "close" —
+                                          // see design_combat_rework.md Section 3.
+                                          // Set at battle creation via initialDistanceFor(type),
+                                          // mutates each round via the Reposition step.
+    subPhase: "naval",                    // [B11 AMENDMENT] "naval" | "boarding" — see
+                                          // design_combat_rework.md Section 7. Nested inside
+                                          // `battle`, NOT a new top-level `phase` value — see
+                                          // "Nested subPhase" note under Phase Transitions below.
   } | null,
 
   plunder: {                             // null until phase === "plunder"
     goldReward: 1240,
     enemyCargo: { sugar: 12, rum: 8, ... },
     canPlunder: true,
+    outcomeType: "captured",             // [B11 AMENDMENT] "captured" | "sunk" — sunk should
+                                          // never actually reach the plunder phase (no plunder
+                                          // possible per design doc Section 6), but recording
+                                          // which outcome led here is useful for the journal/log
+                                          // and for notableNPC history entries.
   } | null,
 
   // Return state
@@ -201,6 +233,13 @@ state.encounterSession = {
 - `"plunder"` → `null` (TAKE_PLUNDER)
 - `"dialogue"` → `"intercept"` (future story NPC pre-encounter dialogue)
 - `"dialogue"` → `null` (dialogue-only encounter, no combat)
+
+**[B11 AMENDMENT] Nested `subPhase` transitions, within `phase === "battle"` only:**
+- `battle.subPhase` starts at `"naval"` whenever `phase` transitions to `"battle"`.
+- `"naval"` → `"boarding"` (successful Grapple — see design_combat_rework.md Section 4, Step 5)
+- `"boarding"` → `"naval"` (Fall Back, mutual or one-sided, returns to Naval combat at Close distance — the ships detached but didn't separate further)
+- `"boarding"` → *(session-ending outcome, `phase` leaves `"battle"` entirely)* on wipeout, surrender, or a successful Demand Surrender/capture
+- This is a state machine nested one level inside the existing `phase` state machine, not a sibling of it — deliberately, so none of the top-level phase transition logic above needs to change to accommodate boarding.
 
 ### Concept 3: `activeMission` (unchanged)
 
@@ -323,6 +362,8 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 - Add field to initial state
 - Add migration line
 
+**[B11 AMENDMENT] Note on the `risk` field**: when this registry actually gets populated (future work, not this phase), each entry's shape should carry `risk` alongside `hull`/`crew`/etc., since `L.getBoardingRatio`'s morale stand-in (design_combat_rework.md Section 7.1) reads it. Not actionable in this phase — the registry is empty here — but worth the shape being right from the start once B10/B11-adjacent rival work actually populates it, rather than discovering the gap later.
+
 **Test plan:**
 - Refresh tests page — green
 - Game plays identically — no producers/consumers yet
@@ -423,7 +464,7 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 
 **Changes:**
 - Each handler clears `encounterContext` to `null` AND updates `encounterSession`:
-  - `INTERCEPT_FIGHT`: sets `encounterSession.phase = "battle"`, populates `encounterSession.battle` with initial battle state
+  - `INTERCEPT_FIGHT`: sets `encounterSession.phase = "battle"`, populates `encounterSession.battle` with initial battle state **[B11 AMENDMENT: including `distance` via `initialDistanceFor(encounterSession.type)` and `subPhase: "naval"` — see Phase B1.4.6's scope note below for why the actual distance/boarding *logic* is NOT built in this phase, only the initial field values]**
   - `INTERCEPT_FLEE` success: sets `encounterSession = null`
   - `INTERCEPT_FLEE` failure: sets `encounterSession.phase = "battle"`, populates battle
   - `INTERCEPT_PARLEY` success: applies rep change, sets `encounterSession = null`
@@ -450,6 +491,21 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 ---
 
 ### Phase B1.4.6 — Migrate `BATTLE_ACTION` and `BattleScreen` to read/write `encounterSession.battle`
+
+**[B11 AMENDMENT — SCOPE CLARIFICATION, READ BEFORE STARTING]**: this phase migrates
+**today's actual shipped combat logic** (broadside/precision/evade/grapple, no
+distance, no boarding sub-phase, grapple = instant win) onto the new
+`encounterSession.battle` structure. It does **not** implement any of the B11 combat
+rework (distance bands, the ordered resolution pipeline, boarding as a real sub-phase,
+sunk-vs-captured outcomes). That work is a separate, already-designed and task-listed
+effort (`design_combat_rework.md`, `tasks_combat_rework.md`) that begins only after
+this phase — and Phase B1.4.8 — are complete, building directly on the
+`encounterSession.battle` shape this phase produces. Keeping this boundary sharp
+matters: this phase's job is "move the existing logic without changing behavior,"
+which is already flagged below as the highest-risk phase in the whole migration —
+folding in new combat mechanics at the same time would make an already-risky phase
+substantially riskier for no benefit, since the new mechanics need this phase's output
+to exist first anyway.
 
 **Purpose:** Move combat resolution onto the new session structure.
 
@@ -483,6 +539,13 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 ---
 
 ### Phase B1.4.7 — Migrate `DISMISS_BATTLE` and `TAKE_PLUNDER`
+
+**[B11 AMENDMENT — SCOPE CLARIFICATION]**: same boundary as Phase B1.4.6 — this phase
+migrates the *existing* `handleDefeat`/`applyVictoryAftermath`/`handlePatrolVictory`/
+`handleFledMission` logic onto the new session structure, unchanged in behavior. The
+B11 combat rework's new outcome vocabulary (`player_sunk`, `enemy_sunk`,
+`player_captured`, `enemy_captured`, and the boarding-specific outcomes) is built on
+top of this phase's output afterward, not part of this phase.
 
 **Purpose:** Move post-combat resolution onto the new session.
 
@@ -545,9 +608,30 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 
 **Estimated effort:** 45 minutes
 
+**[B11 AMENDMENT]**: this is the completion gate for `tasks_combat_rework.md`. That
+task list should not begin until this phase's exit criteria are met — see the note at
+the very end of this document.
+
 ---
 
 ### Phase B1.4.9 — Introduce modifier system (one modifier)
+
+**[B11 AMENDMENT — INTEGRATION NOTE]**: the original open question #6 ("combat modifier
+resolution order when multiple apply") is answered now that `design_combat_rework.md`
+defines a concrete five-step resolution order (Evade → Damage → Hull/Crew check →
+Reposition → Grapple). Modifiers integrate at two distinct points, and should be
+implemented accordingly once this work resumes after B11's naval resolver exists:
+- **`scope: "battle_start"` modifiers** (e.g. the tutorial warmup) apply once, before
+  Round 1's Step 1 begins — a pre-round setup effect, not part of the per-round
+  pipeline at all. This matches the existing plan below with no change needed.
+- **`scope: "ongoing"` modifiers** (e.g. `favourable_wind`'s `evadeBonus`) need to hook
+  directly into Step 1 (Evade) of `L.resolveNavalRound` — specifically, adjusting the
+  contest chance calculated by `L.resolveSpeedContest` when Evade is contested against
+  an opposing Close Distance declaration. This is a new, concrete integration point
+  that didn't exist when this phase was originally scoped; it doesn't change this
+  phase's own effort estimate (the tutorial warmup modifier alone doesn't need it), but
+  should inform how the modifier-application helper is written so an `ongoing`-scope
+  modifier can be added later without another refactor.
 
 **Purpose:** Establish the API for combat modifiers. Implement only the tutorial warmup for now.
 
@@ -581,7 +665,7 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 
 **Exit criteria:**
 - Tutorial warmup works via the modifier system
-- The API is documented enough that B6 can extend it
+- The API is documented enough that B11 can extend it
 - No regressions in non-tutorial fights
 
 **Risk:** Low–medium. Risk is over-designing the modifier system. Keep it minimal — one modifier, no fancy combinators, no premature optimization.
@@ -598,7 +682,7 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
 - `docs/specs_engine.md` — major update describing `encounterSession`, `notableNPCs`, phase transitions, modifier API
 - `docs/architecture.md` — update state shape section, add encounter flow diagram
 - `docs/_Sidebar.md` and `docs/Home.md` — verify nothing needs updating
-- `tests_encounter_state_refactoring.md` (this file) — mark complete, archive
+- `tasks_encounter_state_refactoring.md` (this file) — mark complete, archive
 
 **Changes:**
 - specs_engine.md gets a new section: "Encounter Session Architecture"
@@ -607,6 +691,8 @@ Each phase ends in a stable, fully playable game state. Refresh `tests_integrati
   - Phase transitions
   - Modifier API
   - How consequences integrate
+  - **[B11 AMENDMENT]** once B11 ships, this section should also cover the nested
+    `battle.subPhase` state machine and link to `design_combat_rework.md`
 - architecture.md updates:
   - Initial state shape now mentions encounterSession, notableNPCs
   - Encounter routing diagram updated
@@ -656,12 +742,19 @@ The `tests_integration.html` file should be updated to:
 - Verify `state.encounterSession` and `state.notableNPCs` exist
 - Verify phase transitions in `encounterSession` (state machine validity)
 - Once modifier system exists: verify the modifier shape
+- **[B11 AMENDMENT]** once B11 ships: verify `battle.distance` and `battle.subPhase` exist with valid enum values when `phase === "battle"`
 
 Each phase that adds state should add a corresponding test.
 
 ### Generators
 
 `G.generateEnemy` and related generators continue to produce raw enemy data. Whether that data is wrapped in a `notableNPC` registry entry or used as a disposable encounter enemy is decided by the caller, not the generator. **No change to generators.js.**
+
+**[B11 AMENDMENT]**: `generateEnemy`'s return shape does need one small addition
+(`risk`, see `tasks_combat_rework.md` Part 6) — this is a B11-scoped change to
+`generators.js`, made after this refactor is complete, not part of this refactor
+itself. Noted here only so the "no change" statement above isn't read as blocking that
+later, unrelated addition.
 
 ---
 
@@ -679,6 +772,7 @@ What this architecture enables that the current one doesn't:
 8. **Multi-phase encounters** — "first dialogue, then maybe combat" via `dialogue → intercept → battle` chain
 9. **Escalation across encounters** — fleeing a rival sets a flag, world tick spawns them more aggressively next time
 10. **Bounty mechanics** — defeating a notable NPC pays differently than a random; outcome handler checks `notableNPCId`
+11. **[B11 AMENDMENT] Distance-and-boarding naval combat** — the `battle.distance`/`battle.subPhase` fields this refactor's target shape now includes directly support the full B11 combat rework (positional maneuvering, a real boarding sub-phase distinct from an instant grapple-win, sunk-vs-captured outcomes) without any further state-shape changes. See `design_combat_rework.md` for the full design.
 
 ---
 
@@ -696,9 +790,11 @@ These do NOT need to be resolved during B1.4. They will be answered by the featu
 
 5. **What happens to notable NPCs when the player retires?** (Wiped on new game, or carried over via legacy system.) Deferred to B12 (Endgame & Legacy).
 
-6. **Combat modifier resolution order when multiple apply.** (E.g., ambush + favourable wind.) Deferred to B6 (combat depth rework).
+6. ~~**Combat modifier resolution order when multiple apply.**~~ **[B11 AMENDMENT — RESOLVED]** Answered by `design_combat_rework.md`'s five-step resolution order; see the integration note under Phase B1.4.9 above.
 
 7. **Should the encounter session have an `id` for save/log references?** Currently no, may be useful later. Park for now.
+
+8. **[B11 AMENDMENT — NEW] Does an escort mission's convoy have its own `distance` state, or does it always share the player's `battle.distance`?** Surfaced by the B11 design's distance/positioning system — the existing `convoyHull` field assumes a single shared battle state, but doesn't specify whether the convoy maneuvers independently. Not resolved by either this document or `design_combat_rework.md`. Simplest default (convoy shares the player's distance, no independent positioning) is likely correct, but should be an explicit decision when escort missions are revisited under B11's action set, not an assumption baked in silently.
 
 ---
 
@@ -732,6 +828,9 @@ If a phase reveals that the plan is fundamentally wrong (the architecture doesn'
 
 Spread across 5–8 focused sessions of 60–90 minutes each.
 
+**[B11 AMENDMENT]**: `tasks_combat_rework.md` is a separate effort estimate, not included
+in the total above — it begins only after B1.4.8 is complete.
+
 ---
 
 ## Glossary
@@ -742,6 +841,7 @@ Spread across 5–8 focused sessions of 60–90 minutes each.
 | **notableNPC** | Persistent named entity in the world (rival, head-hunter, story NPC, ally). Has lasting state across encounters. |
 | **disposable encounter** | An encounter with no notable NPC backlink. Once resolved, no persistence. (E.g., random patrol, one-off pirate.) |
 | **session phase** | The current step in the resolution: `"intercept"`, `"battle"`, `"plunder"`, `"dialogue"`, or `null`. |
+| **[B11 AMENDMENT] battle subPhase** | Nested inside `encounterSession.battle`, only meaningful when `phase === "battle"`: `"naval"` or `"boarding"`. See `design_combat_rework.md` Section 7. |
 | **session source** | Where the encounter came from: `"mission"`, `"world"`, `"random"`, `"event"`, `"port"`. |
 | **combat modifier** | A data entry on `encounterSession.modifiers` that alters combat behavior (tutorial warmup, ambush, weather). |
 | **shadow state** | A temporary state field maintained alongside the new one during migration, to allow incremental switching of read paths. |
@@ -765,3 +865,17 @@ Update this table as phases complete.
 | B1.4.8 | Not started | — | — |
 | B1.4.9 | Not started | — | — |
 | B1.4.10 | Not started | — | — |
+
+---
+
+## Sequencing Note for `tasks_combat_rework.md`
+
+**`tasks_combat_rework.md` must not begin until Phase B1.4.8's exit criteria are met**
+(`encounterContext` and `battleState` fully removed, `encounterSession.battle` is the
+sole source of truth). Building the combat rework against the pre-refactor
+`battleState` shape would mean every reference to `battleState.enemy`,
+`battleState.distance`, `battleState.subPhase`, etc. throughout that task list would
+need renaming to `encounterSession.battle.*` / `encounterSession.enemy` afterward — a
+mechanical but pervasive rename across the highest-risk parts of both efforts, done
+twice for no benefit. `tasks_combat_rework.md` has already been updated to reference
+`encounterSession.battle` directly, on the assumption this refactor completes first.

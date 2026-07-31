@@ -493,7 +493,7 @@ const generatePortMarket = (portKey, state) => {
   };
 
   // Build a full enemy object
-const generateEnemy = (risk, fame, faction, enemyFactionOverride = null) => {
+const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = null) => {
   const tier = window.L.getFameInfo(fame).tier;
   const riskFactors = { low: 0.0, medium: 0.5, high: 1.0, assault: 1.4 };
   const rf = riskFactors[risk] ?? 0.5;
@@ -513,6 +513,7 @@ const generateEnemy = (risk, fame, faction, enemyFactionOverride = null) => {
     hull:    pick(ranges.hull),
     cannons: pick(ranges.cannons),
     crew:    pick(ranges.crew),
+    risk: risk, 
   };
 };
 

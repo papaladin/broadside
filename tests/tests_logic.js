@@ -1107,6 +1107,169 @@ reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) =>
   });
 
   // ══════════════════════════════════════════════════════════════════════════
+  // L.GAMEOVER — Game Over System (B9)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("L.GAMEOVER.01", "getMinViableCrew: dinghy returns 0, sloop returns 4, galleon returns 15", (u) => {
+    u.assertEqual(L.getMinViableCrew("dinghy"), 0, "dinghy exempt");
+    u.assertEqual(L.getMinViableCrew("sloop"), 4, "sloop maxCrew 40 -> 10% = 4");
+    u.assertEqual(L.getMinViableCrew("brigantine"), 8, "brigantine maxCrew 80 -> 8");
+    u.assertEqual(L.getMinViableCrew("galleon"), 15, "galleon maxCrew 150 -> 15");
+    u.assertEqual(L.getMinViableCrew("ship_of_the_line"), 28, "ship_of_the_line maxCrew 280 -> 28");
+    u.assertEqual(L.getMinViableCrew("unknown_ship"), 0, "unknown ship returns 0");
+  });
+
+reg("L.GAMEOVER.02", "getCaptainTag: returns correct label based on fame/infamy", (u) => {
+  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 0 }).text, "An Unknown Captain");
+  u.assertEqual(L.getCaptainTag({ fame: 9, infamy: 0 }).text, "An Unknown Captain");
+  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 10 }).text, "A Suspect in Several Ports");
+  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 25 }).text, "Wanted by the Law");
+  u.assertEqual(L.getCaptainTag({ fame: 50, infamy: 0 }).text, "A Recognised Captain");
+  u.assertEqual(L.getCaptainTag({ fame: 100, infamy: 0 }).text, "A Notorious Captain");
+  u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 0 }).text, "A Legend of the Caribbean");
+  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 50 }).text, "Notorious Across the Caribbean");
+  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
+  // Fame takes precedence over low infamy, but high infamy overrules lower fame tiers
+  // Infamy >= 50 overrules fame up to 199
+  u.assertEqual(L.getCaptainTag({ fame: 150, infamy: 50 }).text, "Notorious Across the Caribbean");
+  u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
+});
+
+reg("L.GAMEOVER.03", "getCareerHighlights: returns array of strings with correct stats", (u) => {
+  const career = {
+    goldEarned: 5000,
+    goldSpent: 2500,
+    battles: { won: 10, lost: 2, fled: 1 },
+    shipsSunk: 5,
+    shipsPlundered: 3,
+    crewLost: { inBattle: 20, inStorm: 5, deserted: 3, other: 2 },
+    longestCrewTenure: 120,
+    portsVisited: ["portRoyal", "tortuga"],
+    stormsSurvived: 4,
+    shipsOwned: [{ type: "sloop", dayAcquired: 1 }, { type: "frigate", dayAcquired: 100 }],
+    contrabandSeized: 2,
+  };
+  const state = { day: 100, career };
+  const lines = L.getCareerHighlights(state);
+  u.assert(Array.isArray(lines), "returns array");
+  // Check each expected message appears (don't rely on exact count)
+  u.assert(lines.some(l => l.includes("100 days")), "includes days sailed");
+  u.assert(lines.some(l => l.includes("won 10") && l.includes("lost 2") && l.includes("fled 1")), "includes battle summary");
+  u.assert(lines.some(l => l.includes("sunk 5") && l.includes("boarded and plundered 3")), "includes ships sunk/plundered");
+  u.assert(lines.some(l => l.includes("20 to combat") && l.includes("5 to the storms") && l.includes("3 who walked away")), "includes crew loss breakdown");
+  u.assert(lines.some(l => l.includes("120 days")), "includes longest tenure");
+  u.assert(lines.some(l => l.includes("ports") && l.includes("2 of")), "includes ports visited");
+  u.assert(lines.some(l => l.includes("5,000g and spent 2,500g")), "includes gold earned/spent");
+  u.assert(lines.some(l => l.includes("4 storms")), "includes storms survived");
+  u.assert(lines.some(l => l.includes("2 ships")), "includes ships owned");
+  u.assert(lines.some(l => l.includes("2 times")), "includes contraband seized");
+});
+
+  reg("L.GAMEOVER.04", "getCareerHighlights: handles empty career gracefully", (u) => {
+    const state = { day: 1, career: { portsVisited: [], battles: {}, crewLost: {}, shipsOwned: [] } };
+    const lines = L.getCareerHighlights(state);
+    u.assert(Array.isArray(lines), "returns array");
+    u.assertEqual(lines.length, 1, "only the 'sailed for 1 day' line");
+    u.assert(lines[0].includes("1 day"), "default line shown");
+  });
+
+  reg("L.GAMEOVER.05", "isUnrecoverable: hull=0, no gold, no cargo -> true", (u) => {
+    const state = {
+      ship: { type: "sloop", hull: 0 },
+      crew: { roster: [{ id: "x" }], max: 40, morale: 80 },
+      gold: 0,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(result.unrecoverable, "should be unrecoverable");
+    u.assert(result.reason.includes("wrecked"), "reason mentions wrecked ship");
+  });
+
+  reg("L.GAMEOVER.06", "isUnrecoverable: hull=0, but gold >= repair cost -> false", (u) => {
+    // sloop repair cost for full repair (100 hull missing): Math.ceil(100/20)*100 = 5*100 = 500
+    const state = {
+      ship: { type: "sloop", hull: 0 },
+      crew: { roster: [{ id: "x" }], max: 40, morale: 80 },
+      gold: 1000,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(!result.unrecoverable, "should not be unrecoverable (has gold to repair)");
+    u.assertEqual(result.reason, null);
+  });
+
+reg("L.GAMEOVER.07", "isUnrecoverable: hull=0, no gold, but cargo value covers repair -> false", (u) => {
+  // Sloop: repair cost = 500. Crew already meets minCrew (4), so no hiring cost.
+  const state = {
+    ship: { ...makeShip("sloop"), hull: 0 },
+    crew: { roster: fillRoster(4), max: 40, morale: 80 }, // minCrew = 4
+    gold: 0,
+    hold: { items: { sugar: 20 } }, // 20 * 30 = 600 >= 500
+    portMarket: { goods: { sugar: { sellToPort: 30 } } },
+  };
+  const result = L.isUnrecoverable(state);
+  u.assert(!result.unrecoverable, "should not be unrecoverable (cargo value covers repair)");
+  u.assertEqual(result.reason, null);
+}); 
+
+  reg("L.GAMEOVER.08", "isUnrecoverable: non-dinghy, crew=0, no gold, no cargo -> true (crew crisis)", (u) => {
+    const state = {
+      ship: { type: "sloop", hull: 100 },
+      crew: { roster: [], max: 40, morale: 80 },
+      gold: 0,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(result.unrecoverable, "should be unrecoverable (no crew, no money, hull intact but can't sail)");
+    u.assert(result.reason.includes("no one left"), "reason mentions no crew");
+  });
+
+  reg("L.GAMEOVER.09", "isUnrecoverable: dinghy, crew=0, hull intact -> false (exempt)", (u) => {
+    const state = {
+      ship: { type: "dinghy", hull: 100 },
+      crew: { roster: [], max: 5, morale: 80 },
+      gold: 0,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(!result.unrecoverable, "dinghy exempt from crew crisis");
+    u.assertEqual(result.reason, null);
+  });
+
+  reg("L.GAMEOVER.10", "isUnrecoverable: non-dinghy, crew=0, but gold covers hiring minCrew -> false", (u) => {
+    // sloop minCrew = 4, cost = 4*50 = 200
+    const state = {
+      ship: { type: "sloop", hull: 100 },
+      crew: { roster: [], max: 40, morale: 80 },
+      gold: 200,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(!result.unrecoverable, "should not be unrecoverable (has gold to hire min crew)");
+    u.assertEqual(result.reason, null);
+  });
+
+  reg("L.GAMEOVER.11", "isUnrecoverable: hull=0 and crew=0, repair + hire cost > liquid -> true", (u) => {
+    // sloop repair cost = 500, minCrew cost = 200, total = 700. Liquid = 100.
+    const state = {
+      ship: { type: "sloop", hull: 0 },
+      crew: { roster: [], max: 40, morale: 80 },
+      gold: 100,
+      hold: { items: { food: 0, water: 0 } },
+      portMarket: { goods: {} },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(result.unrecoverable, "should be unrecoverable (not enough for both repair and crew)");
+  });
+
+
+
+  // ══════════════════════════════════════════════════════════════════════════
   // L.MISC — miscellaneous
   // ══════════════════════════════════════════════════════════════════════════
 

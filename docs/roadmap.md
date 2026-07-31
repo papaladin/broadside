@@ -62,13 +62,13 @@ Broadside is fully playable with rich narrative systems:
 
 | Block | Theme | Status |
 |---|---|---|
-| **B5** | Critical bug & exploit fixes | 🔲 Planned |
-| **B6** | Quick wins & quality of life | 🔲 Planned |
-| **B7** | Player menu, reference & community links | 🔲 Planned |
-| **B8** | Economy & mission design discovery | 🔲 Planned |
-| **B9** | Player trust & resilience | 🔲 Planned |
+| **B5** | Critical bug & exploit fixes | DONE|
+| **B6** | Quick wins & quality of life | DONE |
+| **B7** | Player menu, reference & community links | DONE |
+| **B8** | Economy & mission design discovery |ONGOING|
+| **B9** | Player trust & resilience | DONE |
+| **B11** | Combat depth rework | NEXT|
 | **B10** | Starts variety & captain identity discovery | 🔲 Planned |
-| **B11** | Combat depth rework | 🔲 Planned |
 | **B12** | Sailing enrichment | 🔲 Planned |
 | **B13** | Narrative layer upgrade | 🔲 Planned |
 | **B14** | Playtest Wave 2 | 🔲 Planned |
@@ -212,21 +212,21 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: ensure the game never leaves a player clicking buttons that do nothing. Scope is now informed by Wave 1 data and recalibrated against B5.2's harsher starvation rules — "unrecoverable state" means something different once starvation can actually kill crew.
 
 #### B9.1 — Detect unrecoverable states
-- [ ] Define the condition (e.g. 0 gold + 0 crew + 0 food + damaged hull + no friendly port reachable)
-- [ ] Not being able to sail with 0 hull. If 0 hull + 0 gold → game over? This is the real softlock condition — no food and no crew isn't recoverable on its own, and no reachable port isn't either, but a "hunt" mission can still offer a way out
-- [ ] Not being able to fight or take a mission with 0 hull
-- [ ] Detection runs on port entry / end of day
+- [X] Define the condition (e.g. 0 gold + 0 crew + 0 food + damaged hull + no friendly port reachable)
+- [X] Not being able to sail with 0 hull. If 0 hull + 0 gold → game over? This is the real softlock condition — no food and no crew isn't recoverable on its own, and no reachable port isn't either, but a "hunt" mission can still offer a way out
+- [X] Not being able to fight or take a mission with 0 hull
+- [X] Detection runs on port entry / end of day
 
 #### B9.2 — Graceful career end screen
-- [ ] Replace the older "mercy event" idea with an on-pillar "Your career ends here" screen
-- [ ] Career summary using B2.3 stats: days survived, gold earned, ports visited, crew lost
-- [ ] Option to start a new game
-- [ ] Reuses the data layer built for B21 retirement
+- [X] Replace the older "mercy event" idea with an on-pillar "Your career ends here" screen
+- [X] Career summary using B2.3 stats: days survived, gold earned, ports visited, crew lost
+- [X] Option to start a new game
+- [X] Reuses the data layer built for B21 retirement
 - **Pillar**: Consequence (not every captain reaches retirement, and that's allowed)
 
 #### B9.3 — Defeat recovery audit
-- [ ] Verify wash-ashore-after-defeat always leaves minimum viable resources
-- [ ] Or routes to graceful career end if not
+- [X] Verify wash-ashore-after-defeat always leaves minimum viable resources
+- [X] Or routes to graceful career end if not
 
 ---
 

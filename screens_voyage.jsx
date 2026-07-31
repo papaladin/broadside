@@ -386,6 +386,24 @@ window.S = window.S || {};
     const reachableFromSea = L.getReachablePortsFromSea(state);
     const canChangeCourse = reachableFromSea.length > 0;
 
+    // ── Sailing gates for Change Course button ──────────────────────
+    const isDinghy = state.ship.type === "dinghy";
+    const minCrew = L.getMinViableCrew(state.ship.type);
+    const isHullBlocked = state.ship.hull === 0;
+    const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
+    const sailDisabled = isHullBlocked || isCrewBlocked;
+
+    let sailTooltip = "";
+    if (isHullBlocked) sailTooltip = "The ship is in too poor a state to change course now. Let it drift in its current direction.";
+    else if (isCrewBlocked) sailTooltip = "With no man to crew the ship, we can't alter course now.";
+
+    const courseChangeDisabled = sailDisabled || !canChangeCourse;
+    let courseChangeTooltip = sailDisabled
+      ? sailTooltip
+      : !canChangeCourse
+        ? "No alternate port is reachable from your current position under present conditions."
+        : "Plot a new heading from your current position, if your ship can reach it.";
+
     const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 640);
     React.useEffect(() => {
       const handle = () => setIsNarrow(window.innerWidth < 640);
@@ -488,8 +506,8 @@ window.S = window.S || {};
                 <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}><IconAnchor size={12} color={T.gold} /> Enter Port</Btn>
               </Tooltip>
               {!arrived && (
-                <Tooltip text="Plot a new heading from your current position, if your ship can reach it.">
-                  <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={!canChangeCourse}>
+                <Tooltip text={courseChangeTooltip}>
+                  <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={courseChangeDisabled}>
                     <IconCompass size={12} color={T.text} /> Change Course
                   </Btn>
                 </Tooltip>

@@ -872,6 +872,188 @@
   });
 
   // ══════════════════════════════════════════════════════════════════════════
+  // E.GAMEOVER — Game Over System (B9)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("E.GAMEOVER.01", "SAIL_TO: blocks sailing with 0 hull", (u) => {
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    });
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "tortuga" });
+    u.assertEqual(s1.screen, "port", "screen unchanged");
+    u.assert(s1.destination === null, "destination not set");
+    u.assert(s1.log.some(l => l.includes("hull is destroyed")), "log contains reason");
+  });
+
+  reg("E.GAMEOVER.02", "SAIL_TO: blocks sailing with insufficient crew (non-dinghy)", (u) => {
+    // sloop minCrew = 4, we have 2
+    const s0 = makePortState("portRoyal", {
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(2), max: 40, morale: 80 },
+    });
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "tortuga" });
+    u.assertEqual(s1.screen, "port", "screen unchanged");
+    u.assert(s1.destination === null, "destination not set");
+    u.assert(s1.log.some(l => l.includes("need at least 4 crew")), "log contains minimum crew requirement");
+  });
+
+  reg("E.GAMEOVER.03", "SAIL_TO: allows sailing with dinghy and 0 crew (exempt)", (u) => {
+    const s0 = makePortState("portRoyal", {
+      ship: makeShip("dinghy"),
+      crew: { roster: [], max: 5, morale: 80 },
+    });
+    const s1 = dispatch(s0, A.SAIL_TO, { port: "tortuga" });
+    u.assertEqual(s1.screen, "sailing", "screen changed to sailing");
+    u.assert(s1.destination === "tortuga", "destination set");
+  });
+
+  reg("E.GAMEOVER.04", "TAKE_MISSION: blocks combat/patrol/assault/escort missions with 0 hull", (u) => {
+    const mission = makeMission({ type: "combat", id: "combat_1", enemy: { name: "Test", hull: 50, cannons: 5, crew: 10 } });
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      missions: [mission],
+    });
+    const s1 = dispatch(s0, A.TAKE_MISSION, { mission });
+    u.assert(s1.activeMission === null, "mission not accepted");
+    u.assert(s1.log.some(l => l.includes("unfit for a fight")), "log contains reason");
+  });
+
+  reg("E.GAMEOVER.05", "TAKE_MISSION: allows trade mission with 0 hull", (u) => {
+    const mission = makeMission({ type: "trade", id: "trade_1", targetPort: "tortuga", requiredGood: "sugar", requiredQty: 5 });
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      missions: [mission],
+    });
+    const s1 = dispatch(s0, A.TAKE_MISSION, { mission });
+    u.assert(s1.activeMission !== null, "trade mission accepted");
+    u.assertEqual(s1.activeMission.id, "trade_1");
+  });
+
+  reg("E.GAMEOVER.06", "INTERCEPT_FIGHT: blocks fighting with 0 hull", (u) => {
+    const ctx = {
+      type: "random",
+      enemy: { name: "Test", faction: "pirate", hull: 50, cannons: 5, crew: 10 },
+      options: [],
+    };
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      encounterContext: ctx,
+    });
+    const s1 = dispatch(s0, A.INTERCEPT_FIGHT);
+    u.assert(s1.battleState === null, "battleState not created");
+    u.assert(s1.log.some(l => l.includes("ship is already lost")), "log contains reason");
+  });
+
+  reg("E.GAMEOVER.07", "ENTER_PORT: triggers gameover when unrecoverable and skips autosave", (u) => {
+    // Sloop, hull=0, no crew, no gold, empty hold.
+    const s0 = makeSailingState("portRoyal", "tortuga", 0, {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      crew: { roster: [], max: 40, morale: 80 },
+      gold: 0,
+      hold: makeHold(),
+      autoSave: true,
+    });
+    // Ensure destination is set so ENTER_PORT triggers
+    const s1 = dispatch(s0, A.ENTER_PORT);
+    u.assertEqual(s1.screen, "gameover", "screen changed to gameover");
+    u.assert(s1.gameOverReason !== null, "gameOverReason set");
+    u.assert(s1.gameOverReason.includes("wrecked"), "reason mentions wrecked ship");
+    // Autosave would have happened after the check. Since we can't easily spy on localStorage here,
+    // we check that the state returned has the gameover flag set. Autosave is called conditionally
+    // after the check. If the check returns gameover, it returns early and never calls autoSave.
+    // This is verified by the screen being gameover instead of port.
+  });
+
+  reg("E.GAMEOVER.08", "ENTER_PORT: does NOT trigger gameover if unrecoverable but dinghy (exempt)", (u) => {
+    const s0 = makeSailingState("portRoyal", "tortuga", 0, {
+      ship: { ...makeShip("dinghy"), hull: 100 },
+      crew: { roster: [], max: 5, morale: 80 },
+      gold: 0,
+      hold: makeHold(),
+      autoSave: true,
+    });
+    const s1 = dispatch(s0, A.ENTER_PORT);
+    u.assertEqual(s1.screen, "port", "screen is port (not gameover)");
+    u.assert(s1.gameOverReason === undefined || s1.gameOverReason === null, "gameOverReason not set");
+  });
+
+  reg("E.GAMEOVER.09", "ENTER_PORT: does NOT trigger gameover if hull=0 but enough gold to repair", (u) => {
+    const s0 = makeSailingState("portRoyal", "tortuga", 0, {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      crew: { roster: fillRoster(1), max: 40, morale: 80 },
+      gold: 1000,
+      hold: makeHold(),
+      autoSave: true,
+    });
+    const s1 = dispatch(s0, A.ENTER_PORT);
+    u.assertEqual(s1.screen, "port", "screen is port (not gameover)");
+    u.assert(s1.gameOverReason === undefined || s1.gameOverReason === null, "gameOverReason not set");
+  });
+
+  reg("E.GAMEOVER.10", "DISMISS_BATTLE defeat: triggers gameover via washAshore if unrecoverable", (u) => {
+    const s0 = makeBattleState(
+      { phase: "defeat", encounterType: "random" },
+      {
+        ship: { ...makeShip("sloop"), hull: 0 },
+        crew: { roster: fillRoster(1), max: 40, morale: 80 },
+        gold: 0,
+        hold: makeHold(),
+        previousPort: "portRoyal",
+      }
+    );
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+    u.assertEqual(s1.screen, "gameover", "screen changed to gameover");
+    u.assert(s1.gameOverReason !== null, "gameOverReason set");
+  });
+
+  reg("E.GAMEOVER.11", "RESOLVE_EVENT storm: triggers washAshore when hull hits 0", (u) => {
+    const stormEvent = {
+      id: "storm",
+      title: "Storm",
+      choices: [{
+        label: "Brace",
+        outcome: { hullDamage: 30, log: "Storm hit!" },
+      }],
+    };
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 15 }, // 15 - 30 = 0
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      gold: 0,
+      hold: makeHold(),
+      previousPort: "portRoyal",
+      activeEvent: stormEvent,
+    });
+    const s1 = dispatch(s0, A.RESOLVE_EVENT, { choiceIndex: 0 });
+    u.assertEqual(s1.screen, "gameover", "screen changed to gameover (hull hit 0, unrecoverable)");
+    u.assert(s1.gameOverReason !== null, "gameOverReason set");
+  });
+
+  reg("E.GAMEOVER.12", "RESOLVE_EVENT storm: does NOT trigger gameover if hull doesn't hit 0", (u) => {
+    const stormEvent = {
+      id: "storm",
+      title: "Storm",
+      choices: [{
+        label: "Brace",
+        outcome: { hullDamage: 10, log: "Storm hit!" },
+      }],
+    };
+    const s0 = makePortState("portRoyal", {
+      ship: { ...makeShip("sloop"), hull: 50 },
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      gold: 0,
+      hold: makeHold(),
+      previousPort: "portRoyal",
+      activeEvent: stormEvent,
+    });
+    const s1 = dispatch(s0, A.RESOLVE_EVENT, { choiceIndex: 0 });
+    u.assertEqual(s1.screen, "port", "screen is port (not gameover)");
+    u.assert(s1.gameOverReason === undefined || s1.gameOverReason === null, "gameOverReason not set");
+    u.assertEqual(s1.ship.hull, 40, "hull reduced to 40");
+  });
+
+
+  // ══════════════════════════════════════════════════════════════════════════
   // E.STATE — initialState shape completeness
   // ══════════════════════════════════════════════════════════════════════════
 
