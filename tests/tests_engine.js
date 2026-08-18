@@ -1065,7 +1065,7 @@
       "tutorialMode", "onboarding", "autoSave", "completedCombatThisVisit",
       "daysWithoutFood", "daysWithoutWater", "ship", "crew", "hold",
       "missions", "activeMission", "reputation", "battleState", "activeEvent",
-      "encounterContext", "career", "equipmentInventory", "discoveredPorts",
+      "encounterContext", "encounterSession","notableNPCs","career", "equipmentInventory", "discoveredPorts",
     ];
     for (const field of required) {
       u.assert(s.hasOwnProperty(field), `initialState missing field: ${field}`);

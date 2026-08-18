@@ -5,3 +5,5 @@ feedbacks/
 *.log
 *.bak
 .vscode/
+repomix-output.xml
+codebase.txt

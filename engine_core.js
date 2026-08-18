@@ -129,6 +129,10 @@ window.E.autoSave = (state) => {
     if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
     if (s.daysWithoutWater === undefined) s.daysWithoutWater = 0;
     if (s.gameOverReason === undefined) s.gameOverReason = null;
+    if (s.encounterSession === undefined) s.encounterSession = null;
+    if (s.notableNPCs === undefined) s.notableNPCs = {};
+
+
     return s;
   };
 
@@ -169,6 +173,8 @@ window.E.autoSave = (state) => {
     faction: null,
     tutorialMode: "full",   // default for new games without a choice (should never happen)
     completedCombatThisVisit: false,
+    encounterSession: null,
+    notableNPCs:{},
     daysWithoutFood: 0,
     daysWithoutWater: 0,
     onboarding: {

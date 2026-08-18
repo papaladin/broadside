@@ -855,8 +855,8 @@ Update this table as phases complete.
 
 | Phase | Status | Date completed | Notes |
 |---|---|---|---|
-| B1.4.1 | Not started | — | — |
-| B1.4.2 | Not started | — | — |
+| B1.4.1 | Not started | — | DONE|
+| B1.4.2 | Not started | — | DONE |
 | B1.4.3 | Not started | — | — |
 | B1.4.4 | Not started | — | — |
 | B1.4.5 | Not started | — | — |
