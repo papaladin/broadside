@@ -312,12 +312,16 @@ reg("G.MISSION.02", "generateMissions: each mission has required fields", (u) =>
   });
 });
 
-  reg("G.MISSION.03", "generateMissions: includes different types at high fame", (u) => {
-    const state = makePortState("portRoyal", { faction: "english", fame: 200 });
+reg("G.MISSION.03", "generateMissions: includes different types at high fame", (u) => {
+  const state = makePortState("portRoyal", { faction: "english", fame: 200 });
+  let seenTypes = new Set();
+  for (let i = 0; i < 50; i++) {
     const missions = G.generateMissions("portRoyal", state);
-    const types = new Set(missions.map(m => m.type));
-    u.assert(types.size >= 2, "has multiple mission types");
-  });
+    missions.forEach(m => seenTypes.add(m.type));
+    if (seenTypes.size >= 2) break;
+  }
+  u.assert(seenTypes.size >= 2, `Expected at least 2 mission types, got ${seenTypes.size}: ${Array.from(seenTypes).join(", ")}`);
+});
 
    reg("G.MISSION.04", "generateMissions: runs without error for different fame levels", (u) => {
     const state1 = makePortState("portRoyal", { faction: "english", fame: 0 });

@@ -1475,6 +1475,21 @@ const DEFAULT_CAREER = {
   combatLog: [],
 };
 
+// ENCOUNTER RELATED DATA (intercept, combat)
+
+// Distance-based damage multipliers (design doc Section 3.3)
+const DISTANCE_DAMAGE_MULTIPLIERS = {
+  broadside: { far: 0.6, medium: 1.0, close: 0.9 },
+  precision: { far: 1.1, medium: 1.0, close: 0.7 },
+};
+
+// Legal actions by distance (design doc Section 3.2)
+const LEGAL_ACTIONS_BY_DISTANCE = {
+  far:    ["broadside", "precision", "close_distance", "evade"],
+  medium: ["broadside", "precision", "close_distance", "open_distance"],
+  close:  ["broadside", "precision", "open_distance", "grapple"],
+};
+
 
   const SURRENDER_CONSEQUENCE = {
     patrol:                   { loseCargoPercent: 30, moralePenalty: 10 },
@@ -1513,6 +1528,8 @@ const DEFAULT_CAREER = {
     TUTORIAL_DELIVERY,
     TUTORIAL_HUNT,
     DEFAULT_CAREER,
+    DISTANCE_DAMAGE_MULTIPLIERS,
+    LEGAL_ACTIONS_BY_DISTANCE,
     SURRENDER_CONSEQUENCE,
   };
 })();
