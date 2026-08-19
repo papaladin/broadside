@@ -2,7 +2,7 @@
 // Registers its reducer into window.E._reducers.
 
 (() => {
-  const { A, autoSave, createBattleState } = window.E;
+  const { A, autoSave, buildEncounterSession } = window.E;
   const { PORTS, SHIPS, FACTIONS, EQUIPMENT, STARTS } = window.D;
   const D = window.D;   // for convenience
   const L = window.L;
@@ -227,8 +227,22 @@ case A.START_GAME: {
 
       // --- NAVIGATION ---
     case A.NAVIGATE: {
-      return { ...state, screen: action.screen };
-    }
+  let nextState = { ...state, screen: action.screen };
+
+  // If navigating to plunder screen from a battle victory with canPlunder, transition phase
+  if (action.screen === "plunder" &&
+      state.encounterSession &&
+      state.encounterSession.phase === "battle" &&
+      state.encounterSession.battle?.canPlunder) {
+    nextState.encounterSession = {
+      ...state.encounterSession,
+      phase: "plunder",
+      // Keep battle as-is; PlunderScreen reads from battle.goldReward/enemyCargo
+    };
+  }
+
+  return nextState;
+}
 
       // --- SAIL_TO ---
     case A.SAIL_TO: {
@@ -337,14 +351,15 @@ case A.ENTER_PORT: {
     const logMsg = state.activeMission?.type === "assault"
       ? `Arrived at ${port.name}. The garrison is on high alert!`
       : `Arrived at ${port.name}. Hostile port!`;
+    // ── B1.4 batch: use encounterSession instead of encounterContext ──
     return {
       ...state,
       currentPort: state.destination,
       destination: null,
       sailingDaysLeft: 0,
-      encounterContext,
+      encounterSession: buildEncounterSession(state, encounterContext),
       screen: "intercept",
-      portMarket: G.generatePortMarket(state.destination, state),   // ← pass state
+      portMarket: G.generatePortMarket(state.destination, state),
       log: [...state.log, window.E.logEntry(state, logMsg)]
     };
   }
@@ -356,7 +371,7 @@ case A.ENTER_PORT: {
     sailingDaysLeft: 0,
     screen: "port",
     missions: G.generateMissions(state.destination, state),
-    portMarket: G.generatePortMarket(state.destination, state),     // ← pass state
+    portMarket: G.generatePortMarket(state.destination, state),
     log: [...state.log, window.E.logEntry(state, L.logPick(D.ARRIVAL_MESSAGES, state, port.name))]
   };
 
@@ -654,11 +669,13 @@ if (
 
         // ── Instant combat mission: jump straight into intercept ──────
        if (mission.type === "combat" && mission.enemy) {
+        const encounterContext = L.buildEncounterContext(state, "mission_combat", mission.enemy);
+        // ── B1.4 batch: use encounterSession instead of encounterContext ──
         return {
           ...state,
           activeMission: mission,
           acceptedDay: state.day,
-          encounterContext: L.buildEncounterContext(state, "mission_combat", mission.enemy),
+          encounterSession: buildEncounterSession(state, encounterContext),
           screen: "intercept",
           log: [...state.log, `Accepted mission: ${mission.name}.`],
         };

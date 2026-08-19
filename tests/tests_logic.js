@@ -977,21 +977,23 @@ reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) =>
     }
   });
 
-  reg("L.CMB.03", "applyMoraleModifier: returns correct morale delta for grapple win/evade", (u) => {
-    const state = makeBattleState({ phase: "player_turn" });
-    const outcome = { instantVictory: true };
-    const result = L.applyMoraleModifier(state, "grapple", outcome);
-    u.assertEqual(result.moraleDelta, 5, "grapple win +5 morale");
+reg("L.CMB.03", "applyMoraleModifier: returns correct morale delta for grapple win/evade", (u) => {
+  const state = makePortState("portRoyal", { crew: { morale: 50, roster: [], max: 40 } });
+  const enemy = { hull: 100, crew: 10 };
+  const battleState = { enemyHull: 100, playerHull: 80 };
+  const outcome = { instantVictory: true };
+  const result = L.applyMoraleModifier(state, "grapple", outcome, battleState, enemy);
+  u.assertEqual(result.moraleDelta, 5, "grapple win +5 morale");
 
-    const outcomeFled = { fled: true };
-    const resultFled = L.applyMoraleModifier(state, "evade", outcomeFled);
-    u.assertEqual(resultFled.moraleDelta, -5, "evade -> -5 morale");
+  const outcomeFled = { fled: true };
+  const resultFled = L.applyMoraleModifier(state, "evade", outcomeFled, battleState, enemy);
+  u.assertEqual(resultFled.moraleDelta, -5, "evade -> -5 morale");
 
-    // Non-grapple, non-fled, enemy not sunk: morale delta 0
-    const outcomeNormal = { player: { hullDamage: 0 }, enemy: { hullDamage: 0 } };
-    const resultNormal = L.applyMoraleModifier(state, "broadside", outcomeNormal);
-    u.assertEqual(resultNormal.moraleDelta, 0, "normal action -> 0 morale");
-  });
+  // Non-grapple, non-fled, enemy not sunk: morale delta 0
+  const outcomeNormal = { player: { hullDamage: 0 }, enemy: { hullDamage: 0 } };
+  const resultNormal = L.applyMoraleModifier(state, "broadside", outcomeNormal, battleState, enemy);
+  u.assertEqual(resultNormal.moraleDelta, 0, "normal action -> 0 morale");
+});
 
   reg("L.CMB.04", "applyDamageMoralePenalty: applies modifier based on effective morale", (u) => {
     const state = makeState({ crew: { morale: 20, roster: [], max: 10 } });
@@ -1021,16 +1023,30 @@ reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) =>
     u.assertEqual(combined.moraleDelta, -2, "morale delta preserved");
   });
 
-  reg("L.CMB.06", "resolveCombatAction: processes a broadside action correctly", (u) => {
-    const state = makeBattleState({}, {
-      ship: makeShip("sloop"),
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    });
-    const result = L.resolveCombatAction(state, "broadside");
-    u.assert(result.player.hullDamage >= 0, "broadside deals player hull damage");
-    u.assert(result.enemy.crewLoss >= 0, "broadside may kill enemy crew");
-    u.assert(result.playerAction === "broadside", "player action stored");
+reg("L.CMB.06", "resolveCombatAction: processes a broadside action correctly", (u) => {
+  const state = makePortState("portRoyal", {
+    ship: makeShip("sloop"),
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
   });
+  const enemy = { hull: 100, crew: 10, cannons: 5, faction: "pirate" };
+  const battleState = {
+    enemyHull: 100,
+    enemyCrew: 10,
+    playerHull: 100,
+    playerCrew: 10,
+    initialPlayerCrew: 10,
+    lostCrewNames: [],
+    round: 1,
+    phase: "player_turn",
+    log: [],
+    distance: "medium",
+    subPhase: "naval",
+  };
+  const result = L.resolveCombatAction(state, "broadside", battleState, enemy);
+  u.assert(result.player.hullDamage >= 0, "broadside deals player hull damage");
+  u.assert(result.enemy.crewLoss >= 0, "broadside may kill enemy crew");
+  u.assert(result.playerAction === "broadside", "player action stored");
+});
 
   reg("L.CMB.07", "resolveCombatAction: evade action may flee", (u) => {
     const state = makeBattleState({}, {

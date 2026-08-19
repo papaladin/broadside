@@ -1,3 +1,5 @@
+### 2026-08-19
+- **Back-end state refactoring**: Consolidation on how context of encounters and battle state are managed, to prepare for more naration during encounter/intercept phase, and for the future sea combat rework (to add a second phase, boarding combat).
 
 ### 2026‑07‑24
 - **Game Over conditions** have been added and a dedicated Game Over screen now exists when the player ends up in a deadlock (no gold, crew and 0HP for example).

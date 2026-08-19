@@ -8,7 +8,6 @@
   const L = window.L;
   const G = window.G;
 
-
   // --- BATTLE_ACTION Helpers ---------------------------------------
 
   const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -68,7 +67,9 @@
 
   // Process crew loss and return updated roster + log fragment
   const applyCrewLoss = (state, playerCrewLoss) => {
-    const newCount = Math.max(0, (state.battleState.playerCrew || 0) - playerCrewLoss);
+    const battle = state.encounterSession?.battle;
+    const playerCrewCount = battle?.playerCrew ?? state.crew.roster.length;
+    const newCount = Math.max(0, playerCrewCount - playerCrewLoss);
     const lostCount = state.crew.roster.length - newCount;
     if (lostCount <= 0) return { roster: state.crew.roster, lostCount: 0, log: "", lostNames: [] };
 
@@ -81,10 +82,10 @@
 
   // Build a captain's‑log message for battle‑end events (victory/defeat/grapple win)
   const buildCaptainLog = (state, type, newRoster, extra = "") => {
-    const bs = state.battleState;
-    const initialCrew = bs.initialCrewCount ?? state.crew.roster.length;
+    const battle = state.encounterSession?.battle;
+    const initialCrew = battle?.initialPlayerCrew ?? state.crew.roster.length;
     const totalLost = initialCrew - newRoster.length;
-    const lostNames = bs.lostCrewNames ?? [];
+    const lostNames = battle?.lostCrewNames ?? [];
 
     let msg = "";
     if (type === "grapple_win") {
@@ -104,7 +105,7 @@
 
   // Apply alignment penalty and return new morale + possible extra message fragment
   const applyAlignment = (state, newMorale) => {
-    const enemyFaction = state.battleState?.enemy?.faction;
+    const enemyFaction = state.encounterSession?.enemy?.faction;
     if (!enemyFaction) return { morale: newMorale, logExtra: "" };
 
     const alignmentPenalty = Math.round(3 * L.getAlignmentModifier(state, enemyFaction));
@@ -115,26 +116,29 @@
     return { morale: finalMorale, logExtra };
   };
 
-  // ── DISMISS_BATTLE helpers ───────────────────────────────────
-
-  // Generalized wash-ashore helper – handles both combat defeat and event-triggered hull-zero.
-  // `battleState` is optional – if provided, it's a combat defeat; otherwise, an event triggered it.
+  // ── WASH ASHORE (generalized defeat helper) ───────────────────
   const washAshore = (state, battleState = null, extraLog = []) => {
     const returnPort = state.previousPort || state.currentPort;
     const portName = D.PORTS[returnPort]?.name || "a nearby port";
-    const isMissionFight = battleState && (
-      battleState.encounterType === "mission_combat" ||
-      battleState.encounterType === "escort_defend"
+
+    // If battleState is provided (combat defeat path), use it to determine mission failure.
+    // Otherwise, this is an event-triggered hull-zero.
+    const session = state.encounterSession;
+    const isMissionFight = session && (
+      session.type === "mission_combat" ||
+      session.type === "escort_defend"
     );
     const missionFailed = isMissionFight && state.activeMission;
 
-    const defeatLog = battleState
-      ? L.logPick(D.DEFEAT_MESSAGES, state, battleState.enemy.name, portName)
+    const defeatLog = session
+      ? L.logPick(D.DEFEAT_MESSAGES, state, session.enemy?.name || "unknown", portName)
       : `The ship, crippled and adrift, washes ashore near ${portName}.`;
+
+    const infamyGain = session && (extraLog.length > 0 || session.type === "navy_patrol" || session.type === "navy_patrol_combat") ? 2 : 0;
 
     const result = {
       ...state,
-      battleState: null,
+      encounterSession: null,
       activeMission: missionFailed ? null : state.activeMission,
       screen: "port",
       currentPort: returnPort,
@@ -147,9 +151,7 @@
       },
       portMarket: G.generatePortMarket(returnPort, state),
       missions: G.generateMissions(returnPort, state),
-      infamy: battleState
-        ? Math.min(999, (state.infamy ?? 0) + (extraLog.length > 0 ? 2 : 0))
-        : state.infamy,
+      infamy: Math.min(999, (state.infamy ?? 0) + infamyGain),
       log: [
         ...state.log,
         window.E.logEntry(state, defeatLog),
@@ -167,12 +169,14 @@
     return result;
   };
 
-  const applyVictoryAftermath = (currentState, battleState) => {
+  const applyVictoryAftermath = (currentState) => {
+    const session = currentState.encounterSession;
+    if (!session) return currentState;
     let s = currentState;
 
     // Upset tagging
     if (s.crew?.roster) {
-      const enemyFaction = battleState.enemy?.faction;
+      const enemyFaction = session.enemy?.faction;
       if (enemyFaction) {
         const upsetMembers = [];
         const updatedRoster = s.crew.roster.map(member => {
@@ -198,8 +202,8 @@
     }
 
     // Battle scar
-    if (battleState.phase === "victory" && s.crew?.roster) {
-      const initialCrew = battleState.initialCrewCount ?? s.crew.roster.length;
+    if (session.battle && s.crew?.roster) {
+      const initialCrew = session.battle.initialPlayerCrew ?? s.crew.roster.length;
       const lostCount = initialCrew - s.crew.roster.length;
       if (lostCount >= 10) {
         const scarredRoster = s.crew.roster.map(member =>
@@ -212,28 +216,30 @@
     return s;
   };
 
-  const handlePatrolVictory = (currentState, battleState, heatAmount) => {
-    if (battleState.encounterType !== "mission_combat" || battleState.phase !== "victory") return null;
+  const handlePatrolVictory = (currentState, battleState) => {
+    const session = currentState.encounterSession;
+    if (!session || session.type !== "mission_combat") return null;
     const missionType = currentState.activeMission?.type;
     if (missionType !== "patrol" || !currentState.activeMission) return null;
 
     return {
       ...currentState,
-      battleState: null,
+      encounterSession: null,
       activeMission: { ...currentState.activeMission, enemyDefeated: true },
-      screen: battleState.returnScreen === "sailing" ? "sailing" : "port",
+      screen: session.returnScreen === "sailing" ? "sailing" : "port",
       log: [...currentState.log, window.E.logEntry(currentState, "The patrol zone is clear.")],
     };
   };
 
-  const handleFledMission = (currentState, battleState) => {
-    const isMissionFight = battleState.encounterType === "mission_combat"
-                        || battleState.encounterType === "escort_defend";
+  const handleFledMission = (currentState) => {
+    const session = currentState.encounterSession;
+    if (!session) return null;
+    const isMissionFight = session.type === "mission_combat" || session.type === "escort_defend";
     if (!isMissionFight) return null;
     const returnToSailing = currentState.destination && currentState.sailingDaysLeft > 0;
     return {
       ...currentState,
-      battleState: null,
+      encounterSession: null,
       activeMission: null,
       screen: returnToSailing ? "sailing" : "port",
       log: [...currentState.log, window.E.logEntry(currentState, L.logPick(D.FLED_MESSAGES, currentState)), window.E.logEntry(currentState, "The mission is a failure.")],
@@ -331,75 +337,166 @@
           return { ...state, log: [...state.log,
             window.E.logEntry(state, "There is no fighting to be done — the ship is already lost.")] };
         }
-        const ctx = state.encounterContext;
-        if (!ctx) return state;
-        let bs = window.E.createBattleState(state, ctx.enemy, `You engage the ${ctx.enemy.name}!`, ctx.encounterType);
 
-        // Tutorial hunt: enemy gets a free opening shot before round 1
+        const session = state.encounterSession;
+        if (!session || session.phase !== "intercept") return state;
+
+        // ── Build battle sub-object ──────────────────────────────
+        const battle = {
+          round: 1,
+          log: [`You engage the ${session.enemy.name}!`],
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.roster.length,
+          initialPlayerCrew: state.crew.roster.length,
+          lostCrewNames: [],
+          enemyHull: session.enemy.hull,
+          enemyCrew: session.enemy.crew,
+          distance: window.L.initialDistanceFor(session.type),
+          subPhase: "naval",
+          // Escort missions: add convoyHull
+          ...(session.type === "escort_defend" ? { convoyHull: 50 } : {}),
+        };
+
+        // ── Tutorial hunt: free opening shot modifier ──────────
+        let modifiers = session.modifiers || [];
         if (state.activeMission?.tutorial && !state.activeMission?.requiredGood) {
-          bs = {
-            ...bs,
-            playerHull: Math.max(0, bs.playerHull - 1),
-            log: [...bs.log, "The Rat fires a hasty shot, grazing your hull!"],
-          };
+          battle.log = ["The Rat fires a hasty shot, grazing your hull!", ...battle.log];
+          battle.playerHull = Math.max(0, battle.playerHull - 1);
+          modifiers = [
+            ...modifiers,
+            { id: "tutorial_warmup", scope: "battle_start", effect: { playerHullDelta: -1 } }
+          ];
         }
 
-        // Heat for fighting a navy patrol
-        let s = { ...state, encounterContext: null, battleState: bs, screen: "battle" };
-        if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
-          s = L.addHeat(s, ctx.enemy.faction, 3);
+        // ── Transition session to battle phase ──────────────────
+        const newSession = {
+          ...session,
+          phase: "battle",
+          modifiers: modifiers,
+          intercept: null,
+          battle: battle,
+          plunder: null,
+        };
+
+        // ── Heat for fighting a navy patrol ─────────────────────
+        let s = { ...state, encounterSession: newSession, screen: "battle" };
+        if (session.type === "navy_patrol" || session.type === "navy_patrol_combat") {
+          s = L.addHeat(s, session.enemy.faction, 3);
         }
         return s;
       }
 
       case A.INTERCEPT_FLEE: {
-        const ctx = state.encounterContext;
+        const ctx = state.encounterSession;
         if (!ctx) return state;
-        const fleeOpt = ctx.options.find(o => o.id === "flee");
+        const fleeOpt = ctx.intercept?.options?.find(o => o.id === "flee");
+        if (!fleeOpt) return state;
         const { player, enemy } = fleeOpt.speedCheck;
         const playerRoll = player + L.roll(6);
         const enemyRoll  = enemy  + L.roll(6);
         if (playerRoll >= enemyRoll) {
-          let s = { ...state, encounterContext: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
-          if (ctx.encounterType === "navy_patrol" || ctx.encounterType === "navy_patrol_combat") {
+          let s = { ...state, encounterSession: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
+          if (ctx.type === "navy_patrol" || ctx.type === "navy_patrol_combat") {
             s = L.addHeat(s, ctx.enemy.faction, 2);
           }
           return s;
         }
-        const enemyObj = ctx.enemy;
-        const bs = window.E.createBattleState(state, enemyObj, "Escape failed! The enemy closes in.", ctx.encounterType);
-        return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Failed to escape. The battle is unavoidable."] };
+        // ── Failed flee → transition to battle ──────────────────
+        const battle = {
+          round: 1,
+          log: ["Escape failed! The enemy closes in."],
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.roster.length,
+          initialPlayerCrew: state.crew.roster.length,
+          lostCrewNames: [],
+          enemyHull: session.enemy.hull,
+          enemyCrew: session.enemy.crew,
+          distance: window.L.initialDistanceFor(ctx.type),
+          subPhase: "naval",
+          ...(ctx.type === "escort_defend" ? { convoyHull: 50 } : {}),
+        };
+        const newSession = {
+          ...ctx,
+          phase: "battle",
+          intercept: null,
+          battle: battle,
+          plunder: null,
+        };
+        return {
+          ...state,
+          encounterSession: newSession,
+          screen: "battle",
+          log: [...state.log, "Failed to escape. The battle is unavoidable."]
+        };
       }
 
       case A.INTERCEPT_PARLEY: {
-        const ctx = state.encounterContext;
+        const ctx = state.encounterSession;
         if (!ctx) return state;
         const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
         const success = L.roll(100) <= Math.min(80, rep + 20);
         if (success) {
           const portKey = state.destination ?? state.currentPort;
-          return { ...state, encounterContext: null, screen: L.returnScreen(state), reputation: { ...state.reputation, [portKey]: Math.min(100, (state.reputation[portKey] ?? 20) + 3) }, log: [...state.log, "Parley successful. They let you pass."] };
+          return {
+            ...state,
+            encounterSession: null,
+            screen: L.returnScreen(state),
+            reputation: { ...state.reputation, [portKey]: Math.min(100, (state.reputation[portKey] ?? 20) + 3) },
+            log: [...state.log, "Parley successful. They let you pass."]
+          };
         }
-        const enemyObj = ctx.enemy;
-        const bs = window.E.createBattleState(state, enemyObj, "Your parley failed. They attack!", ctx.encounterType);
-        return { ...state, encounterContext: null, battleState: bs, screen: "battle", log: [...state.log, "Parley failed. Battle unavoidable."] };
+        // ── Failed parley → transition to battle ────────────────
+        const battle = {
+          round: 1,
+          log: ["Your parley failed. They attack!"],
+          playerHull: state.ship.hull,
+          playerCrew: state.crew.roster.length,
+          initialPlayerCrew: state.crew.roster.length,
+          lostCrewNames: [],
+          enemyHull: session.enemy.hull,
+          enemyCrew: session.enemy.crew,
+          distance: window.L.initialDistanceFor(ctx.type),
+          subPhase: "naval",
+          ...(ctx.type === "escort_defend" ? { convoyHull: 50 } : {}),
+        };
+        const newSession = {
+          ...ctx,
+          phase: "battle",
+          intercept: null,
+          battle: battle,
+          plunder: null,
+        };
+        return {
+          ...state,
+          encounterSession: newSession,
+          screen: "battle",
+          log: [...state.log, "Parley failed. Battle unavoidable."]
+        };
       }
 
       case A.INTERCEPT_BRIBE: {
-        const ctx = state.encounterContext;
+        const ctx = state.encounterSession;
         if (!ctx) return state;
-        const bribeOpt = ctx.options.find(o => o.id === "bribe");
+        const bribeOpt = ctx.intercept?.options?.find(o => o.id === "bribe");
+        if (!bribeOpt) return state;
         const cost = bribeOpt.cost;
         const portKey = state.destination ?? state.currentPort;
-        return { ...state, encounterContext: null, gold: state.gold - cost, reputation: { ...state.reputation, [portKey]: Math.max(0, (state.reputation[portKey] ?? 20) - 2) }, screen: L.returnScreen(state), log: [...state.log, `Bribed them with ${cost}g. They looked the other way.`] };
+        return {
+          ...state,
+          encounterSession: null,
+          gold: state.gold - cost,
+          reputation: { ...state.reputation, [portKey]: Math.max(0, (state.reputation[portKey] ?? 20) - 2) },
+          screen: L.returnScreen(state),
+          log: [...state.log, `Bribed them with ${cost}g. They looked the other way.`]
+        };
       }
 
       case A.INTERCEPT_SURRENDER: {
-        const ctx = state.encounterContext;
+        const ctx = state.encounterSession;
         if (!ctx) return state;
         const consequence = SURRENDER_CONSEQUENCE[ctx.type] ?? SURRENDER_CONSEQUENCE.random;
 
-        let s = { ...state, encounterContext: null };
+        let s = { ...state, encounterSession: null };
 
         if (consequence.goldFine) s.gold = Math.max(0, s.gold - consequence.goldFine);
         if (consequence.loseGoldPercent) s.gold = Math.max(0, Math.round(s.gold * (1 - consequence.loseGoldPercent / 100)));
@@ -454,7 +551,7 @@
         if (!hasContraband) {
           return {
             ...state,
-            encounterContext: null,
+            encounterSession: null,
             screen: L.returnScreen(state),
             log: [...state.log, "The patrol found nothing. You are waved through."],
           };
@@ -464,7 +561,7 @@
         if (avoidChance > 0 && Math.random() < avoidChance) {
           return {
             ...state,
-            encounterContext: null,
+            encounterSession: null,
             screen: L.returnScreen(state),
             log: [...state.log, "The patrol searches your hold but finds nothing. The hidden compartment does its job."],
           };
@@ -490,7 +587,7 @@
 
         return {
           ...state,
-          encounterContext: null,
+          encounterSession: null,
           screen: L.returnScreen(state),
           gold:       Math.max(0, state.gold - fine),
           hold:       { ...state.hold, items: newHoldItems },
@@ -510,16 +607,19 @@
       // ── COMBAT ──────────────────────────────────────────────
 
       case A.BATTLE_ACTION: {
-        const outcome = L.resolveCombatAction(state, action.action);
-        const newLog = [...state.battleState.log];
+        const session = state.encounterSession;
+        if (!session || session.phase !== "battle" || !session.battle) return state;
+        const battle = session.battle;
+        const outcome = L.resolveCombatAction(state, action.action, battle, session.enemy);
+        const newLog = [...battle.log];
         let newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
 
         if (outcome.instantVictory) {
           const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
           const newRoster = crewResult.roster;
-          const newLostNames = [...state.battleState.lostCrewNames, ...crewResult.lostNames];
+          const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+          const newRep = L.applyReputationImpact(state, { [session.enemy.faction]: -5 });
           const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
           const capMsg = buildCaptainLog(state, "grapple_win", state.crew.roster, logExtra);
 
@@ -528,10 +628,10 @@
             ? `${baseMsg} Lost ${crewResult.lostCount} crew: ${crewResult.lostNames.join(", ")}.`
             : baseMsg;
 
-          const plunder = G.generateEnemyCargo(state, state.battleState.enemy, outcome.plunderRisk || "medium");
+          const plunder = G.generateEnemyCargo(state, session.enemy, outcome.plunderRisk || "medium");
 
-          const newBS = {
-            ...state.battleState,
+          const newBattle = {
+            ...battle,
             phase: "victory",
             goldReward: plunder.gold,
             enemyCargo: plunder.cargo,
@@ -539,12 +639,13 @@
             log: [...newLog, boardingMsg],
             lostCrewNames: newLostNames,
           };
+          const newSession = { ...session, battle: newBattle };
           return {
             ...state,
             reputation: newRep,
-            ship: { ...state.ship, hull: state.battleState.playerHull },
+            ship: { ...state.ship, hull: battle.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
-            battleState: newBS,
+            encounterSession: newSession,
             log: [...state.log, window.E.logEntry(state, capMsg)],
           };
         }
@@ -552,89 +653,94 @@
         const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
         const newRoster = crewResult.roster;
         const crewLog = crewResult.log;
-        const newLostNames = [...state.battleState.lostCrewNames, ...crewResult.lostNames];
+        const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
         const roundLog = buildRoundLog(outcome) + crewLog;
 
-        const newBattleState = {
-          ...state.battleState,
-          playerHull: Math.max(0, state.battleState.playerHull - outcome.enemy.hullDamage),
-          enemyHull: Math.max(0, state.battleState.enemyHull - outcome.player.hullDamage),
+        const newBattle = {
+          ...battle,
+          playerHull: Math.max(0, battle.playerHull - outcome.enemy.hullDamage),
+          enemyHull: Math.max(0, battle.enemyHull - outcome.player.hullDamage),
           playerCrew: newRoster.length,
-          enemyCrew: Math.max(0, state.battleState.enemyCrew - outcome.player.crewLoss),
-          round: state.battleState.round + 1,
+          enemyCrew: Math.max(0, battle.enemyCrew - outcome.player.crewLoss),
+          round: battle.round + 1,
           phase: "npc_turn",
           log: [...newLog, roundLog],
           lostCrewNames: newLostNames,
         };
+        const newSession = { ...session, battle: newBattle };
 
-        if (newBattleState.encounterType === "escort_defend" && newBattleState.convoyHull > 0) {
-          const convoyDmg = Math.ceil((state.battleState.enemy.cannons || 10) * 0.5);
-          newBattleState.convoyHull = Math.max(0, newBattleState.convoyHull - convoyDmg);
-          newBattleState.log.push(`The convoy takes ${convoyDmg} hull damage.`);
-          if (newBattleState.convoyHull <= 0) {
-            newBattleState.phase = "defeat";
-            newBattleState.log.push("The convoy ship has been destroyed!");
+        // Escort convoy damage
+        if (session.type === "escort_defend" && newBattle.convoyHull > 0) {
+          const convoyDmg = Math.ceil((session.enemy.cannons || 10) * 0.5);
+          newBattle.convoyHull = Math.max(0, newBattle.convoyHull - convoyDmg);
+          newBattle.log.push(`The convoy takes ${convoyDmg} hull damage.`);
+          if (newBattle.convoyHull <= 0) {
+            newBattle.phase = "defeat";
+            newBattle.log.push("The convoy ship has been destroyed!");
             return {
               ...state,
-              ship: { ...state.ship, hull: newBattleState.playerHull },
+              ship: { ...state.ship, hull: newBattle.playerHull },
               crew: { ...state.crew, roster: newRoster, morale: newMorale },
-              battleState: newBattleState,
+              encounterSession: newSession,
               log: [...state.log, "The convoy was lost. Mission failed."],
             };
           }
         }
 
-        if (newBattleState.enemyHull <= 0) {
-          newBattleState.phase = "victory";
-          newBattleState.goldReward = outcome.goldReward || 0;
+        if (newBattle.enemyHull <= 0) {
+          newBattle.phase = "victory";
+          newBattle.goldReward = outcome.goldReward || 0;
           const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
           const capMsg = buildCaptainLog(state, "sink_win", newRoster, logExtra);
-          const newRep = L.applyReputationImpact(state, { [state.battleState.enemy.faction]: -5 });
+          const newRep = L.applyReputationImpact(state, { [session.enemy.faction]: -5 });
           return {
             ...state,
             gold: state.gold + (outcome.goldReward || 0),
             reputation: newRep,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
+            ship: { ...state.ship, hull: newBattle.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
-            battleState: newBattleState,
+            encounterSession: { ...newSession, battle: newBattle },
             log: [...state.log, window.E.logEntry(state, capMsg)],
           };
         }
 
-        if (newBattleState.playerHull <= 0) {
-          newBattleState.phase = "defeat";
+        if (newBattle.playerHull <= 0) {
+          newBattle.phase = "defeat";
           const capMsg = buildCaptainLog(state, "defeat", newRoster);
-          newBattleState.log.push("Your ship is destroyed!");
+          newBattle.log.push("Your ship is destroyed!");
           return {
             ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
+            ship: { ...state.ship, hull: newBattle.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            battleState: newBattleState,
+            encounterSession: { ...newSession, battle: newBattle },
             log: [...state.log, window.E.logEntry(state, capMsg)],
           };
         }
 
         if (outcome.fled) {
-          newBattleState.phase = "fled";
+          newBattle.phase = "fled";
           return {
             ...state,
-            ship: { ...state.ship, hull: newBattleState.playerHull },
+            ship: { ...state.ship, hull: newBattle.playerHull },
             crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            battleState: newBattleState,
+            encounterSession: { ...newSession, battle: newBattle },
           };
         }
 
         return {
           ...state,
-          ship: { ...state.ship, hull: newBattleState.playerHull },
+          ship: { ...state.ship, hull: newBattle.playerHull },
           crew: { ...state.crew, roster: newRoster, morale: newMorale },
-          battleState: newBattleState,
+          encounterSession: { ...newSession, battle: newBattle },
         };
       }
 
       case A.DISMISS_BATTLE: {
-        const { battleState } = state;
+        const session = state.encounterSession;
+        if (!session || session.phase !== "battle" || !session.battle) return state;
+
+        const battle = session.battle;
         const isWarPennantMission = (
           state.activeMission?.type === "combat" ||
           state.activeMission?.type === "patrol" ||
@@ -644,70 +750,58 @@
           ? L.getEquipmentEffect(state, "combatHeatMult") : 1;
         const heatAmount = Math.round(3 * heatMult);
 
-        const isNavyFight = battleState.encounterType === "navy_patrol"
-                        || battleState.encounterType === "navy_patrol_combat";
+        const isNavyFight = session.type === "navy_patrol" || session.type === "navy_patrol_combat";
         const patrolInfamy = isNavyFight ? 2 : 0;
         const patrolLog = patrolInfamy > 0
           ? [window.E.logEntry(state, `+${patrolInfamy} infamy. Attacking crown forces was witnessed.`)]
           : [];
 
-        if (battleState.phase === "defeat") {
-          return washAshore(state, battleState, patrolLog);
+        if (battle.phase === "defeat") {
+          return washAshore(state, battle, patrolLog);
         }
 
-        let currentState = applyVictoryAftermath(state, battleState);
+        let currentState = applyVictoryAftermath(state);
 
-        const patrolResult = handlePatrolVictory(currentState, battleState, heatAmount);
+        const patrolResult = handlePatrolVictory(currentState);
         if (patrolResult) return patrolResult;
 
-        if (battleState.phase === "fled") {
-          const fledResult = handleFledMission(currentState, battleState);
+        if (battle.phase === "fled") {
+          const fledResult = handleFledMission(currentState);
           if (fledResult) return fledResult;
         }
 
-        const returnToSailing = battleState.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0;
+        const returnToSailing = session.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0;
         const finalState = {
           ...currentState,
-          battleState: null,
-          screen: returnToSailing ? "sailing" : (battleState.returnScreen || "port"),
+          encounterSession: null,
+          screen: returnToSailing ? "sailing" : (session.returnScreen || "port"),
           infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
           log: [
             ...currentState.log,
-            window.E.logEntry(currentState, L.logPick(D.VICTORY_MESSAGES, currentState, battleState.enemy.name)),
+            window.E.logEntry(currentState, L.logPick(D.VICTORY_MESSAGES, currentState, session.enemy.name)),
             ...patrolLog,
           ],
         };
 
-        return L.addHeat(finalState, battleState.enemy.faction, heatAmount);
+        return L.addHeat(finalState, session.enemy.faction, heatAmount);
       }
 
       case A.TAKE_PLUNDER: {
-        const bs = state.battleState;
-        if (!bs || !bs.canPlunder) return state;
+        const session = state.encounterSession;
+        if (!session || session.phase !== "plunder") return state;
 
-        let currentState = applyVictoryAftermath(state, bs);
-
-        const isWarPennantMission = (
-          state.activeMission?.type === "combat" ||
-          state.activeMission?.type === "patrol" ||
-          state.activeMission?.type === "assault"
-        ) && !state.activeMission?.starter;
-        const heatMult = isWarPennantMission
-          ? L.getEquipmentEffect(state, "combatHeatMult") : 1;
-        currentState = L.addHeat(currentState, bs.enemy.faction, Math.round(3 * heatMult));
-
-        const goldReward = bs.goldReward || 0;
+        const goldReward = session.battle?.goldReward || 0;
         const finalHoldItems = action.holdItems;
-        const plunderMsg = L.logPick(D.PLUNDER_MESSAGES, currentState, bs.enemy.name);
+        const plunderMsg = L.logPick(D.PLUNDER_MESSAGES, state, session.enemy.name);
 
         return {
-          ...currentState,
-          gold: currentState.gold + goldReward,
-          hold: { ...currentState.hold, items: finalHoldItems },
-          battleState: null,
-          screen: bs.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
+          ...state,
+          gold: state.gold + goldReward,
+          hold: { ...state.hold, items: finalHoldItems },
+          encounterSession: null,
+          screen: session.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
             ? "sailing" : "port",
-          log: [...currentState.log, `${plunderMsg} +${goldReward}g.`],
+          log: [...state.log, `${plunderMsg} +${goldReward}g.`],
         };
       }
 
@@ -791,7 +885,11 @@
             faction: patrolFaction,
             name: `${FACTIONS[patrolFaction]?.label || "Colonial"} Patrol`,
           };
-          newState.encounterContext = L.buildEncounterContext(state, encounterType, patrolEnemy);
+          const context = L.buildEncounterContext(state, encounterType, patrolEnemy);
+          // ── B1.4 batch: use encounterSession instead of encounterContext ──
+          // We need to import buildEncounterSession from window.E
+          const buildEncounterSession = window.E.buildEncounterSession;
+          newState.encounterSession = buildEncounterSession(state, context);
           newState.screen = "intercept";
         } else {
           newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
@@ -878,10 +976,13 @@
       // --- Merchant Encounters ---
       case A.ATTACK_PIRATE: {
         const pirateEnemy = G.generateEnemy("medium", state.fame, "pirate");
-        const encounterContext = L.buildEncounterContext(state, "distressed_merchant_help", pirateEnemy);
+        const context = L.buildEncounterContext(state, "distressed_merchant_help", pirateEnemy);
+        // ── B1.4 batch: use encounterSession instead of encounterContext ──
+        const buildEncounterSession = window.E.buildEncounterSession;
+        const encounterSession = buildEncounterSession(state, context);
         return {
           ...state,
-          encounterContext,
+          encounterSession,
           screen: "intercept",
           log: [...state.log, "You rush to the merchant's aid."]
         };
@@ -894,12 +995,15 @@
         const lowerFame = lowerTier === 0 ? 0 : lowerTier * 50;
         const merchantEnemy = G.generateEnemy("low", lowerFame, faction);
         merchantEnemy.name = "Merchant Vessel";
-        const encounterContext = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
+        const context = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
+        // ── B1.4 batch: use encounterSession instead of encounterContext ──
+        const buildEncounterSession = window.E.buildEncounterSession;
+        const encounterSession = buildEncounterSession(state, context);
 
         return L.addHeat(
           {
             ...state,
-            encounterContext,
+            encounterSession,
             screen: "intercept",
             log: [...state.log, "You turn on the merchant."]
           },

@@ -428,6 +428,7 @@ All RNG-dependent generation. One new export: **`generateMarketFlavour(state, po
 ### engine_core.js → `window.E`
 
 Shared infrastructure: `window.E.A` (action constants — now ~50, including a block of `ONBOARDING_*` actions and an expanded `DEBUG_*` set), `window.E.initialState`, the reducer dispatcher, `window.E.autoSave`, `window.E.migrateState`, `window.E.createBattleState`, plus the debug and save/load reducers (these two stay inline in `engine_core.js` rather than living in a domain file).
+**Note:** `window.E.createBattleState` was removed in the B1.4 refactor. Battle state is now built directly in `INTERCEPT_FIGHT` and stored inside `encounterSession.battle`. See [specs_engine.md](specs_engine) for the full encounter session architecture.
 
 **Two things changed at the dispatcher level that matter for anyone adding new reducers:**
 
@@ -608,9 +609,10 @@ Key top-level fields:
   missions: [],
   activeMission: null,
   reputation: { /* all port keys: 50 */ },
-  battleState: null,
+  encounterSession: null,
+  notableNPCs: {},
   activeEvent: null,
-  encounterContext: null,
+  gameOverReason: null,
   career: { /* cloned from D.DEFAULT_CAREER — see "Career shape" below */ },
 }
 ```
@@ -736,7 +738,22 @@ Wind is randomised at game start and drifts each day: `{ angle: 0-360, speed: 5-
 
 ### Encounter routing — all encounters through InterceptScreen
 
-Every hostile encounter goes through `L.buildEncounterContext(state, encounterType, enemy)`, producing an `encounterContext` with `enemy`, `flavourText` (from `D.ENCOUNTER_FLAVOUR[encounterType]`), and an `options[]` array, each with `{ id, label, available, reason, action }`. `InterceptScreen` renders these directly with no game logic of its own.
+Every hostile encounter now uses the unified `encounterSession` model. When an encounter is triggered:
+
+1. `engine_port.js` or `engine_voyage.js` calls `L.buildEncounterContext()` to create a context object.
+2. The caller then passes this context to `window.E.buildEncounterSession(state, context)` to create the `encounterSession`.
+3. The session is stored on `state.encounterSession` with `phase: "intercept"`.
+4. `InterceptScreen` renders `encounterSession.intercept.options` and `encounterSession.intercept.flavourText`.
+
+When the player chooses an action (Fight, Flee, Parley, Bribe, Surrender, Inspect):
+- The action handler transitions the session phase:
+  - `INTERCEPT_FIGHT`, `INTERCEPT_FLEE` (failure), `INTERCEPT_PARLEY` (failure) → `phase: "battle"` and populate `battle`
+  - `INTERCEPT_FLEE` (success), `INTERCEPT_PARLEY` (success), `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER`, `PATROL_INSPECT` → `encounterSession: null`
+- `BattleScreen` reads from `encounterSession.battle`
+- `DISMISS_BATTLE` clears `encounterSession` (or transitions to `"plunder"` if applicable)
+- `TAKE_PLUNDER` clears `encounterSession` after the player confirms
+
+**Note:** The old `encounterContext` and `battleState` fields were removed in B1.4. All encounter state now lives in `encounterSession`.
 
 | Encounter Type | Fight | Flee | Parley | Bribe | Surrender | Inspect | Source |
 |---|---|---|---|---|---|---|---|
@@ -868,6 +885,20 @@ Equipment has a small set of opt-in visual hooks, checked by name inside the ren
 
 `BattleScreen` additionally scales both combatants' sprites *proportionally to each other* using `hullLength` — it computes `playerSize = playerLen / maxLen` and `enemySize = enemyLen / maxLen` so a dinghy fighting a galleon visibly reads as a mismatch, rather than rendering both ships at a fixed size. The enemy's ship type for this purpose is guessed from its cannon count via `L.guessShipType(enemy)`, since enemy combatants don't carry an explicit `SHIP_VISUALS`-compatible type field.
 
+### Encounter session helper (`buildEncounterSession`)
+
+A new helper in `engine_core.js`, `window.E.buildEncounterSession(state, context)`, creates an `encounterSession` object from an `encounterContext` (produced by `L.buildEncounterContext`). This is called by `engine_port.js` and `engine_voyage.js` whenever an intercept is created.
+
+```js
+// Example in engine_port.js, TAKE_MISSION combat branch
+const encounterContext = L.buildEncounterContext(state, "mission_combat", mission.enemy);
+return {
+  ...state,
+  activeMission: mission,
+  encounterSession: buildEncounterSession(state, encounterContext),
+  screen: "intercept",
+  // ...
+};
 
 ---
 ## 9. Adding New Content -- Patterns

@@ -214,11 +214,37 @@
   };
 
   // Player mid-battle — pre-built battleState attached to a port state.
-  const makeBattleState = (battleOverrides = {}, stateOverrides = {}) => {
-    const base = makePortState("portRoyal", stateOverrides);
-    const bs   = makeBattle(base, {}, battleOverrides);
-    return { ...base, screen: "battle", battleState: bs };
+const makeBattleState = (battleOverrides = {}, stateOverrides = {}) => {
+  const base = makePortState("portRoyal", stateOverrides);
+  const enemy = makeEnemy();
+  const battle = {
+    round: 1,
+    log: [],
+    playerHull: 100,
+    playerCrew: 10,
+    initialPlayerCrew: 10,
+    lostCrewNames: [],
+    enemyHull: enemy.hull,
+    enemyCrew: enemy.crew,
+    distance: "medium",
+    subPhase: "naval",
+    phase: "player_turn",
+    ...battleOverrides,
   };
+  const session = {
+    type: "random",
+    phase: "battle",
+    enemy: enemy,
+    battle: battle,
+    intercept: null,
+    plunder: null,
+    returnScreen: "port",
+    source: { kind: "random", id: null },
+    modifiers: [],
+    notableNPCId: null,
+  };
+  return { ...base, screen: "battle", encounterSession: session };
+};
 
   // ── Dispatch wrapper ───────────────────────────────────────────────────────
   // Thin wrapper so tests read cleanly: const s2 = dispatch(s, A.REPAIR);

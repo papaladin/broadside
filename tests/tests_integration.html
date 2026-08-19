@@ -331,7 +331,7 @@
     test("E.reducer is a function",          () => assert(typeof window.E.reducer         === "function"));
     test("E.autoSave is a function",         () => assert(typeof window.E.autoSave        === "function"));
     test("E.migrateState is a function",     () => assert(typeof window.E.migrateState    === "function"));
-    test("E.createBattleState is a function",() => assert(typeof window.E.createBattleState === "function"));
+    // E.createBattleState removed in B1.4 refactor – now builds battle directly in INTERCEPT_FIGHT
     test("E.logEntry is a function",         () => assert(typeof window.E.logEntry        === "function"));
     test("E.initialState is an object",      () => assert(window.E.initialState && typeof window.E.initialState === "object"));
     test("E._reducers is an array",          () => assert(Array.isArray(window.E._reducers)));
@@ -339,9 +339,9 @@
     test("E._reducers has the expected count (9 reducers registered)", () => {
       // domain: port, voyage, combat (3)
       // middleware: onboardingLifecycle, onboardingMiddleware (2), career (1) = 3
-      // engine_core inline: debug, save/load, morale (3)
+      // engine_core inline: debug, save/load (2) – morale threshold moved to engine_career.js
       // engine_scripted: 1 (registered but inert without ?scripted=1)
-      // Total: 10 — adjust this number if reducers are added/removed
+      // Total: 9
       const count = window.E._reducers.length;
       assert(count >= 8, `expected ≥8 reducers, found ${count}`);
     });
@@ -484,7 +484,7 @@
         [50,  "Recognised", 2],
         [100, "Notorious",  3],
         [200, "Legendary",  4],
-        [350, "Immortal",   5],  // ← tier 5, not 4 (old integration test had a bug here)
+        [350, "Immortal",   5],
       ];
       for (const [fame, label, tier] of cases) {
         const r = window.L.getFameInfo(fame);
@@ -497,12 +497,11 @@
       const cases = [
         [0,  "At War"], [9,  "At War"],
         [10, "Hostile"], [29, "Hostile"],
-        [30, "Neutral"], [59, "Neutral"],  // adjust to match actual thresholds
+        [30, "Neutral"], [59, "Neutral"],
         [80, "Allied"],
       ];
       for (const [rep, label] of cases) {
         const r = window.L.reputationLabel(rep);
-        // label names may differ by codebase version — just check it's a non-empty string
         assert(typeof r === "string" && r.length > 0,
           `reputationLabel(${rep}) returned: ${JSON.stringify(r)}`);
       }
@@ -549,16 +548,17 @@
         assert(f in m, `crew member.${f} missing`));
     });
 
-    test("E.createBattleState: returns a battle state with required fields", () => {
-      const state = JSON.parse(JSON.stringify(window.E.initialState));
-      state.ship.hull = 100;
-      state.crew.roster = [{ id: "x", firstName: "A", lastName: "B", role: "deckhand",
-                              faction: "english", daysAboard: 0, tags: [] }];
-      const enemy = window.G.generateEnemy("low", 0, "pirate");
-      const bs = window.E.createBattleState(state, enemy);
-      ["phase","playerHull","playerCrew","enemy","enemyHull","enemyCrew",
-       "round","log","returnScreen","initialCrewCount","lostCrewNames"].forEach(f =>
-        assert(f in bs, `battleState.${f} missing`));
+    // ── B1.4 refactor: verify encounterSession and notableNPCs exist ────
+    test("E.initialState has encounterSession field (B1.4.1)", () => {
+      const s = window.E.initialState;
+      assert("encounterSession" in s && s.encounterSession === null,
+        "encounterSession should exist and be null in initialState");
+    });
+
+    test("E.initialState has notableNPCs field (B1.4.2)", () => {
+      const s = window.E.initialState;
+      assert("notableNPCs" in s && typeof s.notableNPCs === "object" && Object.keys(s.notableNPCs).length === 0,
+        "notableNPCs should exist and be an empty object in initialState");
     });
 
     test("L.shipRepairCost: returns 0 when hull is full", () => {
@@ -632,13 +632,10 @@
   }
 
   // ── Wait for Babel transpilation to finish ────────────────────────────────
-  // Babel-standalone transpiles + executes .jsx files asynchronously after the
-  // DOM is ready. We wait until the last screen (MenuModal) is populated on
-  // window.S before running tests.
   function waitForReady(attempt) {
     const ready = window.D && window.L && window.G && window.E
                && window.UI && window.UI.LOG_ICONS
-               && window.S && window.S.MenuModal;  // ← last screen to load
+               && window.S && window.S.MenuModal;
     if (ready || attempt >= 60) {
       if (!ready) {
         document.getElementById("results").innerHTML =

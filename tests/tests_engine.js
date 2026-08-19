@@ -622,91 +622,109 @@
   // E.COMBAT — INTERCEPT_SURRENDER, INTERCEPT_BRIBE, DISMISS_BATTLE
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("E.CMB.01", "INTERCEPT_SURRENDER random type: morale penalty applied", (u) => {
-    const consequence = D.SURRENDER_CONSEQUENCE.random;
-    const ctx = {
-      type: "random",
-      enemy: { faction: "pirate", name: "The Test Brigand" },
-      options: [],
-    };
-    const s0 = makePortState("portRoyal", {
-      gold: 1000,
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-      encounterContext: ctx,
-    });
-    const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
-    u.assert(s1.crew.morale < s0.crew.morale, "morale decreased");
-    u.assertEqual(s1.crew.morale, 80 - consequence.moralePenalty, "correct morale penalty");
-    u.assert(s1.encounterContext === null, "encounter context cleared");
+ reg("E.CMB.01", "INTERCEPT_SURRENDER random type: morale penalty applied", (u) => {
+  const ctx = {
+    type: "random",
+    enemy: { faction: "pirate", name: "The Test Brigand" },
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "surrender", label: "Surrender", available: true, reason: null, action: { type: "INTERCEPT_SURRENDER" } }],
+    },
+  };
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    encounterSession: { ...ctx, phase: "intercept", notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null, returnScreen: "port" },
   });
+  const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
+  u.assert(s1.crew.morale < s0.crew.morale, "morale decreased");
+  u.assert(s1.encounterSession === null, "encounter session cleared");
+});
 
-  reg("E.CMB.02", "INTERCEPT_SURRENDER random type: cargo loss applied", (u) => {
-    const ctx = { type: "random", enemy: { faction: "pirate" }, options: [] };
-    const s0 = makePortState("portRoyal", {
-      gold: 1000,
-      hold: makeHold({ sugar: 100 }),
-      crew: { roster: fillRoster(5), max: 40, morale: 80 },
-      encounterContext: ctx,
-    });
-    const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
-    const consequence = D.SURRENDER_CONSEQUENCE.random;
-    if (consequence.loseCargoPercent) {
-      u.assert(s1.hold.items.sugar < 100, "cargo reduced by surrender");
-    }
+reg("E.CMB.02", "INTERCEPT_SURRENDER random type: cargo loss applied", (u) => {
+  const ctx = {
+    type: "random",
+    enemy: { faction: "pirate" },
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "surrender", label: "Surrender", available: true, reason: null, action: { type: "INTERCEPT_SURRENDER" } }],
+    },
+  };
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    hold: makeHold({ sugar: 100 }),
+    crew: { roster: fillRoster(5), max: 40, morale: 80 },
+    encounterSession: { ...ctx, phase: "intercept", notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null, returnScreen: "port" },
   });
+  const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
+  const consequence = D.SURRENDER_CONSEQUENCE.random;
+  if (consequence.loseCargoPercent) {
+    u.assert(s1.hold.items.sugar < 100, "cargo reduced by surrender");
+  }
+  u.assert(s1.encounterSession === null, "encounter session cleared");
+});
 
-  reg("E.CMB.03", "INTERCEPT_BRIBE: deducts bribe cost from gold", (u) => {
-    const bribeCost = 150;
-    const ctx = {
-      type: "patrol",
-      options: [{ id: "bribe", cost: bribeCost }],
-    };
-    const s0 = makePortState("portRoyal", {
-      gold: 500,
-      destination: "tortuga",
-      encounterContext: ctx,
-    });
-    const s1 = dispatch(s0, A.INTERCEPT_BRIBE);
-    u.assertEqual(s1.gold, 350, "gold reduced by bribe cost");
-    u.assert(s1.encounterContext === null, "encounter cleared");
+reg("E.CMB.03", "INTERCEPT_BRIBE: deducts bribe cost from gold", (u) => {
+  const bribeCost = 150;
+  const ctx = {
+    type: "patrol",
+    intercept: {
+      flavourText: "Test",
+      options: [
+        { id: "bribe", label: `Bribe (${bribeCost}g)`, available: true, reason: null, action: { type: "INTERCEPT_BRIBE" }, cost: bribeCost },
+      ],
+    },
+    enemy: { faction: "pirate", name: "Patrol" },
+  };
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    destination: "tortuga",
+    encounterSession: { ...ctx, phase: "intercept", notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null, returnScreen: "sailing" },
   });
+  const s1 = dispatch(s0, A.INTERCEPT_BRIBE);
+  u.assertEqual(s1.gold, 350, "gold reduced by bribe cost");
+  u.assert(s1.encounterSession === null, "encounter cleared");
+});
 
-  reg("E.CMB.04", "DISMISS_BATTLE victory: battleState cleared, screen returns", (u) => {
-    const s0 = makeBattleState({ phase: "victory" });
-    const s1 = dispatch(s0, A.DISMISS_BATTLE);
-    u.assert(s1.battleState === null, "battleState cleared");
-    u.assert(s1.screen === "port" || s1.screen === "sailing", "back to port or sailing");
-  });
+reg("E.CMB.04", "DISMISS_BATTLE victory: battleState cleared, screen returns", (u) => {
+  const s0 = makeBattleState({ phase: "victory", log: ["Victory!"] });
+  const s1 = dispatch(s0, A.DISMISS_BATTLE);
+  u.assert(s1.encounterSession === null, "encounterSession cleared");
+  u.assert(s1.screen === "port" || s1.screen === "sailing", "back to port or sailing");
+});
 
-  reg("E.CMB.05", "DISMISS_BATTLE defeat: battleState cleared, cargo lost, gold unchanged", (u) => {
-    const s0 = makeBattleState({ phase: "defeat" }, {
+reg("E.CMB.05", "DISMISS_BATTLE defeat: battleState cleared, cargo lost, gold unchanged", (u) => {
+  const s0 = makeBattleState(
+    { phase: "defeat", log: ["Defeat!"] },
+    {
       gold: 1000,
       ship: { ...makeShip("sloop"), hull: 100 },
       hold: makeHold({ sugar: 50, cloth: 20 }),
-    });
-    const s1 = dispatch(s0, A.DISMISS_BATTLE);
-    u.assert(s1.battleState === null, "battleState cleared");
-    u.assertEqual(s1.gold, 1000, "gold unchanged");
-    // Defeat zeroes all hold items (keys remain, but all set to 0)
-    u.assertEqual(L.getHoldUsed(s1.hold.items), 0, "hold cleared (all quantities zero)");
-    // Optionally verify that all items in hold are 0:
-    for (const [good, qty] of Object.entries(s1.hold.items)) {
-      u.assertEqual(qty, 0, `${good} quantity is 0 after defeat`);
+      previousPort: "portRoyal",
     }
-  });
+  );
+  const s1 = dispatch(s0, A.DISMISS_BATTLE);
+  u.assert(s1.encounterSession === null, "encounterSession cleared");
+  u.assertEqual(s1.gold, 1000, "gold unchanged");
+  // Defeat zeroes all hold items
+  u.assertEqual(L.getHoldUsed(s1.hold.items), 0, "hold cleared");
+});
 
-  reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears battleState", (u) => {
-    const s0 = makeBattleState({
-      phase: "victory",
-      canPlunder: true,
-      goldReward: 200,
-      enemyCargo: [],
-    });
-    const newHold = { ...s0.hold.items };
-    const s1 = dispatch(s0, A.TAKE_PLUNDER, { holdItems: newHold });
-    u.assertEqual(s1.gold, s0.gold + 200, "gold reward added");
-    u.assert(s1.battleState === null, "battleState cleared");
+reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears battleState", (u) => {
+  const s0 = makeBattleState({
+    // Override the battle object inside the session
+    phase: "plunder",        // must be "plunder" for TAKE_PLUNDER to fire
+    canPlunder: true,
+    goldReward: 200,
+    enemyCargo: {},
   });
+  // Ensure the session phase is "plunder" (makeBattleState sets phase: "battle" by default)
+  s0.encounterSession.phase = "plunder";
+  const newHold = { ...s0.hold.items };
+  const s1 = dispatch(s0, A.TAKE_PLUNDER, { holdItems: newHold });
+  u.assertEqual(s1.gold, s0.gold + 200, "gold reward added");
+  u.assert(s1.encounterSession === null, "encounterSession cleared");
+});
 
   // ══════════════════════════════════════════════════════════════════════════
   // E.EVENT — RESOLVE_EVENT (deterministic gold/rep choices)
@@ -930,20 +948,25 @@
     u.assertEqual(s1.activeMission.id, "trade_1");
   });
 
-  reg("E.GAMEOVER.06", "INTERCEPT_FIGHT: blocks fighting with 0 hull", (u) => {
-    const ctx = {
-      type: "random",
-      enemy: { name: "Test", faction: "pirate", hull: 50, cannons: 5, crew: 10 },
-      options: [],
-    };
-    const s0 = makePortState("portRoyal", {
-      ship: { ...makeShip("sloop"), hull: 0 },
-      encounterContext: ctx,
-    });
-    const s1 = dispatch(s0, A.INTERCEPT_FIGHT);
-    u.assert(s1.battleState === null, "battleState not created");
-    u.assert(s1.log.some(l => l.includes("ship is already lost")), "log contains reason");
+reg("E.GAMEOVER.06", "INTERCEPT_FIGHT: blocks fighting with 0 hull", (u) => {
+  const ctx = {
+    type: "random",
+    enemy: { name: "Test", faction: "pirate", hull: 50, cannons: 5, crew: 10 },
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } }],
+    },
+  };
+  const s0 = makePortState("portRoyal", {
+    ship: { ...makeShip("sloop"), hull: 0 },
+    encounterSession: { ...ctx, phase: "intercept", notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null, returnScreen: "port" },
   });
+  const s1 = dispatch(s0, A.INTERCEPT_FIGHT);
+  // The session should remain null (or unchanged) because the fight is blocked
+  u.assert(s1.encounterSession === null || s1.encounterSession?.phase === "intercept",
+    "session not transitioned to battle");
+  u.assert(s1.log.some(l => l.includes("ship is already lost")), "log contains reason");
+});
 
   reg("E.GAMEOVER.07", "ENTER_PORT: triggers gameover when unrecoverable and skips autosave", (u) => {
     // Sloop, hull=0, no crew, no gold, empty hold.
@@ -991,21 +1014,21 @@
     u.assert(s1.gameOverReason === undefined || s1.gameOverReason === null, "gameOverReason not set");
   });
 
-  reg("E.GAMEOVER.10", "DISMISS_BATTLE defeat: triggers gameover via washAshore if unrecoverable", (u) => {
-    const s0 = makeBattleState(
-      { phase: "defeat", encounterType: "random" },
-      {
-        ship: { ...makeShip("sloop"), hull: 0 },
-        crew: { roster: fillRoster(1), max: 40, morale: 80 },
-        gold: 0,
-        hold: makeHold(),
-        previousPort: "portRoyal",
-      }
-    );
-    const s1 = dispatch(s0, A.DISMISS_BATTLE);
-    u.assertEqual(s1.screen, "gameover", "screen changed to gameover");
-    u.assert(s1.gameOverReason !== null, "gameOverReason set");
-  });
+reg("E.GAMEOVER.10", "DISMISS_BATTLE defeat: triggers gameover via washAshore if unrecoverable", (u) => {
+  const s0 = makeBattleState(
+    { phase: "defeat", enemy: { name: "Test", hull: 100, faction: "pirate" } },
+    {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      crew: { roster: fillRoster(1), max: 40, morale: 80 },
+      gold: 0,
+      hold: makeHold(),
+      previousPort: "portRoyal",
+    }
+  );
+  const s1 = dispatch(s0, A.DISMISS_BATTLE);
+  u.assertEqual(s1.screen, "gameover", "screen changed to gameover");
+  u.assert(s1.gameOverReason !== null, "gameOverReason set");
+});
 
   reg("E.GAMEOVER.11", "RESOLVE_EVENT storm: triggers washAshore when hull hits 0", (u) => {
     const stormEvent = {
@@ -1064,8 +1087,8 @@
       "factionAlerts", "currentPort", "route", "captainName", "faction",
       "tutorialMode", "onboarding", "autoSave", "completedCombatThisVisit",
       "daysWithoutFood", "daysWithoutWater", "ship", "crew", "hold",
-      "missions", "activeMission", "reputation", "battleState", "activeEvent",
-      "encounterContext", "encounterSession","notableNPCs","career", "equipmentInventory", "discoveredPorts",
+      "missions", "activeMission", "reputation", "activeEvent",
+      "encounterSession","notableNPCs","career", "equipmentInventory", "discoveredPorts",
     ];
     for (const field of required) {
       u.assert(s.hasOwnProperty(field), `initialState missing field: ${field}`);

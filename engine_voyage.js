@@ -2,7 +2,7 @@
 // Registers its reducer into window.E._reducers.
 
 (() => {
-  const { A, autoSave } = window.E;
+  const { A, autoSave, buildEncounterSession } = window.E;
   const { PORTS, FACTIONS } = window.D;
   const D = window.D;
   const L = window.L;
@@ -52,7 +52,7 @@
     const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
     return {
       activeMission: { ...mission, encounterOccurred: true },
-      encounterContext: context,
+      encounterSession: buildEncounterSession(baseState, context),
       screen: "intercept",
       log: [...baseState.log, "A patrol vessel approaches, flying inspection colours."],
     };
@@ -71,10 +71,10 @@
       const chance = 0.20 + 0.60 * progress;
       if (newDays <= 1 || Math.random() < chance) {
         const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
-        const ctx = L.buildEncounterContext(baseState, "escort_defend", enemy);
+        const context = L.buildEncounterContext(baseState, "escort_defend", enemy);
         return {
           activeMission: { ...mission, encounterOccurred: true },
-          encounterContext: ctx,
+          encounterSession: buildEncounterSession(baseState, context),
           screen: "intercept",
           log: [...baseState.log, "The convoy is under attack!"],
         };
@@ -84,10 +84,10 @@
         const chance = 0.20 + 0.60 * (progress - 0.60) / 0.40;
         if (Math.random() < chance) {
           const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
-          const ctx = L.buildEncounterContext(baseState, "mission_combat", enemy);
+          const context = L.buildEncounterContext(baseState, "mission_combat", enemy);
           return {
             activeMission: { ...mission, encounterOccurred: true },
-            encounterContext: ctx,
+            encounterSession: buildEncounterSession(baseState, context),
             screen: "intercept",
             log: [...baseState.log, "You spot a hostile vessel in the patrol zone!"],
           };
@@ -110,7 +110,7 @@
   };
 
   const checkRandomPatrol = (baseState) => {
-    if (baseState.sailingDaysLeft < 1 || baseState.activeEvent || baseState.encounterContext) return null;
+    if (baseState.sailingDaysLeft < 1 || baseState.activeEvent || baseState.encounterSession) return null;
     if (!L.maybeRandomPatrol(baseState)) return null;
     const port = D.PORTS[baseState.currentPort];
     const faction = port.faction;
@@ -119,7 +119,7 @@
     const enemy = G.generateEnemy(patrolRisk, baseState.fame, faction);
     const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
     return {
-      encounterContext: context,
+      encounterSession: buildEncounterSession(baseState, context),
       screen: "intercept",
       log: ["A navy patrol hails you and demands to inspect your cargo.", ...baseState.log],
     };

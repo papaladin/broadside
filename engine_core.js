@@ -49,7 +49,6 @@ window.E = window.E || {};
     PATROL_INSPECT: "PATROL_INSPECT",
     ATTACK_PIRATE: "ATTACK_PIRATE",
     ATTACK_MERCHANT: "ATTACK_MERCHANT",
-    ONBOARDING_ADVANCE: "ONBOARDING_ADVANCE",
     ONBOARDING_QM_SEEN: "ONBOARDING_QM_SEEN",
     ONBOARDING_SKIP: "ONBOARDING_SKIP",
     ONBOARDING_COMPLETE: "ONBOARDING_COMPLETE",
@@ -71,13 +70,13 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHARED HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-window.E.autoSave = (state) => {
-  try {
-    localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
-  } catch (e) {
-    console.warn("Auto-save failed:", e);
-  }
-};
+  window.E.autoSave = (state) => {
+    try {
+      localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
+    } catch (e) {
+      console.warn("Auto-save failed:", e);
+    }
+  };
 
   window.E.migrateState = (loaded) => {
     let s = { ...loaded };
@@ -120,7 +119,7 @@ window.E.autoSave = (state) => {
     if (!s.captainName) s.captainName = "";
     if (!s.faction) s.faction = null;
     if (!s.tutorialMode) {
-      s.tutorialMode = s.onboarding?.completed ? "light" : "full";   // guess from existing state
+      s.tutorialMode = s.onboarding?.completed ? "light" : "full";
     }
     if (!s.career) {
       s.career = { ...window.D.DEFAULT_CAREER };
@@ -128,31 +127,93 @@ window.E.autoSave = (state) => {
     if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
     if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
     if (s.daysWithoutWater === undefined) s.daysWithoutWater = 0;
-    if (s.gameOverReason === undefined) s.gameOverReason = null;
+
+    // B1.4.1: Add encounterSession to old saves
     if (s.encounterSession === undefined) s.encounterSession = null;
+
+    // B1.4.2: Add notableNPCs registry to old saves
     if (s.notableNPCs === undefined) s.notableNPCs = {};
 
+    // B1.4.8: Remove obsolete fields from old saves
+    if (s.encounterContext !== undefined) delete s.encounterContext;
+    if (s.battleState !== undefined) delete s.battleState;
 
     return s;
   };
 
   window.E.logEntry = (state, message) => `[${state.day}] ${message}`;
 
-  window.E.createBattleState = (state, enemy, initialLog = "You engage the enemy!", encounterType = "unknown") => ({
-    phase: "player_turn",
-    playerHull: state.ship.hull,
-    playerCrew: state.crew.roster.length,
-    enemy,
-    enemyHull: enemy.hull,
-    enemyCrew: enemy.crew,
-    round: 1,
-    log: [initialLog],
-    returnScreen: window.L.returnScreen(state),
-    initialCrewCount: state.crew.roster.length,
-    lostCrewNames: [],
-    encounterType,
-    ...(encounterType === "escort_defend" ? { convoyHull: 50 } : {}),
-  });
+  // ── Build encounterSession from context (B1.4 batch) ──────────────
+  // Creates an encounterSession object from an encounterContext, enemy,
+  // and encounter type. Used by engine_port.js and engine_voyage.js
+  // to populate the new session field.
+  const buildEncounterSession = (state, context) => {
+    // Determine source kind
+    let sourceKind = "world";
+    let sourceId = null;
+
+    // If there's an active mission and it references this enemy, mark as mission
+    if (state.activeMission?.enemy) {
+      const missionEnemy = state.activeMission.enemy;
+      if (missionEnemy.name === context.enemy.name && missionEnemy.faction === context.enemy.faction) {
+        sourceKind = "mission";
+        sourceId = state.activeMission.id || null;
+      }
+    }
+
+    // Override for random patrols
+    if (context.type === "random" || context.type === "navy_patrol" || context.type === "navy_patrol_combat") {
+      sourceKind = "random";
+    }
+
+    // Override for events
+    if (context.type === "distressed_merchant_help" || context.type === "distressed_merchant_plunder") {
+      sourceKind = "event";
+    }
+
+    // Override for port entries
+    if (context.type === "hostile_port_entry") {
+      sourceKind = "port";
+    }
+
+    return {
+      type: context.type,
+      phase: "intercept",
+      notableNPCId: null,
+      enemy: {
+        name: context.enemy.name,
+        faction: context.enemy.faction,
+        hull: context.enemy.hull,
+        maxHull: context.enemy.maxHull || context.enemy.hull,
+        cannons: context.enemy.cannons,
+        crew: context.enemy.crew,
+        speed: context.enemy.speed || 10,
+        risk: context.enemy.risk || "medium",
+      },
+      source: {
+        kind: sourceKind,
+        id: sourceId,
+      },
+      modifiers: [],
+      intercept: {
+        flavourText: context.flavourText,
+        options: context.options.map(opt => ({
+          id: opt.id,
+          label: opt.label,
+          available: opt.available,
+          reason: opt.reason || null,
+          action: opt.action ? { type: opt.action.type } : null,
+          ...(opt.speedCheck ? { speedCheck: opt.speedCheck } : {}),
+          ...(opt.cost ? { cost: opt.cost } : {}),
+        })),
+      },
+      battle: null,
+      plunder: null,
+      returnScreen: state.destination ? "sailing" : "port",
+    };
+  };
+
+  window.E.buildEncounterSession = buildEncounterSession;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  INITIAL STATE
@@ -171,10 +232,8 @@ window.E.autoSave = (state) => {
     route: null,
     captainName: "",
     faction: null,
-    tutorialMode: "full",   // default for new games without a choice (should never happen)
+    tutorialMode: "full",
     completedCombatThisVisit: false,
-    encounterSession: null,
-    notableNPCs:{},
     daysWithoutFood: 0,
     daysWithoutWater: 0,
     onboarding: {
@@ -198,13 +257,12 @@ window.E.autoSave = (state) => {
         shipRepaired: false,
         journalOpened: false,
       },
-       qmMessagesSeen: {}, 
+      qmMessagesSeen: {},
       combatHintShown: false,
       qmDismissed: false,
     },
     autoSave: true,
     scenarioId: null,
-    gameOverReason: null,
     previousPort: null,
     destination: null,
     discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),
@@ -220,7 +278,7 @@ window.E.autoSave = (state) => {
       cannons: 2,
       equipment: { hull: [], armament: [], rigging: [], special: [] },
     },
-    crew: { roster: [], max:5, morale: 80 },
+    crew: { roster: [], max: 5, morale: 80 },
     hold: {
       items: {
         food: 0, water: 0,
@@ -233,10 +291,11 @@ window.E.autoSave = (state) => {
     missions: [],
     activeMission: null,
     reputation: {},
-    battleState: null,
+    encounterSession: null,
+    notableNPCs: {},
     activeEvent: null,
-    encounterContext: null,
-    career: window.D.DEFAULT_CAREER
+    gameOverReason: null,
+    career: window.D.DEFAULT_CAREER,
   };
 
   Object.keys(PORTS).forEach(portKey => {
@@ -248,10 +307,10 @@ window.E.autoSave = (state) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   window.E._reducers = [];
 
-window.E.reducer = (state, action) => {
-  const tagged = { ...action, __prevState: state };
-  return window.E._reducers.reduce((s, r) => r(s, tagged), state);
-};
+  window.E.reducer = (state, action) => {
+    const tagged = { ...action, __prevState: state };
+    return window.E._reducers.reduce((s, r) => r(s, tagged), state);
+  };
 
   // ── Debug reducer ──────────────────────────────────────────────
   window.E._reducers.push((state, action) => {
@@ -348,11 +407,9 @@ window.E.reducer = (state, action) => {
       case window.E.A.LOAD_GAME: {
         try {
           let raw = localStorage.getItem("BroadsideGameSave");
-          // Migration: if nothing found, try the old key
           if (!raw) {
             raw = localStorage.getItem("piratesSave");
             if (raw) {
-              // Move to new key and delete the old one
               localStorage.setItem("BroadsideGameSave", raw);
               localStorage.removeItem("piratesSave");
             }
@@ -365,9 +422,7 @@ window.E.reducer = (state, action) => {
           return {
             ...loaded,
             screen: "port",
-            battleState: null,
             activeEvent: null,
-            encounterContext: null,
             portMarket: G.generatePortMarket(currentPort),
             missions: G.generateMissions(currentPort, loaded),
           };
@@ -375,7 +430,7 @@ window.E.reducer = (state, action) => {
           return { ...state, log: [...state.log, "Failed to load save. Corrupted data."] };
         }
       }
-      
+
       case window.E.A.EXPORT_SAVE: {
         const encoded = L.encodeSave(state);
         const scenario = state.scenarioId || "unknown";
@@ -395,7 +450,7 @@ window.E.reducer = (state, action) => {
         if (error) return { ...state, log: [...state.log, `⚠ ${error}`] };
         const migrated = window.E.migrateState(loaded);
         if (tampered) migrated.log = [...(migrated.log || []), "⚠ This save file appears to have been modified."];
-        return { ...migrated, screen: "port", battleState: null, activeEvent: null, encounterContext: null, portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"), missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated) };
+        return { ...migrated, screen: "port", activeEvent: null, portMarket: G.generatePortMarket(migrated.currentPort || "portRoyal"), missions: G.generateMissions(migrated.currentPort || "portRoyal", migrated) };
       }
 
       case A.TOGGLE_AUTO_SAVE:

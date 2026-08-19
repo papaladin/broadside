@@ -208,28 +208,28 @@
   });
 
   reg("G.CREW_BIO.02", "generateCrewBio: includes name", (u) => {
-    const member = { firstName: "John", lastName: "Smith", faction: "english", daysAboard: 10, tags: [] };
+    const member = { firstName: "John", lastName: "Smith", faction: "english", role: "deckhand", daysAboard: 10, tags: [] };
     const state = makeState();
     const bio = G.generateCrewBio(member, state);
     u.assert(bio.includes("John") || bio.includes("Smith"), "includes name");
   });
 
   reg("G.CREW_BIO.03", "generateCrewBio: handles hidden traits", (u) => {
-    const member = { firstName: "John", lastName: "Smith", faction: "english", daysAboard: 10, tags: ["hidden_drunkard"] };
+    const member = { firstName: "John", lastName: "Smith", faction: "english", role: "deckhand", daysAboard: 10, tags: ["hidden_drunkard"] };
     const state = makeState();
     const bio = G.generateCrewBio(member, state);
     u.assert(typeof bio === "string" && bio.length > 0, "non-empty bio with hidden trait");
   });
 
   reg("G.CREW_BIO.04", "generateCrewBio: handles revealed traits", (u) => {
-    const member = { firstName: "John", lastName: "Smith", faction: "english", daysAboard: 10, tags: ["revealed_drunkard"] };
+    const member = { firstName: "John", lastName: "Smith", faction: "english", role: "deckhand", daysAboard: 10, tags: ["revealed_drunkard"] };
     const state = makeState();
     const bio = G.generateCrewBio(member, state);
     u.assert(typeof bio === "string" && bio.length > 0, "non-empty bio with revealed trait");
   });
 
   reg("G.CREW_BIO.05", "generateCrewBio: handles scars", (u) => {
-    const member = { firstName: "John", lastName: "Smith", faction: "english", daysAboard: 10, tags: ["scar_battle"] };
+    const member = { firstName: "John", lastName: "Smith", faction: "english", role: "deckhand", daysAboard: 10, tags: ["scar_battle"] };
     const state = makeState();
     const bio = G.generateCrewBio(member, state);
     u.assert(bio.includes("battle") || bio.includes("scar"), "mentions scar");

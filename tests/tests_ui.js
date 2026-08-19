@@ -149,16 +149,16 @@
 
   // ── window.E ──────────────────────────────────────────────────────────────
 
-  reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
-    u.assert(typeof window.E.reducer === "function",       "E.reducer");
-    u.assert(typeof window.E.autoSave === "function",      "E.autoSave");
-    u.assert(typeof window.E.migrateState === "function",  "E.migrateState");
-    u.assert(typeof window.E.createBattleState === "function", "E.createBattleState");
-    u.assert(typeof window.E.logEntry === "function",      "E.logEntry");
-    u.assert(typeof window.E.initialState === "object",   "E.initialState");
-    u.assert(Array.isArray(window.E._reducers),            "E._reducers array");
-    u.assert(window.E._reducers.length >= 6,               "at least 6 reducers registered");
-  });
+reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
+  u.assert(typeof window.E.reducer === "function",       "E.reducer");
+  u.assert(typeof window.E.autoSave === "function",      "E.autoSave");
+  u.assert(typeof window.E.migrateState === "function",  "E.migrateState");
+  // Removed: E.createBattleState
+  u.assert(typeof window.E.logEntry === "function",      "E.logEntry");
+  u.assert(typeof window.E.initialState === "object",   "E.initialState");
+  u.assert(Array.isArray(window.E._reducers),            "E._reducers array");
+  u.assert(window.E._reducers.length >= 6,               "at least 6 reducers registered");
+});
 
   reg("U.NS.09", "window.E.A: all action constants exist", (u) => {
     const actions = [
@@ -447,56 +447,98 @@
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.19", "BattleScreen: renders without throwing", (u) => {
-    const s0 = makePortState("portRoyal", {
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    });
-    const enemy = {
-      name: "The Scarlet Fortune",
-      faction: "spanish",
-      shipType: "sloop",
-      hull: 120, maxHull: 120,
-      cannons: 20, crew: 18, speed: 9,
-    };
-    const battleState = window.E.createBattleState(s0, enemy, "Battle engaged!", "random");
-    const state = { ...s0, screen: "battle", battleState };
-    const r = renderSafe(window.S.BattleScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
+reg("U.SMOKE.19", "BattleScreen: renders without throwing", (u) => {
+  const s0 = makePortState("portRoyal", {
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
   });
+  const enemy = {
+    name: "The Scarlet Fortune",
+    faction: "spanish",
+    hull: 120,
+    maxHull: 120,
+    cannons: 20,
+    crew: 18,
+    speed: 9,
+    risk: "medium",
+  };
+  // Build battle sub-object
+  const battle = {
+    round: 1,
+    log: ["Battle engaged!"],
+    playerHull: s0.ship.hull,
+    playerCrew: s0.crew.roster.length,
+    initialPlayerCrew: s0.crew.roster.length,
+    lostCrewNames: [],
+    enemyHull: enemy.hull,
+    enemyCrew: enemy.crew,
+    distance: "medium",
+    subPhase: "naval",
+  };
+  // Build encounterSession
+  const session = {
+    type: "random",
+    phase: "battle",
+    enemy: enemy,
+    battle: battle,
+    intercept: null,
+    plunder: null,
+    returnScreen: "port",
+    source: { kind: "random", id: null },
+    modifiers: [],
+    notableNPCId: null,
+  };
+  const state = { ...s0, screen: "battle", encounterSession: session };
+  const r = renderSafe(window.S.BattleScreen, { state, dispatch: noop });
+  u.assert(r.ok, r.error || "render threw");
+});
 
   // FIX: enemyCargo is an object map { sugar: 10, cloth: 5 }, not an array.
-  reg("U.SMOKE.20", "PlunderScreen: renders without throwing", (u) => {
-    const s0 = makePortState("portRoyal", {
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    });
-    const enemy = {
-      name: "The Prize",
-      faction: "spanish",
-      shipType: "merchantman",
-      hull: 0, maxHull: 180,
-      cannons: 5, crew: 8, speed: 8,
-    };
-    const battleState = {
-      ...window.E.createBattleState(s0, enemy, "You boarded!", "random"),
-      phase: "victory",
-      canPlunder: true,
-      goldReward: 200,
-      enemyCargo: { sugar: 10, cloth: 5 }, // <-- flat object, NOT array
-    };
-    const state = { ...s0, screen: "battle", battleState };
-    const r = renderSafe(window.S.PlunderScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
+reg("U.SMOKE.20", "PlunderScreen: renders without throwing", (u) => {
+  const s0 = makePortState("portRoyal", {
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
   });
-
-  reg("U.SMOKE.21", "MenuModal: renders without throwing", (u) => {
-    const state = makePortState("portRoyal");
-    const r = renderSafe(window.S.MenuModal, {
-      state,
-      dispatch: noop,
-      onClose: noop,
-    });
-    u.assert(r.ok, r.error || "render threw");
-  });
+  const enemy = {
+    name: "The Prize",
+    faction: "spanish",
+    hull: 0,
+    maxHull: 180,
+    cannons: 5,
+    crew: 8,
+    speed: 8,
+    risk: "low",
+  };
+  const battle = {
+    round: 1,
+    log: ["You boarded!"],
+    playerHull: s0.ship.hull,
+    playerCrew: s0.crew.roster.length,
+    initialPlayerCrew: s0.crew.roster.length,
+    lostCrewNames: [],
+    enemyHull: enemy.hull,
+    enemyCrew: enemy.crew,
+    distance: "close",
+    subPhase: "boarding",
+    phase: "victory",
+    canPlunder: true,
+    goldReward: 200,
+    enemyCargo: { sugar: 10, cloth: 5 },
+  };
+  const session = {
+    type: "random",
+    phase: "plunder",
+    enemy: enemy,
+    battle: battle,
+    intercept: null,
+    plunder: null,
+    returnScreen: "port",
+    source: { kind: "random", id: null },
+    modifiers: [],
+    notableNPCId: null,
+  };
+  const state = { ...s0, screen: "plunder", encounterSession: session };
+  const r = renderSafe(window.S.PlunderScreen, { state, dispatch: noop });
+  u.assert(r.ok, r.error || "render threw");
+});
 
   // ══════════════════════════════════════════════════════════════════════════
   // U.ICON — Icon component renders

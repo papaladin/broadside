@@ -1,13 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════
-//  logic.js : ALL PURE FUNCTIONS FOR GAME LOGIC
-//  No side effects, no state mutation. Only calculations and data transformations.
-//  Imports: window.D (data constants)
-//  Exposed as window.L for global access.
-// ═══════════════════════════════════════════════════════════════════
+// logic.js — ALL PURE FUNCTIONS FOR GAME LOGIC
+// No side effects, no state mutation. Only calculations and data transformations.
+// Imports: window.D (data constants)
+// Exposed as window.L for global access.
 
 window.L = (() => {
   // Destructure constants for easier access
-  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, RANDOM_EVENTS, STARTS, } = window.D;
+  const { PORTS, SHIPS, FACTIONS, EQUIPMENT, RANDOM_EVENTS, STARTS } = window.D;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  HELPER FUNCTIONS
@@ -155,141 +153,6 @@ window.L = (() => {
       default:         return true;
     }
   };
-
-  // ── Minimum viable crew (hard sailing requirement, not a warning) ──
-const MIN_CREW_RATIO = 0.10;
-
-const getMinViableCrew = (shipType) => {
-  if (shipType === "dinghy") return 0;
-  const maxCrew = window.D.SHIPS[shipType]?.maxCrew ?? 0;
-  return Math.floor(maxCrew * MIN_CREW_RATIO);
-};
-
-// ── Captain identity tag ──────────────────────────────────────────────
-const getCaptainTag = (state) => {
-  const fame = state.fame || 0;
-  const infamy = state.infamy || 0;
-  if (infamy >= 100) return { text: "Legendary Outlaw of the Caribbean", colorKey: "redBr" };
-  if (infamy >= 50)  return { text: "Notorious Across the Caribbean", colorKey: "redBr" };
-  if (fame >= 200)   return { text: "A Legend of the Caribbean", colorKey: "gold" };
-  if (fame >= 100)   return { text: "A Notorious Captain", colorKey: "gold" };
-  if (fame >= 50)    return { text: "A Recognised Captain", colorKey: "gold" };
-  if (infamy >= 25)  return { text: "Wanted by the Law", colorKey: "redBr" };
-  if (infamy >= 10)  return { text: "A Suspect in Several Ports", colorKey: "gold" };
-  return { text: "An Unknown Captain", colorKey: "textDim" };
-};
-
-// ── Career narrative highlights ─────────────────────────────────────
-const getCareerHighlights = (state) => {
-  const career = state.career || {};
-  const daysSurvived = state.day;
-  const portsTotal = Object.keys(window.D.PORTS).length;
-  const portsVisitedCount = (career.portsVisited || []).length;
-  const totalBattles = (career.battles?.won || 0) + (career.battles?.lost || 0) + (career.battles?.fled || 0);
-  const totalCrewLost = (career.crewLost?.inBattle || 0) + (career.crewLost?.inStorm || 0)
-                     + (career.crewLost?.deserted || 0) + (career.crewLost?.other || 0);
-  const lines = [];
-
-  lines.push(`You have sailed for ${daysSurvived} day${daysSurvived === 1 ? "" : "s"}.`);
-
-  if (totalBattles > 0) {
-    const won = career.battles?.won || 0;
-    const lost = career.battles?.lost || 0;
-    const fled = career.battles?.fled || 0;
-    const parts = [];
-    if (won > 0) parts.push(`won ${won}`);
-    if (lost > 0) parts.push(`lost ${lost}`);
-    if (fled > 0) parts.push(`fled ${fled}`);
-    lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(", ")}.`);
-
-    const sunk = career.shipsSunk || 0;
-    const plundered = career.shipsPlundered || 0;
-    if (sunk > 0 || plundered > 0) {
-      const detailParts = [];
-      if (sunk > 0) detailParts.push(`sunk ${sunk}`);
-      if (plundered > 0) detailParts.push(`boarded and plundered ${plundered}`);
-      lines.push(`Of those, you ${detailParts.join(" and ")}.`);
-    }
-  }
-
-  if (totalCrewLost > 0) {
-    const inBattle = career.crewLost?.inBattle || 0;
-    const inStorm = career.crewLost?.inStorm || 0;
-    const deserted = career.crewLost?.deserted || 0;
-    const parts = [];
-    if (inBattle > 0) parts.push(`${inBattle} to combat`);
-    if (inStorm > 0) parts.push(`${inStorm} to the storms`);
-    if (deserted > 0) parts.push(`${deserted} who walked away`);
-    if (parts.length > 0) lines.push(`You have lost ${totalCrewLost} crew: ${parts.join(", ")}.`);
-  }
-
-  if (career.longestCrewTenure && career.longestCrewTenure >= 50) {
-    lines.push(`Your longest-serving crew member sailed with you for ${career.longestCrewTenure} days.`);
-  }
-
-  if (portsVisitedCount > 0) {
-    lines.push(`You have made landfall at ${portsVisitedCount} of ${portsTotal} ports across the Caribbean.`);
-  }
-
-  const earned = career.goldEarned || 0;
-  const spent = career.goldSpent || 0;
-  if (earned > 0 || spent > 0) {
-    lines.push(`You have earned ${earned.toLocaleString()}g and spent ${spent.toLocaleString()}g.`);
-  }
-
-  if (career.stormsSurvived > 0) {
-    lines.push(`You have weathered ${career.stormsSurvived} storm${career.stormsSurvived === 1 ? "" : "s"}.`);
-  }
-
-  const ships = (career.shipsOwned || []).length;
-  if (ships > 1) {
-    lines.push(`You have commanded ${ships} ship${ships === 1 ? "" : "s"} over your career.`);
-  }
-
-  if (career.contrabandSeized > 0) {
-    lines.push(`You have been caught smuggling contraband ${career.contrabandSeized} time${career.contrabandSeized === 1 ? "" : "s"}.`);
-  }
-
-  return lines;
-};
-
-// ── Unrecoverable state check ──────────────────────────────────────
-const isUnrecoverable = (state) => {
-  const hull0     = state.ship.hull === 0;
-  const noCrew    = state.crew.roster.length === 0;
-  const notDinghy = state.ship.type !== "dinghy";
-  const crewCrisis = noCrew && notDinghy;
-
-  if (!hull0 && !crewCrisis) {
-    return { unrecoverable: false, reason: null };
-  }
-
-  const portGoods = state.portMarket?.goods || {};
-  const holdValue = Object.entries(state.hold.items).reduce((sum, [good, qty]) => {
-    const sellPrice = portGoods[good]?.sellToPort ?? 0;
-    return sum + qty * sellPrice;
-  }, 0);
-  const liquidValue = state.gold + holdValue;
-
-  const repairCost = hull0 ? window.L.shipRepairCost(state) : 0;
-  const minCrew = window.L.getMinViableCrew(state.ship.type);
-  const crewNeeded = Math.max(0, minCrew - state.crew.roster.length);
-  const crewCost = crewNeeded * 50; // matches HIRE_CREW cost
-
-  const minRecoveryCost = repairCost + crewCost;
-
-  if (liquidValue >= minRecoveryCost) {
-    return { unrecoverable: false, reason: null };
-  }
-
-
-  return {
-    unrecoverable: true,
-    reason: hull0
-      ? "Your ship is wrecked, your crew is gone, and there is nothing left to trade or sail with."
-      : "There is no one left to crew your ship, no gold to hire more, and nothing left to sell.",
-  };
-};
 
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
@@ -544,13 +407,6 @@ const isUnrecoverable = (state) => {
     return { tier: "at_war", repairMult: 1.00, missionMult: 0, servicesBlocked: true };
   };
 
-  function addHeat(state, faction, amount) {
-  if (faction === "pirate") return state;
-  const alerts = { ...(state.factionAlerts || {}) };
-  alerts[faction] = Math.min(10, (alerts[faction] || 0) + amount);
-  return { ...state, factionAlerts: alerts };
-}
-
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  CREW FUNCTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -625,7 +481,149 @@ const isUnrecoverable = (state) => {
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  COMBAT FUNCTIONS
+  //  B9 FUNCTIONS – GAME OVER / UNRECOVERABLE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  const MIN_CREW_RATIO = 0.10;
+
+  const getMinViableCrew = (shipType) => {
+    if (shipType === "dinghy") return 0;
+    const maxCrew = window.D.SHIPS[shipType]?.maxCrew ?? 0;
+    return Math.floor(maxCrew * MIN_CREW_RATIO);
+  };
+
+  const getCaptainTag = (state) => {
+    const fame = state.fame || 0;
+    const infamy = state.infamy || 0;
+    if (infamy >= 100) return { text: "Legendary Outlaw of the Caribbean", colorKey: "redBr" };
+    if (infamy >= 50)  return { text: "Notorious Across the Caribbean", colorKey: "redBr" };
+    if (fame >= 200)   return { text: "A Legend of the Caribbean", colorKey: "gold" };
+    if (fame >= 100)   return { text: "A Notorious Captain", colorKey: "gold" };
+    if (fame >= 50)    return { text: "A Recognised Captain", colorKey: "gold" };
+    if (infamy >= 25)  return { text: "Wanted by the Law", colorKey: "redBr" };
+    if (infamy >= 10)  return { text: "A Suspect in Several Ports", colorKey: "gold" };
+    return { text: "An Unknown Captain", colorKey: "textDim" };
+  };
+
+  const getCareerHighlights = (state) => {
+    const career = state.career || {};
+    const daysSurvived = state.day;
+    const portsTotal = Object.keys(window.D.PORTS).length;
+    const portsVisitedCount = (career.portsVisited || []).length;
+    const totalBattles = (career.battles?.won || 0) + (career.battles?.lost || 0) + (career.battles?.fled || 0);
+    const totalCrewLost = (career.crewLost?.inBattle || 0) + (career.crewLost?.inStorm || 0)
+                       + (career.crewLost?.deserted || 0) + (career.crewLost?.other || 0);
+    const lines = [];
+
+    lines.push(`You have sailed for ${daysSurvived} day${daysSurvived === 1 ? "" : "s"}.`);
+
+    if (totalBattles > 0) {
+      const won = career.battles?.won || 0;
+      const lost = career.battles?.lost || 0;
+      const fled = career.battles?.fled || 0;
+      const parts = [];
+      if (won > 0) parts.push(`won ${won}`);
+      if (lost > 0) parts.push(`lost ${lost}`);
+      if (fled > 0) parts.push(`fled ${fled}`);
+      lines.push(`Across ${totalBattles} battle${totalBattles === 1 ? "" : "s"}, you have ${parts.join(", ")}.`);
+
+      const sunk = career.shipsSunk || 0;
+      const plundered = career.shipsPlundered || 0;
+      if (sunk > 0 || plundered > 0) {
+        const detailParts = [];
+        if (sunk > 0) detailParts.push(`sunk ${sunk}`);
+        if (plundered > 0) detailParts.push(`boarded and plundered ${plundered}`);
+        lines.push(`Of those, you ${detailParts.join(" and ")}.`);
+      }
+    }
+
+    if (totalCrewLost > 0) {
+      const inBattle = career.crewLost?.inBattle || 0;
+      const inStorm = career.crewLost?.inStorm || 0;
+      const deserted = career.crewLost?.deserted || 0;
+      const parts = [];
+      if (inBattle > 0) parts.push(`${inBattle} to combat`);
+      if (inStorm > 0) parts.push(`${inStorm} to the storms`);
+      if (deserted > 0) parts.push(`${deserted} who walked away`);
+      if (parts.length > 0) lines.push(`You have lost ${totalCrewLost} crew: ${parts.join(", ")}.`);
+    }
+
+    if (career.longestCrewTenure && career.longestCrewTenure >= 50) {
+      lines.push(`Your longest-serving crew member sailed with you for ${career.longestCrewTenure} days.`);
+    }
+
+    if (portsVisitedCount > 0) {
+      lines.push(`You have made landfall at ${portsVisitedCount} of ${portsTotal} ports across the Caribbean.`);
+    }
+
+    const earned = career.goldEarned || 0;
+    const spent = career.goldSpent || 0;
+    if (earned > 0 || spent > 0) {
+      lines.push(`You have earned ${earned.toLocaleString()}g and spent ${spent.toLocaleString()}g.`);
+    }
+
+    if (career.stormsSurvived > 0) {
+      lines.push(`You have weathered ${career.stormsSurvived} storm${career.stormsSurvived === 1 ? "" : "s"}.`);
+    }
+
+    const ships = (career.shipsOwned || []).length;
+    if (ships > 1) {
+      lines.push(`You have commanded ${ships} ship${ships === 1 ? "" : "s"} over your career.`);
+    }
+
+    if (career.contrabandSeized > 0) {
+      lines.push(`You have been caught smuggling contraband ${career.contrabandSeized} time${career.contrabandSeized === 1 ? "" : "s"}.`);
+    }
+
+    return lines;
+  };
+
+  const isUnrecoverable = (state) => {
+    const hull0     = state.ship.hull === 0;
+    const noCrew    = state.crew.roster.length === 0;
+    const notDinghy = state.ship.type !== "dinghy";
+    const crewCrisis = noCrew && notDinghy;
+
+    if (!hull0 && !crewCrisis) {
+      return { unrecoverable: false, reason: null };
+    }
+
+    const portGoods = state.portMarket?.goods || {};
+    const holdValue = Object.entries(state.hold.items).reduce((sum, [good, qty]) => {
+      const sellPrice = portGoods[good]?.sellToPort ?? 0;
+      return sum + qty * sellPrice;
+    }, 0);
+    const liquidValue = state.gold + holdValue;
+
+    const repairCost = hull0 ? window.L.shipRepairCost(state) : 0;
+    const minCrew = window.L.getMinViableCrew(state.ship.type);
+    const crewNeeded = Math.max(0, minCrew - state.crew.roster.length);
+    const crewCost = crewNeeded * 50;
+
+    const minRecoveryCost = repairCost + crewCost;
+
+    if (liquidValue >= minRecoveryCost) {
+      return { unrecoverable: false, reason: null };
+    }
+
+    return {
+      unrecoverable: true,
+      reason: hull0
+        ? "Your ship is wrecked, your crew is gone, and there is nothing left to trade or sail with."
+        : "There is no one left to crew your ship, no gold to hire more, and nothing left to sell.",
+    };
+  };
+
+  // ── Heat helper (pure state transform) ──────────────────────────────
+  const addHeat = (state, faction, amount) => {
+    if (faction === "pirate") return state;
+    const alerts = { ...(state.factionAlerts || {}) };
+    alerts[faction] = Math.min(10, (alerts[faction] || 0) + amount);
+    return { ...state, factionAlerts: alerts };
+  };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  COMBAT FUNCTIONS — REFACTORED TO ACCEPT battleState & enemy EXPLICITLY
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const emptyOutcome = () => ({
@@ -647,7 +645,7 @@ const isUnrecoverable = (state) => {
 
   const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
 
-  const resolvePlayerAction = (state, action) => {
+  const resolvePlayerAction = (state, action, battleState, enemy) => {
     const shipStats = L.getShipStats(state);
     const out = L.emptyOutcome();
     switch (action) {
@@ -671,7 +669,6 @@ const isUnrecoverable = (state) => {
         break;
       }
       case "grapple": {
-        const enemy = state.battleState.enemy;
         const playerCrew = state.crew.roster.length;
         const enemyCrew = enemy.crew;
         const playerHullPct = state.ship.hull / shipStats.maxHull;
@@ -695,14 +692,14 @@ const isUnrecoverable = (state) => {
         break;
       }
       case "evade": {
-        const enemyShipType = L.guessShipType(state.battleState.enemy);
+        const enemyShipType = L.guessShipType(enemy);
         const enemySpeed = SHIPS[enemyShipType]?.speed ?? 10;
         const speedBonus = Math.min(0.3, Math.max(-0.3, (shipStats.speed - enemySpeed) * 0.02));
         const fleeChance = Math.min(0.95, Math.max(0.20, 0.6 + speedBonus));
         if (Math.random() < fleeChance) {
           out.fled = true;
         } else {
-          const enemyDmg = state.battleState.enemy.cannons * (0.8 + Math.random() * 0.4);
+          const enemyDmg = enemy.cannons * (0.8 + Math.random() * 0.4);
           out.player.hullDamage = Math.floor(enemyDmg * 0.3);
           out.player.crewLoss = L.maybeCrewLoss(enemyDmg * 0.2 / 3);
         }
@@ -712,20 +709,19 @@ const isUnrecoverable = (state) => {
     return out;
   };
 
-  const applyMoraleModifier = (state, action, playerOutcome) => {
+  const applyMoraleModifier = (state, action, playerOutcome, battleState, enemy) => {
     let delta = 0;
     if (playerOutcome.instantVictory) delta = 5;
     else if (playerOutcome.fled) delta = -5;
     else {
-      const newEnemyHull = Math.max(0, state.battleState.enemyHull - playerOutcome.player.hullDamage);
+      const newEnemyHull = Math.max(0, battleState.enemyHull - playerOutcome.player.hullDamage);
       if (newEnemyHull <= 0) delta = 5;
       else if (action === "grapple") delta = -10;
     }
     return { moraleDelta: delta };
   };
 
-  const resolveNpcAction = (state) => {
-    const enemy = state.battleState.enemy;
+  const resolveNpcAction = (state, battleState, enemy) => {
     const npcAction = L.getNPCAction(enemy);
     const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
     const result = {
@@ -753,7 +749,7 @@ const isUnrecoverable = (state) => {
       case "grapple": {
         const enemyCrew = enemy.crew;
         const playerCrew = state.crew.roster.length;
-        const enemyHullPct = state.battleState.enemyHull / enemy.hull;
+        const enemyHullPct = battleState.enemyHull / enemy.hull;
         let npcSuccessChance = 0.5;
         npcSuccessChance += Math.min(0.3, Math.max(0, (enemyCrew - playerCrew) / playerCrew * 0.3));
         npcSuccessChance += Math.min(0.2, Math.max(0, (enemyHullPct - 0.5) * 0.4));
@@ -775,7 +771,7 @@ const isUnrecoverable = (state) => {
     return result;
   };
 
-  const applyDamageMoralePenalty = (state, outcome) => {
+  const applyDamageMoralePenalty = (state, outcome, battleState) => {
     const effectiveMorale = L.getEffectiveMorale(state);
     const modifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
     const wasHit = outcome.player.hullDamage > 0;
@@ -805,16 +801,16 @@ const isUnrecoverable = (state) => {
     return final;
   };
 
-  const resolveCombatAction = (state, action) => {
-    if (!state.battleState) return L.emptyOutcome();
-    const playerOutcome = L.resolvePlayerAction(state, action);
+  const resolveCombatAction = (state, action, battleState, enemy) => {
+    if (!battleState || !enemy) return L.emptyOutcome();
+    const playerOutcome = L.resolvePlayerAction(state, action, battleState, enemy);
     let playerHit = null, playerGrappleSuccess = null;
     if (action === "precision") playerHit = playerOutcome.player.hullDamage > 0;
     else if (action === "grapple") playerGrappleSuccess = playerOutcome.instantVictory;
-    const moraleOutcome = L.applyMoraleModifier(state, action, playerOutcome);
+    const moraleOutcome = L.applyMoraleModifier(state, action, playerOutcome, battleState, enemy);
     let npcOutcome = null;
     if (!playerOutcome.fled && !playerOutcome.instantVictory) {
-      npcOutcome = L.resolveNpcAction(state);
+      npcOutcome = L.resolveNpcAction(state, battleState, enemy);
     }
     const combined = L.combineCombatOutcomes(playerOutcome, moraleOutcome, npcOutcome);
     combined.playerCrewLossFromPlayerAction = playerOutcome.enemy.crewLoss;
@@ -825,7 +821,7 @@ const isUnrecoverable = (state) => {
     combined.npcHullDamageOutput = npcOutcome ? npcOutcome.enemy.hullDamage : 0;
     const crewLossMult = L.getEquipmentEffect(state, "crewLossMult");
     if (crewLossMult !== 1) combined.player.crewLoss = Math.floor(combined.player.crewLoss * crewLossMult);
-    const finalOutcome = L.applyDamageMoralePenalty(state, combined);
+    const finalOutcome = L.applyDamageMoralePenalty(state, combined, battleState);
     finalOutcome.playerAction = action;
     finalOutcome.npcAction = npcOutcome ? npcOutcome.action : null;
     finalOutcome.playerHit = playerHit;
@@ -840,6 +836,16 @@ const isUnrecoverable = (state) => {
     finalOutcome.npcHullDamageOutput = combined.npcHullDamageOutput;
     return finalOutcome;
   };
+
+// ── Stub for combat rework distance initialisation ──────────────
+// Returns a default distance for the encounter type.
+// Will be replaced with real logic in B11 (combat rework).
+const initialDistanceFor = (encounterType) => {
+  // For now, always return "medium" – this keeps the existing combat working.
+  // The real implementation will use a lookup table based on encounter type.
+  return "medium";
+};
+
 
   //--------------------------------------
   //---  encounter context & pre-screen ---
@@ -1023,63 +1029,63 @@ const isUnrecoverable = (state) => {
 
 
   // Returns the static trade profile of a port — which goods are structurally cheap
-// (Good Deals) and which are structurally scarce (In Demand / good to sell here).
-// This is derived purely from GOODS_AVAILABILITY + FACTION_PRICE_MODIFIERS and
-// does NOT change between visits unless the underlying data changes.
-const getPortTradeProfile = (portKey) => {
-  const port  = window.D.PORTS[portKey];
-  const avail = window.D.GOODS_AVAILABILITY[portKey];
-  if (!port || !avail) return { goodDeals: [], inDemand: [] };
+  // (Good Deals) and which are structurally scarce (In Demand / good to sell here).
+  // This is derived purely from GOODS_AVAILABILITY + FACTION_PRICE_MODIFIERS and
+  // does NOT change between visits unless the underlying data changes.
+  const getPortTradeProfile = (portKey) => {
+    const port  = window.D.PORTS[portKey];
+    const avail = window.D.GOODS_AVAILABILITY[portKey];
+    if (!port || !avail) return { goodDeals: [], inDemand: [] };
 
-  // Must match the column order in GOODS_AVAILABILITY rows (same as generators.js)
-  const colOrder = [
-    "food","water","rum","sugar","timber","cloth","spices","silk",
-    "coffee","cocoa","weapons","tobacco","silver","slaves"
-  ];
+    // Must match the column order in GOODS_AVAILABILITY rows (same as generators.js)
+    const colOrder = [
+      "food","water","rum","sugar","timber","cloth","spices","silk",
+      "coffee","cocoa","weapons","tobacco","silver","slaves"
+    ];
 
-  const factionMods = window.D.FACTION_PRICE_MODIFIERS[port.faction] ?? {};
-  const illegalGoods = new Set(
-    Object.entries(window.D.RESOURCES)
-      .filter(([, r]) => r.illegal)
-      .map(([k]) => k)
-  );
-  const provisionGoods = new Set(["food", "water"]);
+    const factionMods = window.D.FACTION_PRICE_MODIFIERS[port.faction] ?? {};
+    const illegalGoods = new Set(
+      Object.entries(window.D.RESOURCES)
+        .filter(([, r]) => r.illegal)
+        .map(([k]) => k)
+    );
+    const provisionGoods = new Set(["food", "water"]);
 
-  const goodDeals = [];
-  const inDemand  = [];
+    const goodDeals = [];
+    const inDemand  = [];
 
-  colOrder.forEach((good, idx) => {
-    const tier = avail[idx] || "never";
+    colOrder.forEach((good, idx) => {
+      const tier = avail[idx] || "never";
 
-    // Good Deal: always available at this port OR port faction has a production modifier.
-    if (tier === "always" || (good in factionMods)) {
-      goodDeals.push(good);
-    }
+      // Good Deal: always available at this port OR port faction has a production modifier.
+      if (tier === "always" || (good in factionMods)) {
+        goodDeals.push(good);
+      }
 
-    // In Demand: rarely or never stocked → high structural price → good to sell here.
-    // Exclude provisions and illegal goods.
-    if (
-      (tier === "rarely" || tier === "never") &&
-      !provisionGoods.has(good) &&
-      !illegalGoods.has(good)
-    ) {
-      // Sort "never" before "rarely" (higher price = more valuable sell opportunity)
-      inDemand.push({ good, tier });
-    }
-  });
+      // In Demand: rarely or never stocked → high structural price → good to sell here.
+      // Exclude provisions and illegal goods.
+      if (
+        (tier === "rarely" || tier === "never") &&
+        !provisionGoods.has(good) &&
+        !illegalGoods.has(good)
+      ) {
+        // Sort "never" before "rarely" (higher price = more valuable sell opportunity)
+        inDemand.push({ good, tier });
+      }
+    });
 
-  // Sort In Demand: "never" tier first (1.40× multiplier > 1.20× for "rarely")
-  inDemand.sort((a, b) => {
-    if (a.tier === "never" && b.tier === "rarely") return -1;
-    if (a.tier === "rarely" && b.tier === "never") return 1;
-    return 0;
-  });
+    // Sort In Demand: "never" tier first (1.40× multiplier > 1.20× for "rarely")
+    inDemand.sort((a, b) => {
+      if (a.tier === "never" && b.tier === "rarely") return -1;
+      if (a.tier === "rarely" && b.tier === "never") return 1;
+      return 0;
+    });
 
-  return {
-    goodDeals,
-    inDemand: inDemand.map(x => x.good),
+    return {
+      goodDeals,
+      inDemand: inDemand.map(x => x.good),
+    };
   };
-};
 
   // PORT LOGIC
   const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
@@ -1198,10 +1204,6 @@ const getPortTradeProfile = (portKey) => {
     getLogTabCategory,
     logPick,
     isFeatureUnlocked,
-     getMinViableCrew,
-  getCaptainTag,
-  getCareerHighlights,
-  isUnrecoverable,
     returnScreen,
 
     // Ship/Repair
@@ -1223,7 +1225,6 @@ const getPortTradeProfile = (portKey) => {
     decayReputation,
     applyReputationImpact,
     getRepPerk,
-    addHeat,
 
     // Crew
     payCrewWages,
@@ -1246,7 +1247,7 @@ const getPortTradeProfile = (portKey) => {
     roll,
     guessShipType,
 
-    // Combat
+    // Combat – refactored to accept battleState & enemy
     emptyOutcome,
     getNPCAction,
     maybeCrewLoss,
@@ -1256,6 +1257,14 @@ const getPortTradeProfile = (portKey) => {
     applyDamageMoralePenalty,
     combineCombatOutcomes,
     resolveCombatAction,
+    initialDistanceFor,
+
+    // B9 – Game Over / Unrecoverable
+    getMinViableCrew,
+    getCaptainTag,
+    getCareerHighlights,
+    isUnrecoverable,
+    addHeat,
 
     // Resource & trade
     getHoldCapacity,

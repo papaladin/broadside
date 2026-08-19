@@ -106,10 +106,11 @@ const getVisualEquipment = (state) => {
 
   // ── INTERCEPT SCREEN ──────────────────────────────────────────────────
   const InterceptScreen = ({ state, dispatch }) => {
-    const ctx = state.encounterContext;
-    if (!ctx) return null;
-    const { enemy, flavourText, options } = ctx;
-    const enemyShip = SHIPS[enemy.ship] || {};
+    const session = state.encounterSession;
+    if (!session || session.phase !== "intercept") return null;
+    const { enemy, intercept } = session;
+    const { flavourText, options } = intercept;
+    const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
 
     return (
       <div style={{ padding: T.spacing.xl, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -125,7 +126,7 @@ const getVisualEquipment = (state) => {
           <div style={{ color: T.redBr, fontSize: T.heading1FontSize, fontWeight: "bold", marginBottom: 8 }}>
             {enemy.name}
             <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.narrativeFontSize }}>
-              {enemyShip.name ?? enemy.ship}
+              {enemyShip.name ?? enemy.shipType ?? enemy.ship}
             </span>
           </div>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -183,25 +184,25 @@ const getVisualEquipment = (state) => {
 
   // ── BATTLE SCREEN ─────────────────────────────────────────────────────
   function BattleScreen({ state, dispatch }) {
-    const bs = state.battleState;
-    if (!bs) return null;
-    const done = ["victory", "defeat", "fled"].includes(bs.phase);
-    const playerPct = bs.playerHull / SHIPS[state.ship.type].maxHull;
-    const enemyPct = bs.enemyHull / bs.enemy.hull;
+    const session = state.encounterSession;
+    if (!session || session.phase !== "battle" || !session.battle) return null;
+    const battle = session.battle;
+    const done = ["victory", "defeat", "fled"].includes(battle.phase);
+    const playerPct = battle.playerHull / SHIPS[state.ship.type].maxHull;
+    const enemyPct = battle.enemyHull / session.enemy.hull;
     const [showTutorial, setShowTutorial] = React.useState(
       () => shouldShowTutorial(state, "battle")
     );
     const [pulsedAction, setPulsedAction] = useState(null);
 
     const [missFlash, setMissFlash] = useState(false);
-    const prevLogLen = useRef(state.battleState?.log?.length || 0);
+    const prevLogLen = useRef(battle.log?.length || 0);
 
     useEffect(() => {
-      const bs = state.battleState;
-      if (!bs) return;
-      const newLen = bs.log.length;
+      if (!battle) return;
+      const newLen = battle.log.length;
       if (newLen > prevLogLen.current) {
-        const latest = bs.log[newLen - 1] || "";
+        const latest = battle.log[newLen - 1] || "";
         if (isPlayerMissOrFail(latest)) {
           setMissFlash(true);
           const timer = setTimeout(() => setMissFlash(false), 600);
@@ -209,7 +210,7 @@ const getVisualEquipment = (state) => {
         }
       }
       prevLogLen.current = newLen;
-    }, [state.battleState?.log?.length]);
+    }, [battle?.log?.length]);
 
     const [isNarrowBattle, setIsNarrowBattle] = React.useState(window.innerWidth < 700);
     React.useEffect(() => {
@@ -247,13 +248,13 @@ const getVisualEquipment = (state) => {
           textAlign: "center", color: T.redBr, fontSize: T.heading2FontSize,
           fontWeight: "bold", letterSpacing: "0.1em",
         }}>
-          <IconSwords size={22} color={T.redBr} /> NAVAL BATTLE — ROUND {bs.round}
+          <IconSwords size={22} color={T.redBr} /> NAVAL BATTLE — ROUND {battle.round}
         </div>
 
         {/* ── Ship panels with sprites ────────────────────────────── */}
         {(() => {
           const playerType = state.ship.type;
-          const enemyType = L.guessShipType(bs.enemy);
+          const enemyType = L.guessShipType(session.enemy);
           const playerVisual = window.D.SHIP_VISUALS?.[playerType];
           const enemyVisual = window.D.SHIP_VISUALS?.[enemyType];
 
@@ -291,12 +292,12 @@ const getVisualEquipment = (state) => {
                   />
                 </div>
                 <div style={{ color: T.blueBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{state.ship.name}</div>
-                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
-                <Bar value={bs.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
-                {bs.convoyHull !== undefined && (
+                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
+                <Bar value={battle.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                {battle.convoyHull !== undefined && (
                   <>
-                    <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {bs.convoyHull} / 50</div>
-                    <Bar value={bs.convoyHull} max={50} color={bs.convoyHull / 50 >= 0.6 ? T.greenBr : bs.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
+                    <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {battle.convoyHull} / 50</div>
+                    <Bar value={battle.convoyHull} max={50} color={battle.convoyHull / 50 >= 0.6 ? T.greenBr : battle.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
                   </>
                 )}
                 <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
@@ -319,18 +320,18 @@ const getVisualEquipment = (state) => {
                 }}>
                   <ShipSideSprite
                     type={enemyType}
-                    faction={bs.enemy.faction}
+                    faction={session.enemy.faction}
                     equipment={[]}
                     width={Math.round(baseW * enemySize)}
                     height={Math.round(baseH * enemySize)}
                     facing="left"
                   />
                 </div>
-                <div style={{ color: T.redBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{bs.enemy.name}</div>
-                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {bs.enemyHull} / {bs.enemy.hull}</div>
-                <Bar value={bs.enemyHull} max={bs.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{bs.enemyCrew} crew · {bs.enemy.cannons} cannons</div>
-                <div style={{ marginTop: 5 }}><FactionPill faction={bs.enemy.faction} /></div>
+                <div style={{ color: T.redBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{session.enemy.name}</div>
+                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.enemyHull} / {session.enemy.hull}</div>
+                <Bar value={battle.enemyHull} max={session.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{battle.enemyCrew} crew · {session.enemy.cannons} cannons</div>
+                <div style={{ marginTop: 5 }}><FactionPill faction={session.enemy.faction} /></div>
               </Panel>
             </div>
           );
@@ -352,7 +353,7 @@ const getVisualEquipment = (state) => {
         <div className={missFlash ? 'miss-flash-border' : ''}>
           <Panel style={{ background: T.bgDeep, display: "flex", flexDirection: "column" }}>
             <div style={{ height: 130, overflowY: "auto" }}>
-              {[...bs.log].reverse().map((e, i) => {
+              {[...battle.log].reverse().map((e, i) => {
                 const isLatest = i === 0;
                 const isMissFlash = isLatest && missFlash && isPlayerMissOrFail(e);
                 return (
@@ -384,7 +385,7 @@ const getVisualEquipment = (state) => {
               ].map(({ a, label, lbl, desc, glow }) => (
                 <Panel
                   key={a}
-                  color={glow}                                   // <-- static border color matches the icon
+                  color={glow}
                   className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
                   style={{ background: T.panelAlt, cursor: "pointer", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s" }}
                   onClick={() => {
@@ -393,12 +394,12 @@ const getVisualEquipment = (state) => {
                     setTimeout(() => setPulsedAction(null), 150);
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = glow;    // keep consistent with color prop
+                    e.currentTarget.style.borderColor = glow;
                     e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
                     e.currentTarget.style.transform = "scale(1.03)";
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = '';      // revert to prop
+                    e.currentTarget.style.borderColor = '';
                     e.currentTarget.style.boxShadow = "none";
                     e.currentTarget.style.transform = "scale(1)";
                   }}
@@ -414,17 +415,17 @@ const getVisualEquipment = (state) => {
         ) : (
           <div style={{ textAlign: "center" }}>
             <div style={{
-              color: bs.phase === "victory" ? T.greenBr : bs.phase === "fled" ? T.gold : T.redBr,
+              color: battle.phase === "victory" ? T.greenBr : battle.phase === "fled" ? T.gold : T.redBr,
               fontSize: T.heading1FontSize,
               fontWeight: "bold",
               marginBottom: 8,
               letterSpacing: "0.08em",
             }}>
-              {bs.phase === "victory" && (<><IconAnchor size={24} color={T.greenBr} /> VICTORY!</>)}
-              {bs.phase === "fled" && (<><IconWind size={24} color={T.gold} /> ESCAPED</>)}
-              {bs.phase === "defeat" && (<><IconSkull size={24} color={T.redBr} /> DEFEATED</>)}
+              {battle.phase === "victory" && (<><IconAnchor size={24} color={T.greenBr} /> VICTORY!</>)}
+              {battle.phase === "fled" && (<><IconWind size={24} color={T.gold} /> ESCAPED</>)}
+              {battle.phase === "defeat" && (<><IconSkull size={24} color={T.redBr} /> DEFEATED</>)}
             </div>
-            {bs.phase === "victory" && bs.canPlunder ? (
+            {battle.phase === "victory" && battle.canPlunder ? (
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
                 <Btn v="gold" onClick={() => dispatch({ type: A.NAVIGATE, screen: "plunder" })}>
                   <IconAnchor size={12} color={T.gold} /> Plunder the Ship
@@ -435,15 +436,15 @@ const getVisualEquipment = (state) => {
               </div>
             ) : (
               <>
-                {bs.phase === "victory" && bs.goldReward > 0 && (
+                {battle.phase === "victory" && battle.goldReward > 0 && (
                   <div style={{ color: T.gold, fontSize: T.heading3FontSize, marginBottom: 14 }}>
-                    +{bs.goldReward} gold
+                    +{battle.goldReward} gold
                   </div>
                 )}
                 <Btn v="gold" onClick={() => dispatch({ type: A.DISMISS_BATTLE })}>
-                  {bs.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
+                  {session.returnScreen === "sailing" && state.destination && state.sailingDaysLeft > 0
                     ? "Continue Voyage"
-                    : bs.returnScreen === "arrive" && state.destination
+                    : session.returnScreen === "arrive" && state.destination
                       ? "Enter Port"
                       : "Return to Port"}
                 </Btn>
@@ -457,11 +458,14 @@ const getVisualEquipment = (state) => {
 
   // ── PLUNDER SCREEN ────────────────────────────────────────────────────
   function PlunderScreen({ state, dispatch }) {
-    const bs = state.battleState;
-    if (!bs || !bs.canPlunder) return null;
+    const session = state.encounterSession;
+    if (!session || session.phase !== "plunder") return null;
 
-    const enemyCargo = bs.enemyCargo || {};
-    const goldReward = bs.goldReward || 0;
+    const battle = session.battle;
+    if (!battle || !battle.canPlunder) return null;
+
+    const enemyCargo = battle.enemyCargo || {};
+    const goldReward = battle.goldReward || 0;
     const holdCapacity = L.getHoldCapacity(state) || 200;
 
     const [playerItems, setPlayerItems] = React.useState({ ...(state.hold?.items || {}) });
@@ -526,7 +530,7 @@ const getVisualEquipment = (state) => {
     return (
       <div style={{ padding: T.spacing.xl, maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold", textAlign: "center" }}>
-          <IconAnchor size={24} color={T.gold} /> Plunder the <span style={{ color: T.redBr }}>{bs.enemy.name}</span>
+          <IconAnchor size={24} color={T.gold} /> Plunder the <span style={{ color: T.redBr }}>{session.enemy.name}</span>
         </div>
 
         {/* ── Top summary panel ──────────────────────────────────── */}
