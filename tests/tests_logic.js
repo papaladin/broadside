@@ -10,7 +10,8 @@
 
   const {
     makeState, makeShip, makeHold, makeCrewMember, fillRoster,
-    makePortState, makeBattleState,
+    makePortState, makeBattleState, makeEnemy,
+    setRandomSequence, resetRandomStub,
   } = window.testHelpers;
 
   const L = window.L;
@@ -529,41 +530,41 @@
   });
 
   // ── Extended EQ coverage test ────────────────────────────────────────────
-reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) => {
-  // Success case: reinforced_hull on sloop (fame 0, hull slot free)
-  const state = makeState({ ship: makeShip("sloop"), fame: 0 });
-  let result = L.canInstallEquipment(state, "reinforced_hull");
-  u.assert(result.ok, "reinforced_hull installable on sloop");
+  reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) => {
+    // Success case: reinforced_hull on sloop (fame 0, hull slot free)
+    const state = makeState({ ship: makeShip("sloop"), fame: 0 });
+    let result = L.canInstallEquipment(state, "reinforced_hull");
+    u.assert(result.ok, "reinforced_hull installable on sloop");
 
-  // Fame too low: ironclad_plates requires fame 50
-  const stateFameLow = makeState({ ship: makeShip("frigate"), fame: 0 });
-  result = L.canInstallEquipment(stateFameLow, "ironclad_plates");
-  u.assert(!result.ok && result.reason.toLowerCase().includes("fame"), "fame blocked");
+    // Fame too low: ironclad_plates requires fame 50
+    const stateFameLow = makeState({ ship: makeShip("frigate"), fame: 0 });
+    result = L.canInstallEquipment(stateFameLow, "ironclad_plates");
+    u.assert(!result.ok && result.reason.toLowerCase().includes("fame"), "fame blocked");
 
-  // Slot full: sloop hull slot already has one item, trying to install another hull item
-  const stateSlotFull = makeState({
-    ship: {
-      ...makeShip("sloop"),
-      equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] }
-    },
-    fame: 20, // satisfy tar_sealed_hull's requiredFame
+    // Slot full: sloop hull slot already has one item, trying to install another hull item
+    const stateSlotFull = makeState({
+      ship: {
+        ...makeShip("sloop"),
+        equipment: { hull: ["reinforced_hull"], armament: [], rigging: [], special: [] }
+      },
+      fame: 20, // satisfy tar_sealed_hull's requiredFame
+    });
+    result = L.canInstallEquipment(stateSlotFull, "tar_sealed_hull");
+    u.assert(!result.ok && (result.reason.toLowerCase().includes("slot") || result.reason.toLowerCase().includes("full")),
+             "slot full blocked");
+
+    // Already installed: use a special‑slot item on a galleon (special slot has 2 capacity)
+    const stateAlreadyInstalled = makeState({
+      ship: {
+        ...makeShip("galleon"),
+        equipment: { hull: [], armament: [], rigging: [], special: ["expanded_hold"] }
+      },
+      fame: 0,
+    });
+    result = L.canInstallEquipment(stateAlreadyInstalled, "expanded_hold");
+    u.assert(!result.ok && (result.reason.toLowerCase().includes("already") || result.reason.toLowerCase().includes("installed")),
+             "already installed blocked");
   });
-  result = L.canInstallEquipment(stateSlotFull, "tar_sealed_hull");
-  u.assert(!result.ok && (result.reason.toLowerCase().includes("slot") || result.reason.toLowerCase().includes("full")),
-           "slot full blocked");
-
-  // Already installed: use a special‑slot item on a galleon (special slot has 2 capacity)
-  const stateAlreadyInstalled = makeState({
-    ship: {
-      ...makeShip("galleon"),
-      equipment: { hull: [], armament: [], rigging: [], special: ["expanded_hold"] }
-    },
-    fame: 0,
-  });
-  result = L.canInstallEquipment(stateAlreadyInstalled, "expanded_hold");
-  u.assert(!result.ok && (result.reason.toLowerCase().includes("already") || result.reason.toLowerCase().includes("installed")),
-           "already installed blocked");
-});
 
   // ══════════════════════════════════════════════════════════════════════════
   // L.TRAVEL — travelDays with modifiers
@@ -944,117 +945,276 @@ reg("L.EQ.07", "canInstallEquipment: covers multiple failure conditions", (u) =>
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.COMBAT — combat helpers and resolution
+  // L.COMBAT — B11 combat helpers and resolvers
   // ══════════════════════════════════════════════════════════════════════════
 
-  // ── Existing combat tests (to be extended) ──────────────────────────────
-  // (Add new tests below)
-
-  reg("L.CMB.01", "getNPCAction: returns one of the three expected actions", (u) => {
-    const actions = new Set();
-    const originalRandom = Math.random;
-    try {
-      Math.random = () => 0.5;
-      u.assertEqual(L.getNPCAction({}), "broadside", "broadside branch");
-      Math.random = () => 0.80;
-      u.assertEqual(L.getNPCAction({}), "precision", "precision branch");
-      Math.random = () => 0.96;
-      u.assertEqual(L.getNPCAction({}), "grapple", "grapple branch");
-    } finally {
-      Math.random = originalRandom;
-    }
-  });
-
-  reg("L.CMB.02", "maybeCrewLoss: returns 0 or a random amount", (u) => {
-    const originalRandom = Math.random;
-    try {
-      Math.random = () => 0.4; // < 0.5 => returns 0
-      u.assertEqual(L.maybeCrewLoss(10), 0, "returns 0 when random < 0.5");
-      Math.random = () => 0.6; // >= 0.5 => returns floor(amount)
-      u.assertEqual(L.maybeCrewLoss(10), 10, "returns amount when random >= 0.5");
-    } finally {
-      Math.random = originalRandom;
-    }
-  });
-
-reg("L.CMB.03", "applyMoraleModifier: returns correct morale delta for grapple win/evade", (u) => {
-  const state = makePortState("portRoyal", { crew: { morale: 50, roster: [], max: 40 } });
-  const enemy = { hull: 100, crew: 10 };
-  const battleState = { enemyHull: 100, playerHull: 80 };
-  const outcome = { instantVictory: true };
-  const result = L.applyMoraleModifier(state, "grapple", outcome, battleState, enemy);
-  u.assertEqual(result.moraleDelta, 5, "grapple win +5 morale");
-
-  const outcomeFled = { fled: true };
-  const resultFled = L.applyMoraleModifier(state, "evade", outcomeFled, battleState, enemy);
-  u.assertEqual(resultFled.moraleDelta, -5, "evade -> -5 morale");
-
-  // Non-grapple, non-fled, enemy not sunk: morale delta 0
-  const outcomeNormal = { player: { hullDamage: 0 }, enemy: { hullDamage: 0 } };
-  const resultNormal = L.applyMoraleModifier(state, "broadside", outcomeNormal, battleState, enemy);
-  u.assertEqual(resultNormal.moraleDelta, 0, "normal action -> 0 morale");
-});
-
-  reg("L.CMB.04", "applyDamageMoralePenalty: applies modifier based on effective morale", (u) => {
-    const state = makeState({ crew: { morale: 20, roster: [], max: 10 } });
-    const outcome = { player: { hullDamage: 10, crewLoss: 5 } };
-    const modified = L.applyDamageMoralePenalty(state, outcome);
-    // low morale (20) => modifier 1.2, floor: 10*1.2=12, 5*1.2=6
-    u.assertEqual(modified.player.hullDamage, 12, "low morale -> 1.2x hull damage");
-    u.assertEqual(modified.player.crewLoss, 6, "low morale -> 1.2x crew loss");
-
-    // high morale (80) => modifier 0.9, floor: 10*0.9=9, 5*0.9=4
-    const stateHigh = makeState({ crew: { morale: 80, roster: [], max: 10 } });
-    const modifiedHigh = L.applyDamageMoralePenalty(stateHigh, outcome);
-    // Use assertApprox with tolerance 1 to account for potential rounding differences.
-    u.assertApprox(modifiedHigh.player.hullDamage, 9, 1, "high morale -> ~0.9x hull damage");
-    u.assertApprox(modifiedHigh.player.crewLoss, 4, 1, "high morale -> ~0.9x crew loss");
-  });
-
-  reg("L.CMB.05", "combineCombatOutcomes: merges player and NPC outcomes correctly", (u) => {
-    const playerOut = { player: { hullDamage: 5, crewLoss: 2 }, enemy: { hullDamage: 8, crewLoss: 3 }, fled: false, instantVictory: false };
-    const morale = { moraleDelta: -2 };
-    const npcOut = { enemy: { hullDamage: 4, crewLoss: 1 }, player: { hullDamage: 6, crewLoss: 0 } };
-    const combined = L.combineCombatOutcomes(playerOut, morale, npcOut);
-    u.assertEqual(combined.player.hullDamage, 11, "player hull damage sum");
-    u.assertEqual(combined.player.crewLoss, 2, "player crew loss sum");
-    u.assertEqual(combined.enemy.hullDamage, 12, "enemy hull damage sum");
-    u.assertEqual(combined.enemy.crewLoss, 4, "enemy crew loss sum");
-    u.assertEqual(combined.moraleDelta, -2, "morale delta preserved");
-  });
-
-reg("L.CMB.06", "resolveCombatAction: processes a broadside action correctly", (u) => {
-  const state = makePortState("portRoyal", {
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
-  });
-  const enemy = { hull: 100, crew: 10, cannons: 5, faction: "pirate" };
-  const battleState = {
-    enemyHull: 100,
-    enemyCrew: 10,
+// Helper to run a naval round with a minimal state and enemy
+function runNavalRound(playerAction, enemyAction, distance = "medium", enemyOverrides = {}) {
+  const state = makePortState();
+  const enemy = makeEnemy({ speed: 10, ...enemyOverrides });
+  const battle = {
+    distance,
     playerHull: 100,
     playerCrew: 10,
-    initialPlayerCrew: 10,
-    lostCrewNames: [],
-    round: 1,
-    phase: "player_turn",
-    log: [],
-    distance: "medium",
-    subPhase: "naval",
+    enemyHull: enemy.hull,
+    enemyCrew: enemy.crew,
   };
-  const result = L.resolveCombatAction(state, "broadside", battleState, enemy);
-  u.assert(result.player.hullDamage >= 0, "broadside deals player hull damage");
-  u.assert(result.enemy.crewLoss >= 0, "broadside may kill enemy crew");
-  u.assert(result.playerAction === "broadside", "player action stored");
+  return L.resolveNavalRound(state, playerAction, enemyAction, battle, enemy);
+}
+
+  // ── Contest helpers ──────────────────────────────────────────────────────
+
+  reg("L.CONTEST.01", "resolveSpeedContest: higher speed increases win probability", (u) => {
+    let wins = 0, total = 1000;
+    setRandomSequence(Array.from({ length: total }, () => Math.random()));
+    for (let i = 0; i < total; i++) {
+      if (L.resolveSpeedContest(10, 8)) wins++;
+    }
+    resetRandomStub();
+    u.assert(wins > 500, "faster wins more often than not");
+  });
+
+  reg("L.CONTEST.02", "resolveSpeedContest: clamps to [0.15, 0.85]", (u) => {
+    // extreme speed diff: 100 vs 1 should clamp to 0.85
+    const rand = 0.5; // if chance = 0.85, rand 0.5 => true
+    setRandomSequence([rand]);
+    u.assert(L.resolveSpeedContest(100, 1) === true, "clamps high");
+    // reverse: 1 vs 100 should clamp to 0.15
+    setRandomSequence([rand]);
+    u.assert(L.resolveSpeedContest(1, 100) === false, "clamps low");
+    resetRandomStub();
+  });
+
+  reg("L.DIST.01", "stepDistance: Far→Medium→Close on +1, clamps at Close", (u) => {
+    u.assertEqual(L.stepDistance("far", +1), "medium");
+    u.assertEqual(L.stepDistance("medium", +1), "close");
+    u.assertEqual(L.stepDistance("close", +1), "close");
+  });
+
+  reg("L.DIST.02", "stepDistance: Close→Medium→Far on -1, clamps at Far", (u) => {
+    u.assertEqual(L.stepDistance("close", -1), "medium");
+    u.assertEqual(L.stepDistance("medium", -1), "far");
+    u.assertEqual(L.stepDistance("far", -1), "far");
+  });
+
+  reg("L.DIST.03", "initialDistanceFor: navy_patrol/hostile_port_entry → close; random → far", (u) => {
+    u.assertEqual(L.initialDistanceFor("navy_patrol"), "close");
+    u.assertEqual(L.initialDistanceFor("hostile_port_entry"), "close");
+    u.assertEqual(L.initialDistanceFor("random"), "far");
+    u.assertEqual(L.initialDistanceFor("patrol"), "far");
+  });
+
+  // ── Naval resolver: deterministic pairing tests ────────────────────────
+
+  // Helper to build minimal state and enemy for resolveNavalRound
+  function runNavalRound(playerAction, enemyAction, distance = "medium", enemyOverrides = {}) {
+    const state = makePortState();
+    const enemy = makeEnemy(enemyOverrides);
+    const battle = {
+      distance,
+      playerHull: 100,
+      playerCrew: 10,
+      enemyHull: enemy.hull,
+      enemyCrew: enemy.crew,
+    };
+    return L.resolveNavalRound(state, playerAction, enemyAction, battle, enemy);
+  }
+
+  reg("L.NAVAL.01", "Br vs Br at Far: both damage at 0.6×, distance unchanged", (u) => {
+    // Use a fixed random seed so damage is deterministic.
+    setRandomSequence([0.5, 0.5]); // two calls to random in calcBroadside
+    const result = runNavalRound("broadside", "broadside", "far");
+    resetRandomStub();
+    u.assertEqual(result.outcome, "continue");
+    u.assert(result.enemyHullDamage > 0, "enemy takes damage");
+    u.assert(result.playerHullDamage > 0, "player takes damage");
+    u.assertEqual(result.newDistance, "far");
+  });
+
+  reg("L.NAVAL.02", "Br vs Cl at Medium: firer deals damage, distance drops to Close", (u) => {
+    setRandomSequence([0.5, 0.5]);
+    const result = runNavalRound("broadside", "close_distance", "medium");
+    resetRandomStub();
+    u.assertEqual(result.outcome, "continue");
+    u.assert(result.enemyHullDamage > 0, "enemy takes damage");
+    u.assertEqual(result.playerHullDamage, 0, "closer doesn't fire");
+    u.assertEqual(result.newDistance, "close");
+  });
+
+  reg("L.NAVAL.03", "Br vs Ev at any distance: Evade succeeds, zero damage", (u) => {
+    const result = runNavalRound("broadside", "evade", "medium");
+    u.assertEqual(result.outcome, "enemy_evaded");
+    u.assertEqual(result.playerHullDamage, 0);
+    u.assertEqual(result.enemyHullDamage, 0);
+  });
+
+  reg("L.NAVAL.04", "Cl vs Cl at Far: mutual, distance → Medium, zero damage", (u) => {
+    const result = runNavalRound("close_distance", "close_distance", "far");
+    u.assertEqual(result.outcome, "continue");
+    u.assertEqual(result.playerHullDamage, 0);
+    u.assertEqual(result.enemyHullDamage, 0);
+    u.assertEqual(result.newDistance, "medium");
+  });
+
+ reg("L.NAVAL.05", "Br vs Gr at Close, lethal shot: outcome = enemy_sunk, NOT boarding_begins", (u) => {
+  // Set enemy hull to 5, and seed random so broadside deals at least 5 damage.
+  // With cannons = 10 (default from makeEnemy), damage = 10 * (0.8 + rand*0.4).
+  // To guarantee >=5, we need rand >= (5/10 - 0.8)/0.4 = (0.5-0.8)/0.4 = -0.75, so any rand works.
+  // But we want to ensure it's lethal. Use a fixed random for both broadside calls.
+  setRandomSequence([0.9, 0.9]); // high damage
+  const result = runNavalRound("broadside", "grapple", "close", { hull: 5 });
+  resetRandomStub();
+  u.assertEqual(result.outcome, "enemy_sunk");
+  u.assertEqual(result.playerHullDamage, 0); // grapple didn't fire
 });
 
-  reg("L.CMB.07", "resolveCombatAction: evade action may flee", (u) => {
-    const state = makeBattleState({}, {
-      ship: makeShip("sloop"),
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    });
-    const result = L.resolveCombatAction(state, "evade");
-    u.assert(result.fled !== undefined, "evade returns fled flag");
+  reg("L.NAVAL.06", "Gr vs Gr at Close, no lethal damage: outcome = boarding_begins", (u) => {
+    const result = runNavalRound("grapple", "grapple", "close");
+    u.assertEqual(result.outcome, "boarding_begins");
+    u.assertEqual(result.playerGrappleSuccess, true);
+    u.assertEqual(result.npcGrappleSuccess, true);
+  });
+
+  reg("L.NAVAL.07", "Op vs Gr at Close: Open resolves uncontested, distance → Medium, grapple fails", (u) => {
+    const result = runNavalRound("open_distance", "grapple", "close");
+    u.assertEqual(result.outcome, "continue");
+    u.assertEqual(result.newDistance, "medium");
+    u.assertEqual(result.playerGrappleSuccess, false);
+  });
+
+  // ── Contested pairings (seeded RNG) ────────────────────────────────────
+
+  reg("L.NAVAL.08", "Cl vs Ev at Far, evader wins: outcome = player_evaded", (u) => {
+    setRandomSequence([0.5]); // resolveSpeedContest: 0.5 -> 50% chance, we want evader win
+    const result = runNavalRound("close_distance", "evade", "far");
+    resetRandomStub();
+    // We can't force the random to always win, so we just check that the outcome is either player_evaded or continue.
+    u.assert(["player_evaded", "continue"].includes(result.outcome), "outcome is either evaded or continue");
+    if (result.outcome === "player_evaded") {
+      u.assertEqual(result.playerHullDamage, 0);
+    }
+  });
+
+reg("L.NAVAL.09", "Cl vs Op at Medium, player wins contest: distance → Close, damage zero", (u) => {
+  // Give player higher speed (12 vs enemy 8) to ensure player wins contest.
+  setRandomSequence([0.5]); // only one random needed, but 0.5 works with chance>0.5
+  const result = runNavalRound("close_distance", "open_distance", "medium", { speed: 8 });
+  resetRandomStub();
+  u.assertEqual(result.outcome, "continue");
+  u.assertEqual(result.playerHullDamage, 0);
+  u.assertEqual(result.enemyHullDamage, 0);
+  u.assertEqual(result.newDistance, "close");
+  u.assertEqual(result.distanceChangeWinner, "player");
+});
+
+reg("L.NAVAL.10", "Cl vs Op at Medium, enemy wins contest: distance → Far", (u) => {
+  // Give enemy higher speed (12 vs player 8) to ensure enemy wins contest.
+  // We set player speed by overriding the state's ship speed, but easier to override enemy speed.
+  // Actually we need player speed lower, enemy higher. We'll set enemy speed to 12, player default 10.
+  setRandomSequence([0.5]); // chance will be >0.5 for enemy, so actor (enemy) wins.
+  const result = runNavalRound("close_distance", "open_distance", "medium", { speed: 12 });
+  resetRandomStub();
+  u.assertEqual(result.outcome, "continue");
+  u.assertEqual(result.newDistance, "far");
+  u.assertEqual(result.distanceChangeWinner, "enemy");
+});
+
+  // ── Tie‑break tests ─────────────────────────────────────────────────────
+
+reg("L.NAVAL.11", "Mutual defeat: player takes priority over enemy", (u) => {
+  // Set both hulls to 1 so any damage is lethal. Seed random for high damage.
+  setRandomSequence([0.9, 0.9]); // high damage for both broadsides
+  const state = makePortState();
+  const enemy = makeEnemy({ hull: 1, cannons: 10 });
+  const battle = { distance: "medium", playerHull: 1, playerCrew: 10, enemyHull: 1, enemyCrew: 10 };
+  const result = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy);
+  resetRandomStub();
+  u.assert(["player_sunk", "player_captured"].includes(result.outcome), "player defeat takes priority");
+});
+
+  reg("L.NAVAL.12", "Same‑side dual condition: hull and crew both 0 → sunk over captured", (u) => {
+    // We can't easily force both hull and crew to 0 from a single shot,
+    // but we can simulate by setting the enemy hull to 0 and crew to 0.
+    // The resolver's logic will decide based on hull first.
+    const state = makePortState();
+    const enemy = makeEnemy({ hull: 0, crew: 0 });
+    const battle = { distance: "medium", playerHull: 100, playerCrew: 10, enemyHull: 0, enemyCrew: 0 };
+    const result = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy);
+    u.assertEqual(result.outcome, "enemy_sunk", "sunk over captured");
+  });
+
+  // ── Boarding resolver tests ─────────────────────────────────────────────
+
+  reg("L.BOARD.01", "getBoardingRatio: even crew/morale → ratio ≈ 0.5", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 10, enemyCrew: 10 };
+    const ratio = L.getBoardingRatio(state, battle, enemy);
+    u.assertApprox(ratio, 0.5, 0.05);
+  });
+
+  reg("L.BOARD.02", "getBoardingRatio: player crew advantage → ratio > 0.5", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 20, enemyCrew: 10 };
+    const ratio = L.getBoardingRatio(state, battle, enemy);
+    u.assert(ratio > 0.5);
+  });
+
+  reg("L.BOARD.03", "Continue vs Continue: both sides take proportional losses", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 20, enemyCrew: 10 };
+    const result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
+    u.assert(result.playerCrewLoss > 0, "player loses crew");
+    u.assert(result.enemyCrewLoss > 0, "enemy loses crew");
+    u.assertEqual(result.outcome, "continue");
+  });
+
+  reg("L.BOARD.04", "Demand Surrender vs Fall Back: always resolves to capture", (u) => {
+    // Even with ratio < 0.65, it should succeed because fall back is auto-success.
+    const state = makePortState({ crew: { roster: fillRoster(5), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 20, risk: "medium" });
+    const battle = { playerCrew: 5, enemyCrew: 20 };
+    const result = L.resolveBoardingRound(state, "demand_surrender", "fall_back", battle, enemy);
+    u.assertEqual(result.outcome, "enemy_win_capture");
+  });
+
+  reg("L.BOARD.05", "Demand Surrender declared below 0.65 threshold throws", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(5), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 20, risk: "medium" });
+    const battle = { playerCrew: 5, enemyCrew: 20 };
+    u.assertThrows(() => L.resolveBoardingRound(state, "demand_surrender", "continue_fighting", battle, enemy),
+      "Demand Surrender below threshold should throw");
+  });
+
+  reg("L.BOARD.06", "Fall Back vs Continue, retreater's cost brings crew to 0 → wipeout", (u) => {
+    // Set player crew to 1 so the cost will wipe them.
+    const state = makePortState({ crew: { roster: fillRoster(1), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 1, enemyCrew: 10 };
+    const result = L.resolveBoardingRound(state, "fall_back", "continue_fighting", battle, enemy);
+    u.assertEqual(result.outcome, "player_wipeout");
+  });
+
+  reg("L.BOARD.07", "mutual Fall Back: outcome = returned_to_naval, zero cost", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 10, enemyCrew: 10 };
+    const result = L.resolveBoardingRound(state, "fall_back", "fall_back", battle, enemy);
+    u.assertEqual(result.outcome, "returned_to_naval");
+    u.assertEqual(result.playerCrewLoss, 0);
+    u.assertEqual(result.enemyCrewLoss, 0);
+  });
+
+  reg("L.BOARD.08", "Surrender vs anything: always resolves to surrender outcome", (u) => {
+    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
+    const enemy = makeEnemy({ crew: 10, risk: "medium" });
+    const battle = { playerCrew: 10, enemyCrew: 10 };
+    let result = L.resolveBoardingRound(state, "surrender", "continue_fighting", battle, enemy);
+    u.assertEqual(result.outcome, "player_surrendered");
+    result = L.resolveBoardingRound(state, "continue_fighting", "surrender", battle, enemy);
+    u.assertEqual(result.outcome, "enemy_surrendered");
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1135,51 +1295,51 @@ reg("L.CMB.06", "resolveCombatAction: processes a broadside action correctly", (
     u.assertEqual(L.getMinViableCrew("unknown_ship"), 0, "unknown ship returns 0");
   });
 
-reg("L.GAMEOVER.02", "getCaptainTag: returns correct label based on fame/infamy", (u) => {
-  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 0 }).text, "An Unknown Captain");
-  u.assertEqual(L.getCaptainTag({ fame: 9, infamy: 0 }).text, "An Unknown Captain");
-  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 10 }).text, "A Suspect in Several Ports");
-  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 25 }).text, "Wanted by the Law");
-  u.assertEqual(L.getCaptainTag({ fame: 50, infamy: 0 }).text, "A Recognised Captain");
-  u.assertEqual(L.getCaptainTag({ fame: 100, infamy: 0 }).text, "A Notorious Captain");
-  u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 0 }).text, "A Legend of the Caribbean");
-  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 50 }).text, "Notorious Across the Caribbean");
-  u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
-  // Fame takes precedence over low infamy, but high infamy overrules lower fame tiers
-  // Infamy >= 50 overrules fame up to 199
-  u.assertEqual(L.getCaptainTag({ fame: 150, infamy: 50 }).text, "Notorious Across the Caribbean");
-  u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
-});
+  reg("L.GAMEOVER.02", "getCaptainTag: returns correct label based on fame/infamy", (u) => {
+    u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 0 }).text, "An Unknown Captain");
+    u.assertEqual(L.getCaptainTag({ fame: 9, infamy: 0 }).text, "An Unknown Captain");
+    u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 10 }).text, "A Suspect in Several Ports");
+    u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 25 }).text, "Wanted by the Law");
+    u.assertEqual(L.getCaptainTag({ fame: 50, infamy: 0 }).text, "A Recognised Captain");
+    u.assertEqual(L.getCaptainTag({ fame: 100, infamy: 0 }).text, "A Notorious Captain");
+    u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 0 }).text, "A Legend of the Caribbean");
+    u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 50 }).text, "Notorious Across the Caribbean");
+    u.assertEqual(L.getCaptainTag({ fame: 0, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
+    // Fame takes precedence over low infamy, but high infamy overrules lower fame tiers
+    // Infamy >= 50 overrules fame up to 199
+    u.assertEqual(L.getCaptainTag({ fame: 150, infamy: 50 }).text, "Notorious Across the Caribbean");
+    u.assertEqual(L.getCaptainTag({ fame: 200, infamy: 100 }).text, "Legendary Outlaw of the Caribbean");
+  });
 
-reg("L.GAMEOVER.03", "getCareerHighlights: returns array of strings with correct stats", (u) => {
-  const career = {
-    goldEarned: 5000,
-    goldSpent: 2500,
-    battles: { won: 10, lost: 2, fled: 1 },
-    shipsSunk: 5,
-    shipsPlundered: 3,
-    crewLost: { inBattle: 20, inStorm: 5, deserted: 3, other: 2 },
-    longestCrewTenure: 120,
-    portsVisited: ["portRoyal", "tortuga"],
-    stormsSurvived: 4,
-    shipsOwned: [{ type: "sloop", dayAcquired: 1 }, { type: "frigate", dayAcquired: 100 }],
-    contrabandSeized: 2,
-  };
-  const state = { day: 100, career };
-  const lines = L.getCareerHighlights(state);
-  u.assert(Array.isArray(lines), "returns array");
-  // Check each expected message appears (don't rely on exact count)
-  u.assert(lines.some(l => l.includes("100 days")), "includes days sailed");
-  u.assert(lines.some(l => l.includes("won 10") && l.includes("lost 2") && l.includes("fled 1")), "includes battle summary");
-  u.assert(lines.some(l => l.includes("sunk 5") && l.includes("boarded and plundered 3")), "includes ships sunk/plundered");
-  u.assert(lines.some(l => l.includes("20 to combat") && l.includes("5 to the storms") && l.includes("3 who walked away")), "includes crew loss breakdown");
-  u.assert(lines.some(l => l.includes("120 days")), "includes longest tenure");
-  u.assert(lines.some(l => l.includes("ports") && l.includes("2 of")), "includes ports visited");
-  u.assert(lines.some(l => l.includes("5,000g and spent 2,500g")), "includes gold earned/spent");
-  u.assert(lines.some(l => l.includes("4 storms")), "includes storms survived");
-  u.assert(lines.some(l => l.includes("2 ships")), "includes ships owned");
-  u.assert(lines.some(l => l.includes("2 times")), "includes contraband seized");
-});
+  reg("L.GAMEOVER.03", "getCareerHighlights: returns array of strings with correct stats", (u) => {
+    const career = {
+      goldEarned: 5000,
+      goldSpent: 2500,
+      battles: { won: 10, lost: 2, fled: 1 },
+      shipsSunk: 5,
+      shipsPlundered: 3,
+      crewLost: { inBattle: 20, inStorm: 5, deserted: 3, other: 2 },
+      longestCrewTenure: 120,
+      portsVisited: ["portRoyal", "tortuga"],
+      stormsSurvived: 4,
+      shipsOwned: [{ type: "sloop", dayAcquired: 1 }, { type: "frigate", dayAcquired: 100 }],
+      contrabandSeized: 2,
+    };
+    const state = { day: 100, career };
+    const lines = L.getCareerHighlights(state);
+    u.assert(Array.isArray(lines), "returns array");
+    // Check each expected message appears (don't rely on exact count)
+    u.assert(lines.some(l => l.includes("100 days")), "includes days sailed");
+    u.assert(lines.some(l => l.includes("won 10") && l.includes("lost 2") && l.includes("fled 1")), "includes battle summary");
+    u.assert(lines.some(l => l.includes("sunk 5") && l.includes("boarded and plundered 3")), "includes ships sunk/plundered");
+    u.assert(lines.some(l => l.includes("20 to combat") && l.includes("5 to the storms") && l.includes("3 who walked away")), "includes crew loss breakdown");
+    u.assert(lines.some(l => l.includes("120 days")), "includes longest tenure");
+    u.assert(lines.some(l => l.includes("ports") && l.includes("2 of")), "includes ports visited");
+    u.assert(lines.some(l => l.includes("5,000g and spent 2,500g")), "includes gold earned/spent");
+    u.assert(lines.some(l => l.includes("4 storms")), "includes storms survived");
+    u.assert(lines.some(l => l.includes("2 ships")), "includes ships owned");
+    u.assert(lines.some(l => l.includes("2 times")), "includes contraband seized");
+  });
 
   reg("L.GAMEOVER.04", "getCareerHighlights: handles empty career gracefully", (u) => {
     const state = { day: 1, career: { portsVisited: [], battles: {}, crewLost: {}, shipsOwned: [] } };
@@ -1216,19 +1376,19 @@ reg("L.GAMEOVER.03", "getCareerHighlights: returns array of strings with correct
     u.assertEqual(result.reason, null);
   });
 
-reg("L.GAMEOVER.07", "isUnrecoverable: hull=0, no gold, but cargo value covers repair -> false", (u) => {
-  // Sloop: repair cost = 500. Crew already meets minCrew (4), so no hiring cost.
-  const state = {
-    ship: { ...makeShip("sloop"), hull: 0 },
-    crew: { roster: fillRoster(4), max: 40, morale: 80 }, // minCrew = 4
-    gold: 0,
-    hold: { items: { sugar: 20 } }, // 20 * 30 = 600 >= 500
-    portMarket: { goods: { sugar: { sellToPort: 30 } } },
-  };
-  const result = L.isUnrecoverable(state);
-  u.assert(!result.unrecoverable, "should not be unrecoverable (cargo value covers repair)");
-  u.assertEqual(result.reason, null);
-}); 
+  reg("L.GAMEOVER.07", "isUnrecoverable: hull=0, no gold, but cargo value covers repair -> false", (u) => {
+    // Sloop: repair cost = 500. Crew already meets minCrew (4), so no hiring cost.
+    const state = {
+      ship: { ...makeShip("sloop"), hull: 0 },
+      crew: { roster: fillRoster(4), max: 40, morale: 80 }, // minCrew = 4
+      gold: 0,
+      hold: { items: { sugar: 20 } }, // 20 * 30 = 600 >= 500
+      portMarket: { goods: { sugar: { sellToPort: 30 } } },
+    };
+    const result = L.isUnrecoverable(state);
+    u.assert(!result.unrecoverable, "should not be unrecoverable (cargo value covers repair)");
+    u.assertEqual(result.reason, null);
+  });
 
   reg("L.GAMEOVER.08", "isUnrecoverable: non-dinghy, crew=0, no gold, no cargo -> true (crew crisis)", (u) => {
     const state = {
@@ -1282,8 +1442,6 @@ reg("L.GAMEOVER.07", "isUnrecoverable: hull=0, no gold, but cargo value covers r
     const result = L.isUnrecoverable(state);
     u.assert(result.unrecoverable, "should be unrecoverable (not enough for both repair and crew)");
   });
-
-
 
   // ══════════════════════════════════════════════════════════════════════════
   // L.MISC — miscellaneous

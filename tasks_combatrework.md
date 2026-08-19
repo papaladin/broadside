@@ -9,9 +9,9 @@ since some of the groundwork may already exist.
 
 ---
 
-## Part 1 — Prerequisite: Encounter Architecture Groundwork
+## Part 1 — Prerequisite: Encounter Architecture Groundwork --> DONE
 
-### Task 1.1 — Confirm or build the unified battleState shape
+### Task 1.1 — Confirm or build the unified battleState shape --> DONE
 
 **Where**: `engine_core.js`, `window.E.createBattleState`.
 
@@ -42,7 +42,7 @@ random. Adjust the exact type list against `buildEncounterContext`'s actual type
 
 ## Part 2 — Distance & Contest Mechanics (logic.js)
 
-### Task 2.1 — Add the shared contest formula
+### Task 2.1 — Add the shared contest formula --> DONE
 
 **Where**: `logic.js`, new exported function.
 
@@ -58,7 +58,7 @@ const resolveSpeedContest = (actorSpeed, opposerSpeed) => {
 
 Export in `window.L`.
 
-### Task 2.2 — Add distance-based damage multiplier lookup
+### Task 2.2 — Add distance-based damage multiplier lookup --> DONE
 
 **Where**: `data.js`, new constant.
 
@@ -92,7 +92,7 @@ doc) and by the reducer to reject illegal action dispatches defensively.
 
 ## Part 3 — Naval Battle Resolution (engine_combat.js / logic.js)
 
-### Task 3.1 — Build the ordered resolver function
+### Task 3.1 — Build the ordered resolver function --> DONE
 
 **Where**: new function in `logic.js`, replacing the ad-hoc per-action-type branches
 in the current `resolveCombatAction`. This is the centerpiece of the rework — implement
@@ -213,7 +213,7 @@ const stepDistance = (current, delta) => {
 
 Export `resolveNavalRound` and `stepDistance` in `window.L`.
 
-### Task 3.2 — Replace `BATTLE_ACTION`'s dispatch logic in `engine_combat.js`
+### Task 3.2 — Replace `BATTLE_ACTION`'s dispatch logic in `engine_combat.js` --> DONE
 
 **Where**: `engine_combat.js`, wherever `BATTLE_ACTION` currently branches per action
 type. Replace with a call to `L.resolveNavalRound`, then translate its `outcome` field
@@ -238,7 +238,7 @@ enabled vs. disabled-with-tooltip (design doc Section 9 — show, don't hide).
 
 ## Part 4 — Boarding Phase
 
-### Task 4.1 — Add the effective-strength and ratio calculation
+### Task 4.1 — Add the effective-strength and ratio calculation --> DONE
 
 **Where**: `logic.js`, new function.
 
@@ -261,7 +261,7 @@ const getBoardingRatio = (state, battleState) => {
 Export `getBoardingRatio` in `window.L`. Note: confirm `battleState.enemy.risk` is
 actually populated — see Part 6 below.
 
-### Task 4.2 — Build the boarding round resolver
+### Task 4.2 — Build the boarding round resolver --> DONE
 
 **Where**: `logic.js`, new function implementing the resolution order from design doc
 Section 7.3.
@@ -355,7 +355,7 @@ const resolveBoardingRound = (state, playerAction, enemyAction, battleState) => 
 
 Export `resolveBoardingRound` in `window.L`.
 
-### Task 4.3 — Wire `resolveBoardingRound` into `BATTLE_ACTION` when `subPhase === "boarding"`
+### Task 4.3 — Wire `resolveBoardingRound` into `BATTLE_ACTION` when `subPhase === "boarding"` --> DONE
 
 **Where**: `engine_combat.js`, `BATTLE_ACTION` case — branch on `battleState.subPhase`
 at the top: if `"naval"`, use Task 3.2's path; if `"boarding"`, call
@@ -384,7 +384,7 @@ at the top: if `"naval"`, use Task 3.2's path; if `"boarding"`, call
 
 ## Part 5 — UI: The Advantage Bar
 
-### Task 5.1 — Build the split advantage bar component
+### Task 5.1 — Build the split advantage bar component --> DONE
 
 **Where**: `screens_combat.jsx`, new sub-component rendered at the top of the boarding
 phase's action area, above the buttons.
@@ -415,7 +415,7 @@ visual consistency, not a plain bordered div.
 
 ---
 
-## Part 6 — Enemy Object: Add Risk Tier
+## Part 6 — Enemy Object: Add Risk Tier --> DONE
 
 ### Task 6.1 — Ensure `risk` is carried on the enemy object
 
@@ -425,7 +425,7 @@ return value.
 
 ---
 
-## Part 7 — NPC AI Stub (deferred design, minimal implementation now)
+## Part 7 — NPC AI Stub (deferred design, minimal implementation now) --> DONE
 
 ### Task 7.1 — Extend `getNPCAction` for the new action set
 

@@ -445,81 +445,263 @@ const MISSION_NAME_PARTS = {
 
 // ── Combat Log Templates ──────────────────────────────────────
 const COMBAT_LOG_TEMPLATES = {
-  player: {
-    broadside: [
-      "Your broadside thunders across the waves, dealing {hull} hull damage and sweeping {crew} crew from the deck.",
-      "A full volley crashes into the enemy: {hull} to the hull, {crew} sailors lost.",
-      "Cannons roar in unison – {hull} hull damage, {crew} crew cut down.",
-      "The broadside lands true. {hull} hull integrity gone, {crew} enemy crew fall.",
-    ],
-    precision_hit: [
-      "Your precision shot finds its mark, tearing {hull} from the hull and killing {crew} crew.",
-      "Aimed and fired – the shot hits home. {hull} hull damage, {crew} crew down.",
-      "The gun crew cheers as the precision strike lands, dealing {hull} hull damage and {crew} casualties.",
-      "Right through the gunports! {hull} hull damage, {crew} enemy sailors lost.",
-    ],
-    precision_miss: [
-      "Your precision shot splashes harmlessly into the sea.",
-      "The aimed shot goes wide. Nothing but spray.",
-      "You overcorrect and miss cleanly.",
-      "The cannonball flies past the enemy’s rigging. A miss.",
-    ],
-    grapple_success: [
-      "You bring the ships together and board! The enemy vessel is yours.",
-      "Grapples fly and your crew swarms over the rail. Victory!",
-      "You close the distance and your boarders overwhelm them. The enemy ship is taken.",
-      "Hooks bite into timber – you board and claim the prize!",
-    ],
-    grapple_fail: [
-      "Your grapple fails and you lose {crew} crew in the attempt.",
-      "The enemy repels your boarders. {crew} of your sailors are cut down.",
-      "They fight off the grapple and you retreat, {crew} crew lighter.",
-      "The boarding action is thrown back. {crew} crew lost in the chaos.",
-    ],
-    evade_success: [
-      "You slip away into the smoke and escape!",
-      "You disengage cleanly. The enemy is left behind.",
-      "A quick turn and you’re gone. They won’t catch you today.",
-      "You outrun them and vanish into the open sea.",
-    ],
-    evade_fail: [
-      "Evade fails! The enemy stays on your heels.",
-      "You try to flee but they match your speed.",
-      "No escape – they’re faster than you hoped.",
-      "You can’t shake them. The fight continues.",
-    ],
+  // ── Naval Phase ──────────────────────────────────────────────────────────
+  naval: {
+    // Player damage logs (broadside, precision, evade, grapple)
+    player: {
+      broadside: [
+        "Your broadside thunders across the waves, dealing {hull} hull damage and sweeping {crew} crew from the deck.",
+        "A full volley crashes into the enemy: {hull} to the hull, {crew} sailors lost.",
+        "Cannons roar in unison – {hull} hull damage, {crew} crew cut down.",
+        "The broadside lands true. {hull} hull integrity gone, {crew} enemy crew fall.",
+      ],
+      precision_hit: [
+        "Your precision shot finds its mark, tearing {hull} from the hull and killing {crew} crew.",
+        "Aimed and fired – the shot hits home. {hull} hull damage, {crew} crew down.",
+        "The gun crew cheers as the precision strike lands, dealing {hull} hull damage and {crew} casualties.",
+        "Right through the gunports! {hull} hull damage, {crew} enemy sailors lost.",
+      ],
+      precision_miss: [
+        "Your precision shot splashes harmlessly into the sea.",
+        "The aimed shot goes wide. Nothing but spray.",
+        "You overcorrect and miss cleanly.",
+        "The cannonball flies past the enemy’s rigging. A miss.",
+      ],
+      grapple_success: [
+        "Your grapples find purchase. The enemy ship is locked alongside. Boarding begins!",
+        "Hooks bite into timber – you pull the enemy close and prepare to board.",
+        "Grappling lines hold tight. The ships come together, and your crew readies for the assault.",
+        "You lash the enemy to your side. The boarding action is about to start.",
+      ],
+      grapple_fail: [
+        "Your grappling hooks fall short. The enemy ship pulls away.",
+        "The grapple fails – the distance is too great to board.",
+        "Your lines miss their mark. The enemy slips out of reach.",
+        "The grapple attempt fails. The enemy maintains its distance.",
+      ],
+      evade_success: [
+        "You slip away into the smoke and escape!",
+        "You disengage cleanly. The enemy is left behind.",
+        "A quick turn and you’re gone. They won’t catch you today.",
+        "You outrun them and vanish into the open sea.",
+      ],
+      evade_fail: [
+        "Evade fails! The enemy stays on your heels.",
+        "You try to flee but they match your speed.",
+        "No escape – they’re faster than you hoped.",
+        "You can’t shake them. The fight continues.",
+      ],
+
+      // ── NEW: Single‑side movement logs ────────────────────────────
+      close_distance_success: [
+        "You close the distance to {distance}.",
+        "You press forward, reducing the gap to {distance}.",
+        "Your ship surges ahead, bringing you to {distance} range.",
+        "The distance shortens to {distance}.",
+      ],
+      open_distance_success: [
+        "You open the distance to {distance}.",
+        "You fall back, widening the gap to {distance}.",
+        "Your ship pulls away, increasing the range to {distance}.",
+        "The distance lengthens to {distance}.",
+      ],
+    },
+
+    // NPC damage logs (broadside, precision, evade, grapple)
+    npc: {
+      broadside: [
+        "The enemy's broadside slams into your hull: {hull} damage, {crew} crew lost.",
+        "A return volley crashes home – {hull} hull, {crew} sailors down.",
+        "Their cannons speak. {hull} hull damage, {crew} crew casualties.",
+        "Fire and splinters: {hull} to the hull, {crew} crew swept away.",
+      ],
+      precision_hit: [
+        "The enemy's precision shot punches through – {hull} hull damage, {crew} crew killed.",
+        "A sniper’s aim: {hull} hull integrity lost, {crew} crew fall.",
+        "They land a perfect shot. {hull} damage, {crew} casualties.",
+        "A well‑aimed cannonball tears into your ship. {hull} hull, {crew} crew lost.",
+      ],
+      precision_miss: [
+        "The enemy's precision shot misses.",
+        "Their aimed shot splashes wide.",
+        "A cannonball whistles past harmlessly.",
+        "They fire too high – a miss.",
+      ],
+      grapple_success: [
+        "The enemy grapples your ship! Boarding begins.",
+        "Enemy grapples find their mark. They prepare to board.",
+        "They lash onto your hull. The boarding action is imminent.",
+      ],
+      grapple_fail: [
+        "The enemy's grapple fails. They remain at range.",
+        "Their grappling lines fall short. The attempt is foiled.",
+        "The enemy fails to close for boarding.",
+      ],
+      evade_success: [
+        "The enemy evades and breaks contact.",
+        "They slip away. The battle ends.",
+        "The enemy escapes into the open sea.",
+      ],
+      evade_fail: [
+        "The enemy's evade fails. They remain in the fight.",
+        "They try to flee but you match their speed.",
+        "No escape for them. The fight continues.",
+      ],
+
+      // ── NEW: Single‑side movement logs ────────────────────────────
+      close_distance_success: [
+        "The enemy closes the distance to {distance}.",
+        "They press forward, reducing the gap to {distance}.",
+        "The enemy ship surges ahead, bringing them to {distance} range.",
+        "The distance shortens to {distance}.",
+      ],
+      open_distance_success: [
+        "The enemy opens the distance to {distance}.",
+        "They fall back, widening the gap to {distance}.",
+        "The enemy pulls away, increasing the range to {distance}.",
+        "The distance lengthens to {distance}.",
+      ],
+    },
+
+    // ── Combined distance‑change logs (Close vs Open) ────────────────────
+    combined: {
+      close_vs_open_player_wins: [
+        "You win the manoeuvre contest. The distance closes to {distance}.",
+        "Your helmsman outpaces the enemy. The range shrinks to {distance}.",
+        "You out‑contest them. The ships draw closer to {distance}.",
+      ],
+      close_vs_open_enemy_wins: [
+        "The enemy wins the contest. The distance opens to {distance}.",
+        "They outmanoeuvre you. The range lengthens to {distance}.",
+        "The enemy outsails you. The gap widens to {distance}.",
+      ],
+      open_vs_close_player_wins: [
+        "You win the contest and open the distance to {distance}.",
+        "Your speed tells. The range lengthens to {distance}.",
+        "You outrun them. The distance increases to {distance}.",
+      ],
+      open_vs_close_enemy_wins: [
+        "The enemy wins the contest and closes the distance to {distance}.",
+        "They catch up. The range shrinks to {distance}.",
+        "The enemy outpaces you. The distance drops to {distance}.",
+      ],
+      both_close: [
+        "Both ships close. The distance drops to {distance}.",
+        "Mutual advance brings the range to {distance}.",
+        "You and the enemy both surge forward. The gap shrinks to {distance}.",
+      ],
+      both_open: [
+        "Both ships open. The distance increases to {distance}.",
+        "Mutual retreat widens the gap to {distance}.",
+        "You and the enemy both fall back. The range stretches to {distance}.",
+      ],
+    },
   },
-  npc: {
-    broadside: [
-      "The enemy's broadside slams into your hull: {hull} damage, {crew} crew lost.",
-      "A return volley crashes home – {hull} hull, {crew} sailors down.",
-      "Their cannons speak. {hull} hull damage, {crew} crew casualties.",
-      "Fire and splinters: {hull} to the hull, {crew} crew swept away.",
-    ],
-    precision_hit: [
-      "The enemy's precision shot punches through – {hull} hull damage, {crew} crew killed.",
-      "A sniper’s aim: {hull} hull integrity lost, {crew} crew fall.",
-      "They land a perfect shot. {hull} damage, {crew} casualties.",
-      "A well‑aimed cannonball tears into your ship. {hull} hull, {crew} crew lost.",
-    ],
-    precision_miss: [
-      "The enemy's precision shot misses.",
-      "Their aimed shot splashes wide.",
-      "A cannonball whistles past harmlessly.",
-      "They fire too high – a miss.",
-    ],
-    grapple_success: [
-      "The enemy grapples and boards! They kill {crew} of your crew.",
-      "They latch on and swarm your deck, cutting down {crew} sailors.",
-      "Enemy boarders pour over the rail. {crew} crew lost in the melee.",
-      "They try to take your ship by force, killing {crew} of your men.",
-    ],
-    grapple_fail: [
-      "The enemy's grapple fails. They lose {crew} crew in the attempt.",
-      "You throw them back and they retreat, {crew} men lighter.",
-      "The boarding is repelled. {crew} of theirs are cut down.",
-      "They fail to board and pull back, losing {crew} crew.",
-    ],
+
+  // ── Boarding Phase ──────────────────────────────────────────────────────
+  boarding: {
+    // Combined logs for every possible boarding action pair
+    combined: {
+      // Both sides continue fighting
+      continue_vs_continue: [
+        "The boarding fight rages on. {enemyCrewLost} enemy sailors fall, and you lose {crewLost} of your own.{lostNames}",
+        "Steel clashes in the melee. {enemyCrewLost} of the enemy are cut down; your casualties are {crewLost}.{lostNames}",
+        "The fight for the enemy deck continues. {enemyCrewLost} enemy dead, {crewLost} of yours.{lostNames}",
+        "Your boarders press forward. {enemyCrewLost} enemy crew killed; you lose {crewLost} sailors.{lostNames}",
+      ],
+      // Player continues, enemy falls back – enemy loses crew, player does not
+      continue_vs_fall_back: [
+        "The enemy attempts to fall back, but your crew cuts them down. {enemyCrewLost} of them fall.{lostNames}",
+        "They try to disengage, but your boarders press the attack. {enemyCrewLost} enemy dead.{lostNames}",
+        "The enemy retreats under fire, losing {enemyCrewLost} of their crew.{lostNames}",
+      ],
+      // Player continues, enemy surrenders – no crew loss
+      continue_vs_surrender: [
+        "The enemy surrenders. You take the prize without further loss.",
+        "They strike their colours. The ship is yours.",
+        "The enemy yields. Victory is yours.",
+      ],
+      // Player falls back, enemy continues – player loses crew, enemy does not
+      fall_back_vs_continue: [
+        "You fall back under fire, losing {crewLost} sailors.{lostNames}",
+        "Your retreat costs you {crewLost} crew; the enemy takes no casualties.{lostNames}",
+        "You break contact, but {crewLost} of your crew are cut down.{lostNames}",
+      ],
+      // Both fall back – both lose crew
+      fall_back_vs_fall_back: [
+        "Both crews fall back. You lose {crewLost}, they lose {enemyCrewLost}.{lostNames}",
+        "Mutual retreat. {crewLost} of yours and {enemyCrewLost} of theirs are lost.{lostNames}",
+        "Both sides disengage. Casualties: you {crewLost}, enemy {enemyCrewLost}.{lostNames}",
+      ],
+      // Player falls back, enemy surrenders – no crew loss
+      fall_back_vs_surrender: [
+        "The enemy surrenders as you pull back. The prize is yours.",
+        "They yield while you retreat. Victory is yours.",
+        "The enemy strikes their colours. You take the ship.",
+      ],
+      // Player demands surrender, enemy continues – success (enemy surrenders, no loss)
+      demand_surrender_vs_continue_success: [
+        "You demand the enemy's surrender. They lay down their arms. The prize is yours.",
+        "Your demand is answered. The enemy yields.",
+        "They surrender. Victory is yours.",
+      ],
+      // Player demands surrender, enemy continues – failure (player loses crew)
+      demand_surrender_vs_continue_fail: [
+        "You demand surrender, but the enemy refuses. The fight costs you {crewLost} crew.{lostNames}",
+        "Your demand is met with defiance. You lose {crewLost} sailors in the struggle.{lostNames}",
+        "They will not yield. Your attempt costs you {crewLost}.{lostNames}",
+      ],
+      // Player demands surrender, enemy falls back – automatic success (no crew loss)
+      demand_surrender_vs_fall_back: [
+        "You demand surrender as the enemy tries to fall back. They yield. The ship is yours.",
+        "The enemy's retreat is cut short by your demand. They surrender.",
+        "They have no stomach to fight. The prize is yours.",
+      ],
+      // Player demands surrender, enemy surrenders – both yield, no loss
+      demand_surrender_vs_surrender: [
+        "You demand surrender, and the enemy complies. The ship is yours.",
+        "They yield to your demand. Victory is yours.",
+      ],
+      // Player surrenders (any enemy action) – final, no crew loss
+      surrender_vs_anything: [
+        "You surrender to the enemy. The fight is over.",
+        "Your crew lays down arms. You are in enemy hands.",
+        "You yield. The battle ends.",
+      ],
+      // Enemy surrenders (when player did something else and enemy chose surrender) – no loss
+      enemy_surrender: [
+        "The enemy surrenders. The ship is yours.",
+        "They strike their colours. You have taken the vessel.",
+        "The enemy yields. The prize is yours.",
+      ],
+    },
+
+    // Outcome logs – used when boarding ends with a decisive result
+    outcome: {
+      player_wipeout: [
+        "Your crew is wiped out. The enemy takes the ship.",
+        "No boarders remain. The enemy has prevailed.",
+        "Your last sailor falls. The ship is lost.",
+      ],
+      enemy_wipeout: [
+        "The enemy crew is wiped out. You take the ship.",
+        "Every enemy boarder is cut down. The vessel is yours.",
+        "No resistance remains. The prize is yours.",
+      ],
+      player_surrendered: [
+        "You surrender to the enemy.",
+        "Your crew lays down arms. The enemy takes control.",
+      ],
+      enemy_surrendered: [
+        "The enemy surrenders to you.",
+        "They yield. You take the prize.",
+      ],
+      returned_to_naval: [
+        "The boarding action ends. The ships separate, returning to naval combat.",
+        "Both crews pull back. Naval combat resumes.",
+        "The melee is over. Ships at close range once more.",
+      ],
+    },
   },
 };
 

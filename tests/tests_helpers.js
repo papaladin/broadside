@@ -21,8 +21,6 @@
     _seqIndex = 0;
     Math.random = () => {
       if (_seqIndex >= _sequence.length) {
-        // Wrap rather than throw so a test that overestimates doesn't crash
-        // the whole suite — but log so the test author knows.
         console.warn(
           `[testHelpers] setRandomSequence: sequence exhausted after ${_sequence.length} calls — wrapping.`
         );
@@ -102,27 +100,58 @@
     },
   });
 
-  // ── Battle state factory ───────────────────────────────────────────────────
-  // Matches the shape produced by E.createBattleState.
+  // ── Enemy factory ──────────────────────────────────────────────────────────
+  // Includes risk field for boarding morale stand‑in.
 
   const makeEnemy = (overrides = {}) => ({
     name: "The Test Brigand",
     faction: "pirate",
-    shipType: "sloop",
+    shipType: "sloop", // visual only, not used in mechanics
     hull: 100,
     maxHull: 100,
     cannons: 10,
     crew: 20,
     speed: 8,
     gold: 200,
+    risk: "medium",   // <-- required for boarding ratio
     ...overrides,
   });
 
-  const makeBattle = (stateForContext, enemyOverrides = {}, battleOverrides = {}) => {
+  // ── Battle factory (creates an encounterSession with battle sub‑object) ──
+  // Matches the new B11 shape: state.encounterSession.battle.
+
+  const makeBattle = (enemyOverrides = {}, battleOverrides = {}) => {
     const enemy = makeEnemy(enemyOverrides);
-    // Use the real createBattleState so the shape is always authoritative.
-    const base = window.E.createBattleState(stateForContext, enemy, "Battle engaged.", "random");
-    return { ...base, ...battleOverrides };
+    const baseBattle = {
+      round: 1,
+      log: ["Battle engaged!"],
+      playerHull: 100,
+      playerCrew: 10,
+      initialPlayerCrew: 10,
+      lostCrewNames: [],
+      enemyHull: enemy.hull,
+      enemyCrew: enemy.crew,
+      distance: "medium",      // default, can be overridden
+      subPhase: "naval",       // default, can be overridden
+      phase: "player_turn",    // default, can be overridden
+      canPlunder: false,
+      goldReward: 0,
+      enemyCargo: {},
+    };
+    const battle = { ...baseBattle, ...battleOverrides };
+    const session = {
+      type: "random",
+      phase: "battle",
+      enemy: enemy,
+      battle: battle,
+      intercept: null,
+      plunder: null,
+      returnScreen: "port",
+      source: { kind: "random", id: null },
+      modifiers: [],
+      notableNPCId: null,
+    };
+    return { encounterSession: session, battle };
   };
 
   // ── Mission factory ────────────────────────────────────────────────────────
@@ -173,7 +202,7 @@
       ...extraOverrides,
     });
 
-  // Player mid-voyage toward a port.
+  // Player mid‑voyage toward a port.
   const makeSailingState = (
     fromPort = "portRoyal",
     toPort = "tortuga",
@@ -213,38 +242,12 @@
     });
   };
 
-  // Player mid-battle — pre-built battleState attached to a port state.
-const makeBattleState = (battleOverrides = {}, stateOverrides = {}) => {
-  const base = makePortState("portRoyal", stateOverrides);
-  const enemy = makeEnemy();
-  const battle = {
-    round: 1,
-    log: [],
-    playerHull: 100,
-    playerCrew: 10,
-    initialPlayerCrew: 10,
-    lostCrewNames: [],
-    enemyHull: enemy.hull,
-    enemyCrew: enemy.crew,
-    distance: "medium",
-    subPhase: "naval",
-    phase: "player_turn",
-    ...battleOverrides,
+  // Player mid‑battle – pre‑built encounterSession attached to a port state.
+  const makeBattleState = (battleOverrides = {}, stateOverrides = {}) => {
+    const base = makePortState("portRoyal", stateOverrides);
+    const { encounterSession } = makeBattle({}, battleOverrides);
+    return { ...base, screen: "battle", encounterSession };
   };
-  const session = {
-    type: "random",
-    phase: "battle",
-    enemy: enemy,
-    battle: battle,
-    intercept: null,
-    plunder: null,
-    returnScreen: "port",
-    source: { kind: "random", id: null },
-    modifiers: [],
-    notableNPCId: null,
-  };
-  return { ...base, screen: "battle", encounterSession: session };
-};
 
   // ── Dispatch wrapper ───────────────────────────────────────────────────────
   // Thin wrapper so tests read cleanly: const s2 = dispatch(s, A.REPAIR);

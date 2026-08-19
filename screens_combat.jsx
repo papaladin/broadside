@@ -25,6 +25,9 @@ window.S = window.S || {};
   } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
+  // Import distance-based action lookup
+  const { LEGAL_ACTIONS_BY_DISTANCE } = window.D;
+
 // -- HELPERS ----------------
 
 // Detect if the player's action missed or failed
@@ -187,13 +190,28 @@ const getVisualEquipment = (state) => {
     const session = state.encounterSession;
     if (!session || session.phase !== "battle" || !session.battle) return null;
     const battle = session.battle;
+    const enemy = session.enemy;
     const done = ["victory", "defeat", "fled"].includes(battle.phase);
+    const isBoarding = battle.subPhase === "boarding";
     const playerPct = battle.playerHull / SHIPS[state.ship.type].maxHull;
-    const enemyPct = battle.enemyHull / session.enemy.hull;
+    const enemyPct = battle.enemyHull / enemy.hull;
     const [showTutorial, setShowTutorial] = React.useState(
       () => shouldShowTutorial(state, "battle")
     );
     const [pulsedAction, setPulsedAction] = useState(null);
+
+    // ── Boarding ratio ──────────────────────────────────────────────
+    const ratio = isBoarding ? L.getBoardingRatio(state, battle, enemy) : 0.5;
+    const playerRatioPct = Math.round(ratio * 100);
+    const enemyRatioPct = 100 - playerRatioPct;
+
+    // ── Boarding action availability ──────────────────────────────
+    const canDemandSurrender = isBoarding && ratio >= 0.65;
+    const demandSurrenderTooltip = !isBoarding
+      ? "Not in boarding phase"
+      : ratio < 0.65
+        ? `Need a clear advantage (${Math.round(ratio * 100)}% / 65% required)`
+        : "";
 
     const [missFlash, setMissFlash] = useState(false);
     const prevLogLen = useRef(battle.log?.length || 0);
@@ -219,6 +237,156 @@ const getVisualEquipment = (state) => {
       return () => window.removeEventListener("resize", handle);
     }, []);
 
+    // ── Distance gating (naval only) ──────────────────────────────
+    const legalActions = LEGAL_ACTIONS_BY_DISTANCE[battle.distance] || [];
+    const isActionLegal = (action) => legalActions.includes(action);
+
+    const getActionTooltip = (action) => {
+      if (isActionLegal(action)) return null;
+      const map = {
+        broadside: "Broadside is available at all distances",
+        precision: "Precision is available at all distances",
+        close_distance: "Close Distance requires Far or Medium distance",
+        open_distance: "Open Distance requires Medium or Close distance",
+        evade: "Evade requires Far distance",
+        grapple: "Grapple requires Close distance",
+      };
+      return map[action] || "Not available at this distance";
+    };
+
+    // ── Distance indicator component ────────────────────────────────
+    const DistanceIndicator = () => {
+      const distances = ["far", "medium", "close"];
+      const labels = ["Far", "Medium", "Close"];
+      const currentIndex = distances.indexOf(battle.distance);
+
+      return (
+        <Panel style={{ padding: "8px 12px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+          <span style={{ color: T.textDim, fontSize: T.metadataFontSize }}>
+            Distance: <span style={{ color: T.gold, fontWeight: "bold", fontSize: T.heading3FontSize }}>
+              {battle.distance.toUpperCase()}
+            </span>
+          </span>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {distances.map((d, i) => {
+              const isActive = i === currentIndex;
+              const isPast = i < currentIndex;
+              const dotColor = isActive ? T.gold : isPast ? T.goldDim : T.textFaint;
+              return (
+                <div key={d} style={{ display: "flex", alignItems: "center" }}>
+                  <div style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    background: dotColor,
+                    border: isActive ? `2px solid ${T.gold}` : "none",
+                    boxShadow: isActive ? `0 0 8px ${T.gold}55` : "none",
+                    transition: "all 0.2s",
+                  }} />
+                  {i < distances.length - 1 && (
+                    <div style={{
+                      width: 16,
+                      height: 2,
+                      background: isPast ? T.goldDim : T.textFaint,
+                      opacity: isPast ? 0.6 : 0.3,
+                      margin: "0 2px",
+                      transition: "all 0.2s",
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <span style={{ color: T.textFaint, fontSize: T.captionFontSize, fontStyle: "italic" }}>
+            {battle.distance === "far" && "Long range – cannons at full spread"}
+            {battle.distance === "medium" && "Standard engagement range"}
+            {battle.distance === "close" && "Point-blank – boarding range"}
+          </span>
+        </Panel>
+      );
+    };
+
+    // ── Advantage Bar (boarding phase) ──────────────────────────────
+    const AdvantageBar = () => {
+      if (!isBoarding) return null;
+
+      // Effective crew counts with morale
+      const playerEffective = Math.round(battle.playerCrew * (0.5 + state.crew.morale / 200));
+      const enemyMoraleStandin = { low: 50, medium: 65, high: 80, assault: 90 }[enemy.risk] ?? 60;
+      const enemyEffective = Math.round(battle.enemyCrew * (0.5 + enemyMoraleStandin / 200));
+
+      const totalEffective = playerEffective + enemyEffective || 1;
+      const pPct = Math.round((playerEffective / totalEffective) * 100);
+      const ePct = 100 - pPct;
+
+      return (
+        <Panel style={{ marginBottom: 8 }}>
+          <div style={{ position: "relative", height: 24, borderRadius: 2, overflow: "hidden", background: T.bgDeep }}>
+            {/* Player side */}
+            <div style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `${pPct}%`,
+              background: T.greenBr,
+              transition: "width 0.3s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <span style={{
+                color: "#000",
+                fontWeight: "bold",
+                fontSize: T.metadataFontSize,
+                textShadow: "0 0 4px rgba(255,255,255,0.3)",
+              }}>
+                {pPct}%
+              </span>
+            </div>
+
+            {/* Enemy side */}
+            <div style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: `${ePct}%`,
+              background: T.redBr,
+              transition: "width 0.3s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <span style={{
+                color: "#000",
+                fontWeight: "bold",
+                fontSize: T.metadataFontSize,
+                textShadow: "0 0 4px rgba(255,255,255,0.3)",
+              }}>
+                {ePct}%
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: T.metadataFontSize }}>
+            <div style={{ color: T.greenBr }}>
+              <span style={{ color: T.text }}>Your crew: {battle.playerCrew}</span>
+              <span style={{ color: T.textDim, marginLeft: 8 }}>Morale: {state.crew.morale}%</span>
+              <span style={{ color: T.textDim, marginLeft: 8 }}>Effective: {playerEffective}</span>
+            </div>
+            <div style={{ color: T.redBr, textAlign: "right" }}>
+              <span style={{ color: T.text }}>Enemy crew: {battle.enemyCrew}</span>
+              <span style={{ color: T.textDim, marginLeft: 8 }}>Morale: {enemyMoraleStandin}%</span>
+              <span style={{ color: T.textDim, marginLeft: 8 }}>Effective: {enemyEffective}</span>
+            </div>
+          </div>
+        </Panel>
+      );
+    };
+
     return (
       <div style={{
         padding: T.spacing.lg, maxWidth: 680, margin: "0 auto",
@@ -227,117 +395,147 @@ const getVisualEquipment = (state) => {
       }}>
         {showTutorial && (
           <TutorialPopup
-            title="Naval Combat"
+            title={isBoarding ? "Boarding Phase" : "Naval Combat"}
             onDismiss={(disableAll) => {
               markTutorialSeen("battle", disableAll);
               setShowTutorial(false);
             }}
           >
-            <p>Choose an action each round:</p>
-            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-              <li><strong>Broadside</strong> — reliable cannon volley</li>
-              <li><strong>Precision</strong> — risky but devastating if it hits</li>
-              <li><strong>Grapple</strong> — board the enemy. High risk, instant victory if successful. Depends on your crew size advantage and morale.</li>
-              <li><strong>Evade</strong> — attempt to flee the battle, depend on your ship speed.</li>
-            </ul>
-            <p>Watch your hull and crew. If your hull reaches zero, you lose.</p>
+            {isBoarding ? (
+              <>
+                <p>You've grappled the enemy ship! Choose your action:</p>
+                <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+                  <li><strong>Continue Fighting</strong> — keep pressing the attack</li>
+                  <li><strong>Fall Back</strong> — retreat and return to naval combat</li>
+                  <li><strong>Demand Surrender</strong> — force them to yield (requires clear advantage)</li>
+                  <li><strong>Surrender</strong> — yield to the enemy</li>
+                </ul>
+                <p>The advantage bar shows your relative boarding strength based on crew count and morale.</p>
+              </>
+            ) : (
+              <>
+                <p>Choose an action each round:</p>
+                <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+                  <li><strong>Broadside</strong> — reliable cannon volley</li>
+                  <li><strong>Precision</strong> — risky but devastating if it hits</li>
+                  <li><strong>Close Distance</strong> — move closer to the enemy</li>
+                  <li><strong>Open Distance</strong> — move further away</li>
+                  <li><strong>Grapple</strong> — board the enemy. High risk, instant victory if successful. Depends on your crew size advantage and morale.</li>
+                  <li><strong>Evade</strong> — attempt to flee the battle, depend on your ship speed.</li>
+                </ul>
+                <p>Watch your hull and crew. If your hull reaches zero, you lose.</p>
+              </>
+            )}
           </TutorialPopup>
         )}
 
         <div style={{
-          textAlign: "center", color: T.redBr, fontSize: T.heading2FontSize,
+          textAlign: "center", color: isBoarding ? T.blueBr : T.redBr,
+          fontSize: T.heading2FontSize,
           fontWeight: "bold", letterSpacing: "0.1em",
         }}>
-          <IconSwords size={22} color={T.redBr} /> NAVAL BATTLE — ROUND {battle.round}
+          {isBoarding ? (
+            <><IconSwords size={22} color={T.blueBr} /> BOARDING ACTION — ROUND {battle.round}</>
+          ) : (
+            <><IconSwords size={22} color={T.redBr} /> NAVAL BATTLE — ROUND {battle.round}</>
+          )}
         </div>
 
-        {/* ── Ship panels with sprites ────────────────────────────── */}
-        {(() => {
-          const playerType = state.ship.type;
-          const enemyType = L.guessShipType(session.enemy);
-          const playerVisual = window.D.SHIP_VISUALS?.[playerType];
-          const enemyVisual = window.D.SHIP_VISUALS?.[enemyType];
+        {/* ── Ship panels (naval only) ────────────────────────────── */}
+        {!isBoarding && (
+          (() => {
+            const playerType = state.ship.type;
+            const enemyType = L.guessShipType(enemy);
+            const playerVisual = window.D.SHIP_VISUALS?.[playerType];
+            const enemyVisual = window.D.SHIP_VISUALS?.[enemyType];
 
-          const playerLen = playerVisual?.hullLength || 400;
-          const enemyLen = enemyVisual?.hullLength || 400;
-          const maxLen = Math.max(playerLen, enemyLen);
-          const playerSize = playerLen / maxLen;
-          const enemySize = enemyLen / maxLen;
+            const playerLen = playerVisual?.hullLength || 400;
+            const enemyLen = enemyVisual?.hullLength || 400;
+            const maxLen = Math.max(playerLen, enemyLen);
+            const playerSize = playerLen / maxLen;
+            const enemySize = enemyLen / maxLen;
 
-          const baseW = isNarrowBattle ? 150 : 270;
-          const baseH = isNarrowBattle ? 100 : 175;
+            const baseW = isNarrowBattle ? 150 : 270;
+            const baseH = isNarrowBattle ? 100 : 175;
 
-          return (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "stretch" }}>
-              {/* Player ship panel */}
-              <Panel color={T.blueBr} style={{ padding: 8 }}>
-                <div style={{
-                  background: T.bgDeep,
-                  borderRadius: 3,
-                  border: `1px solid ${T.borderFaint}`,
-                  padding: 4,
-                  marginBottom: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: baseH + 8,
-                }}>
-                  <ShipSideSprite
-                    type={playerType}
-                    faction={null}
-                    equipment={getVisualEquipment(state)}
-                    width={Math.round(baseW * playerSize)}
-                    height={Math.round(baseH * playerSize)}
-                    facing="right"
-                  />
-                </div>
-                <div style={{ color: T.blueBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{state.ship.name}</div>
-                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
-                <Bar value={battle.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
-                {battle.convoyHull !== undefined && (
-                  <>
-                    <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {battle.convoyHull} / 50</div>
-                    <Bar value={battle.convoyHull} max={50} color={battle.convoyHull / 50 >= 0.6 ? T.greenBr : battle.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
-                  </>
-                )}
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
-              </Panel>
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 26px 1fr", gap: 4, alignItems: "stretch" }}>
+                {/* Player ship panel */}
+                <Panel color={T.blueBr} style={{ padding: 8 }}>
+                  <div style={{
+                    background: T.bgDeep,
+                    borderRadius: 3,
+                    border: `1px solid ${T.borderFaint}`,
+                    padding: 4,
+                    marginBottom: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: baseH + 8,
+                  }}>
+                    <ShipSideSprite
+                      type={playerType}
+                      faction={null}
+                      equipment={getVisualEquipment(state)}
+                      width={Math.round(baseW * playerSize)}
+                      height={Math.round(baseH * playerSize)}
+                      facing="right"
+                    />
+                  </div>
+                  <div style={{ color: T.blueBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{state.ship.name}</div>
+                  <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.playerHull} / {SHIPS[state.ship.type].maxHull}</div>
+                  <Bar value={battle.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                  {battle.convoyHull !== undefined && (
+                    <>
+                      <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {battle.convoyHull} / 50</div>
+                      <Bar value={battle.convoyHull} max={50} color={battle.convoyHull / 50 >= 0.6 ? T.greenBr : battle.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
+                    </>
+                  )}
+                  <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>
+                </Panel>
 
-              <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
+                <div style={{ textAlign: "center", color: T.redBr, fontSize: 22 }}>⚡</div>
 
-              {/* Enemy ship panel */}
-              <Panel color={T.red} style={{ padding: 8 }}>
-                <div style={{
-                  background: T.bgDeep,
-                  borderRadius: 3,
-                  border: `1px solid ${T.borderFaint}`,
-                  padding: 4,
-                  marginBottom: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: baseH + 8,
-                }}>
-                  <ShipSideSprite
-                    type={enemyType}
-                    faction={session.enemy.faction}
-                    equipment={[]}
-                    width={Math.round(baseW * enemySize)}
-                    height={Math.round(baseH * enemySize)}
-                    facing="left"
-                  />
-                </div>
-                <div style={{ color: T.redBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{session.enemy.name}</div>
-                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.enemyHull} / {session.enemy.hull}</div>
-                <Bar value={battle.enemyHull} max={session.enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{battle.enemyCrew} crew · {session.enemy.cannons} cannons</div>
-                <div style={{ marginTop: 5 }}><FactionPill faction={session.enemy.faction} /></div>
-              </Panel>
-            </div>
-          );
-        })()}
+                {/* Enemy ship panel */}
+                <Panel color={T.red} style={{ padding: 8 }}>
+                  <div style={{
+                    background: T.bgDeep,
+                    borderRadius: 3,
+                    border: `1px solid ${T.borderFaint}`,
+                    padding: 4,
+                    marginBottom: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: baseH + 8,
+                  }}>
+                    <ShipSideSprite
+                      type={enemyType}
+                      faction={enemy.faction}
+                      equipment={[]}
+                      width={Math.round(baseW * enemySize)}
+                      height={Math.round(baseH * enemySize)}
+                      facing="left"
+                    />
+                  </div>
+                  <div style={{ color: T.redBr, fontSize: T.heading1FontSize, marginBottom: 4 }}>{enemy.name}</div>
+                  <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4 }}>Hull: {battle.enemyHull} / {enemy.hull}</div>
+                  <Bar value={battle.enemyHull} max={enemy.hull} color={enemyPct >= 0.6 ? T.greenBr : enemyPct >= 0.3 ? T.gold : T.redBr} h={10} />
+                  <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{battle.enemyCrew} crew · {enemy.cannons} cannons</div>
+                  <div style={{ marginTop: 5 }}><FactionPill faction={enemy.faction} /></div>
+                </Panel>
+              </div>
+            );
+          })()
+        )}
 
-        {isNarrowBattle && window.innerWidth < 400 && (
+        {/* ── Boarding: Advantage Bar ────────────────────────────── */}
+        {isBoarding && <AdvantageBar />}
+
+        {/* ── Distance indicator (naval only) ────────────────────── */}
+        {!isBoarding && <DistanceIndicator />}
+
+        {isNarrowBattle && window.innerWidth < 400 && !isBoarding && (
           <div style={{
             fontSize: 9,
             color: T.textFaint,
@@ -371,48 +569,177 @@ const getVisualEquipment = (state) => {
 
         {!done ? (
           <div>
-            <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: window.innerWidth < 480 ? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: T.spacing.sm,
-            }}>
-              {[ 
-                { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: "Full cannon volley. Reliable damage.", glow: T.redBr },
-                { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: "Aimed shot. Miss or massive damage.", glow: T.yellow },
-                { a: "grapple",   label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple",   desc: "Board them. Requires crew advantage.", glow: T.blueBr },
-                { a: "evade",     label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade",     desc: "Flee if faster. Reduced incoming fire.", glow: T.greenBr },
-              ].map(({ a, label, lbl, desc, glow }) => (
-                <Panel
-                  key={a}
-                  color={glow}
-                  className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
-                  style={{ background: T.panelAlt, cursor: "pointer", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s" }}
-                  onClick={() => {
-                    dispatch({ type: A.BATTLE_ACTION, action: a });
-                    setPulsedAction(a);
-                    setTimeout(() => setPulsedAction(null), 150);
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = glow;
-                    e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
-                    e.currentTarget.style.transform = "scale(1.03)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = '';
-                    e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.transform = "scale(1)";
-                  }}
-                >
-                  <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
-                    {label}{lbl}
-                  </div>
-                  <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
-                </Panel>
-              ))}
-            </div>
+            {isBoarding ? (
+              // ── Boarding Actions ──────────────────────────────────
+              <div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
+                  BOARDING ACTIONS — {playerRatioPct}% advantage
+                </div>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: isNarrowBattle ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
+                  gap: T.spacing.sm,
+                }}>
+                  {[
+                    { a: "continue_fighting", label: "Continue Fighting", desc: "Press the attack", color: T.greenBr },
+                    { a: "fall_back", label: "Fall Back", desc: "Return to naval combat", color: T.gold },
+                    { a: "demand_surrender", label: "Demand Surrender", desc: "Force them to yield", color: T.blueBr, disabled: !canDemandSurrender, tooltip: demandSurrenderTooltip },
+                    { a: "surrender", label: "Surrender", desc: "Yield to the enemy", color: T.redBr },
+                  ].map(({ a, label, desc, color, disabled = false, tooltip = "" }) => (
+                    <Panel
+                      key={a}
+                      color={disabled ? T.borderFaint : color}
+                      className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
+                      style={{
+                        background: T.panelAlt,
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
+                        opacity: disabled ? 0.5 : 1,
+                        borderColor: disabled ? T.borderFaint : color,
+                      }}
+                      onClick={() => {
+                        if (disabled) return;
+                        dispatch({ type: A.BATTLE_ACTION, action: a });
+                        setPulsedAction(a);
+                        setTimeout(() => setPulsedAction(null), 150);
+                      }}
+                      onMouseEnter={e => {
+                        if (disabled) return;
+                        e.currentTarget.style.borderColor = color;
+                        e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
+                        e.currentTarget.style.transform = "scale(1.03)";
+                      }}
+                      onMouseLeave={e => {
+                        if (disabled) return;
+                        e.currentTarget.style.borderColor = '';
+                        e.currentTarget.style.boxShadow = "none";
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
+                      title={tooltip || ""}
+                    >
+                      <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
+                        {label}
+                      </div>
+                      <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                    </Panel>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // ── Naval Actions ────────────────────────────────────
+              <div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>CHOOSE YOUR ACTION:</div>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: T.spacing.sm,
+                  marginBottom: T.spacing.sm,
+                }}>
+                  {[
+                    { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: "Full cannon volley. Reliable damage.", glow: T.redBr },
+                    { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: "Aimed shot. Miss or massive damage.", glow: T.yellow },
+                    { a: "grapple", label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple", desc: "Board them. Requires crew advantage.", glow: T.blueBr },
+                  ].map(({ a, label, lbl, desc, glow }) => {
+                    const legal = isActionLegal(a);
+                    const tooltip = getActionTooltip(a);
+                    return (
+                      <Panel
+                        key={a}
+                        color={legal ? glow : T.borderFaint}
+                        className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
+                        style={{
+                          background: T.panelAlt,
+                          cursor: legal ? "pointer" : "not-allowed",
+                          transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
+                          opacity: legal ? 1 : 0.5,
+                          borderColor: legal ? glow : T.borderFaint,
+                        }}
+                        onClick={() => {
+                          if (!legal) return;
+                          dispatch({ type: A.BATTLE_ACTION, action: a });
+                          setPulsedAction(a);
+                          setTimeout(() => setPulsedAction(null), 150);
+                        }}
+                        onMouseEnter={e => {
+                          if (!legal) return;
+                          e.currentTarget.style.borderColor = glow;
+                          e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
+                          e.currentTarget.style.transform = "scale(1.03)";
+                        }}
+                        onMouseLeave={e => {
+                          if (!legal) return;
+                          e.currentTarget.style.borderColor = '';
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "scale(1)";
+                        }}
+                        title={tooltip || ""}
+                      >
+                        <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
+                          {label}{lbl}
+                        </div>
+                        <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                      </Panel>
+                    );
+                  })}
+                </div>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: T.spacing.sm,
+                }}>
+                  {[
+                    { a: "evade", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade", desc: "Flee if faster. Reduced incoming fire.", glow: T.greenBr },
+                    { a: "open_distance", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Open Distance", desc: "Move further away.", glow: T.greenBr },
+                    { a: "close_distance", label: React.createElement(IconGrapple, { size: 14, color: T.greenBr }), lbl: " Close Distance", desc: "Move closer to the enemy.", glow: T.greenBr },
+                  ].map(({ a, label, lbl, desc, glow }) => {
+                    const legal = isActionLegal(a);
+                    const tooltip = getActionTooltip(a);
+                    return (
+                      <Panel
+                        key={a}
+                        color={legal ? glow : T.borderFaint}
+                        className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
+                        style={{
+                          background: T.panelAlt,
+                          cursor: legal ? "pointer" : "not-allowed",
+                          transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
+                          opacity: legal ? 1 : 0.5,
+                          borderColor: legal ? glow : T.borderFaint,
+                        }}
+                        onClick={() => {
+                          if (!legal) return;
+                          dispatch({ type: A.BATTLE_ACTION, action: a });
+                          setPulsedAction(a);
+                          setTimeout(() => setPulsedAction(null), 150);
+                        }}
+                        onMouseEnter={e => {
+                          if (!legal) return;
+                          e.currentTarget.style.borderColor = glow;
+                          e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
+                          e.currentTarget.style.transform = "scale(1.03)";
+                        }}
+                        onMouseLeave={e => {
+                          if (!legal) return;
+                          e.currentTarget.style.borderColor = '';
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "scale(1)";
+                        }}
+                        title={tooltip || ""}
+                      >
+                        <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
+                          {label}{lbl}
+                        </div>
+                        <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                      </Panel>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
+          // ── Victory / Defeat / Fled ──────────────────────────────
           <div style={{ textAlign: "center" }}>
             <div style={{
               color: battle.phase === "victory" ? T.greenBr : battle.phase === "fled" ? T.gold : T.redBr,

@@ -244,168 +244,262 @@ window.L = window.L || {};
       "hostile_port_entry",
       "escort_defend",
       "navy_patrol_combat",
+      "navy_patrol", 
       "assault",
     ];
     const farRangeTypes = [
       "distressed_merchant_help",
       "distressed_merchant_plunder",
       "patrol",
+      "random",
     ];
     if (closeRangeTypes.includes(encounterType)) return "close";
     if (farRangeTypes.includes(encounterType)) return "far";
     return "medium";
   };
 
-  const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy) => {
-    const distance = battle.distance;
-    const shipStats = window.L.getShipStats(state);
-    const playerSpeed = shipStats.speed;
-    const enemySpeed = enemy.speed || 10;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  NPC STUB AI (Part 7 – temporary stub, to be replaced with scoring AI)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    const calculateDamage = (actorCannons, distance, actionType) => {
-      const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS[actionType]?.[distance] || 1.0;
-      const baseDmg = actorCannons * (0.8 + Math.random() * 0.4);
-      const hullDmg = Math.max(1, Math.floor(baseDmg * 0.6 * mult));
-      const crewLoss = Math.random() < 0.5 ? 0 : Math.floor(baseDmg * 0.4 / 3 * mult);
-      return { hullDamage: hullDmg, crewLoss: crewLoss };
-    };
+// Naval stub – picks based on distance and hull condition.
+// See design doc Section 8 – this is explicitly a stub, not the final tuned AI.
+const getNPCNavalAction = (battle, enemy) => {
+  const distance = battle.distance;
+  const hullPct = battle.enemyHull / enemy.hull;
 
-    const calculatePrecisionDamage = (actorCannons, distance) => {
-      const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS.precision?.[distance] || 1.0;
-      const hitChance = 0.7;
-      if (Math.random() >= hitChance) return { hullDamage: 0, crewLoss: 0, hit: false };
-      const baseDmg = actorCannons * (1.2 + Math.random() * 0.6);
-      const hullDmg = Math.floor(baseDmg * 0.9 * mult);
-      const crewLoss = Math.random() < 0.5 ? 0 : Math.floor(baseDmg * 0.1 / 3 * mult);
-      return { hullDamage: hullDmg, crewLoss: crewLoss, hit: true };
-    };
+  // If at Close and hull is low, try to open distance (flee the danger zone)
+  if (distance === "close" && hullPct < 0.3 && Math.random() < 0.3) {
+    return "open_distance";
+  }
 
-    // Step 1: Evade
-    if (playerAction === "evade") {
-      const opposed = enemyAction === "close_distance";
-      if (!opposed) {
-        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, log: [] };
-      }
-      const succeeds = resolveSpeedContest(playerSpeed, enemySpeed);
-      if (succeeds) {
-        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, log: [] };
-      }
-      const newDistance = stepDistance(distance, -1);
-      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, log: [] };
+  // Occasionally try to close distance if not already Close
+  if (distance !== "close" && Math.random() < 0.15) {
+    return "close_distance";
+  }
+
+  // Otherwise, fire: 70% broadside, 30% precision
+  return Math.random() < 0.7 ? "broadside" : "precision";
+};
+
+// Boarding stub – picks based on ratio.
+// See design doc Section 8 – stub only, replaced later.
+const getNPCBoardingAction = (battle, enemy, ratio) => {
+  // Enemy side's effective ratio (1 - player ratio)
+  const enemyRatio = 1 - ratio;
+
+  // If enemy is severely outmatched (ratio < 0.25):
+  // 25% chance to surrender, 5% chance to fall back, otherwise continue fighting.
+  if (enemyRatio < 0.25) {
+    const roll = Math.random();
+    if (roll < 0.25) return "surrender";
+    if (roll < 0.30) return "fall_back";
+    return "continue_fighting";
+  }
+
+  // Otherwise, always continue fighting
+  return "continue_fighting";
+};
+
+const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy) => {
+  const distance = battle.distance;
+  const shipStats = window.L.getShipStats(state);
+  const playerSpeed = shipStats.speed;
+  const enemySpeed = enemy.speed || 10;
+
+  // Helper: calculate broadside damage (hull + crew) for an actor
+  const calcBroadside = (cannons, dist) => {
+    const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS.broadside[dist] || 1.0;
+    const dmg = cannons * (0.8 + Math.random() * 0.4);
+    const hullDmg = Math.max(1, Math.floor(dmg * 0.6 * mult));
+    const crewLoss = window.L.maybeCrewLoss(dmg * 0.4 / 3 * mult);
+    return { hullDamage: hullDmg, crewLoss: crewLoss };
+  };
+
+  // Helper: calculate precision damage (hit chance, hull+crew)
+  const calcPrecision = (cannons, dist) => {
+    const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS.precision[dist] || 1.0;
+    const hitChance = 0.7 + (window.L.getEquipmentEffect(state, "precisionHitPct") || 0);
+    const hit = Math.random() < hitChance;
+    if (!hit) return { hullDamage: 0, crewLoss: 0, hit: false };
+    const dmg = cannons * (1.2 + Math.random() * 0.6);
+    const hullDmg = Math.floor(dmg * 0.9 * mult);
+    const crewLoss = window.L.maybeCrewLoss(dmg * 0.1 / 3 * mult);
+    return { hullDamage: hullDmg, crewLoss: crewLoss, hit: true };
+  };
+
+  // Step 1: Evade (contested only vs Close Distance)
+  if (playerAction === "evade") {
+    const opposed = enemyAction === "close_distance";
+    if (!opposed) {
+      return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
     }
-
-    if (enemyAction === "evade") {
-      const opposed = playerAction === "close_distance";
-      if (!opposed) {
-        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, log: [] };
-      }
-      const succeeds = resolveSpeedContest(enemySpeed, playerSpeed);
-      if (succeeds) {
-        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, log: [] };
-      }
-      const newDistance = stepDistance(distance, -1);
-      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, log: [] };
+    const succeeds = window.L.resolveSpeedContest(playerSpeed, enemySpeed);
+    if (succeeds) {
+      return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
     }
+    const newDistance = window.L.stepDistance(distance, -1);
+    return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+  }
 
-    // Step 2: Damage
-    let playerHullDamage = 0;
-    let enemyHullDamage = 0;
-    let playerCrewLoss = 0;
-    let enemyCrewLoss = 0;
-    let playerHit = false;
-    let enemyHit = false;
-
-    if (playerAction === "broadside") {
-      const result = calculateDamage(shipStats.cannons, distance, "broadside");
-      enemyHullDamage += result.hullDamage;
-      enemyCrewLoss += result.crewLoss;
-    } else if (playerAction === "precision") {
-      const result = calculatePrecisionDamage(shipStats.cannons, distance);
-      playerHit = result.hit;
-      enemyHullDamage += result.hullDamage;
-      enemyCrewLoss += result.crewLoss;
+  if (enemyAction === "evade") {
+    const opposed = playerAction === "close_distance";
+    if (!opposed) {
+      return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
     }
-
-    if (enemyAction === "broadside") {
-      const result = calculateDamage(enemy.cannons, distance, "broadside");
-      playerHullDamage += result.hullDamage;
-      playerCrewLoss += result.crewLoss;
-    } else if (enemyAction === "precision") {
-      const result = calculatePrecisionDamage(enemy.cannons, distance);
-      enemyHit = result.hit;
-      playerHullDamage += result.hullDamage;
-      playerCrewLoss += result.crewLoss;
+    const succeeds = window.L.resolveSpeedContest(enemySpeed, playerSpeed);
+    if (succeeds) {
+      return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
     }
+    const newDistance = window.L.stepDistance(distance, -1);
+    return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+  }
 
-    // Step 3: Hull/Crew check
-    const newPlayerHull = Math.max(0, battle.playerHull - playerHullDamage);
-    const newEnemyHull  = Math.max(0, battle.enemyHull - enemyHullDamage);
-    const newPlayerCrew = Math.max(0, battle.playerCrew - playerCrewLoss);
-    const newEnemyCrew  = Math.max(0, battle.enemyCrew - enemyCrewLoss);
+  // Step 2: Damage (Broadside / Precision)
+  let playerHullDamage = 0, enemyHullDamage = 0;
+  let playerCrewLoss = 0, enemyCrewLoss = 0;
+  let playerHit = false, enemyHit = false;
 
-    const playerDefeated = newPlayerHull === 0 || newPlayerCrew === 0;
-    const enemyDefeated  = newEnemyHull === 0 || newEnemyCrew === 0;
+  if (playerAction === "broadside") {
+    const result = calcBroadside(shipStats.cannons, distance);
+    enemyHullDamage += result.hullDamage;
+    enemyCrewLoss += result.crewLoss;
+  } else if (playerAction === "precision") {
+    const result = calcPrecision(shipStats.cannons, distance);
+    playerHit = result.hit;
+    enemyHullDamage += result.hullDamage;
+    enemyCrewLoss += result.crewLoss;
+  }
 
-    if (playerDefeated || enemyDefeated) {
-      if (playerDefeated) {
-        const outcome = newPlayerHull === 0 ? "player_sunk" : "player_captured";
-        return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, log: [] };
-      }
-      const outcome = newEnemyHull === 0 ? "enemy_sunk" : "enemy_captured";
-      return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, log: [] };
-    }
+  if (enemyAction === "broadside") {
+    const result = calcBroadside(enemy.cannons, distance);
+    playerHullDamage += result.hullDamage;
+    playerCrewLoss += result.crewLoss;
+  } else if (enemyAction === "precision") {
+    const result = calcPrecision(enemy.cannons, distance);
+    enemyHit = result.hit;
+    playerHullDamage += result.hullDamage;
+    playerCrewLoss += result.crewLoss;
+  }
 
-    // Step 4: Reposition
-    let newDistance = distance;
-    const bothClose = playerAction === "close_distance" && enemyAction === "close_distance";
-    const bothOpen  = playerAction === "open_distance"  && enemyAction === "open_distance";
-    const closeOpenContest = (playerAction === "close_distance" && enemyAction === "open_distance") ||
-                              (playerAction === "open_distance"  && enemyAction === "close_distance");
+  // Step 3: Hull/Crew check
+  const newPlayerHull = Math.max(0, battle.playerHull - playerHullDamage);
+  const newEnemyHull = Math.max(0, battle.enemyHull - enemyHullDamage);
+  const newPlayerCrew = Math.max(0, battle.playerCrew - playerCrewLoss);
+  const newEnemyCrew = Math.max(0, battle.enemyCrew - enemyCrewLoss);
 
-    if (bothClose) {
-      newDistance = stepDistance(distance, -1);
-    } else if (bothOpen) {
-      newDistance = stepDistance(distance, +1);
-    } else if (closeOpenContest) {
-      const playerWantsClose = playerAction === "close_distance";
-      const actorSpeed = playerWantsClose ? playerSpeed : enemySpeed;
-      const opposerSpeed = playerWantsClose ? enemySpeed : playerSpeed;
-      const actorWins = resolveSpeedContest(actorSpeed, opposerSpeed);
-      if (actorWins) {
-        newDistance = stepDistance(distance, playerWantsClose ? -1 : +1);
-      }
-    } else if (playerAction === "close_distance" || playerAction === "open_distance") {
-      newDistance = stepDistance(distance, playerAction === "close_distance" ? -1 : +1);
-    } else if (enemyAction === "close_distance" || enemyAction === "open_distance") {
-      newDistance = stepDistance(distance, enemyAction === "close_distance" ? -1 : +1);
-    }
+  const playerDefeated = newPlayerHull === 0 || newPlayerCrew === 0;
+  const enemyDefeated = newEnemyHull === 0 || newEnemyCrew === 0;
 
-    // Step 5: Grapple
-    const playerGrapples = playerAction === "grapple" && newDistance === "close";
-    const enemyGrapples   = enemyAction === "grapple" && newDistance === "close";
-
-    if (playerGrapples || enemyGrapples) {
+  if (playerDefeated || enemyDefeated) {
+    if (playerDefeated) {
+      const outcome = newPlayerHull === 0 ? "player_sunk" : "player_captured";
       return {
-        outcome: "boarding_begins",
+        outcome,
         playerHullDamage,
         enemyHullDamage,
         playerCrewLoss,
         enemyCrewLoss,
-        newDistance,
-        log: [],
+        newDistance: null,
+        distanceChangeWinner: null,
+        playerHit,
+        npcHit: enemyHit,
+        playerGrappleSuccess: false,
+        npcGrappleSuccess: false,
+        fled: false,
+        log: []
       };
     }
-
+    const outcome = newEnemyHull === 0 ? "enemy_sunk" : "enemy_captured";
     return {
-      outcome: "continue",
+      outcome,
+      playerHullDamage,
+      enemyHullDamage,
+      playerCrewLoss,
+      enemyCrewLoss,
+      newDistance: null,
+      distanceChangeWinner: null,
+      playerHit,
+      npcHit: enemyHit,
+      playerGrappleSuccess: false,
+      npcGrappleSuccess: false,
+      fled: false,
+      log: []
+    };
+  }
+
+  // Step 4: Reposition
+  let newDistance = distance;
+  let distanceChangeWinner = null;
+  const bothClose = playerAction === "close_distance" && enemyAction === "close_distance";
+  const bothOpen = playerAction === "open_distance" && enemyAction === "open_distance";
+  const closeOpenContest = (playerAction === "close_distance" && enemyAction === "open_distance") ||
+                            (playerAction === "open_distance" && enemyAction === "close_distance");
+
+  if (bothClose) {
+    newDistance = window.L.stepDistance(distance, +1);
+    distanceChangeWinner = "none";
+  } else if (bothOpen) {
+    newDistance = window.L.stepDistance(distance, -1);
+    distanceChangeWinner = "none";
+  } else if (closeOpenContest) {
+    const playerWantsClose = playerAction === "close_distance";
+    const actorSpeed = playerWantsClose ? playerSpeed : enemySpeed;
+    const opposerSpeed = playerWantsClose ? enemySpeed : playerSpeed;
+    const actorWins = window.L.resolveSpeedContest(actorSpeed, opposerSpeed);
+    if (actorWins) {
+      newDistance = window.L.stepDistance(distance, playerWantsClose ? +1 : -1);
+      distanceChangeWinner = playerWantsClose ? "player" : "enemy";
+    } else {
+      newDistance = window.L.stepDistance(distance, playerWantsClose ? -1 : +1);
+      distanceChangeWinner = playerWantsClose ? "enemy" : "player";
+    }
+  } else if (playerAction === "close_distance" || playerAction === "open_distance") {
+    newDistance = window.L.stepDistance(distance, playerAction === "close_distance" ? +1 : -1);
+    distanceChangeWinner = "player";
+  } else if (enemyAction === "close_distance" || enemyAction === "open_distance") {
+    newDistance = window.L.stepDistance(distance, enemyAction === "close_distance" ? +1 : -1);
+    distanceChangeWinner = "enemy";
+  }
+
+  // Step 5: Grapple (only if newDistance is "close")
+  const playerGrapples = playerAction === "grapple" && newDistance === "close";
+  const enemyGrapples = enemyAction === "grapple" && newDistance === "close";
+
+  if (playerGrapples || enemyGrapples) {
+    return {
+      outcome: "boarding_begins",
       playerHullDamage,
       enemyHullDamage,
       playerCrewLoss,
       enemyCrewLoss,
       newDistance,
-      log: [],
+      distanceChangeWinner,
+      playerHit,
+      npcHit: enemyHit,
+      playerGrappleSuccess: playerGrapples,
+      npcGrappleSuccess: enemyGrapples,
+      fled: false,
+      log: []
     };
+  }
+
+  return {
+    outcome: "continue",
+    playerHullDamage,
+    enemyHullDamage,
+    playerCrewLoss,
+    enemyCrewLoss,
+    newDistance,
+    distanceChangeWinner,
+    playerHit,
+    npcHit: enemyHit,
+    playerGrappleSuccess: false,
+    npcGrappleSuccess: false,
+    fled: false,
+    log: []
   };
+};
 
   const RISK_MORALE_STANDIN = { low: 50, medium: 65, high: 80, assault: 90 };
 
@@ -676,6 +770,8 @@ window.L = window.L || {};
     resolveCombatAction,
 
     // B11 combat
+    getNPCNavalAction,
+    getNPCBoardingAction,
     resolveNavalRound,
     getBoardingRatio,
     resolveBoardingRound,

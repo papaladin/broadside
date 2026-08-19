@@ -12,72 +12,200 @@
 
   const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  // Build a narrative round log using templates from D.COMBAT_LOG_TEMPLATES
-  const buildRoundLog = (outcome) => {
-    const T = D.COMBAT_LOG_TEMPLATES;
-    if (!T) return "";
+  // ── Build a narrative round log using the new combined templates ──────────
+const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) => {
+  const T = D.COMBAT_LOG_TEMPLATES;
+  if (!T) return "";
 
-    const playerAct = outcome.playerAction;
-    let playerLog = "";
-    if (playerAct === "broadside") {
-      playerLog = pickRandom(T.player.broadside)
-        .replace("{hull}", outcome.playerHullDamageOutput)
-        .replace("{crew}", outcome.enemyCrewLossFromPlayerAction);
-    } else if (playerAct === "precision") {
-      playerLog = outcome.playerHit
-        ? pickRandom(T.player.precision_hit)
-            .replace("{hull}", outcome.playerHullDamageOutput)
-            .replace("{crew}", outcome.enemyCrewLossFromPlayerAction)
-        : pickRandom(T.player.precision_miss);
-    } else if (playerAct === "grapple") {
-      playerLog = outcome.playerGrappleSuccess
-        ? pickRandom(T.player.grapple_success)
-        : pickRandom(T.player.grapple_fail)
-            .replace("{crew}", outcome.playerCrewLossFromPlayerAction);
-    } else if (playerAct === "evade") {
-      playerLog = outcome.fled
-        ? pickRandom(T.player.evade_success)
-        : pickRandom(T.player.evade_fail);
-    }
+  const templates = T[phase];
+  if (!templates) return "";
 
-    let npcLog = "";
-    if (outcome.npcAction) {
-      const npcAct = outcome.npcAction;
-      if (npcAct === "broadside") {
-        npcLog = pickRandom(T.npc.broadside)
-          .replace("{hull}", outcome.npcHullDamageOutput)
-          .replace("{crew}", outcome.playerCrewLossFromNpcAction);
-      } else if (npcAct === "precision") {
-        npcLog = outcome.npcHit
-          ? pickRandom(T.npc.precision_hit)
-              .replace("{hull}", outcome.npcHullDamageOutput)
-              .replace("{crew}", outcome.playerCrewLossFromNpcAction)
-          : pickRandom(T.npc.precision_miss);
-      } else if (npcAct === "grapple") {
-        npcLog = outcome.npcGrappleSuccess
-          ? pickRandom(T.npc.grapple_success)
-              .replace("{crew}", outcome.playerCrewLossFromNpcAction)
-          : pickRandom(T.npc.grapple_fail)
-              .replace("{crew}", outcome.enemyCrewLossFromNpcAction);
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Helper to format lost names
+  const formatLostNames = (names) => {
+    if (!names || names.length === 0) return "";
+    const shown = names.slice(0, 3).join(", ");
+    if (names.length <= 3) return ` (lost: ${shown})`;
+    return ` (lost: ${shown} and ${names.length - 3} others)`;
+  };
+
+  // --- Naval phase ---
+  if (phase === "naval") {
+    let logs = [];
+
+    // Determine if each side moved
+    const isDistanceAction = (act) => act === "close_distance" || act === "open_distance";
+    const playerMoved = isDistanceAction(playerAction);
+    const enemyMoved = isDistanceAction(npcAction);
+
+    // 1. Distance change logs (if either side moved)
+    if (playerMoved && !enemyMoved) {
+      // Player moved alone
+      const key = playerAction === "close_distance" ? "close_distance_success" : "open_distance_success";
+      const pool = templates.player[key];
+      if (pool) {
+        const log = pick(pool).replace(/\{distance\}/g, result.newDistance || battle.distance);
+        logs.push(log);
+      } else {
+        logs.push(`You move to ${result.newDistance || battle.distance} range.`);
+      }
+    } else if (enemyMoved && !playerMoved) {
+      // Enemy moved alone
+      const key = npcAction === "close_distance" ? "close_distance_success" : "open_distance_success";
+      const pool = templates.npc[key];
+      if (pool) {
+        const log = pick(pool).replace(/\{distance\}/g, result.newDistance || battle.distance);
+        logs.push(log);
+      } else {
+        logs.push(`The enemy moves to ${result.newDistance || battle.distance} range.`);
+      }
+    } else if (playerMoved && enemyMoved) {
+      // Both moved – combined template
+      let key;
+      const bothClose = playerAction === "close_distance" && npcAction === "close_distance";
+      const bothOpen = playerAction === "open_distance" && npcAction === "open_distance";
+      if (bothClose) key = "both_close";
+      else if (bothOpen) key = "both_open";
+      else {
+        const winner = result.distanceChangeWinner || "none";
+        const playerWantsClose = playerAction === "close_distance";
+        const enemyWantsClose = npcAction === "close_distance";
+        if (playerWantsClose && !enemyWantsClose) {
+          key = winner === "player" ? "close_vs_open_player_wins" : "close_vs_open_enemy_wins";
+        } else {
+          key = winner === "player" ? "open_vs_close_player_wins" : "open_vs_close_enemy_wins";
+        }
+      }
+      const pool = templates.combined?.[key];
+      if (pool) {
+        const log = pick(pool).replace(/\{distance\}/g, result.newDistance || battle.distance);
+        logs.push(log);
+      } else {
+        logs.push(`The distance changes to ${result.newDistance || battle.distance}.`);
       }
     }
 
-    return `${playerLog} ${npcLog}`.trim();
-  };
+    // 2. Damage / grapple / evade logs (only for non‑movement actions)
+    const playerTemplate = templates.player;
+    const npcTemplate = templates.npc;
 
-  // Process crew loss and return updated roster + log fragment
-  const applyCrewLoss = (state, playerCrewLoss) => {
-    const battle = state.encounterSession?.battle;
-    const playerCrewCount = battle?.playerCrew ?? state.crew.roster.length;
-    const newCount = Math.max(0, playerCrewCount - playerCrewLoss);
-    const lostCount = state.crew.roster.length - newCount;
-    if (lostCount <= 0) return { roster: state.crew.roster, lostCount: 0, log: "", lostNames: [] };
+    if (!playerMoved) {
+      if (playerAction === "broadside") {
+        const log = pick(playerTemplate.broadside)
+          .replace("{hull}", result.enemyHullDamage || 0)
+          .replace("{crew}", result.enemyCrewLoss || 0);
+        logs.push(log);
+      } else if (playerAction === "precision") {
+        if (result.playerHit) {
+          const log = pick(playerTemplate.precision_hit)
+            .replace("{hull}", result.enemyHullDamage || 0)
+            .replace("{crew}", result.enemyCrewLoss || 0);
+          logs.push(log);
+        } else {
+          logs.push(pick(playerTemplate.precision_miss));
+        }
+      } else if (playerAction === "grapple") {
+        if (result.outcome === "boarding_begins" || result.playerGrappleSuccess) {
+          logs.push(pick(playerTemplate.grapple_success));
+        } else {
+          logs.push(pick(playerTemplate.grapple_fail));
+        }
+      } else if (playerAction === "evade") {
+        if (result.fled) logs.push(pick(playerTemplate.evade_success));
+        else logs.push(pick(playerTemplate.evade_fail));
+      }
+    }
 
-    const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, lostCount);
+    if (!enemyMoved) {
+      if (npcAction === "broadside") {
+        const log = pick(npcTemplate.broadside)
+          .replace("{hull}", result.playerHullDamage || 0)
+          .replace("{crew}", result.playerCrewLoss || 0);
+        logs.push(log);
+      } else if (npcAction === "precision") {
+        if (result.npcHit) {
+          const log = pick(npcTemplate.precision_hit)
+            .replace("{hull}", result.playerHullDamage || 0)
+            .replace("{crew}", result.playerCrewLoss || 0);
+          logs.push(log);
+        } else {
+          logs.push(pick(npcTemplate.precision_miss));
+        }
+      } else if (npcAction === "grapple") {
+        if (result.outcome === "boarding_begins" || result.npcGrappleSuccess) {
+          logs.push(pick(npcTemplate.grapple_success));
+        } else {
+          logs.push(pick(npcTemplate.grapple_fail));
+        }
+      } else if (npcAction === "evade") {
+        if (result.fled) logs.push(pick(npcTemplate.evade_success));
+        else logs.push(pick(npcTemplate.evade_fail));
+      }
+    }
+
+    return logs.join(" ") || "The round passes without event.";
+  }
+
+  // --- Boarding phase ---
+  if (phase === "boarding") {
+    const mapAction = (a) => {
+      if (a === "continue_fighting") return "continue";
+      if (a === "fall_back") return "fall_back";
+      if (a === "demand_surrender") return "demand_surrender";
+      if (a === "surrender") return "surrender";
+      return a;
+    };
+
+    const pAction = mapAction(playerAction);
+    const nAction = mapAction(npcAction);
+
+    // Special cases: surrender
+    if (pAction === "surrender") {
+      const pool = templates.combined?.surrender_vs_anything;
+      if (pool) return pick(pool);
+    }
+    if (nAction === "surrender") {
+      const pool = templates.combined?.enemy_surrender;
+      if (pool) return pick(pool);
+    }
+
+    const key = `${pAction}_vs_${nAction}`;
+    let pool = templates.combined?.[key];
+
+    if (!pool && result.outcome && templates.outcome?.[result.outcome]) {
+      return pick(templates.outcome[result.outcome]);
+    }
+
+    if (!pool) return "";
+
+    const template = pick(pool);
+    let log = template
+      .replace(/\{crewLost\}/g, result.playerCrewLoss || 0)
+      .replace(/\{enemyCrewLost\}/g, result.enemyCrewLoss || 0);
+
+    const names = battle.lostCrewNames || [];
+    const nameSuffix = formatLostNames(names);
+    log = log.replace(/\{lostNames\}/g, nameSuffix);
+
+    return log;
+  }
+
+  return "";
+};
+
+  // ── Apply crew loss to state and return updated state with log ──
+  const applyCrewLossToState = (state, crewLoss) => {
+    if (crewLoss <= 0) return { state, lostNames: [], lostCount: 0 };
+    const safeLoss = Math.min(crewLoss, state.crew.roster.length);
+    if (safeLoss <= 0) return { state, lostNames: [], lostCount: 0 };
+    const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, safeLoss);
     const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
-    const namesStr = lostNames.join(", ");
-    const log = ` Lost ${lostCount} crew: ${namesStr}.`;
-    return { roster: newRoster, lostCount, log, lostNames };
+    return {
+      state: { ...state, crew: { ...state.crew, roster: newRoster } },
+      lostNames,
+      lostCount: safeLoss,
+    };
   };
 
   // Build a captain's‑log message for battle‑end events (victory/defeat/grapple win)
@@ -607,134 +735,327 @@
       // ── COMBAT ──────────────────────────────────────────────
 
       case A.BATTLE_ACTION: {
-        const session = state.encounterSession;
-        if (!session || session.phase !== "battle" || !session.battle) return state;
-        const battle = session.battle;
-        const outcome = L.resolveCombatAction(state, action.action, battle, session.enemy);
-        const newLog = [...battle.log];
-        let newMorale = Math.max(0, Math.min(100, state.crew.morale + (outcome.moraleDelta || 0)));
+  const session = state.encounterSession;
+  if (!session || session.phase !== "battle" || !session.battle) return state;
 
-        if (outcome.instantVictory) {
-          const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
-          const newRoster = crewResult.roster;
-          const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
+  const battle = session.battle;
+  const enemy = session.enemy;
 
-          const newRep = L.applyReputationImpact(state, { [session.enemy.faction]: -5 });
-          const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
-          const capMsg = buildCaptainLog(state, "grapple_win", state.crew.roster, logExtra);
+  // ── Get NPC action based on subPhase ──────────────────────────────
+  let enemyAction;
+  if (battle.subPhase === "naval") {
+    enemyAction = L.getNPCNavalAction(battle, enemy);
+  } else {
+    const ratio = L.getBoardingRatio(state, battle, enemy);
+    enemyAction = L.getNPCBoardingAction(battle, enemy, ratio);
+  }
 
-          const baseMsg = L.logPick(D.BOARDING_SUCCESS_MESSAGES, state);
-          const boardingMsg = crewResult.lostCount > 0
-            ? `${baseMsg} Lost ${crewResult.lostCount} crew: ${crewResult.lostNames.join(", ")}.`
-            : baseMsg;
+  // ── Resolve the round ──────────────────────────────────────────────
+  let result;
+  if (battle.subPhase === "naval") {
+    result = L.resolveNavalRound(state, action.action, enemyAction, battle, enemy);
+  } else {
+    result = L.resolveBoardingRound(state, action.action, enemyAction, battle, enemy);
+  }
 
-          const plunder = G.generateEnemyCargo(state, session.enemy, outcome.plunderRisk || "medium");
+  const newLog = [...battle.log];
 
-          const newBattle = {
-            ...battle,
-            phase: "victory",
-            goldReward: plunder.gold,
-            enemyCargo: plunder.cargo,
-            canPlunder: true,
-            log: [...newLog, boardingMsg],
-            lostCrewNames: newLostNames,
-          };
-          const newSession = { ...session, battle: newBattle };
-          return {
-            ...state,
-            reputation: newRep,
-            ship: { ...state.ship, hull: battle.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
-            encounterSession: newSession,
-            log: [...state.log, window.E.logEntry(state, capMsg)],
-          };
-        }
+  // ── Build the narrative log using the combined templates ──────────
+  const phase = battle.subPhase;
+  const playerAction = action.action;
+  const roundLog = buildRoundLog(phase, playerAction, enemyAction, result, battle, state);
+  if (roundLog) {
+    newLog.push(roundLog);
+  }
 
-        const crewResult = applyCrewLoss(state, outcome.enemy.crewLoss);
-        const newRoster = crewResult.roster;
-        const crewLog = crewResult.log;
-        const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
+  // ── Process outcome ────────────────────────────────────────────────
+  switch (result.outcome) {
+    // ── Evade – immediate session clear ──────────────────────────────
+    case "player_evaded":
+    case "enemy_evaded": {
+      const who = result.outcome === "player_evaded" ? "You" : "The enemy";
+      const logMsg = `${who} evaded successfully and broke contact.`;
+      return { ...state, encounterSession: null, log: [...state.log, window.E.logEntry(state, logMsg)] };
+    }
 
-        const roundLog = buildRoundLog(outcome) + crewLog;
+    // ── Boarding transition – stays in battle ──────────────────────
+    case "boarding_begins": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
 
-        const newBattle = {
-          ...battle,
-          playerHull: Math.max(0, battle.playerHull - outcome.enemy.hullDamage),
-          enemyHull: Math.max(0, battle.enemyHull - outcome.player.hullDamage),
-          playerCrew: newRoster.length,
-          enemyCrew: Math.max(0, battle.enemyCrew - outcome.player.crewLoss),
-          round: battle.round + 1,
-          phase: "npc_turn",
-          log: [...newLog, roundLog],
-          lostCrewNames: newLostNames,
-        };
-        const newSession = { ...session, battle: newBattle };
+      const newBattle = {
+        ...battle,
+        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
+        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        playerCrew: newPlayerCrew,
+        enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+        subPhase: "boarding",
+        distance: "close",
+        log: newLog,
+        phase: "player_turn",
+      };
+      const newSession = { ...session, battle: newBattle };
+      return {
+        ...updatedState,
+        encounterSession: newSession,
+        log: [...updatedState.log, window.E.logEntry(updatedState, "Boarding action begins!")],
+      };
+    }
 
-        // Escort convoy damage
-        if (session.type === "escort_defend" && newBattle.convoyHull > 0) {
-          const convoyDmg = Math.ceil((session.enemy.cannons || 10) * 0.5);
-          newBattle.convoyHull = Math.max(0, newBattle.convoyHull - convoyDmg);
-          newBattle.log.push(`The convoy takes ${convoyDmg} hull damage.`);
-          if (newBattle.convoyHull <= 0) {
-            newBattle.phase = "defeat";
-            newBattle.log.push("The convoy ship has been destroyed!");
-            return {
-              ...state,
-              ship: { ...state.ship, hull: newBattle.playerHull },
-              crew: { ...state.crew, roster: newRoster, morale: newMorale },
-              encounterSession: newSession,
-              log: [...state.log, "The convoy was lost. Mission failed."],
-            };
-          }
-        }
+    // ── Return to naval (Fall Back) – stays in battle ──────────────
+    case "returned_to_naval": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
 
-        if (newBattle.enemyHull <= 0) {
-          newBattle.phase = "victory";
-          newBattle.goldReward = outcome.goldReward || 0;
-          const { morale: moraleAfter, logExtra } = applyAlignment(state, newMorale);
-          const capMsg = buildCaptainLog(state, "sink_win", newRoster, logExtra);
-          const newRep = L.applyReputationImpact(state, { [session.enemy.faction]: -5 });
-          return {
-            ...state,
-            gold: state.gold + (outcome.goldReward || 0),
-            reputation: newRep,
-            ship: { ...state.ship, hull: newBattle.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: moraleAfter },
-            encounterSession: { ...newSession, battle: newBattle },
-            log: [...state.log, window.E.logEntry(state, capMsg)],
-          };
-        }
+      const newBattle = {
+        ...battle,
+        playerCrew: newPlayerCrew,
+        enemyCrew: Math.max(0, battle.enemyCrew - (result.enemyCrewLoss || 0)),
+        subPhase: "naval",
+        distance: "close",
+        log: newLog,
+        phase: "player_turn",
+      };
+      const newSession = { ...session, battle: newBattle };
+      return {
+        ...updatedState,
+        encounterSession: newSession,
+        log: [...updatedState.log, window.E.logEntry(updatedState, "Boarding action ends. Ships are at Close range.")],
+      };
+    }
 
-        if (newBattle.playerHull <= 0) {
-          newBattle.phase = "defeat";
-          const capMsg = buildCaptainLog(state, "defeat", newRoster);
-          newBattle.log.push("Your ship is destroyed!");
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattle.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            encounterSession: { ...newSession, battle: newBattle },
-            log: [...state.log, window.E.logEntry(state, capMsg)],
-          };
-        }
+    // ── Continue – stay in battle, next round ──────────────────────
+    case "continue":
+    default: {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
 
-        if (outcome.fled) {
-          newBattle.phase = "fled";
-          return {
-            ...state,
-            ship: { ...state.ship, hull: newBattle.playerHull },
-            crew: { ...state.crew, roster: newRoster, morale: newMorale },
-            encounterSession: { ...newSession, battle: newBattle },
-          };
-        }
+      // Update battle state
+      const newBattle = {
+        ...battle,
+        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
+        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        playerCrew: newPlayerCrew,
+        enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+        distance: result.newDistance ?? battle.distance,
+        round: battle.round + 1,
+        log: newLog,
+        phase: "player_turn",
+      };
+      const newSession = { ...session, battle: newBattle };
+      return {
+        ...updatedState,
+        ship: { ...updatedState.ship, hull: newBattle.playerHull },
+        encounterSession: newSession,
+      };
+    }
 
+    // ── PLAYER DEFEAT – stay in battle, phase = defeat ────────────
+    case "player_sunk":
+    case "player_captured": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const logMsg = result.outcome === "player_sunk"
+        ? "Your ship is destroyed!"
+        : "Your crew is overwhelmed. The enemy takes your ship!";
+
+      const newBattle = {
+        ...battle,
+        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
+        playerCrew: crewResult.state.crew.roster.length,
+        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+        phase: "defeat",
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      return {
+        ...updatedState,
+        encounterSession: newSession,
+        log: [...updatedState.log, window.E.logEntry(updatedState, logMsg)],
+      };
+    }
+
+    // ── ENEMY DEFEAT – stay in battle, phase = victory ────────────
+    case "enemy_sunk":
+    case "enemy_captured": {
+      const isSunk = result.outcome === "enemy_sunk";
+      const logMsg = isSunk
+        ? `The ${enemy.name} is sunk!`
+        : `The ${enemy.name} is captured!`;
+      const canPlunder = !isSunk;
+
+      let goldReward = 0;
+      let enemyCargo = {};
+      if (canPlunder) {
+        const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
+        goldReward = plunder.gold;
+        enemyCargo = plunder.cargo;
+      }
+
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
+
+      const newBattle = {
+        ...battle,
+        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
+        playerCrew: newPlayerCrew,
+        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+        phase: "victory",
+        canPlunder,
+        goldReward,
+        enemyCargo,
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
+
+      if (canPlunder) {
         return {
-          ...state,
-          ship: { ...state.ship, hull: newBattle.playerHull },
-          crew: { ...state.crew, roster: newRoster, morale: newMorale },
-          encounterSession: { ...newSession, battle: newBattle },
+          ...currentState,
+          encounterSession: { ...newSession, phase: "plunder" },
+          screen: "plunder",
+          log: [...currentState.log, window.E.logEntry(currentState, logMsg)],
+        };
+      } else {
+        return {
+          ...currentState,
+          encounterSession: null,
+          screen: session.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0
+            ? "sailing" : "port",
+          log: [...currentState.log, window.E.logEntry(currentState, logMsg)],
         };
       }
+    }
+
+    case "player_wipeout": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newBattle = {
+        ...battle,
+        playerCrew: crewResult.state.crew.roster.length,
+        enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+        phase: "defeat",
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      return {
+        ...updatedState,
+        encounterSession: newSession,
+      };
+    }
+
+    case "enemy_wipeout": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
+
+      const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
+      const logMsg = `The ${enemy.name}'s crew is wiped out!`;
+
+      const newBattle = {
+        ...battle,
+        playerCrew: newPlayerCrew,
+        enemyCrew: 0,
+        phase: "victory",
+        canPlunder: true,
+        goldReward: plunder.gold,
+        enemyCargo: plunder.cargo,
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
+      return {
+        ...currentState,
+        encounterSession: { ...newSession, phase: "plunder" },
+        screen: "plunder",
+        log: [...currentState.log, window.E.logEntry(currentState, logMsg)],
+      };
+    }
+
+    case "player_defeated_by_demand": {
+      const newBattle = {
+        ...battle,
+        phase: "defeat",
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      return { ...state, encounterSession: newSession };
+    }
+
+    case "enemy_win_capture": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
+
+      const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
+      const logMsg = `The ${enemy.name} surrenders!`;
+
+      const newBattle = {
+        ...battle,
+        playerCrew: newPlayerCrew,
+        phase: "victory",
+        canPlunder: true,
+        goldReward: plunder.gold,
+        enemyCargo: plunder.cargo,
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
+      return {
+        ...currentState,
+        encounterSession: { ...newSession, phase: "plunder" },
+        screen: "plunder",
+        log: [...currentState.log, window.E.logEntry(currentState, logMsg)],
+      };
+    }
+
+    case "player_surrendered": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newBattle = {
+        ...battle,
+        playerCrew: crewResult.state.crew.roster.length,
+        phase: "defeat",
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      return { ...updatedState, encounterSession: newSession };
+    }
+
+    case "enemy_surrendered": {
+      const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+      const updatedState = crewResult.state;
+      const newPlayerCrew = updatedState.crew.roster.length;
+
+      const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
+      const logMsg = `The ${enemy.name} surrenders!`;
+
+      const newBattle = {
+        ...battle,
+        playerCrew: newPlayerCrew,
+        phase: "victory",
+        canPlunder: true,
+        goldReward: plunder.gold,
+        enemyCargo: plunder.cargo,
+        log: newLog,
+      };
+      const newSession = { ...session, battle: newBattle };
+      let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
+      return {
+        ...currentState,
+        encounterSession: { ...newSession, phase: "plunder" },
+        screen: "plunder",
+        log: [...currentState.log, window.E.logEntry(currentState, logMsg)],
+      };
+    }
+  }
+}
 
       case A.DISMISS_BATTLE: {
         const session = state.encounterSession;
