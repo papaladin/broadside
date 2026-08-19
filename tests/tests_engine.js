@@ -16,7 +16,8 @@
   const {
     makeState, makePortState, makeSailingState, makeBattleState,
     makeCrewMember, fillRoster, makeShip, makeHold, makeMission,
-    makeBattle, dispatch,  setRandomSequence, resetRandomStub,
+    makeBattle, dispatch,
+    setRandomSequence, resetRandomStub,  // added for deterministic RNG
   } = window.testHelpers;
 
   const A = window.E.A;
@@ -686,14 +687,14 @@
     u.assert(s1.encounterSession === null, "encounter cleared");
   });
 
-  reg("E.CMB.04", "DISMISS_BATTLE victory: battleState cleared, screen returns", (u) => {
+  reg("E.CMB.04", "DISMISS_BATTLE victory: encounterSession cleared, screen returns", (u) => {
     const s0 = makeBattleState({ phase: "victory", log: ["Victory!"] });
     const s1 = dispatch(s0, A.DISMISS_BATTLE);
     u.assert(s1.encounterSession === null, "encounterSession cleared");
     u.assert(s1.screen === "port" || s1.screen === "sailing", "back to port or sailing");
   });
 
-  reg("E.CMB.05", "DISMISS_BATTLE defeat: battleState cleared, cargo lost, gold unchanged", (u) => {
+  reg("E.CMB.05", "DISMISS_BATTLE defeat: encounterSession cleared, cargo lost, gold unchanged", (u) => {
     const s0 = makeBattleState(
       { phase: "defeat", log: ["Defeat!"] },
       {
@@ -710,7 +711,7 @@
     u.assertEqual(L.getHoldUsed(s1.hold.items), 0, "hold cleared");
   });
 
-  reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears battleState", (u) => {
+  reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears encounterSession", (u) => {
     const s0 = makeBattleState({
       // Override the battle object inside the session
       phase: "plunder",        // must be "plunder" for TAKE_PLUNDER to fire
@@ -763,42 +764,42 @@
     }
   });
 
-reg("E.CMB.NAVAL.03", "BATTLE_ACTION: enemy_captured sets canPlunder true, enemy_sunk false", (u) => {
-  // Test sunk: enemy hull very low, broadside should sink.
-  setRandomSequence([0.9]); // high damage
-  const sSunk = makeBattleState({
-    enemyHull: 1,
-    enemyCrew: 10,
-    distance: "medium",
-    subPhase: "naval",
-  });
-  const s1 = dispatch(sSunk, A.BATTLE_ACTION, { action: "broadside" });
-  resetRandomStub();
-  const battle1 = s1.encounterSession?.battle;
-  if (battle1 && battle1.phase === "victory") {
-    u.assert(!battle1.canPlunder, "sunk -> canPlunder false");
-  } else {
-    // If not victory, maybe damage not lethal; skip.
-    u.assert(true, "No victory in this round (damage not lethal)");
-  }
+  reg("E.CMB.NAVAL.03", "BATTLE_ACTION: enemy_captured sets canPlunder true, enemy_sunk false", (u) => {
+    // Test sunk: enemy hull low, broadside should sink.
+    setRandomSequence([0.9]); // high damage
+    const sSunk = makeBattleState({
+      enemyHull: 1,
+      enemyCrew: 10,
+      distance: "medium",
+      subPhase: "naval",
+    });
+    const s1 = dispatch(sSunk, A.BATTLE_ACTION, { action: "broadside" });
+    resetRandomStub();
+    const battle1 = s1.encounterSession?.battle;
+    if (battle1 && battle1.phase === "victory") {
+      u.assert(!battle1.canPlunder, "sunk -> canPlunder false");
+    } else {
+      // If not victory, maybe damage not lethal; skip.
+      u.assert(true, "No victory in this round (damage not lethal)");
+    }
 
-  // Test capture: enemy crew very low, grapple at close should capture.
-  setRandomSequence([0.5]); // grapple success (mutual grapple)
-  const sCap = makeBattleState({
-    enemyHull: 100,
-    enemyCrew: 1,
-    distance: "close",
-    subPhase: "naval",
+    // Test capture: enemy crew low, grapple at close should capture.
+    setRandomSequence([0.5]); // grapple success (mutual grapple)
+    const sCap = makeBattleState({
+      enemyHull: 100,
+      enemyCrew: 1,
+      distance: "close",
+      subPhase: "naval",
+    });
+    const s2 = dispatch(sCap, A.BATTLE_ACTION, { action: "grapple" });
+    resetRandomStub();
+    const battle2 = s2.encounterSession?.battle;
+    if (battle2 && battle2.phase === "victory") {
+      u.assert(battle2.canPlunder === true, "capture -> canPlunder true");
+    } else {
+      u.assert(true, "Grapple did not result in victory (maybe continue)");
+    }
   });
-  const s2 = dispatch(sCap, A.BATTLE_ACTION, { action: "grapple" });
-  resetRandomStub();
-  const battle2 = s2.encounterSession?.battle;
-  if (battle2 && battle2.phase === "victory") {
-    u.assert(battle2.canPlunder === true, "capture -> canPlunder true");
-  } else {
-    u.assert(true, "Grapple did not result in victory (maybe continue)");
-  }
-});
 
   reg("E.CMB.BOARD.01", "BATTLE_ACTION boarding: fall_back returns to naval with distance close", (u) => {
     const s0 = makeBattleState({

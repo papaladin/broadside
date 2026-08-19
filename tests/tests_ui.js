@@ -117,7 +117,17 @@
       "shipRepairCost",
       "classifyLogLine", "getLogTabCategory",
       "buildEncounterContext",
-      "resolveCombatAction", "getNPCAction",
+      // Old combat functions removed:
+      // "resolveCombatAction", "getNPCAction"
+      // New B11 combat functions:
+      "resolveNavalRound",
+      "getNPCNavalAction",
+      "getNPCBoardingAction",
+      "resolveBoardingRound",
+      "getBoardingRatio",
+      "resolveSpeedContest",
+      "stepDistance",
+      "initialDistanceFor",
       "isFeatureUnlocked",
       "applyReputationImpact",
       "encodeSave", "decodeSave", "simpleHash",
@@ -423,7 +433,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.18", "InterceptScreen: renders without throwing — with encounter", (u) => {
+    reg("U.SMOKE.18", "InterceptScreen: renders without throwing — with encounter", (u) => {
     const enemy = {
       name: "The Test Brigand",
       faction: "pirate",
@@ -432,15 +442,24 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
       cannons: 10, crew: 20, speed: 8,
     };
     const state = makePortState("portRoyal", {
-      encounterContext: {
+      encounterSession: {
         type: "random",
+        phase: "intercept",
         enemy,
-        flavourText: "A pirate ship emerges from the fog.",
-        options: [
-          { id: "fight",     label: "Fight",     available: true,  reason: null, action: noop },
-          { id: "flee",      label: "Flee",      available: true,  reason: null, action: noop },
-          { id: "surrender", label: "Surrender", available: true,  reason: null, action: noop },
-        ],
+        intercept: {
+          flavourText: "A pirate ship emerges from the fog.",
+          options: [
+            { id: "fight",     label: "Fight",     available: true,  reason: null, action: { type: "INTERCEPT_FIGHT" } },
+            { id: "flee",      label: "Flee",      available: true,  reason: null, action: { type: "INTERCEPT_FLEE" } },
+            { id: "surrender", label: "Surrender", available: true,  reason: null, action: { type: "INTERCEPT_SURRENDER" } },
+          ],
+        },
+        battle: null,
+        plunder: null,
+        returnScreen: "port",
+        source: { kind: "random", id: null },
+        modifiers: [],
+        notableNPCId: null,
       },
     });
     const r = renderSafe(window.S.InterceptScreen, { state, dispatch: noop });

@@ -64,7 +64,10 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
   const calendarDate = new Date(start.year, start.month - 1, start.day + state.day - 1)
     .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const formatGold = (g) => g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
+  const formatGold = (g) => {
+    if (g === null || g === undefined) return "0g";
+    return g >= 1000000 ? (g / 1000000).toFixed(3) + "M g" : g.toLocaleString() + "g";
+  };
   const goldFlash = useFlashOnChange(state.gold, { direction: null });
   const moraleFlash   = useFlashOnChange(morale, { direction: null });
   const fameFlash     = useFlashOnChange(state.fame, { direction: null });

@@ -11,216 +11,216 @@ window.L = window.L || {};
   //  COMBAT HELPERS (old)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  const emptyOutcome = () => ({
-    player: { hullDamage: 0, crewLoss: 0 },
-    enemy: { hullDamage: 0, crewLoss: 0 },
-    moraleDelta: 0,
-    fled: false,
-    instantVictory: false,
-    goldReward: 0,
-    enemyCargo: {},
-  });
+  // const emptyOutcome = () => ({
+  //   player: { hullDamage: 0, crewLoss: 0 },
+  //   enemy: { hullDamage: 0, crewLoss: 0 },
+  //   moraleDelta: 0,
+  //   fled: false,
+  //   instantVictory: false,
+  //   goldReward: 0,
+  //   enemyCargo: {},
+  // });
 
-  const getNPCAction = (enemy) => {
-    const roll = Math.random();
-    if (roll < 0.7) return "broadside";
-    if (roll < 0.95) return "precision";
-    return "grapple";
-  };
+  // const getNPCAction = (enemy) => {
+  //   const roll = Math.random();
+  //   if (roll < 0.7) return "broadside";
+  //   if (roll < 0.95) return "precision";
+  //   return "grapple";
+  // };
 
-  const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
+  // const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
 
-  const resolvePlayerAction = (state, action, battleState, enemy) => {
-    const shipStats = window.L.getShipStats(state);
-    const out = emptyOutcome();
-    switch (action) {
-      case "broadside": {
-        const dmg = shipStats.cannons * (0.8 + Math.random() * 0.4);
-        const hullMod = 1 + (window.L.getEquipmentEffect(state, "hullDmgPct") || 0);
-        const crewMod = 1 + (window.L.getEquipmentEffect(state, "crewDmgPct") || 0);
-        out.player.hullDamage = Math.max(1, Math.floor(dmg * 0.6 * hullMod));
-        out.player.crewLoss = maybeCrewLoss(dmg * 0.4 / 3 * crewMod);
-        break;
-      }
-      case "precision": {
-        const precisionBaseChance = 0.7 + (window.L.getEquipmentEffect(state, "precisionHitPct") || 0);
-        if (Math.random() < precisionBaseChance) {
-          const dmg = shipStats.cannons * (1.2 + Math.random() * 0.6);
-          const hullMod = 1 + (window.L.getEquipmentEffect(state, "hullDmgPct") || 0);
-          const crewMod = 1 + (window.L.getEquipmentEffect(state, "crewDmgPct") || 0);
-          out.player.hullDamage = Math.floor(dmg * 0.9 * hullMod);
-          out.player.crewLoss = maybeCrewLoss(dmg * 0.1 / 3 * crewMod);
-        }
-        break;
-      }
-      case "grapple": {
-        const playerCrew = state.crew.roster.length;
-        const enemyCrew = enemy.crew;
-        const playerHullPct = state.ship.hull / shipStats.maxHull;
-        const playerMoralePct = state.crew.morale / 100;
-        let successChance = 0.5;
-        successChance += Math.min(0.3, Math.max(0, (playerCrew - enemyCrew) / enemyCrew * 0.3));
-        successChance += Math.min(0.2, Math.max(0, (playerMoralePct - 0.5) * 0.4));
-        successChance += Math.min(0.2, Math.max(0, (playerHullPct - 0.5) * 0.4));
-        successChance = Math.min(0.95, successChance);
-        if (Math.random() < successChance) {
-          out.instantVictory = true;
-          const ratio = playerCrew / (playerCrew + enemyCrew);
-          let loss = Math.ceil(playerCrew * (0.05 + 0.25 * (1 - ratio)));
-          if (playerCrew < 5) loss = 0;
-          out.enemy.crewLoss = loss;
-          out.plunderRisk = state.activeMission?.risk || "medium";
-        } else {
-          const crewLossPct = 0.3 + Math.random() * 0.2;
-          out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
-        }
-        break;
-      }
-      case "evade": {
-        const enemyShipType = window.L.guessShipType(enemy);
-        const enemySpeed = SHIPS[enemyShipType]?.speed ?? 10;
-        const speedBonus = Math.min(0.3, Math.max(-0.3, (shipStats.speed - enemySpeed) * 0.02));
-        const fleeChance = Math.min(0.95, Math.max(0.20, 0.6 + speedBonus));
-        if (Math.random() < fleeChance) {
-          out.fled = true;
-        } else {
-          const enemyDmg = enemy.cannons * (0.8 + Math.random() * 0.4);
-          out.player.hullDamage = Math.floor(enemyDmg * 0.3);
-          out.player.crewLoss = maybeCrewLoss(enemyDmg * 0.2 / 3);
-        }
-        break;
-      }
-    }
-    return out;
-  };
+  // const resolvePlayerAction = (state, action, battleState, enemy) => {
+  //   const shipStats = window.L.getShipStats(state);
+  //   const out = emptyOutcome();
+  //   switch (action) {
+  //     case "broadside": {
+  //       const dmg = shipStats.cannons * (0.8 + Math.random() * 0.4);
+  //       const hullMod = 1 + (window.L.getEquipmentEffect(state, "hullDmgPct") || 0);
+  //       const crewMod = 1 + (window.L.getEquipmentEffect(state, "crewDmgPct") || 0);
+  //       out.player.hullDamage = Math.max(1, Math.floor(dmg * 0.6 * hullMod));
+  //       out.player.crewLoss = maybeCrewLoss(dmg * 0.4 / 3 * crewMod);
+  //       break;
+  //     }
+  //     case "precision": {
+  //       const precisionBaseChance = 0.7 + (window.L.getEquipmentEffect(state, "precisionHitPct") || 0);
+  //       if (Math.random() < precisionBaseChance) {
+  //         const dmg = shipStats.cannons * (1.2 + Math.random() * 0.6);
+  //         const hullMod = 1 + (window.L.getEquipmentEffect(state, "hullDmgPct") || 0);
+  //         const crewMod = 1 + (window.L.getEquipmentEffect(state, "crewDmgPct") || 0);
+  //         out.player.hullDamage = Math.floor(dmg * 0.9 * hullMod);
+  //         out.player.crewLoss = maybeCrewLoss(dmg * 0.1 / 3 * crewMod);
+  //       }
+  //       break;
+  //     }
+  //     case "grapple": {
+  //       const playerCrew = state.crew.roster.length;
+  //       const enemyCrew = enemy.crew;
+  //       const playerHullPct = state.ship.hull / shipStats.maxHull;
+  //       const playerMoralePct = state.crew.morale / 100;
+  //       let successChance = 0.5;
+  //       successChance += Math.min(0.3, Math.max(0, (playerCrew - enemyCrew) / enemyCrew * 0.3));
+  //       successChance += Math.min(0.2, Math.max(0, (playerMoralePct - 0.5) * 0.4));
+  //       successChance += Math.min(0.2, Math.max(0, (playerHullPct - 0.5) * 0.4));
+  //       successChance = Math.min(0.95, successChance);
+  //       if (Math.random() < successChance) {
+  //         out.instantVictory = true;
+  //         const ratio = playerCrew / (playerCrew + enemyCrew);
+  //         let loss = Math.ceil(playerCrew * (0.05 + 0.25 * (1 - ratio)));
+  //         if (playerCrew < 5) loss = 0;
+  //         out.enemy.crewLoss = loss;
+  //         out.plunderRisk = state.activeMission?.risk || "medium";
+  //       } else {
+  //         const crewLossPct = 0.3 + Math.random() * 0.2;
+  //         out.enemy.crewLoss = Math.floor(playerCrew * crewLossPct);
+  //       }
+  //       break;
+  //     }
+  //     case "evade": {
+  //       const enemyShipType = window.L.guessShipType(enemy);
+  //       const enemySpeed = SHIPS[enemyShipType]?.speed ?? 10;
+  //       const speedBonus = Math.min(0.3, Math.max(-0.3, (shipStats.speed - enemySpeed) * 0.02));
+  //       const fleeChance = Math.min(0.95, Math.max(0.20, 0.6 + speedBonus));
+  //       if (Math.random() < fleeChance) {
+  //         out.fled = true;
+  //       } else {
+  //         const enemyDmg = enemy.cannons * (0.8 + Math.random() * 0.4);
+  //         out.player.hullDamage = Math.floor(enemyDmg * 0.3);
+  //         out.player.crewLoss = maybeCrewLoss(enemyDmg * 0.2 / 3);
+  //       }
+  //       break;
+  //     }
+  //   }
+  //   return out;
+  // };
 
-  const applyMoraleModifier = (state, action, playerOutcome, battleState, enemy) => {
-    let delta = 0;
-    if (playerOutcome.instantVictory) delta = 5;
-    else if (playerOutcome.fled) delta = -5;
-    else {
-      const newEnemyHull = Math.max(0, battleState.enemyHull - playerOutcome.player.hullDamage);
-      if (newEnemyHull <= 0) delta = 5;
-      else if (action === "grapple") delta = -10;
-    }
-    return { moraleDelta: delta };
-  };
+  // const applyMoraleModifier = (state, action, playerOutcome, battleState, enemy) => {
+  //   let delta = 0;
+  //   if (playerOutcome.instantVictory) delta = 5;
+  //   else if (playerOutcome.fled) delta = -5;
+  //   else {
+  //     const newEnemyHull = Math.max(0, battleState.enemyHull - playerOutcome.player.hullDamage);
+  //     if (newEnemyHull <= 0) delta = 5;
+  //     else if (action === "grapple") delta = -10;
+  //   }
+  //   return { moraleDelta: delta };
+  // };
 
-  const resolveNpcAction = (state, battleState, enemy) => {
-    const npcAction = getNPCAction(enemy);
-    const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
-    const result = {
-      enemy: { hullDamage: 0, crewLoss: 0 },
-      player: { hullDamage: 0, crewLoss: 0 },
-      action: npcAction,
-      hit: false,
-      grappleSuccess: false,
-    };
-    switch (npcAction) {
-      case "broadside": {
-        result.enemy.hullDamage = Math.floor(npcDmg * 0.6);
-        result.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.4 / 3);
-        break;
-      }
-      case "precision": {
-        const npcHit = Math.random() < 0.7;
-        result.hit = npcHit;
-        if (npcHit) {
-          result.enemy.hullDamage = Math.floor(npcDmg * 0.9);
-          result.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.1 / 3);
-        }
-        break;
-      }
-      case "grapple": {
-        const enemyCrew = enemy.crew;
-        const playerCrew = state.crew.roster.length;
-        const enemyHullPct = battleState.enemyHull / enemy.hull;
-        let npcSuccessChance = 0.5;
-        npcSuccessChance += Math.min(0.3, Math.max(0, (enemyCrew - playerCrew) / playerCrew * 0.3));
-        npcSuccessChance += Math.min(0.2, Math.max(0, (enemyHullPct - 0.5) * 0.4));
-        npcSuccessChance += 0.1;
-        npcSuccessChance = Math.min(0.95, npcSuccessChance);
-        const npcSuccess = Math.random() < npcSuccessChance;
-        result.grappleSuccess = npcSuccess;
-        if (npcSuccess) {
-          result.enemy.crewLoss += Math.floor(playerCrew * (0.3 + Math.random() * 0.2));
-        } else {
-          const ratio = enemyCrew / (enemyCrew + playerCrew);
-          let loss = Math.ceil(enemyCrew * (0.05 + 0.25 * (1 - ratio)));
-          if (enemyCrew < 5) loss = 0;
-          result.player.crewLoss += loss;
-        }
-        break;
-      }
-    }
-    return result;
-  };
+  // const resolveNpcAction = (state, battleState, enemy) => {
+  //   const npcAction = getNPCAction(enemy);
+  //   const npcDmg = enemy.cannons * (0.7 + Math.random() * 0.3);
+  //   const result = {
+  //     enemy: { hullDamage: 0, crewLoss: 0 },
+  //     player: { hullDamage: 0, crewLoss: 0 },
+  //     action: npcAction,
+  //     hit: false,
+  //     grappleSuccess: false,
+  //   };
+  //   switch (npcAction) {
+  //     case "broadside": {
+  //       result.enemy.hullDamage = Math.floor(npcDmg * 0.6);
+  //       result.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.4 / 3);
+  //       break;
+  //     }
+  //     case "precision": {
+  //       const npcHit = Math.random() < 0.7;
+  //       result.hit = npcHit;
+  //       if (npcHit) {
+  //         result.enemy.hullDamage = Math.floor(npcDmg * 0.9);
+  //         result.enemy.crewLoss = maybeCrewLoss(npcDmg * 0.1 / 3);
+  //       }
+  //       break;
+  //     }
+  //     case "grapple": {
+  //       const enemyCrew = enemy.crew;
+  //       const playerCrew = state.crew.roster.length;
+  //       const enemyHullPct = battleState.enemyHull / enemy.hull;
+  //       let npcSuccessChance = 0.5;
+  //       npcSuccessChance += Math.min(0.3, Math.max(0, (enemyCrew - playerCrew) / playerCrew * 0.3));
+  //       npcSuccessChance += Math.min(0.2, Math.max(0, (enemyHullPct - 0.5) * 0.4));
+  //       npcSuccessChance += 0.1;
+  //       npcSuccessChance = Math.min(0.95, npcSuccessChance);
+  //       const npcSuccess = Math.random() < npcSuccessChance;
+  //       result.grappleSuccess = npcSuccess;
+  //       if (npcSuccess) {
+  //         result.enemy.crewLoss += Math.floor(playerCrew * (0.3 + Math.random() * 0.2));
+  //       } else {
+  //         const ratio = enemyCrew / (enemyCrew + playerCrew);
+  //         let loss = Math.ceil(enemyCrew * (0.05 + 0.25 * (1 - ratio)));
+  //         if (enemyCrew < 5) loss = 0;
+  //         result.player.crewLoss += loss;
+  //       }
+  //       break;
+  //     }
+  //   }
+  //   return result;
+  // };
 
-  const applyDamageMoralePenalty = (state, outcome, battleState) => {
-    const effectiveMorale = window.L.getEffectiveMorale(state);
-    const modifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
-    const wasHit = outcome.player.hullDamage > 0;
-    outcome.player.hullDamage = Math.floor(outcome.player.hullDamage * modifier);
-    if (wasHit && outcome.player.hullDamage === 0) outcome.player.hullDamage = 1;
-    outcome.player.crewLoss = Math.floor(outcome.player.crewLoss * modifier);
-    return outcome;
-  };
+  // const applyDamageMoralePenalty = (state, outcome, battleState) => {
+  //   const effectiveMorale = window.L.getEffectiveMorale(state);
+  //   const modifier = effectiveMorale < 30 ? 1.2 : (effectiveMorale > 70 ? 0.9 : 1);
+  //   const wasHit = outcome.player.hullDamage > 0;
+  //   outcome.player.hullDamage = Math.floor(outcome.player.hullDamage * modifier);
+  //   if (wasHit && outcome.player.hullDamage === 0) outcome.player.hullDamage = 1;
+  //   outcome.player.crewLoss = Math.floor(outcome.player.crewLoss * modifier);
+  //   return outcome;
+  // };
 
-  const combineCombatOutcomes = (playerOut, morale, npcOut) => {
-    const final = emptyOutcome();
-    final.player.hullDamage = playerOut.player.hullDamage;
-    final.player.crewLoss = playerOut.player.crewLoss;
-    final.enemy.hullDamage = playerOut.enemy.hullDamage;
-    final.enemy.crewLoss = playerOut.enemy.crewLoss;
-    final.fled = playerOut.fled;
-    final.instantVictory = playerOut.instantVictory;
-    final.goldReward = playerOut.goldReward;
-    final.enemyCargo = playerOut.enemyCargo || {};
-    final.moraleDelta = morale.moraleDelta;
-    if (npcOut) {
-      final.enemy.hullDamage += npcOut.enemy.hullDamage;
-      final.enemy.crewLoss += npcOut.enemy.crewLoss;
-      final.player.hullDamage += npcOut.player.hullDamage;
-      final.player.crewLoss += npcOut.player.crewLoss;
-    }
-    return final;
-  };
+  // const combineCombatOutcomes = (playerOut, morale, npcOut) => {
+  //   const final = emptyOutcome();
+  //   final.player.hullDamage = playerOut.player.hullDamage;
+  //   final.player.crewLoss = playerOut.player.crewLoss;
+  //   final.enemy.hullDamage = playerOut.enemy.hullDamage;
+  //   final.enemy.crewLoss = playerOut.enemy.crewLoss;
+  //   final.fled = playerOut.fled;
+  //   final.instantVictory = playerOut.instantVictory;
+  //   final.goldReward = playerOut.goldReward;
+  //   final.enemyCargo = playerOut.enemyCargo || {};
+  //   final.moraleDelta = morale.moraleDelta;
+  //   if (npcOut) {
+  //     final.enemy.hullDamage += npcOut.enemy.hullDamage;
+  //     final.enemy.crewLoss += npcOut.enemy.crewLoss;
+  //     final.player.hullDamage += npcOut.player.hullDamage;
+  //     final.player.crewLoss += npcOut.player.crewLoss;
+  //   }
+  //   return final;
+  // };
 
-  const resolveCombatAction = (state, action, battleState, enemy) => {
-    if (!battleState || !enemy) return emptyOutcome();
-    const playerOutcome = resolvePlayerAction(state, action, battleState, enemy);
-    let playerHit = null, playerGrappleSuccess = null;
-    if (action === "precision") playerHit = playerOutcome.player.hullDamage > 0;
-    else if (action === "grapple") playerGrappleSuccess = playerOutcome.instantVictory;
-    const moraleOutcome = applyMoraleModifier(state, action, playerOutcome, battleState, enemy);
-    let npcOutcome = null;
-    if (!playerOutcome.fled && !playerOutcome.instantVictory) {
-      npcOutcome = resolveNpcAction(state, battleState, enemy);
-    }
-    const combined = combineCombatOutcomes(playerOutcome, moraleOutcome, npcOutcome);
-    combined.playerCrewLossFromPlayerAction = playerOutcome.enemy.crewLoss;
-    combined.playerCrewLossFromNpcAction = npcOutcome ? npcOutcome.enemy.crewLoss : 0;
-    combined.enemyCrewLossFromPlayerAction = playerOutcome.player.crewLoss;
-    combined.enemyCrewLossFromNpcAction = npcOutcome ? npcOutcome.player.crewLoss : 0;
-    combined.playerHullDamageOutput = playerOutcome.player.hullDamage;
-    combined.npcHullDamageOutput = npcOutcome ? npcOutcome.enemy.hullDamage : 0;
-    const crewLossMult = window.L.getEquipmentEffect(state, "crewLossMult");
-    if (crewLossMult !== 1) combined.player.crewLoss = Math.floor(combined.player.crewLoss * crewLossMult);
-    const finalOutcome = applyDamageMoralePenalty(state, combined, battleState);
-    finalOutcome.playerAction = action;
-    finalOutcome.npcAction = npcOutcome ? npcOutcome.action : null;
-    finalOutcome.playerHit = playerHit;
-    finalOutcome.playerGrappleSuccess = playerGrappleSuccess;
-    finalOutcome.npcHit = npcOutcome ? npcOutcome.hit : null;
-    finalOutcome.npcGrappleSuccess = npcOutcome ? npcOutcome.grappleSuccess : null;
-    finalOutcome.playerCrewLossFromPlayerAction = combined.playerCrewLossFromPlayerAction;
-    finalOutcome.playerCrewLossFromNpcAction = combined.playerCrewLossFromNpcAction;
-    finalOutcome.enemyCrewLossFromPlayerAction = combined.enemyCrewLossFromPlayerAction;
-    finalOutcome.enemyCrewLossFromNpcAction = combined.enemyCrewLossFromNpcAction;
-    finalOutcome.playerHullDamageOutput = combined.playerHullDamageOutput;
-    finalOutcome.npcHullDamageOutput = combined.npcHullDamageOutput;
-    return finalOutcome;
-  };
+  // const resolveCombatAction = (state, action, battleState, enemy) => {
+  //   if (!battleState || !enemy) return emptyOutcome();
+  //   const playerOutcome = resolvePlayerAction(state, action, battleState, enemy);
+  //   let playerHit = null, playerGrappleSuccess = null;
+  //   if (action === "precision") playerHit = playerOutcome.player.hullDamage > 0;
+  //   else if (action === "grapple") playerGrappleSuccess = playerOutcome.instantVictory;
+  //   const moraleOutcome = applyMoraleModifier(state, action, playerOutcome, battleState, enemy);
+  //   let npcOutcome = null;
+  //   if (!playerOutcome.fled && !playerOutcome.instantVictory) {
+  //     npcOutcome = resolveNpcAction(state, battleState, enemy);
+  //   }
+  //   const combined = combineCombatOutcomes(playerOutcome, moraleOutcome, npcOutcome);
+  //   combined.playerCrewLossFromPlayerAction = playerOutcome.enemy.crewLoss;
+  //   combined.playerCrewLossFromNpcAction = npcOutcome ? npcOutcome.enemy.crewLoss : 0;
+  //   combined.enemyCrewLossFromPlayerAction = playerOutcome.player.crewLoss;
+  //   combined.enemyCrewLossFromNpcAction = npcOutcome ? npcOutcome.player.crewLoss : 0;
+  //   combined.playerHullDamageOutput = playerOutcome.player.hullDamage;
+  //   combined.npcHullDamageOutput = npcOutcome ? npcOutcome.enemy.hullDamage : 0;
+  //   const crewLossMult = window.L.getEquipmentEffect(state, "crewLossMult");
+  //   if (crewLossMult !== 1) combined.player.crewLoss = Math.floor(combined.player.crewLoss * crewLossMult);
+  //   const finalOutcome = applyDamageMoralePenalty(state, combined, battleState);
+  //   finalOutcome.playerAction = action;
+  //   finalOutcome.npcAction = npcOutcome ? npcOutcome.action : null;
+  //   finalOutcome.playerHit = playerHit;
+  //   finalOutcome.playerGrappleSuccess = playerGrappleSuccess;
+  //   finalOutcome.npcHit = npcOutcome ? npcOutcome.hit : null;
+  //   finalOutcome.npcGrappleSuccess = npcOutcome ? npcOutcome.grappleSuccess : null;
+  //   finalOutcome.playerCrewLossFromPlayerAction = combined.playerCrewLossFromPlayerAction;
+  //   finalOutcome.playerCrewLossFromNpcAction = combined.playerCrewLossFromNpcAction;
+  //   finalOutcome.enemyCrewLossFromPlayerAction = combined.enemyCrewLossFromPlayerAction;
+  //   finalOutcome.enemyCrewLossFromNpcAction = combined.enemyCrewLossFromNpcAction;
+  //   finalOutcome.playerHullDamageOutput = combined.playerHullDamageOutput;
+  //   finalOutcome.npcHullDamageOutput = combined.npcHullDamageOutput;
+  //   return finalOutcome;
+  // };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  B11 – NAVAL & BOARDING RESOLVERS
@@ -261,6 +261,18 @@ window.L = window.L || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  NPC STUB AI (Part 7 – temporary stub, to be replaced with scoring AI)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
+
+ const emptyOutcome = () => ({
+     player: { hullDamage: 0, crewLoss: 0 },
+    enemy: { hullDamage: 0, crewLoss: 0 },
+     moraleDelta: 0,
+    fled: false,
+     instantVictory: false,
+     goldReward: 0,
+     enemyCargo: {},
+   });
 
 // Naval stub – picks based on distance and hull condition.
 // See design doc Section 8 – this is explicitly a stub, not the final tuned AI.
@@ -759,17 +771,18 @@ const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Object.assign(window.L, {
     // Old combat
-    emptyOutcome,
+   /*  
     getNPCAction,
-    maybeCrewLoss,
     resolvePlayerAction,
     applyMoraleModifier,
     resolveNpcAction,
     applyDamageMoralePenalty,
     combineCombatOutcomes,
     resolveCombatAction,
-
+ */
     // B11 combat
+    emptyOutcome,
+    maybeCrewLoss,
     getNPCNavalAction,
     getNPCBoardingAction,
     resolveNavalRound,

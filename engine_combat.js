@@ -734,7 +734,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
 
       // ── COMBAT ──────────────────────────────────────────────
 
-      case A.BATTLE_ACTION: {
+ case A.BATTLE_ACTION: {
   const session = state.encounterSession;
   if (!session || session.phase !== "battle" || !session.battle) return state;
 
@@ -783,17 +783,19 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const newBattle = {
         ...battle,
-        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
-        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        playerHull: battle.playerHull,                    // unchanged
+        enemyHull: battle.enemyHull,                      // unchanged
         playerCrew: newPlayerCrew,
         enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
         subPhase: "boarding",
         distance: "close",
         log: newLog,
         phase: "player_turn",
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return {
@@ -808,15 +810,19 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const newBattle = {
         ...battle,
+        playerHull: battle.playerHull,                    // unchanged
+        enemyHull: battle.enemyHull,                      // unchanged
         playerCrew: newPlayerCrew,
         enemyCrew: Math.max(0, battle.enemyCrew - (result.enemyCrewLoss || 0)),
         subPhase: "naval",
         distance: "close",
         log: newLog,
         phase: "player_turn",
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return {
@@ -832,18 +838,27 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-      // Update battle state
+      // ── Only apply hull damage during naval phase ──────────────────
+      let newPlayerHull = battle.playerHull;
+      let newEnemyHull = battle.enemyHull;
+      if (battle.subPhase === "naval") {
+        newPlayerHull = Math.max(0, battle.playerHull - result.playerHullDamage);
+        newEnemyHull = Math.max(0, battle.enemyHull - result.enemyHullDamage);
+      }
+
       const newBattle = {
         ...battle,
-        playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
-        enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+        playerHull: newPlayerHull,
+        enemyHull: newEnemyHull,
         playerCrew: newPlayerCrew,
         enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
         distance: result.newDistance ?? battle.distance,
         round: battle.round + 1,
         log: newLog,
         phase: "player_turn",
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return {
@@ -858,6 +873,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
     case "player_captured": {
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
       const logMsg = result.outcome === "player_sunk"
         ? "Your ship is destroyed!"
         : "Your crew is overwhelmed. The enemy takes your ship!";
@@ -870,6 +886,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
         enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
         phase: "defeat",
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return {
@@ -899,6 +916,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const newBattle = {
         ...battle,
@@ -911,6 +929,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
         goldReward,
         enemyCargo,
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
@@ -936,12 +955,15 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
     case "player_wipeout": {
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
+
       const newBattle = {
         ...battle,
         playerCrew: crewResult.state.crew.roster.length,
         enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
         phase: "defeat",
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return {
@@ -954,6 +976,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
       const logMsg = `The ${enemy.name}'s crew is wiped out!`;
@@ -967,6 +990,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
         goldReward: plunder.gold,
         enemyCargo: plunder.cargo,
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
@@ -992,6 +1016,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
       const logMsg = `The ${enemy.name} surrenders!`;
@@ -1004,6 +1029,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
         goldReward: plunder.gold,
         enemyCargo: plunder.cargo,
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
@@ -1018,11 +1044,14 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
     case "player_surrendered": {
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
+
       const newBattle = {
         ...battle,
         playerCrew: crewResult.state.crew.roster.length,
         phase: "defeat",
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       return { ...updatedState, encounterSession: newSession };
@@ -1032,6 +1061,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newPlayerCrew = updatedState.crew.roster.length;
+      const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
       const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
       const logMsg = `The ${enemy.name} surrenders!`;
@@ -1044,6 +1074,7 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
         goldReward: plunder.gold,
         enemyCargo: plunder.cargo,
         log: newLog,
+        lostCrewNames: newLostNames,
       };
       const newSession = { ...session, battle: newBattle };
       let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });

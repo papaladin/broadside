@@ -152,7 +152,9 @@
     //  battle without an explicit COMPLETE_MISSION dispatch)
     [A.DISMISS_BATTLE]: (prev) => {
       const m = prev.activeMission;
-      const battle = prev.battleState;
+      // Replace prev.battleState with prev.encounterSession?.battle
+      const session = prev.encounterSession;
+      const battle = session?.battle;
       if (!m || !m.tutorial || m.requiredGood) return null;
       if (!battle || battle.phase !== "victory") return null;
       return { steps: ["tutorialHuntCompleted"] };

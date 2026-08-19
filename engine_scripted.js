@@ -188,9 +188,11 @@
             "mission_combat",
             state.activeMission.enemy
           );
+          // Build encounterSession instead of encounterContext
+          const encounterSession = window.E.buildEncounterSession(state, ctx);
           return {
             ...state,
-            encounterContext: ctx,
+            encounterSession,
             screen: "intercept",
             activeMission: { ...state.activeMission, encounterOccurred: true },
             scriptedStep: step + 1,

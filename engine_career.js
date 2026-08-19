@@ -180,7 +180,9 @@
       // Note: shipsPlundered is NO LONGER tracked here. It's tracked in TAKE_PLUNDER
       // because "could plunder" ≠ "did plunder" — the player can choose to sail away.
       case A.DISMISS_BATTLE: {
-        const battle = prevState.battleState;
+        // Replace prevState.battleState with prevState.encounterSession?.battle
+        const session = prevState.encounterSession;
+        const battle = session?.battle;
         if (!battle) break;
 
         const outcome = battle.phase; // "victory", "defeat", "fled"
@@ -247,7 +249,7 @@
         break;
       }
 
-// ── Plunder taken — actual plunder tracking ───────────────
+      // ── Plunder taken — actual plunder tracking ───────────────
       // TAKE_PLUNDER fires when the player grapple-wins and chooses to plunder.
       // DISMISS_BATTLE NEVER fires in this path — the plunder screen replaces it.
       // So this handler must also do everything DISMISS_BATTLE would have done:
@@ -259,7 +261,9 @@
       //   - sink-win → DISMISS_BATTLE handles it (canPlunder is false)
       //   - grapple-win + sail away → DISMISS_BATTLE handles it (canPlunder is true but no plunder)
       case A.TAKE_PLUNDER: {
-        const battle = prevState.battleState;
+        // Replace prevState.battleState with prevState.encounterSession?.battle
+        const session = prevState.encounterSession;
+        const battle = session?.battle;
 
         // Always count the plunder act itself
         nextCareer.shipsPlundered = (nextCareer.shipsPlundered || 0) + 1;
