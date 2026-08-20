@@ -537,8 +537,8 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
           playerCrew: state.crew.roster.length,
           initialPlayerCrew: state.crew.roster.length,
           lostCrewNames: [],
-          enemyHull: session.enemy.hull,
-          enemyCrew: session.enemy.crew,
+          enemyHull: ctx.enemy.hull,
+          enemyCrew: ctx.enemy.crew,
           distance: window.L.initialDistanceFor(ctx.type),
           subPhase: "naval",
           ...(ctx.type === "escort_defend" ? { convoyHull: 50 } : {}),
@@ -603,11 +603,27 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       }
 
       case A.INTERCEPT_BRIBE: {
+          console.log("[INTERCEPT_BRIBE] Dispatched with state:", state);
+
         const ctx = state.encounterSession;
-        if (!ctx) return state;
+        if (!ctx || ctx.phase !== "intercept") return state;
+
         const bribeOpt = ctx.intercept?.options?.find(o => o.id === "bribe");
-        if (!bribeOpt) return state;
-        const cost = bribeOpt.cost;
+        if (!bribeOpt) {
+          console.warn("[INTERCEPT_BRIBE] No bribe option found in intercept options.");
+          return state;
+        }
+
+        const cost = Number(bribeOpt.cost);
+        if (isNaN(cost) || cost <= 0) {
+          console.warn("[INTERCEPT_BRIBE] Invalid bribe cost:", bribeOpt.cost);
+          return { ...state, log: [...state.log, "Bribe cost invalid. Cannot proceed."] };
+        }
+
+        if (state.gold < cost) {
+          return { ...state, log: [...state.log, `Not enough gold for bribe (need ${cost}g).`] };
+        }
+
         const portKey = state.destination ?? state.currentPort;
         return {
           ...state,
@@ -775,7 +791,15 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
     case "enemy_evaded": {
       const who = result.outcome === "player_evaded" ? "You" : "The enemy";
       const logMsg = `${who} evaded successfully and broke contact.`;
-      return { ...state, encounterSession: null, log: [...state.log, window.E.logEntry(state, logMsg)] };
+      const newScreen = L.returnScreen(state);
+      let nextState = { ...state, encounterSession: null, screen: newScreen, log: [...state.log, window.E.logEntry(state, logMsg)] };
+      // Abandon mission if this was a mission combat or escort defend
+      const sessionType = state.encounterSession?.type;
+      if ((sessionType === "mission_combat" || sessionType === "escort_defend") && state.activeMission) {
+        nextState.activeMission = null;
+        nextState.log.push(window.E.logEntry(state, "The mission has been abandoned."));
+      }
+      return nextState;
     }
 
     // ── Boarding transition – stays in battle ──────────────────────
@@ -874,10 +898,31 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
       const updatedState = crewResult.state;
       const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
-      const logMsg = result.outcome === "player_sunk"
-        ? "Your ship is destroyed!"
-        : "Your crew is overwhelmed. The enemy takes your ship!";
+      const logMsg = "Your crew is overwhelmed. The enemy takes your ship!";
 
+      // Small ship exception – do NOT set defeat, do NOT add extra log.
+      const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
+      if (isSmallShip && battle.playerHull > 0) {
+        // The captain fights on alone; we simply keep the battle alive.
+        const newBattle = {
+          ...battle,
+          playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
+          playerCrew: 0,
+          enemyHull: Math.max(0, battle.enemyHull - result.enemyHullDamage),
+          enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+          phase: "player_turn",
+          log: newLog,
+          lostCrewNames: newLostNames,
+        };
+        const newSession = { ...session, battle: newBattle };
+        return {
+          ...updatedState,
+          encounterSession: newSession,
+          log: updatedState.log, // no extra log
+        };
+      }
+
+      // Normal defeat
       const newBattle = {
         ...battle,
         playerHull: Math.max(0, battle.playerHull - result.playerHullDamage),
@@ -957,6 +1002,25 @@ const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) =>
       const updatedState = crewResult.state;
       const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
+      const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
+      if (isSmallShip && battle.playerHull > 0) {
+        const newBattle = {
+          ...battle,
+          playerCrew: 0,
+          enemyCrew: Math.max(0, battle.enemyCrew - result.enemyCrewLoss),
+          phase: "player_turn",
+          log: newLog,
+          lostCrewNames: newLostNames,
+        };
+        const newSession = { ...session, battle: newBattle };
+        return {
+          ...updatedState,
+          encounterSession: newSession,
+          log: updatedState.log, // no extra log
+        };
+      }
+
+      // Normal defeat
       const newBattle = {
         ...battle,
         playerCrew: crewResult.state.crew.roster.length,

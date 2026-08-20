@@ -382,6 +382,7 @@ const App = () => {
   }
 
   const renderScreen = () => {
+    console.log("[App] Rendering screen:", state.screen, state.encounterSession?.phase);
     const { S } = window;
     switch (state.screen) {
       case "title": return <S.TitleScreen dispatch={dispatch} />;
@@ -450,14 +451,18 @@ const DebugPanel = ({ state, dispatch }) => {
     background: T.panel, border: `1px solid ${T.border}`, color: T.textDim,
     padding: "3px 6px", borderRadius: 2, cursor: "pointer", fontSize: T.captionFontSize, fontFamily: T.fontMono,
   };
+
+  const [combatFaction, setCombatFaction] = React.useState("pirate");
+  const [combatRisk, setCombatRisk] = React.useState("medium");
+
   return (
-      <div style={{
-        position: "fixed", top: 40, right: 10, zIndex: 999,
-        width: 250, fontSize: 11, fontFamily: T.fontMono,
-        maxHeight: "calc(100vh - 60px)",
-        overflowY: "auto",
-        ...panelStyle({ variant: "gold" })
-      }}>
+    <div style={{
+      position: "fixed", top: 40, right: 10, zIndex: 999,
+      width: 250, fontSize: 11, fontFamily: T.fontMono,
+      maxHeight: "calc(100vh - 60px)",
+      overflowY: "auto",
+      ...panelStyle({ variant: "gold" })
+    }}>
       <div style={{ color: T.gold, marginBottom: 8 }}>⚙ DEBUG PANEL</div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Gold</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
@@ -498,6 +503,55 @@ const DebugPanel = ({ state, dispatch }) => {
       <button onClick={() => dispatch({ type: A.DEBUG_MAX_CREW })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>👥 Fill crew to max</button>
       <button onClick={() => dispatch({ type: A.DEBUG_COMPLETE_MISSION })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>✅ Complete mission</button>
       <button onClick={() => dispatch({ type: A.DEBUG_AGE_CREW })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>📅 +50 days aboard</button>
+
+      {/* ── Debug Combat ── */}
+      <div style={{ color: T.textDim, marginBottom: 4, marginTop: 12 }}>Debug Combat</div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
+        <span style={{ color: T.textFaint, fontSize: T.captionFontSize, marginRight: 4 }}>Faction:</span>
+        {Object.entries(FACTIONS).map(([key, fac]) => (
+          <div
+            key={key}
+            onClick={() => setCombatFaction(key)}
+            style={{
+              width: 16, height: 16, borderRadius: "50%",
+              background: fac.color,
+              border: combatFaction === key ? `2px solid ${T.gold}` : `1px solid ${T.border}`,
+              cursor: "pointer",
+              opacity: combatFaction === key ? 1 : 0.5,
+            }}
+            title={fac.label}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 8, alignItems: "center" }}>
+        <span style={{ color: T.textFaint, fontSize: T.captionFontSize, marginRight: 4 }}>Risk:</span>
+        {["low","medium","high"].map(r => {
+          const color = T.riskColor[r] || T.textDim;
+          return (
+            <div
+              key={r}
+              onClick={() => setCombatRisk(r)}
+              style={{
+                padding: "2px 8px",
+                borderRadius: 12,
+                background: combatRisk === r ? color : T.panel,
+                color: combatRisk === r ? "#000" : T.textDim,
+                border: combatRisk === r ? `1px solid ${color}` : `1px solid ${T.border}`,
+                cursor: "pointer",
+                fontSize: T.captionFontSize,
+              }}
+            >
+              {r.charAt(0).toUpperCase() + r.slice(1)}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => dispatch({ type: window.E.A.DEBUG_COMBAT, faction: combatFaction, risk: combatRisk })}
+        style={{ ...btnStyle, width: "100%", background: T.gold, color: "#000", border: "none", marginBottom: 4 }}
+      >
+        Start Combat
+      </button>
     </div>
   );
 };

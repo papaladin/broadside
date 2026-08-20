@@ -65,7 +65,7 @@ window.D = (() => {
     nassau: {
     name: "Nassau", faction: "pirate",
     x: 415, y: 152,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A loosely governed English settlement in the Bahamas. Rapidly becoming a pirate refuge.",
   },
  
@@ -85,7 +85,7 @@ window.D = (() => {
   santoDomingo: {
     name: "Santo Domingo", faction: "spanish",
     x: 535, y: 278,
-    services: ["tavern", "shipyard", "crew"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "The oldest European city in the Americas. A proud Spanish administrative centre on Hispaniola.",
   },
   havana: {
@@ -111,7 +111,7 @@ window.D = (() => {
   kingston: {
     name: "Kingston", faction: "english",
     x: 428, y: 290,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A young town growing in Port Royal's shadow. Modest but honest trade and a welcome harbour.",
   },
  
@@ -122,21 +122,21 @@ window.D = (() => {
   portobelo: {
     name: "Portobelo", faction: "spanish",
     x: 355, y: 440,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "The treasure fair port of the Spanish Main. Silver from Peru flows through here before the Atlantic crossing.",
   },
  
   cartagena: {
     name: "Cartagena", faction: "spanish",
     x: 440, y: 415,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A formidable fortified city. The Spanish treasure fleet assembles here. It is rich, guarded, and unforgiving.",
   },
  
   maracaibo: {
     name: "Maracaibo", faction: "spanish",
     x: 515, y: 410,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A Spanish colonial port deep in a sheltered lake. Sacked by Morgan, now more heavily garrisoned.",
   },
  
@@ -150,7 +150,7 @@ window.D = (() => {
   stEustatius: {
     name: "St. Eustatius", faction: "dutch",
     x: 652, y: 290,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "The Golden Rock. A Dutch free-trade port where anything can be bought if the price is right.",
   },
  
@@ -178,7 +178,7 @@ window.D = (() => {
     name: "Campeche", faction: "spanish",
     x: 195, y: 248,
     minHull: 101,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A Gulf of Mexico port famous for logwood. Remote and frequently raided by buccaneers.",
   },
  
@@ -186,7 +186,7 @@ window.D = (() => {
     name: "Veracruz", faction: "spanish",
     x: 100, y: 258,
     minHull: 101,
-    services: ["tavern", "shipyard", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "The origin point of the Spanish treasure fleets. Immensely wealthy and immensely dangerous.",
   },
  
@@ -194,7 +194,7 @@ window.D = (() => {
     name: "Bermuda", faction: "english",
     x: 648, y: 35,
     minHull: 101,
-    services: ["tavern", "crew"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A remote English outpost far to the north. A vital resupply stop for ships making the Atlantic crossing.",
   },
  
@@ -202,7 +202,7 @@ window.D = (() => {
     name: "Old Providence", faction: "pirate",
     x: 302, y: 358,
     minHull: 101,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A remote island off Nicaragua used by buccaneers and rogue English settlers. Off every map that matters.",
   },
  
@@ -210,7 +210,7 @@ window.D = (() => {
     name: "Trinidad", faction: "spanish",
     x: 672, y: 415,
     minHull: 101,
-    services: ["tavern", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A remote Spanish island at the Caribbean's southeastern edge. Gateway to the South American mainland.",
   },
  
@@ -229,7 +229,7 @@ window.D = (() => {
     name: "Roatán", faction: "pirate",
     x: 250, y: 310,
     minHull: 101,
-    services: ["tavern", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A secret pirate haven in the Bay Islands of Honduras. No navy has found it yet.",
     hidden: true,
     unlockCondition: {
@@ -244,7 +244,7 @@ window.D = (() => {
     name: "Dry Tortugas", faction: "pirate",
     x: 330, y: 158,
     minHull: 101,
-    services: ["tavern", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A desolate cluster of islands at the tip of the Florida Keys. A pirate waypoint hidden in plain sight.",
     hidden: true,
     unlockCondition: {
@@ -259,7 +259,7 @@ window.D = (() => {
     name: "Las Aves", faction: "pirate",
     x: 590, y: 388,
     minHull: 101,
-    services: ["tavern", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "A treacherous shoal island group. The wrecks of a French fleet lie here. Pirates know the safe channels.",
     hidden: true,
     unlockCondition: {
@@ -271,7 +271,7 @@ window.D = (() => {
     name: "Libertalia", faction: "pirate",
     x: 718, y: 435,
     minHull: 101,
-    services: ["tavern", "shipyard", "crew", "missions"],
+    services: ["tavern", "crew", "shipyard",  "missions"],
     desc: "The legendary pirate utopia. Some say it does not exist. Those who have been there do not say much at all.",
     hidden: true,
     unlockCondition: {

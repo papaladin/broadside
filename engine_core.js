@@ -65,6 +65,7 @@ window.E = window.E || {};
     DEBUG_COMPLETE_MISSION: "DEBUG_COMPLETE_MISSION",
     DEBUG_SET_HEAT: "DEBUG_SET_HEAT",
     DEBUG_AGE_CREW: "DEBUG_AGE_CREW",
+    DEBUG_COMBAT: "DEBUG_COMBAT",           // <-- FIXED: was DEBUT_COMBAT
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -390,6 +391,13 @@ window.E = window.E || {};
       case window.E.A.DEBUG_AGE_CREW: {
         const aged = state.crew.roster.map(member => ({ ...member, daysAboard: (member.daysAboard || 0) + 50 }));
         return { ...state, crew: { ...state.crew, roster: aged }, log: [...state.log, `⚙ Added 50 days aboard to all crew.`] };
+      }
+      case window.E.A.DEBUG_COMBAT: {
+        const { faction, risk } = action;
+        const enemy = G.generateEnemy(risk || "medium", state.fame, faction || "pirate");
+        const encounterContext = L.buildEncounterContext(state, "random", enemy);
+        const encounterSession = window.E.buildEncounterSession(state, encounterContext);
+        return { ...state, encounterSession, screen: "intercept" };
       }
       default:
         return state;

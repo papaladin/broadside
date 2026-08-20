@@ -1,4 +1,7 @@
 ### 2026-08-19
+- **Full Combat revamp**: Added distance and movement during naval battle, and now grappling (only when close to opponent ship) leads to a second combat phase, where crew size and morale counts, and if you have enough advantage, you can demand the surrender of the enemy ship in order to plunder. Or leave no one alive and take the riches anyway !
+
+### 2026-08-19
 - **Back-end state refactoring**: Consolidation on how context of encounters and battle state are managed, to prepare for more naration during encounter/intercept phase, and for the future sea combat rework (to add a second phase, boarding combat).
 
 ### 2026‑07‑24

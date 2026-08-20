@@ -10,7 +10,7 @@
 
 window.S = window.S || {};
 (() => {
-  const { useState, useRef, useEffect } = React;
+  const { useState, useRef, useEffect, useMemo } = React;
   const { PORTS, SHIPS, FACTIONS } = window.D;
   const L = window.L;
   const A = window.E.A;
@@ -28,36 +28,108 @@ window.S = window.S || {};
   // Import distance-based action lookup
   const { LEGAL_ACTIONS_BY_DISTANCE } = window.D;
 
-// -- HELPERS ----------------
+  // ── Action preview helper ──────────────────────────────────────────────
+  function getActionPreview(state, action, distance, enemy, battle = null) {
+    const shipStats = L.getShipStats(state);
+    const cannons = shipStats.cannons;
+    const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS[action]?.[distance] || 1.0;
+    const hullDmgPct = L.getEquipmentEffect(state, "hullDmgPct") || 0;
+    const crewDmgPct = L.getEquipmentEffect(state, "crewDmgPct") || 0;
+    const randMin = 0.8, randMax = 1.2;
+    const baseMin = cannons * randMin * mult;
+    const baseMax = cannons * randMax * mult;
 
-// Detect if the player's action missed or failed
-const MISS_PHRASES = [
-  "splashes harmlessly",
-  "goes wide",
-  "overcorrect and miss",
-  "flies past the enemy",
-  "Your grapple fails",
-  "repels your boarders",
-  "thrown back",
-];
+    if (action === "broadside") {
+      const hullMin = Math.max(1, Math.floor(baseMin * 0.6 * (1 + hullDmgPct)));
+      const hullMax = Math.max(1, Math.floor(baseMax * 0.6 * (1 + hullDmgPct)));
+      const crewMin = Math.floor(baseMin * 0.4 / 3 * (1 + crewDmgPct));
+      const crewMax = Math.floor(baseMax * 0.4 / 3 * (1 + crewDmgPct));
+      return {
+        description: "Full cannon volley. Reliable damage.",
+        hullRange: [hullMin, hullMax],
+        crewRange: [crewMin, crewMax],
+        hitChance: 1.0,
+      };
+    }
 
-const isPlayerMissOrFail = (text) => {
-  if (!text) return false;
-  return MISS_PHRASES.some(phrase => text.includes(phrase));
-};
+    if (action === "precision") {
+      const hitChance = Math.min(1, 0.7 + (L.getEquipmentEffect(state, "precisionHitPct") || 0));
+      const hullMin = Math.floor(baseMin * 0.9 * (1 + hullDmgPct));
+      const hullMax = Math.floor(baseMax * 0.9 * (1 + hullDmgPct));
+      const crewMin = Math.floor(baseMin * 0.1 / 3 * (1 + crewDmgPct));
+      const crewMax = Math.floor(baseMax * 0.1 / 3 * (1 + crewDmgPct));
+      return {
+        description: "Aimed shot. High damage if it hits.",
+        hullRange: [hullMin, hullMax],
+        crewRange: [crewMin, crewMax],
+        hitChance,
+      };
+    }
 
-// Equipment that has visual representation on the ship sprite
-const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
+    // Boarding action previews (only if battle state is provided)
+    if (action === "continue_fighting" && battle) {
+      const ratio = L.getBoardingRatio(state, battle, enemy);
+      const crew = battle.playerCrew;
+      const enemyCrew = battle.enemyCrew;
+      // Loss ranges: min = 0, max = ceil(0.15 * (1-ratio) * crew) (for player)
+      const minPlayerLoss = 0;
+      const maxPlayerLoss = Math.ceil(crew * 0.15 * (1 - ratio));
+      const minEnemyLoss = 0;
+      const maxEnemyLoss = Math.ceil(enemyCrew * 0.15 * ratio);
+      return {
+        description: "Press the attack in boarding.",
+        crewLossPlayer: [minPlayerLoss, maxPlayerLoss],
+        crewLossEnemy: [minEnemyLoss, maxEnemyLoss],
+        advantage: Math.round(ratio * 100),
+        hitChance: null,
+      };
+    }
 
-const getVisualEquipment = (state) => {
-  const allEquipped = [
-    ...(state.ship.equipment?.hull || []),
-    ...(state.ship.equipment?.armament || []),
-    ...(state.ship.equipment?.rigging || []),
-    ...(state.ship.equipment?.special || []),
+    // Static descriptions for other actions
+    const staticDescriptions = {
+      grapple: "Board the enemy ship. Requires Close range.",
+      evade: "Attempt to flee. Speed check.",
+      close_distance: "Move closer to the enemy.",
+      open_distance: "Move further away.",
+      fall_back: "Return to naval combat. Costs crew.",
+      demand_surrender: "Force them to yield (requires advantage).",
+      surrender: "Yield to the enemy.",
+    };
+    return {
+      description: staticDescriptions[action] || "",
+      hullRange: null,
+      crewRange: null,
+      hitChance: null,
+    };
+  }
+
+  // ── Detect if the player's action missed or failed ──────────────────
+  const MISS_PHRASES = [
+    "splashes harmlessly",
+    "goes wide",
+    "overcorrect and miss",
+    "flies past the enemy",
+    "Your grapple fails",
+    "repels your boarders",
+    "thrown back",
   ];
-  return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
-};
+  const isPlayerMissOrFail = (text) => {
+    if (!text) return false;
+    return MISS_PHRASES.some(phrase => text.includes(phrase));
+  };
+
+  // Equipment that has visual representation on the ship sprite
+  const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
+
+  const getVisualEquipment = (state) => {
+    const allEquipped = [
+      ...(state.ship.equipment?.hull || []),
+      ...(state.ship.equipment?.armament || []),
+      ...(state.ship.equipment?.rigging || []),
+      ...(state.ship.equipment?.special || []),
+    ];
+    return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
+  };
 
   // ── EVENT SCREEN ─────────────────────────────────────────────────────
   function EventScreen({ state, dispatch }) {
@@ -112,7 +184,6 @@ const getVisualEquipment = (state) => {
     const session = state.encounterSession;
     if (!session || session.phase !== "intercept") return null;
     const { enemy, intercept } = session;
-    const { flavourText, options } = intercept;
     const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
 
     return (
@@ -122,7 +193,7 @@ const getVisualEquipment = (state) => {
         </div>
 
         <Panel color={T.borderBr}>
-          <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{flavourText}</p>
+          <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{intercept.flavourText}</p>
         </Panel>
 
         <Panel>
@@ -154,7 +225,7 @@ const getVisualEquipment = (state) => {
           <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, letterSpacing: "0.08em" }}>
             CHOOSE YOUR RESPONSE:
           </div>
-          {options.map(opt => (
+          {intercept.options.map(opt => (
             <div key={opt.id} style={{ marginBottom: 8 }}>
               <Btn
                 v={opt.available
@@ -185,7 +256,7 @@ const getVisualEquipment = (state) => {
     );
   };
 
-  // ── BATTLE SCREEN ─────────────────────────────────────────────────────
+    // ── BATTLE SCREEN ─────────────────────────────────────────────────────
   function BattleScreen({ state, dispatch }) {
     const session = state.encounterSession;
     if (!session || session.phase !== "battle" || !session.battle) return null;
@@ -212,6 +283,23 @@ const getVisualEquipment = (state) => {
       : ratio < 0.65
         ? `Need a clear advantage (${Math.round(ratio * 100)}% / 65% required)`
         : "";
+
+    // ── Action previews ──────────────────────────────────────────────
+    const actionPreviews = useMemo(() => {
+      const previews = {};
+      const actions = ["broadside", "precision", "grapple", "evade", "close_distance", "open_distance"];
+      if (isBoarding) {
+        actions.push("continue_fighting", "fall_back", "demand_surrender", "surrender");
+      }
+      actions.forEach(a => {
+        if (isBoarding && ["broadside", "precision", "grapple", "evade", "close_distance", "open_distance"].includes(a)) {
+          previews[a] = { description: "Not available in boarding.", hullRange: null, crewRange: null, hitChance: null };
+        } else {
+          previews[a] = getActionPreview(state, a, battle.distance, enemy, isBoarding ? battle : null);
+        }
+      });
+      return previews;
+    }, [state, battle.distance, enemy, isBoarding, battle]);
 
     const [missFlash, setMissFlash] = useState(false);
     const prevLogLen = useRef(battle.log?.length || 0);
@@ -312,7 +400,6 @@ const getVisualEquipment = (state) => {
     const AdvantageBar = () => {
       if (!isBoarding) return null;
 
-      // Effective crew counts with morale
       const playerEffective = Math.round(battle.playerCrew * (0.5 + state.crew.morale / 200));
       const enemyMoraleStandin = { low: 50, medium: 65, high: 80, assault: 90 }[enemy.risk] ?? 60;
       const enemyEffective = Math.round(battle.enemyCrew * (0.5 + enemyMoraleStandin / 200));
@@ -324,7 +411,6 @@ const getVisualEquipment = (state) => {
       return (
         <Panel style={{ marginBottom: 8 }}>
           <div style={{ position: "relative", height: 24, borderRadius: 2, overflow: "hidden", background: T.bgDeep }}>
-            {/* Player side */}
             <div style={{
               position: "absolute",
               left: 0,
@@ -347,7 +433,6 @@ const getVisualEquipment = (state) => {
               </span>
             </div>
 
-            {/* Enemy side */}
             <div style={{
               position: "absolute",
               right: 0,
@@ -385,6 +470,23 @@ const getVisualEquipment = (state) => {
           </div>
         </Panel>
       );
+    };
+
+    // ── Color maps for action buttons ──────────────────────────────────
+    const navalColors = {
+      broadside: T.redBr,
+      precision: T.yellow,
+      grapple: T.blueBr,
+      evade: T.greenBr,
+      open_distance: T.greenBr,
+      close_distance: T.greenBr,
+    };
+
+    const boardingColors = {
+      continue_fighting: T.greenBr,
+      fall_back: T.goldDim,
+      demand_surrender: T.blueBr,
+      surrender: T.redBr,
     };
 
     return (
@@ -581,48 +683,65 @@ const getVisualEquipment = (state) => {
                   gap: T.spacing.sm,
                 }}>
                   {[
-                    { a: "continue_fighting", label: "Continue Fighting", desc: "Press the attack", color: T.greenBr },
-                    { a: "fall_back", label: "Fall Back", desc: "Return to naval combat", color: T.gold },
-                    { a: "demand_surrender", label: "Demand Surrender", desc: "Force them to yield", color: T.blueBr, disabled: !canDemandSurrender, tooltip: demandSurrenderTooltip },
-                    { a: "surrender", label: "Surrender", desc: "Yield to the enemy", color: T.redBr },
-                  ].map(({ a, label, desc, color, disabled = false, tooltip = "" }) => (
-                    <Panel
-                      key={a}
-                      color={disabled ? T.borderFaint : color}
-                      className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
-                      style={{
-                        background: T.panelAlt,
-                        cursor: disabled ? "not-allowed" : "pointer",
-                        transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
-                        opacity: disabled ? 0.5 : 1,
-                        borderColor: disabled ? T.borderFaint : color,
-                      }}
-                      onClick={() => {
-                        if (disabled) return;
-                        dispatch({ type: A.BATTLE_ACTION, action: a });
-                        setPulsedAction(a);
-                        setTimeout(() => setPulsedAction(null), 150);
-                      }}
-                      onMouseEnter={e => {
-                        if (disabled) return;
-                        e.currentTarget.style.borderColor = color;
-                        e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
-                        e.currentTarget.style.transform = "scale(1.03)";
-                      }}
-                      onMouseLeave={e => {
-                        if (disabled) return;
-                        e.currentTarget.style.borderColor = '';
-                        e.currentTarget.style.boxShadow = "none";
-                        e.currentTarget.style.transform = "scale(1)";
-                      }}
-                      title={tooltip || ""}
-                    >
-                      <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
-                        {label}
-                      </div>
-                      <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
-                    </Panel>
-                  ))}
+                    { a: "continue_fighting", label: "Continue Fighting", desc: actionPreviews.continue_fighting?.description || "Press the attack" },
+                    { a: "fall_back", label: "Fall Back", desc: actionPreviews.fall_back?.description || "Return to naval combat" },
+                    { a: "demand_surrender", label: "Demand Surrender", desc: actionPreviews.demand_surrender?.description || "Force them to yield", disabled: !canDemandSurrender, tooltip: demandSurrenderTooltip },
+                    { a: "surrender", label: "Surrender", desc: actionPreviews.surrender?.description || "Yield to the enemy" },
+                  ].map(({ a, label, desc, disabled = false, tooltip = "" }) => {
+                    const preview = actionPreviews[a] || {};
+                    const crewLossPlayer = preview.crewLossPlayer || [0,0];
+                    const crewLossEnemy = preview.crewLossEnemy || [0,0];
+                    const adv = preview.advantage !== undefined ? `Advantage: ${preview.advantage}%` : "";
+                    const info = a === "continue_fighting"
+                      ? `You lose: ${crewLossPlayer[0]}–${crewLossPlayer[1]} crew · Enemy loses: ${crewLossEnemy[0]}–${crewLossEnemy[1]} crew ${adv ? ` · ${adv}` : ''}`
+                      : a === "fall_back"
+                        ? `You lose: ${crewLossPlayer[0]}–${crewLossPlayer[1]} crew`
+                        : "";
+                    return (
+                      <Panel
+                        key={a}
+                        color={disabled ? T.borderFaint : boardingColors[a]}   // <-- color applied here
+                        className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
+                        style={{
+                          background: T.panelAlt,
+                          cursor: disabled ? "not-allowed" : "pointer",
+                          transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
+                          opacity: disabled ? 0.5 : 1,
+                        }}
+                        onClick={() => {
+                          if (disabled) return;
+                          dispatch({ type: A.BATTLE_ACTION, action: a });
+                          setPulsedAction(a);
+                          setTimeout(() => setPulsedAction(null), 150);
+                        }}
+                        onMouseEnter={e => {
+                          if (disabled) return;
+                          const color = boardingColors[a];
+                          e.currentTarget.style.borderColor = color;
+                          e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
+                          e.currentTarget.style.transform = "scale(1.03)";
+                        }}
+                        onMouseLeave={e => {
+                          if (disabled) return;
+                          e.currentTarget.style.borderColor = '';
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.transform = "scale(1)";
+                        }}
+                        title={tooltip || ""}
+                      >
+                        <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 2 }}>
+                          {label}
+                        </div>
+                        <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                        {info && (
+                          <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>{info}</div>
+                        )}
+                        {disabled && tooltip && (
+                          <div style={{ color: T.redBr, fontSize: 9, marginTop: 2 }}>✗ {tooltip}</div>
+                        )}
+                      </Panel>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -636,23 +755,28 @@ const getVisualEquipment = (state) => {
                   marginBottom: T.spacing.sm,
                 }}>
                   {[
-                    { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: "Full cannon volley. Reliable damage.", glow: T.redBr },
-                    { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: "Aimed shot. Miss or massive damage.", glow: T.yellow },
-                    { a: "grapple", label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple", desc: "Board them. Requires crew advantage.", glow: T.blueBr },
-                  ].map(({ a, label, lbl, desc, glow }) => {
+                    { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: actionPreviews.broadside?.description || "Full cannon volley" },
+                    { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: actionPreviews.precision?.description || "Aimed shot" },
+                    { a: "grapple", label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple", desc: actionPreviews.grapple?.description || "Board the enemy" },
+                  ].map(({ a, label, lbl, desc }) => {
                     const legal = isActionLegal(a);
                     const tooltip = getActionTooltip(a);
+                    const preview = actionPreviews[a] || {};
+                    const hull = preview.hullRange ? `${preview.hullRange[0]}–${preview.hullRange[1]}` : null;
+                    const crew = preview.crewRange ? `${preview.crewRange[0]}–${preview.crewRange[1]}` : null;
+                    const hit = preview.hitChance !== null && preview.hitChance < 1 ? `Hit: ${Math.round(preview.hitChance*100)}%` : null;
+                    const infoParts = [hull ? `Hull: ${hull}` : null, crew ? `Crew: ${crew}` : null, hit].filter(Boolean);
+                    const info = infoParts.join(' · ');
                     return (
                       <Panel
                         key={a}
-                        color={legal ? glow : T.borderFaint}
+                        color={legal ? navalColors[a] : T.borderFaint}   // <-- color applied here
                         className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
                         style={{
                           background: T.panelAlt,
                           cursor: legal ? "pointer" : "not-allowed",
                           transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
                           opacity: legal ? 1 : 0.5,
-                          borderColor: legal ? glow : T.borderFaint,
                         }}
                         onClick={() => {
                           if (!legal) return;
@@ -662,8 +786,9 @@ const getVisualEquipment = (state) => {
                         }}
                         onMouseEnter={e => {
                           if (!legal) return;
-                          e.currentTarget.style.borderColor = glow;
-                          e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
+                          const color = navalColors[a];
+                          e.currentTarget.style.borderColor = color;
+                          e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
                           e.currentTarget.style.transform = "scale(1.03)";
                         }}
                         onMouseLeave={e => {
@@ -678,6 +803,12 @@ const getVisualEquipment = (state) => {
                           {label}{lbl}
                         </div>
                         <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                        {info && (
+                          <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>{info}</div>
+                        )}
+                        {!legal && tooltip && (
+                          <div style={{ color: T.redBr, fontSize: 9, marginTop: 2 }}>✗ {tooltip}</div>
+                        )}
                       </Panel>
                     );
                   })}
@@ -689,23 +820,23 @@ const getVisualEquipment = (state) => {
                   gap: T.spacing.sm,
                 }}>
                   {[
-                    { a: "evade", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade", desc: "Flee if faster. Reduced incoming fire.", glow: T.greenBr },
-                    { a: "open_distance", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Open Distance", desc: "Move further away.", glow: T.greenBr },
-                    { a: "close_distance", label: React.createElement(IconGrapple, { size: 14, color: T.greenBr }), lbl: " Close Distance", desc: "Move closer to the enemy.", glow: T.greenBr },
-                  ].map(({ a, label, lbl, desc, glow }) => {
+                    { a: "evade", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade", desc: actionPreviews.evade?.description || "Flee if faster" },
+                    { a: "open_distance", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Open Distance", desc: actionPreviews.open_distance?.description || "Move further away" },
+                    { a: "close_distance", label: React.createElement(IconGrapple, { size: 14, color: T.greenBr }), lbl: " Close Distance", desc: actionPreviews.close_distance?.description || "Move closer" },
+                  ].map(({ a, label, lbl, desc }) => {
                     const legal = isActionLegal(a);
                     const tooltip = getActionTooltip(a);
+                    const preview = actionPreviews[a] || {};
                     return (
                       <Panel
                         key={a}
-                        color={legal ? glow : T.borderFaint}
+                        color={legal ? navalColors[a] : T.borderFaint}   // <-- color applied here
                         className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
                         style={{
                           background: T.panelAlt,
                           cursor: legal ? "pointer" : "not-allowed",
                           transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
                           opacity: legal ? 1 : 0.5,
-                          borderColor: legal ? glow : T.borderFaint,
                         }}
                         onClick={() => {
                           if (!legal) return;
@@ -715,8 +846,9 @@ const getVisualEquipment = (state) => {
                         }}
                         onMouseEnter={e => {
                           if (!legal) return;
-                          e.currentTarget.style.borderColor = glow;
-                          e.currentTarget.style.boxShadow = `0 0 14px ${glow}55`;
+                          const color = navalColors[a];
+                          e.currentTarget.style.borderColor = color;
+                          e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
                           e.currentTarget.style.transform = "scale(1.03)";
                         }}
                         onMouseLeave={e => {
@@ -731,6 +863,9 @@ const getVisualEquipment = (state) => {
                           {label}{lbl}
                         </div>
                         <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{desc}</div>
+                        {!legal && tooltip && (
+                          <div style={{ color: T.redBr, fontSize: 9, marginTop: 2 }}>✗ {tooltip}</div>
+                        )}
                       </Panel>
                     );
                   })}
