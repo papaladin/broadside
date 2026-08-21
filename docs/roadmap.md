@@ -13,9 +13,11 @@ Broadside is fully playable with rich narrative systems:
 - **17 equipment items** across 4 slot types (hull, armament, rigging, special) with buy/install/remove/locker system
 - **6 mission types**: escort, patrol, combat, trade, smuggle, assault — procedurally generated, fame-tier scaled
 - **Tutorial delivery + tutorial hunt missions** auto-injected during QM onboarding
-- **Turn-based combat** with 4 actions (broadside, precision, grapple, evade) + plunder screen
+- **Turn‑based naval combat** with 4 actions (broadside, precision, grapple, evade) + distance movement (Far/Medium/Close),.
+- **Boarding phase** as a second part of the combat : Advantage Bar (crew × morale), Demand Surrender, and Fall Back.
 - **Encounter system** with data-driven options (fight, flee, parley, bribe, surrender, inspect)
-- **Dynamic market economy** with 14 tradeable resources, per-port availability, buy/sell/black market
+- **Stable, learnable economy** — port prices driven by availability tier and faction production modifiers, not pure random noise.
+- **Dynamic market economy** with 14 tradeable resources, per‑port availability, buy/sell/black market.
 - **Faction heat system** — short-term regional danger from aggressive actions, decays over time
 - **Port gossip generator** — atmospheric text based on heat, reputation, fame, infamy, contraband, market prices, hidden port hints
 - **Market flavour generator** — atmosphere lines on the market screen reflecting gold, hold, prices, fame, infamy, and port faction
@@ -45,6 +47,18 @@ Broadside is fully playable with rich narrative systems:
 - **Data-driven design**: game content lives in data.js / data_text.js. Code reads data; it never hardcodes content.
 - **Narrative as presentation layer**: gossip, log, bios, journal translate system consequences into readable story. They do not own mechanical effects of their own.
 - **Test-first balance**: economy sim, crew sim, bio analyzer, balance dashboard run in-browser with no build step.
+- **Prefer deepening interaction between existing systems over adding new isolated features.** A feature passes the test if it makes two existing systems talk to each other in a way that creates new situations, not if it simply adds a new number to track.
+
+---
+## Long‑term Vision
+
+Broadside should feel like **reading a novel you wrote by playing it**. The Captain's Journal, crew biographies, and gossip system are the foundation of that vision.
+
+The game should turn **state changes into situations**, and **situations into stories**. Every mechanical outcome should be legible as a narrative event, and every narrative event should have mechanical weight. The Journal is not a log — it is the player's memory of their career. Every mechanical system should feed back into the narrative layer — creating stories that are unique to each playthrough, told in the player's own words through their choices.
+
+The game is complete when a player can finish a run, read their journal from start to finish, and say: **"That was my story."**
+
+---
 
 ## Constraints
 
@@ -62,12 +76,14 @@ Broadside is fully playable with rich narrative systems:
 
 | Block | Theme | Status |
 |---|---|---|
-| **B5** | Critical bug & exploit fixes | DONE|
-| **B6** | Quick wins & quality of life | DONE |
-| **B7** | Player menu, reference & community links | DONE |
-| **B8** | Economy & mission design discovery |ONGOING|
-| **B9** | Player trust & resilience | DONE |
-| **B11** | Combat depth rework | NEXT|
+| **T1-T6** | First game loop and screens versions. | ✅ DONE |
+| **B0–B4** | Foundation fixes, architecture revamp, onboarding, Playtest Wave 1 | ✅ DONE |
+| **B5** | Critical bug & exploit fixes | ✅ DONE |
+| **B6** | Quick wins & quality of life | ✅ DONE |
+| **B7** | Player menu, reference & community links | ✅ DONE |
+| **B8** | Economy & mission design discovery | ✅ DONE |
+| **B9** | Player trust & resilience | ✅ DONE |
+| **B11** | Combat depth rework | ONGOING |
 | **B10** | Starts variety & captain identity discovery | 🔲 Planned |
 | **B12** | Sailing enrichment | 🔲 Planned |
 | **B13** | Narrative layer upgrade | 🔲 Planned |
@@ -79,165 +95,66 @@ Broadside is fully playable with rich narrative systems:
 | **B19** | World events & economy dynamics | 🔲 Planned |
 | **B20** | Hidden ports & story arc | 🔲 Planned |
 | **B21** | Endgame & legacy | 🔲 Planned |
-| **B22** | Promotion & web presence | 🔲 Planned |
+| **B22** | Promotion & web presence | ✅ DONE |
 | **B23** | Audio & visual polish | 🔲 Future |
 
 ## Implementation Order
 
-### B5 — Critical Bug & Exploit Fixes
+╔═══════════════════════════════════════════════════════════════╗
+║                   PARALLEL TRACKS (B10–B13)                  ║
+╠═══════════════════════════════════════════════════════════════╣
+║                                                               ║
+║   B10 (Captain Identity) ──────┐                              ║
+║                                ├── B12 (Sailing) ──┐          ║
+║   B11.8 (Combat AI) ───────────┤                    │          ║
+║                                ├── B13 (Narrative) ─┘          ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+                                │
+                                ▼
+╔═══════════════════════════════════════════════════════════════╗
+║         B14 — Playtest Wave 2 + Telemetry (Validation Hub)   ║
+╚═══════════════════════════════════════════════════════════════╝
+                                │
+                ┌───────────────┴───────────────┐
+                ▼                               ▼
+╔═══════════════════════════════╗ ╔═══════════════════════════════╗
+║   B15–B18 (Crew Depth)        ║ ║   B19 (World Events)          ║
+║   • B15 Functional Roles     ║ ║   • Parametric events          ║
+║   • B16 Shore Leave          ║ ║   • Economy dynamics           ║
+║   • B17 Crew Council         ║ ║   • Named rivals               ║
+║   • B18 Pirate Articles      ║ ║   • Mid‑game content           ║
+╚═══════════════════════════════╝ ╚═══════════════════════════════╝
+                │                               │
+                └───────────────┬───────────────┘
+                                ▼
+╔═══════════════════════════════════════════════════════════════╗
+║          B20–B21 — Story Arc & Endgame (Finale)              ║
+║          (Requires both crew depth and world state)          ║
+╚═══════════════════════════════════════════════════════════════╝
+                                │
+                                ▼
+╔═══════════════════════════════════════════════════════════════╗
+║              B22–B23 — Promotion & Audio/Visual Polish       ║
+║                        (Amplifiers, independent)             ║
+╚═══════════════════════════════════════════════════════════════╝
 
-**Goal**: close confirmed exploits and platform bugs before any further content or balance work. These were surfaced by Wave 1 testers and by a full audit of a 608-day, fame-252 save (Ren's campaign) that exposed how far the current loop can be trivialised. This block is what makes every later balance decision trustworthy — there is no point tuning mission rewards while grappling and starvation don't actually cost anything.
 
-#### B5.1 — Combat exploit closure
-- [X] **Grapple minimum casualty**: boarding success still costs crew, scaled to crew ratio (e.g. `loss = ceil(playerCrew * (0.05 + 0.25 * (1 - ratio)))`). Confirmed: 140 boarding victories in one save, zero crew lost across all of them.
-- [X] **Patrol mission duplication**: block `COMPLETE_MISSION` from re-awarding a patrol that has already been completed. Confirmed: the same patrol mission was completed 10 times for full rewards in one save, despite the story log showing "you have not yet found the enemy."
-- [X] **Same-port mission chaining**: prevent accepting another mission of the same type immediately after completing one, in the same port, with zero travel in between — this is what let the exploit above collapse into "five combat missions in a single day" repeatedly.
+### Leftover, parked, orphaned ideas,..
 
-**Source**: petripeeduhpedro (Reddit), Ren's 608-day save audit
-
-#### B5.2 — Survival & stat integrity
-- [X] **Starvation lethality (stopgap)**: after 2-3 consecutive days at zero food or zero water, start killing 1 crew member per day instead of only reducing morale. (A richer, asymmetric food-vs-water redesign is a separate discovery — see B8.2.)
-- [X] **Desertion at sea**: allow upset crew to attempt desertion mid-voyage if morale < 30, not only at port entry. Confirmed in the save audit: several permanently-upset crew never deserted because the player simply never entered a port belonging to their faction.
-- [X] **Storm scar subset**: tag only 20-40% of survivors with `scar_storm`, not the entire crew. Confirmed: a single storm at day 338 left all 220 crew members carrying the tag, making it meaningless noise.
-- [X] **`longestCrewTenure` fix**: compute the stat from the current roster as well as departed crew. Confirmed: the stat showed 36 days despite multiple crew members with 500+ days aboard, because it only updates on removal.
-
-**Note**: most low-morale-gated content (mutiny `<20`, deserters `<40`) should become naturally reachable once the above lands — a successful player currently never sees morale drop far enough to trigger either. Revisit if it's still unreachable after this ships.
-
-**Source**: petripeeduhpedro (deliberately tested 20-day no-provisions voyages), Ren's save audit
-
-#### B5.3 — Platform & input bugs
-- [X] Equipment-boosted hull doesn't unlock `minHull`-gated ports — `canReach` / `getUnreachableReason` must read effective hull (`L.getShipStats`) instead of the ship's base hull
-- [X] Crew can exceed ship max via the shipwreck-rescue event (confirmed: 81/80) — clamp roster additions to current max
-- [X] Map pinch/scroll zoom also scrolls the page underneath it, with visible black-border glitching — `preventDefault` on the map's wheel/touch handlers
-- [0] Fullscreen escape has no way back in short of exiting and restarting the game -> rejected, it works (escape touch on keyboard)
-- [X] Market quantity-input field expands on first click and shifts the buttons out from under the cursor, breaking repeated click-click-click — reserve the layout space whether or not a trade is pending
-
-**Source**: Ren (Discord), confirmed across both mobile and desktop sessions
-
-#### B5.4 — Tutorial safety net
-- [X] Abandoning the starter tutorial mission currently leaves a guided-onboarding player stuck with no recovery path. The QM should acknowledge the abandonment and advance onboarding regardless, instead of waiting indefinitely on a mission that will never complete.
-
-**Source**: Ren (Discord) — hit this in the very first session, had to restart the game entirely
-
-#### B5.5 — Economy scaling (known-direction fix)
-- [X] Port market stock quantities don't scale with hold capacity or fame tier — confirmed independently by DocTheYounger, Ren, and the save audit (endgame port stocking 0-30 of most goods against a 900-capacity hold). Scale the tier quantity ranges in `generatePortMarket` by fame tier and/or hold size. (The deeper "is trade strategically interesting" question is a separate discovery — see B8.1.)
-
-**Source**: DocTheYounger (Reddit), Ren's save audit, petripeeduhpedro
-
----
-
-### B6 — Quick Wins & Quality of Life
-
-**Goal**: cheap, low-risk improvements independently requested by multiple testers. Ship as a batch once B5 is in, before the heavier discovery/design work begins.
-
-- [X] "Sell all (except food/water)" button — especially useful after plunder (petripeeduhpedro, Ren both asked independently)
-- [X] "Buy x5 / x10 / x100" quantity buttons on the market --> x20 only (for screen size on phone)
-- [0] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
-- [X] Gold-sack icon + an attention/warning icon on mission cards
-- [X] Indicate which faction is harmed by a mission, not only who benefits from it
-- [X] Mission-type tooltips on mission cards
-- [X] Repair cost scales with the ship's max hull/price, not only its missing hull points
-- [X] Surrender consequences explicitly logged (gold lost, cargo seized, days imprisoned) — currently implied but never stated
-- [O] Stat-change feedback beyond the existing flash: show a transient numeric delta (e.g. "-1000") near the affected HUD stat for a couple of seconds, since the colour flash alone is easy to miss --> REJECTED
-- [X] Morale threshold-crossed log entries (e.g. crossing 30/50/70/90, in either direction)
-- [X] Hidden port discovery gets a visible callout beyond a single log line (a player found a new port via random encounter and almost missed that it happened)
-- [X] Being able to name your ship on purchase (so all ships will be named, except the dinghy. If necessary we can name it a default name in the "starts" data.)
-- [X] Ship name visible on the Sailing screen / HUD (carried over from B2.1, never shipped)
-- [X] Pirate crew names drawn from a random/weighted nationality pool instead of defaulting to English for every pirate hire
-- [O] General log message throttling utility — apply a once-per-period cooldown to repetitive lines (navy patrol hails repeating 19 times in one session, a coward-trait reveal line firing dozens of times) -> parked
-- [X] Finish hover/focus state coverage on any remaining interactive elements (carried over from B3.1, partially done)
-- [O] Shipyard nudge: when the player is within roughly 1-2 missions' worth of gold of an affordable upgrade (e.g. the Cutter), show a contextual hint --> parked, playtest shows its enough.
-- [X] Patrol mission card: until the full rework in B8.3 ships, add explicit instructional text telling the player to sail near the target port and advance days for the enemy to appear, instead of leaving them to guess
-
-**Source**: petripeeduhpedro, Ren, DocTheYounger, project backlog
-
----
-
-### B7 — Player Menu, Reference & Community Links
-
-**Goal**: give players a way to manage their session and find Broadside's wider presence without hunting through the Port screen, and open a real feedback channel now that there are real players to hear from.
-
-#### B7.1 — Menu screen
-- [X] Accessible from both the Port and Sailing screens --> port only
-- [X] Resume / Save / Load / Export / Import / Back to Title
-- [X] Toggle auto-save on/off
-- [X] Link to captain's handbook
-- [X] Link to feedback form or integrated form
-- [X] link to comunity (github, kofi, itch, discord?) 
-
-#### B7.2 — Captain's Handbook
-- [X] Static reference (in-app panel or linked page) explaining stats, status effects, faction mechanics, and the other hidden rules new players keep asking about in feedback
-- [0] Linked from the menu and from the New Game screen -> doesnt make sense. player never read user guide before stating to play and beingt stuck or having a question.
-
-#### B7.3 — Ship & equipment flavour text
-- [0] Short descriptive text per ship type and equipment item, surfaced in the Shipyard -> there is already a stat modifier text.
-
-#### B7.4 — Community & feedback links
-- [X] Feedback form link, replacing ad-hoc collection over Discord/Reddit
-- [X] Links to the itch.io page, GitHub repo, and Ko-fi
-
-**Note**: thematically pairs with B22 (Promotion), but ships much earlier since real testers are already active and asking where to send feedback.
-
----
-
-### B8 — Economy & Mission Design Discovery
-
-**Goal**: define a clear direction for making trade viable and missions feel distinct, before committing to implementation. This is the discovery layer behind the quick numeric fix already shipped in B5.5.
-
-#### B8.1 — Trade & economy viability
-- [X] Beyond the B5.5 quantity-scaling fix, decide on a price/availability **memory** system: surface last-known prices and stock for ports the player has already visited (status screen? a dedicated tab?) so trading isn't "searching in the dark," as described by Ren
-- [X] Audit reputation decay vs. mission completion timing — trade missions cost travel days (during which reputation decays toward 50), while combat/patrol chains can complete same-day. Confirm whether this structurally disadvantages trade-faction reputation gain, and adjust decay timing or trade rewards if so (DocTheYounger)
+- [ ] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
+- [ ] Linked from the menu and from the New Game screen -> doesnt make sense. player never read user guide before stating to play and beingt stuck or having a question.
 - [ ] Minor data balance: review port-per-faction distribution — Spanish ports are currently over-represented relative to the other four factions (DocTheYounger)
-
-#### B8.2 — Provisions depth
-- [X] Decide: keep food and water as separate resources, or merge them, since they're always consumed in equal amounts (Ren)
-- [X] Decide: asymmetric effects — e.g. water deprivation killing crew faster than food deprivation — as a richer follow-up to the uniform B5.2 stopgap
 - [ ] Explore at-sea acquisition alternatives instead of always needing a port: rain-catching, fishing, whaling
+- [ ] Core problem: patrols are confusing (multiple testers couldn't find the enemy) and hunts barely differ from generic combat missions. Explore: a guaranteed encounter after X days (rising chance), tied to a random sea point within the patrol zone; hunts requiring scouting or trail-following instead of a flat combat trigger. Decide whether to merge the two mission types or give each a genuinely distinct loop
+- [ ] Explore letting a mission (the bounty hunt especially) stay tracked passively while the player does other things, instead of forcing dedicated back-and-forth travel just to keep it active (Ren). This is an architecture change — `state.activeMission` is currently singular — scope the change before committing to it.
+- [ ] Make a PWA (needs to build the icons, and ensure layout still wokrs on phone with island, camera in screen, etc.)
+- [ ] evaluate adding SVG illustration on event screen and on intercept screen (reuse ship for battle, for the rest..to inventorize to evaluate effort)
+- [ ] evaluate adding a reminder of the ongoing mission somexhere on screen? (at least during market, crew; shipyard, maybe not during combat, nav and sailing. maybe a bottom hud like? or dismissable toast?)
+- [ ] add the integration testing as part of the github actions?
+- [ ] review and potentially restructure all "random encounter", the list of encounter type, encounters from random event and from mission to have something more lean and polyvalent (not patrol, navy_patrol and navy_patrol combat, where they all represent a navy patrol checking cargo, but pirate ambush during wrek random event is different yet defaults on.. patrol ?)
 
-**See also**: Parked Concepts — faction-specific reputation decay curves may inform the decay audit above.
 
-#### B8.3 — Patrol & hunt mission identity
-- [ ] Core problem: patrols are confusing (multiple testers couldn't find the enemy) and hunts barely differ from generic combat missions
-- [ ] Explore: a guaranteed encounter after X days (rising chance), tied to a random sea point within the patrol zone; hunts requiring scouting or trail-following instead of a flat combat trigger
-- [ ] Decide whether to merge the two mission types or give each a genuinely distinct loop
-
-#### B8.4 — Concurrent mission tracking --> REJECTED, the "parallel thing" will be implemented through bounty hunter quests later on.
-- [O] Explore letting a mission (the bounty hunt especially) stay tracked passively while the player does other things, instead of forcing dedicated back-and-forth travel just to keep it active (Ren)
-- [O] This is an architecture change — `state.activeMission` is currently singular — scope the change before committing to it
-
----
-
-### B9 — Player Trust & Resilience
-
-**Goal**: ensure the game never leaves a player clicking buttons that do nothing. Scope is now informed by Wave 1 data and recalibrated against B5.2's harsher starvation rules — "unrecoverable state" means something different once starvation can actually kill crew.
-
-#### B9.1 — Detect unrecoverable states
-- [X] Define the condition (e.g. 0 gold + 0 crew + 0 food + damaged hull + no friendly port reachable)
-- [X] Not being able to sail with 0 hull. If 0 hull + 0 gold → game over? This is the real softlock condition — no food and no crew isn't recoverable on its own, and no reachable port isn't either, but a "hunt" mission can still offer a way out
-- [X] Not being able to fight or take a mission with 0 hull
-- [X] Detection runs on port entry / end of day
-
-#### B9.2 — Graceful career end screen
-- [X] Replace the older "mercy event" idea with an on-pillar "Your career ends here" screen
-- [X] Career summary using B2.3 stats: days survived, gold earned, ports visited, crew lost
-- [X] Option to start a new game
-- [X] Reuses the data layer built for B21 retirement
-- **Pillar**: Consequence (not every captain reaches retirement, and that's allowed)
-
-#### B9.3 — Defeat recovery audit
-- [X] Verify wash-ashore-after-defeat always leaves minimum viable resources
-- [X] Or routes to graceful career end if not
-
----
-
-### B10 — Starts Variety & Captain Identity Discovery
-
-**Goal**: the five faction starts currently differ only in opening flavour text and a fixed rep adjustment. A discovery session to decide whether — and how — to seed more replayability into the very first choice of the game.
-
-- [ ] Discovery: should the captain have traits/background (story flavour with a mechanical bonus/malus), distinct from the faction choice?
-- [ ] Discovery: should faction be locked-in with a fixed bonus (current model), or freely picked with no inherent bonus but a purchasable or story-earned **Letter of Marque** that lets the player switch allegiance later — possibly with each faction's marque carrying a different effect?
-- [ ] Discovery: any other seed choices worth adding at New Game time purely for opening replayability
-- [ ] Decide on a direction and implement it on the New Game screen
 
 ---
 
@@ -246,43 +163,113 @@ Broadside is fully playable with rich narrative systems:
 **Goal**: four actions where the enemy picks broadside 70% of the time will feel repetitive over a long campaign, no matter how good the narrative log gets — and this was independently confirmed by petripeeduhpedro ("grappling pushed me away from combat"), Ren ("you just steamroll"), and the save audit (140 grapple wins, near-zero combat variety). Scope and direction informed by Wave 1.
 
 #### B11.1 — Encounter architecture refactor (carried over from B1.4)
-- [ ] Apply the unified encounter/activeMission/battleState model already designed during the B1.3 discovery, before adding distance, AI variety, or a boarding minigame on top of the old per-type conditionals
+- [X] Apply the unified encounter/activeMission/battleState model already designed during the B1.3 discovery, before adding distance, AI variety, or a boarding minigame on top of the old per-type conditionals
 - **Pillar**: Consequence (every new encounter type should be a data addition, not a code conditional)
 
 #### B11.2 — Discovery: what role should combat play?
-- [ ] Primary activity vs. punishment for failed negotiation
-- [ ] How much depth vs. how much speed (1-minute fights vs. 5-minute fights)
-- [ ] Decision stacking vs. positional play
-- [ ] Cross-reference Wave 1 findings on combat fatigue
+- [X] Primary activity vs. punishment for failed negotiation
+- [X] How much depth vs. how much speed (1-minute fights vs. 5-minute fights)
+- [X] Decision stacking vs. positional play
+- [X] Cross-reference Wave 1 findings on combat fatigue
 
 #### B11.3 — Discovery: wind & position
-- [ ] Should wind affect combat actions (favourable for chase, opposing for boarding)?
-- [ ] Distance bands (long / medium / boarding range), with a "close distance" / "open distance" action that makes fleeing easier at range and grappling easier up close?
-- [ ] A maneuver phase?
+- [X] Should wind affect combat actions (favourable for chase, opposing for boarding)?
+- [X] Distance bands (long / medium / boarding range), with a "close distance" / "open distance" action that makes fleeing easier at range and grappling easier up close?
+- [X] A maneuver phase?
 
 #### B11.4 — Implement combat depth changes
-- [ ] Apply the model chosen in B11.2/B11.3: distance system, revised enemy AI (situational, not flat weights)
-- [ ] **Post-boarding crew-fight phase**: grappling success no longer ends the fight outright. A boarding success still favours the larger crew, but resolves into a separate crew-combat roll/phase so a 80-vs-60 crew advantage is still an advantage, not an automatic, costless win (petripeeduhpedro, Ren, save audit all converge on this exact complaint)
+- [X] Apply the model chosen in B11.2/B11.3: distance system, revised enemy AI (situational, not flat weights)
+- [X] **Post-boarding crew-fight phase**: grappling success no longer ends the fight outright. A boarding success still favours the larger crew, but resolves into a separate crew-combat roll/phase so a 80-vs-60 crew advantage is still an advantage, not an automatic, costless win (petripeeduhpedro, Ren, save audit all converge on this exact complaint)
 - **Pillar**: Consequence
 
 #### B11.5 — Enemy AI variety
+- [X] Design complete (`tasks_NPCAI.md`).
 - [ ] NPCs choose actions based on situation, not flat weights (low hull → grapple attempt, fast ship → evade, large crew → grapple)
 - [ ] Each enemy type gets a "preferred doctrine" reflected in its choice weights
-- [ ] Cheap win even independent of B11.4, can ship on its own
 
 #### B11.6 — Combat log narrative depth pass
-- [ ] Leverage existing crew names/traits in the round-by-round log ("Maria refuses to load the cannons," "the cook screams when the deck is hit")
-- [ ] Connects combat to the crew attachment pillar
+- [X] Leverage existing crew names/traits in the round-by-round log ("Maria refuses to load the cannons," "the cook screams when the deck is hit")
+- [X] Connects combat to the crew attachment pillar
 - **Pillar**: Consequence
 
 #### B11.7 — Weapons & ammunition as a combat resource
-- [ ] Add weapons/ammunition as a consumable resource analogous to food/water, gating combat actions the way provisions gate morale (Ren's suggestion). Touches the market and hold the same way provisions do — if B8.2's provisions redesign has already shipped, model this consistently with whatever direction that took.
+- [0] Add weapons/ammunition as a consumable resource analogous to food/water, gating combat actions the way provisions gate morale (Ren's suggestion). Touches the market and hold the same way provisions do — if B8.2's provisions redesign has already shipped, model this consistently with whatever direction that took. --> REJECTED FOR NOW, TOO COMPLEX FOR WHAT IS ENVISONNED. ITS NOT A NAVAL BATTLE GAME.
+
+#### B11.8 — Combat AI & Intercept UX
+
+**Goal**: Complete the missing piece of B11 — make the AI use the distance/boarding mechanics intelligently, and make the intercept screen a rich, informative pre‑battle experience.
+
+**State Transition**: From "combat mechanics are solid but AI is simple and intercept screen is generic" to "AI feels intentional and intercept screen gives the player meaningful information to act on."
+
+**Tasks**:
+- [ ] **Full NPC AI scoring**: Implement utility‑based AI from `tasks_NPCAI.md` (faction archetypes, risk, dynamic signals).
+- [ ] **Intercept screen flavour**: Rich, contextual flavour text per encounter type/faction.
+- [ ] **Intercept screen UX improvements**:
+  - Show faction tag prominently.
+  - Add qualitative risk read ("Low/Medium/High") — "the crew believes victory is likely."
+- [ ] **Combat AI simulator**: Standalone tool to validate action distribution and balance across archetypes.
+- [ ] **Optional**: SVG illustrations for intercept/event screens (faction‑specific or encounter‑type art).
+
+**Measurement** (to validate B11 as the stable central tactical system):
+- Action choice distribution (are players choosing intentionally, or is one action obviously best?)
+- Combat duration
+- Distance transitions
+- Grapple/boarding frequency
+- Surrender frequency
+- Crew loss
+- Flee rate
+- Player understanding (qualitative)
 
 ---
 
-### B12 — Sailing Enrichment
+### B10 — Starts Variety & Captain Identity Discovery
 
-**Goal**: make the voyage — the most-repeated action — more engaging. Direction informed by Wave 1.
+**Goal**: The five faction starts currently differ only in opening flavour text and a fixed rep adjustment. This block makes the player's captain identity explicit and evolutionary.
+
+**State Transition**: From "faction is a starting flavour choice" to "faction is a meaningful identity that shapes gameplay and can evolve through the campaign."
+
+**Design Intent**:
+- The player should increasingly upgrade **who their captain is**, not just ship stats.
+- The Letter of Marque system (already in the design doc) is the ideal mechanism for late-game identity transformation.
+- The trait/bonus system should create **situations where choices feel different**, not just stat modifiers. The Greedy trait is a model: "mission success → demand → pay or refuse → trait revealed → upset → desertion risk."
+
+**Scope**:
+- Faction‑specific birth bonuses and drawbacks.
+- Letter of Marque system (switch allegiance, stack bonuses).
+- Early‑game identity expression through starting backstory and faction‑specific opening events.
+
+**Out of Scope**:
+- Full narrative branching (that's B20/B21).
+- Dynamic faction reputation simulation (that's B19).
+
+See dedicated task list.
+
+---
+
+### B12 — Voyage Decision Density (Sailing Enrichment) (🔲 Planned)
+
+**Goal**: Make the voyage — the most‑repeated action — worth paying attention to. The problem is not event frequency; it's that normal sailing days lack decision density.
+
+**State Transition**: From "sailing is mostly passive time with occasional interruptions" to "sailing is a continuous decision space where the player actively navigates opportunities and risks."
+
+**Design Intent**:
+- Frame this as **"How do we make sailing itself worth paying attention to?"** before "What new events should we add?"
+- Focus on **decision density**, not encounter frequency.
+- Quality over quantity — 1 good event every 8–12 days is better than 1 mediocre event every 2–3 days.
+- The Change Course mechanic should evolve from route correction to route strategy.
+
+**Tasks**:
+- [ ] **Tactical route choices**: Do I take the risky shortcut? Do I push further or turn back?
+- [ ] **Sightings as information**: "Smoke on the horizon" — investigate or ignore? Decision before commitment.
+- [ ] **Crew‑initiated sailing events**: Arguments, sightings, morale moments that the player can respond to (not just passive logs).
+- [ ] **Weather as trade‑off**: Weather should create trade‑offs (shortcut vs. safe route), not just modifiers.
+- [ ] **At‑sea acquisition**: Fishing, rain‑catching, whaling — activities that give the player something to do during sailing.
+- [ ] **Patrol/hunt mission differentiation**: Differentiate patrol (find/intercept) from combat (deliberate violence) experientially.
+- [ ] **Do NOT increase random event frequency**. The current framework is approximately right.
+
+**Out of Scope**:
+- Full ship simulation (not that kind of game).
+- Real‑time weather system (turn‑based game).
 
 #### B12.1 — Sailing micro-loop improvement
 - [ ] More frequent micro-decisions during sailing (currently 50-60% dead air estimated)
@@ -304,9 +291,27 @@ Broadside is fully playable with rich narrative systems:
 
 ---
 
-### B13 — Narrative Layer Upgrade
+### B13 — Narrative Synthesis (Journal as Memory) (🔲 Planned)
 
-**Goal**: surface named crew members in routine events and elevate the raw log into something closer to a written account, now that the random event pool (B12) gives it richer material to work with. Pairs naturally with the existing Identity & Feedback pillar — could in principle ship at any point with no hard prerequisite, but lands here so Wave 2 can react to it alongside the combat and sailing changes.
+**Goal**: 
+- Transform the raw log from a mechanical record into a coherent narrative memory — the "novel you wrote by playing."
+-  surface named crew members in routine events and elevate the raw log into something closer to a written account, now that the random event pool (B12) gives it richer material to work with. Pairs naturally with the existing Identity & Feedback pillar — could in principle ship at any point with no hard prerequisite, but lands here so Wave 2 can react to it alongside the combat and sailing changes.
+
+**State Transition**: From "log is a record of what happened" to "journal is a curated, weighted memory of the voyage that the player wants to read."
+
+**Design Intent**:
+- The raw log should remain as the mechanical record. The journal is a **synthesis layer** on top.
+- The journal should **filter and weight events** — a crew member gaining a day shouldn't have the same weight as a storm, major battle, or named crew loss.
+- Avoid over‑narrating mechanical noise.
+
+**Tasks**:
+- [ ] **Role‑based log entries**: Identify all log‑generating moments where a crew member's *role* could be invoked (gunner, cook, carpenter, navigator, deckhand). Write 8‑15 template variants per role. Store in `data_text.js`. Inject into: `BATTLE_ACTION` (gunner), provision depletion (cook), arrival (navigator), storm hull damage (carpenter), `ENTER_PORT` (navigator).
+- [ ] **Prose‑style daily summarisation**: On days with notable events, generate a paragraph summarising the day.
+- [ ] **Weighting system**: Events have different narrative weights. A scar, a battle, a betrayal, a new port — these are high‑weight. Routine days are low‑weight or omitted.
+- [ ] **Tie to crew state**: When a named crew member appears in the journal, link to their current state (scars, traits, days aboard).
+
+**Design Note**: The journal should not narrate every +1 day aboard. It should narrate the moments that matter. The existing event/state system already has the categories to do this.
+
 
 #### B13.1 — Role-based log entries
 - [ ] Identify all log-generating moments where a crew member's *role* could plausibly be invoked: combat shots, food/water depletion, storms, voyage events, repair moments, scouting/arrivals
@@ -328,16 +333,29 @@ Broadside is fully playable with rich narrative systems:
 
 ### B14 — Playtest Wave 2
 
-**Goal**: validate combat (B11), sailing (B12), and the narrative upgrade (B13) before investing in world events and story arc.
+### B14 — Playtest Wave 2 + Telemetry Discovery (🔲 Planned)
+
+**Goal**: Validate the combined effect of B10 (identity), B12 (sailing), and B13 (narrative) before investing in world events and crew depth.
+
+#### B14.0 — Telemetry Discovery (prerequisite)
+**Goal**: Decide where player data goes before defining metrics.
+
+**The architectural question**: Broadside is a backend‑less, static, client‑only game. Before scoping metrics (tutorial completion, voyage duration, mission acceptance, etc.), the actual open question is *where does the data go* — a real backend, or an opt‑in local‑only stats view the player can see about themselves? That decision gates everything else.
+
+**Tasks**:
+- [ ] Discovery: backend vs. local‑only stats.
+- [ ] If backend: choose a lightweight solution (e.g., Google Analytics 4, Plausible, or a custom JSON endpoint).
+- [ ] If local‑only: design a "Captain's Stats" page that aggregates local save data.
+- [ ] Define metrics: tutorial completion, mission acceptance/abandonment, voyage duration, combat outcomes, equipment usage, crew loss.
 
 #### B14.1 — Recruit testers
 - [ ] Mix of new testers and returning Wave 1 testers (returning testers can compare directly)
 
 #### B14.2 — Define Wave 2 metrics
-- [ ] Did combat feel less repetitive?
-- [ ] Did sailing feel less like dead air?
-- [ ] Are encounter decisions interesting on repeat?
-- [ ] Does the prose journal read as an improvement, or as noise?
+- [ ] Combat: action choice distribution, combat duration, distance transitions, grapple/boarding frequency, surrender frequency.
+- [ ] Sailing: do players feel like they are *choosing intentionally* or just clicking "Advance Day"?
+- [ ] Narrative: does the prose journal read as an improvement, or as noise?
+- [ ] Identity: do players feel like their captain identity matters?
 - [ ] What broke in the changes?
 
 #### B14.3 — Synthesise findings
@@ -352,9 +370,17 @@ Multiple testers reported having almost no interaction with their crew despite t
 
 Genre-inspiration notes worth keeping in mind while designing these (from a Reddit exchange about comparable tabletop/board games): a **crew unrest track**, **scurvy**, and **days of Revelry & Debauchery followed by a hangover** were all cited as mechanics the player found compelling in other Caribbean-themed games — useful flavour reference for B16 and B17 specifically, not a directive to copy them wholesale.
 
-### B15 — Functional Crew Roles
+### B15 — Functional Crew Roles (🔲 Planned)
 
-**Goal**: promote crew roles from cosmetic to mechanical. Roles already exist (deckhand, gunner, cook, carpenter, navigator) but currently have zero gameplay effect.
+**Goal**: Promote crew roles from cosmetic to mechanical.
+
+**State Transition**: From "roles are cosmetic labels" to "roles have one modest mechanical effect that makes hiring choices matter."
+
+**Design Intent**:
+- **One modest effect per role**, not a full RPG skill tree.
+- Roles: Gunner → combat. Navigator → travel. Carpenter → repair. Cook → provisions. Deckhand → general.
+
+**Design Note**: The Crew screen teaches the player "this person is a Gunner" without "being a Gunner means something." This is a broken promise that B15 closes.
 
 - [ ] Discovery: what stat bonus per role — Gunner → combat, Navigator → travel days, Carpenter → repair cost, Cook → provision efficiency, etc.
 - [ ] Discovery: when do bonuses unlock — immediately on hire, or tied to days-served the way seasoned/veteran/loyal tags already are?
@@ -363,9 +389,20 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 **Note**: best sequenced after B11 (Combat Rework) settles the combat math, since a Gunner's bonus interacts with it directly.
 
-### B16 — Shore Leave System
+### B16 — Shore Leave System (🔲 Planned)
 
 **Goal**: convert port-time from "instant transactional space" to a place where named crew members live and small events occur. Give the player a meaningful duration choice on arrival.
+
+**State Transition**: From "port is a menu hub" to "port is a location in the captain's story."
+
+**Design Intent**:
+- Shore leave is the bridge between "I know this guy" and "I care about this guy."
+- Shore leave creates situations where crew members reveal themselves.
+- Events during shore leave should express who the crew are, not just hand out resources.
+
+**Out of Scope**:
+- Full simulation of every crew member's activities.
+- Complex mini‑games for shore leave activities.
 
 **Pairs naturally with**: B12 (Sailing Enrichment). Provides the port-side equivalent to the sailing micro-loop improvements. Prerequisites: none structurally, but the writing investment is heavy, so it makes sense only once Wave 1 (complete) and the crew-depth motivation above have confirmed players engage with named crew enough to justify it.
 
@@ -414,9 +451,20 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 **Risk**: Medium. The discovery questions in B16.1 must produce a coherent mechanic before implementation; if shore leave costs outweigh rewards, players will simply skip it.
 
-### B17 — Crew Council System
+### B17 — Crew Council System (🔲 Planned)
 
 **Goal**: a periodic, gated mechanism for the crew to weigh in on the captain's decisions. Historically grounded in pirate-era democracy. Outputs range from narrative observation to demands the player must respond to. The defining mechanic of "crew are people who run this ship with you."
+
+**State Transition**: From "crew is a resource to manage" to "crew has opinions and agency that the captain must reckon with."
+
+**Design Intent**:
+- The council should make the player *feel* that the crew has opinions, not just be a stat check.
+- The ideal crew progression is: Unknown sailor → "I know this guy" → "They have a quirk" → "We survived something together" → "They have a history" → "They care about this ship" → "I don't want to lose them." The current systems do steps 1–4. B15–B17 should accomplish 5–7.
+
+**Phases**:
+1. Narrative output only (observations).
+2. Meaningful choices (agree/disagree/defer).
+3. Requests and quest hooks (crew demands, personal quests).
 
 **Pairs naturally with**: B20 (Hidden Ports & Story Arc). Hard dependency on B2.3 (Career Stats Tracking), already complete.
 
@@ -470,7 +518,7 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 **Risk**: Medium-high. The council needs to feel meaningful, not repetitive. Quality of writing in observation templates is the make-or-break factor — ship Phase 1 first and gauge engagement before committing to Phases 2-4.
 
-### B18 — Pirate Articles System
+### B18 — Pirate Articles System (🔲 Planned)
 
 **Goal**: a small set of player-editable ship's articles (rules) that affect gameplay. The articles can be amended through crew council outcomes, giving the council a tangible mechanism for crew influence on the ship's direction. Disguises some gameplay settings (difficulty modifiers, share splits, behavioural tendencies) as in-world contracts.
 
@@ -533,14 +581,40 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 ---
 
-### B19 — World Events & Economy Dynamics
+### B19 — World Events & Living Caribbean (🔲 Planned)
 
-**Goal**: the world acts on its own, not just in reaction to the player. Trade and exploration get a dynamic backdrop, and player actions visibly shift the economy and faction balance.
+**Goal**: 
+- the world acts on its own, not just in reaction to the player. Trade and exploration get a dynamic backdrop, and player actions visibly shift the economy and faction balance.
+- the world has its own momentum — events happen that the player didn't cause, but that change what they should do. This is distinct from B19's discrete world events; this is about **persistent, slow‑moving change**.
+
+
+**State Transition**: From "the Caribbean is a static backdrop" to "the Caribbean reacts to forces larger than the player."
+
+**Design Intent**:
+- **Discrete events** that change the world for a period and then resolve.
+- Events should **express identity**, not just hand out resources. The merchant distress event (help/exploit/ignore) is a model — it affects crew morale, reputation, and captain identity, not just gold.
+- **Quality over quantity.** 1 good event every 8–12 days is better than 1 mediocre event every 2–3 days.
+
+**Scope**:
+- Parametric world events: war, embargo, plague, treasure fleet, pirate crackdown.
+- Event effects: price modifiers, mission weight shifts, patrol frequency changes, gossip.
+- Player‑influenced resolution: completing missions shortens events, delivering supplies helps.
+- Faction tension, shifting trade routes, governor changes as *event outcomes* (not continuous simulation).
+
+**Explicitly Out of Scope**:
+- Continuous real‑time simulation of the entire Caribbean economy (the game is turn‑based and event‑driven).
+- Seasonal rhythms / hurricane season (parked — too complex for B19, could be future).
 
 #### B19.1 — Discovery: world event types & cadence
 - [ ] Famines, harvest fails, blockades, faction wars, naval supremacy shifts
 - [ ] How frequently do they fire? How visible to the player (gossip, headlines, in-game news)?
 - [ ] How long do they last? Can the player interact with them?
+- [ ] Discovery: what systems to simulate — shifting trade routes, governor replacements, epidemics, seasonal rhythms?
+- [ ] Discovery: how much simulation is visible to the player vs. background mechanics?
+- [ ] Discovery: trade route shifts (prices slowly change over time based on simulated supply/demand).
+- [ ] Discovery: governor replacements (faction leadership changes, altering mission availability and reputation modifiers).
+- [ ] Discovery: epidemics (ports become quarantined, services blocked, provisions scarce).
+- [ ] Discovery: seasonal rhythms (hurricane season, trade winds, monsoon — affect routes and risk).
 
 #### B19.2 — Implement world event system (placeholder)
 - [ ] Apply chosen model from B19.1
@@ -553,6 +627,7 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 #### B19.4 — Implement economy dynamics (placeholder)
 - [ ] Apply chosen model from B19.3, including dynamic port defence and trade prices
+- [ ] Balance pass: ensure simulation doesn't overwhelm the player or make the world feel unpredictable in a frustrating way.
 
 #### B19.5 — Named rival captains & escalation
 - [ ] Named rival captain(s) who appear, escalate, and must eventually be confronted
@@ -567,7 +642,7 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 ---
 
-### B20 — Hidden Ports & Story Arc
+### B20 — Hidden Ports & Story Arc (🔲 Planned)
 
 **Goal**: hidden ports currently feel like "more ports." Give each one a reason to exist and tie them to the endgame arc.
 
@@ -595,9 +670,14 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 
 ---
 
-### B21 — Endgame & Legacy
+### B21 — Endgame & Legacy (🔲 Planned)
 
 **Goal**: the career has a shape with a beginning, middle, and end. Player can choose to retire, or accept that their career ended on its own terms.
+
+**Design Intent**:
+- **Late‑game must feel different from early‑game.** B21 should not just be "bigger numbers."
+- The progression should be: start faction → early ship/crew style → learn preferred play pattern → build around it → eventually change allegiance → combine identities. B10 is the seed; B21 is the harvest.
+- "Captain legacy across campaigns" — a retired captain appearing as a rumour/reference in your next playthrough. This is the perfect capstone.
 
 #### B21.1 — Victory conditions
 - [ ] **Three victory tracks**: Fame, Infamy, and Popularity, giving the sandbox a clear win condition along three distinct playstyles. Note: Popularity does not currently exist as a tracked stat — define it before implementation (likely some aggregate of cross-faction reputation, distinct from the existing Fame/Infamy pair)
@@ -651,6 +731,8 @@ Genre-inspiration notes worth keeping in mind while designing these (from a Redd
 ### B23 — Audio & Visual Polish
 
 **Goal**: sensory layer that reinforces the systems underneath. Done last because sound and animation are amplifiers of working systems, not substitutes.
+**Amplifiers, not structural fixes.** These should be done last because sound and animation are amplifiers of working systems, not substitutes.
+
 
 #### B23.1 — Sound design
 - [ ] Ambient port sounds (seagulls, waves, crowd murmur)
@@ -749,6 +831,65 @@ SVG icon library in icons.jsx. LOG_ICONS lookup map (window.UI.LOG_ICONS) maps c
 - Where players got lost regardless of mode: specific mission types (patrol, hunt) being unclear — this is **not** an onboarding-mode problem, it's a mission-design problem, and is handled directly in B8.3 rather than by changing the onboarding system itself.
 - Documentation already reflects this decision; no format change needed.
 
+### B5 — Critical Bug & Exploit Fixes (✅ DONE)
+- **Grapple exploit closed**: boarding now costs crew proportional to crew ratio; no more bloodless victories.
+- **Patrol mission duplication fixed**: `COMPLETE_MISSION` can no longer re‑award a completed patrol.
+- **Same‑port mission chaining blocked**: you must sail away and return before accepting another combat/patrol mission in the same port.
+- **Starvation now kills crew**: after 14 days no food or 3 days no water, crew members die (not just morale penalties).
+- **Desertion at sea**: upset crew can now desert mid‑voyage when morale is low, not only at port.
+- **Storm scar subset**: only 20‑40% of survivors receive `scar_storm`, making the tag meaningful again.
+- **`longestCrewTenure` fixed**: now correctly tracks the longest‑serving crew member, both current and departed.
+- **Equipment‑boosted hull unlocks remote ports**: `canReach` now reads effective hull from `L.getShipStats`.
+- **Crew cap enforced**: shipwreck‑rescue events can no longer exceed ship `maxCrew`.
+- **Map touch/scroll fixed**: wheel and pinch gestures no longer scroll the page underneath.
+- **Market quantity input stable**: layout no longer shifts on click, preventing mis‑clicks.
+- **Tutorial safety net**: abandoning the starter mission now advances onboarding instead of soft‑locking.
+- **Economy scaling**: port market stock quantities now scale with fame tier and hold capacity.
+
+---
+
+### B7 — Player Menu, Reference & Community Links (✅ DONE)
+- **Menu modal** added (accessible from Port screen): Resume, Save, Load, Export, Import, Back to Title, Auto‑save toggle.
+- **Captain's Handbook**: static in‑game reference covering all stats, status effects, faction mechanics, and hidden rules.
+- **Feedback form**: integrated form with auto‑filled metadata (OS, browser, URL, playtime, optional save attachment).
+- **Community links**: GitHub repo, itch.io page, and Ko‑fi donation link surfaced in the menu.
+- **Changelog viewer**: displays `docs/changelog.md` directly in the menu modal.
+
+---
+
+### B8 — Economy & Mission Design Discovery (✅ DONE)
+- **Stable, learnable trade routes**: prices are now driven by `AVAILABILITY_PRICE_MODIFIERS` (tier‑based) and `FACTION_PRICE_MODIFIERS` (faction production bonuses), with low random variance. Each port has a consistent price identity, not pure noise.
+- **Trade missions**: target ports now guarantee the required good is **in demand** there, ensuring the trade itself is profitable on top of the mission reward.
+- **Smuggle missions**: target ports now guarantee the illegal good is **scarce** there (`"rarely"` or `"never"`), and the enemy faction matches the target port's faction for consistent reputation impact.
+- **Market flavour**: atmospheric lines on the Market screen reflect gold tier, hold fullness, extreme prices, rare goods, fame/infamy, and port faction.
+- **Repair cost scaling**: now scales with ship max hull and includes equipment penalties (e.g., Copper Plating's +40% repair cost).
+- **Surrender consequences explicitly logged**: players now see exactly what they lost (gold, cargo, days, morale).
+
+---
+
+### B9 — Player Trust & Resilience (✅ DONE)
+- **Unrecoverable state detection**: `isUnrecoverable` checks for 0 hull + insufficient gold/cargo to repair, or 0 crew on a non‑dinghy.
+- **Minimum crew to sail**: non‑dinghy ships require at least 10% of max crew to sail (enforced in `SAIL_TO`).
+- **Game Over screen**: dedicated, non‑dismissible screen with career summary (days, gold, ports, crew lost, etc.) and options to load last save or return to main menu.
+- **Defeat recovery**: wash‑ashore‑after‑defeat now leaves minimum viable resources, or routes to game over if unrecoverable.
+- **Action gating**: `SAIL_TO` and `TAKE_MISSION` (combat types) are blocked when hull is 0 or crew is below minimum.
+- **Career stats tracking**: `engine_career.js` middleware tracks gold earned/spent, battles, crew loss by cause, ports visited, ships owned, storms survived, contraband seized, and detailed mission/combat logs.
+
+---
+
+### B11 — Combat Depth Rework (✅ DONE)
+- **Encounter session architecture**: unified `encounterSession` replaces the old `encounterContext` + `battleState` split (B1.4).
+- **Distance bands**: Far, Medium, and Close with `Close Distance` / `Open Distance` actions.
+- **Damage multipliers by distance**: Broadside (0.6× at Far, 1.0× at Medium, 0.9× at Close); Precision (1.1× at Far, 1.0× at Medium, 0.7× at Close).
+- **Grapple rework**: no longer instant victory; requires **Close** range and leads to a **boarding phase**.
+- **Boarding phase**: Continue Fighting, Fall Back, Demand Surrender, Surrender. Uses crew × morale effectiveness ratio (`getBoardingRatio`).
+- **Advantage Bar**: visual split bar showing player vs enemy boarding advantage percentage, now using the same calculation as the resolver.
+- **NPC AI stubs**: `getNPCNavalAction` and `getNPCBoardingAction` now use scoring‑based logic (full utility AI is a separate task list).
+- **Combat log templates**: narrative log entries for all actions (broadside, precision, grapple, evade, boarding outcomes).
+- **Zero‑crew grapple guard**: Grapple button is disabled when player crew is 0, with a clear tooltip.
+- **B11 integration**: fully wired into `engine_battle.js` and `engine_encounter.js`; battle screen shows proportional ship sprites, distance indicator, and boarding phase UI.
+
+
 ## Parked Concepts
 
 Ideas captured but not scheduled. May be promoted to a block if they pass the three-pillar test.
@@ -764,9 +905,3 @@ Ideas captured but not scheduled. May be promoted to a block if they pass the th
 - **Crew skill system**: individual crew members gain XP in their role, affecting ship performance (note: overlaps with B15's Functional Crew Roles — revisit once B15 ships to see if this is still a distinct idea or already covered)
 - **Reputation decay curve**: different factions forget at different rates (pirates forget fast, Spanish never forget) — directly relevant to the B8.1 reputation-decay-vs-mission-type audit; consider promoting alongside that work rather than independently
 - **Forced softlock playtest scenario**: deliberately giving a tester an unwinnable save. Decided against — natural data from Wave 1 was preferred, and the 608-day save audit ended up serving exactly this purpose unintentionally.
-
-## Long-term Vision
-
-Broadside should feel like **reading a novel you wrote by playing it**. The Captain's Journal, crew biographies, and gossip system are the foundation of that vision, and the planned prose-style daily journal (B13.2) and named-crew retirement summary (B21.2) are the most direct steps toward actually delivering it. Every mechanical system should feed back into the narrative layer — creating stories that are unique to each playthrough, told in the player's own words through their choices.
-
-The game is complete when a player can finish a run, read their journal from start to finish, and say: **"That was my story."**

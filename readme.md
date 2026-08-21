@@ -57,11 +57,11 @@ See [the full roadmap](docs/roadmap.md) for the complete plan.
 Broadside is built around four ideas that you should know before reading any code:
 
 1. **Single state tree, single reducer.** All game state lives in one object, mutated only through dispatched actions. No hidden state.
-2. **Strict layer separation.** Data → Logic → Generators → Engine → UI. Each layer only reads from the layers above it. Pure functions in `logic.js`. All randomness in `generators.js`. All state transitions in the engine reducers.
+2. **Strict layer separation.** Data → Logic → Generators → Engine → UI. Each layer only reads from the layers above it. Pure functions in `logic_*.js`. All randomness in `generators.js`. All state transitions in the engine reducers.
 3. **Narrative as a presentation layer.** Gossip, captain's log, crew biographies, journal — these *describe* what happened, they don't *cause* anything. Gameplay systems own the consequences.
 4. **No build step.** Everything runs in the browser via React + Babel-standalone CDN. Edit a file, refresh, see it.
 
-The dependency direction is strictly downward: `data.js → logic.js → generators.js → engine_*.js → ui.jsx → screens_*.jsx → App.jsx`.
+The dependency direction is strictly downward: `data.js → logic_*.js → generators.js → engine_*.js → ui.jsx → screens_*.jsx → App.jsx`.
 
 For the full picture — state shape, reducer chain mechanics, file-by-file responsibilities, and contribution patterns — see [ocs/architecture.md and the docs/.
 
@@ -126,61 +126,75 @@ Tests run automatically in the browser.
 
 ```text
 Broadside/
-+-- index.html              # Entry point
-+-- handbook.html           # A player guide handbook, reachable from in game Menu
-+-- data.js                 # Game constants (ports, ships, factions, equipment, resources, etc.)
-+-- data_text.js            # Text constants (crew names, bio templates, gossip templates, etc.)
-+-- logic.js                # Pure game logic functions
-+-- storage.js              # Save/load encoding, tutorial state (extends window.L)
-+-- generators.js           # Runtime content generators (crew, missions, market, gossip, bios)
-+-- engine_core.js          # Core engine: action constants, initial state, reducer chain, auto-save, state migration
-+-- engine_onboarding.js    # Onboarding engine: toast style indication, menu unlocking, onboarding mission injection, etc..
-+-- engine_career.js         # Career stats middleware: lifetime tracking (gold, crew, battles, missions)
-+-- engine_scripted.js      # Dev-only: scripted playthroughs (enabled via ?scripted=1)
-+-- engine_port.js          # Port engine: reducers for port actions (REPAIR, BUY_SHIP, BUY_EQUIPMENT, HIRE_CREW, MISSIONS, SAVE/LOAD)
-+-- engine_voyage.js        # Voyage engine: reducers for sailing (ADVANCE_DAY, DISCOVER_PORT, random events, patrols)
-+-- engine_combat.js        # Combat engine: reducers for intercepts, battles, plunder, and events
-+-- ui.jsx                  # Reusable UI components & theme tokens
-+-- icons.jsx               # svg path Icons pack.
-+-- screens_core.jsx        # Title screen and New Game screen, as well aas onboarding elements.
-+-- screens_menu.jsx        # In game Menu, with Game Save/Load/Import/export, feedback, link to socials, etc.
-+-- screens_port.jsx        # Port-zone screens ( Port, Status, Journal)
-+-- screens_shipyard.jsx    # Shipyard screen (Ships, Equipment, Locker tabs)
-+-- screens_crew.jsx        # Crew screen (roster, bios, hiring)
-+-- screens_market.jsx      # Market screen (buy/sell goods)
-+-- screens_voyage.jsx      # Voyage-zone screens (Map, Sailing)
-+-- screens_combat.jsx      # Combat and event related screens (Event, Intercept, Battle, Plunder)
-+-- App.jsx                 # Root React component (router + HUD)
-+-- docs/
-|   +-- architecture.md     # Full architecture documentation
-|   +-- player_guide.md     # Player guide
-|   +-- developer_guide.md  # Developer guide
-|   +-- roadmap.md          # Development roadmap
-|   +-- changelog.md        # Changelog, visible in game. Based on Commits
-|   +-- specs_data.md       # Data constants specification
-|   +-- specs_engine.md     # Engine architecture specification
-|   +-- specs_logic.md      # Logic module specification
-|   +-- specs_generators.md # Generators module specification
-|   +-- specs_storage.md    # Game save and import/export management specs
-|   +-- specs_jsx.md        # React/JSX module specification
-|   +-- Home.md             # Wiki home page
-|   +-- _Sidebar.md         # Wiki sidebar
-+-- tests/
-|   +-- tests.html          # Test runner & utilities
-|   +-- tests_balance.html  # Balance testing dashboard
-|   +-- tests_helpers.js    # Shared test helpers
-|   +-- tests_logic.js      # Unit tests (logic + generators)
-|   +-- tests_engine.js     # Reducer tests
-|   +-- tests_flows.js      # Integration & scenario tests
-|   +-- tests_ui.js         # UI smoke & edge case tests
-+-- tools/
-    +-- index.html          # Screenshot generator for itch.io assets
-|   +-- sim.html            # Economy playtest simulator
-|   +-- icon_preview.html            # Preview svg icon result before adding them.
-|   +-- pirate_sound_tester.html      # Tool to prepare for sound addition
-|   +-- crew_sim.html       # Crew lifecycle simulator
-|   +-- crew_bio_log_sim.html # Bio/log redundancy analyser
-|   +-- equipment_combo_analyzer.html # Equipment combination analyser
+broadside/
+├── index.html                         ← entry point, <script> load order
+├── data.js                            ← window.D — game constants
+├── data_text.js                       ← extends window.D — text/content constants
+├── logic_core.js                      ← window.L — core pure helpers
+├── logic_economy_crew.js              ← window.L — crew, economy, cargo, reputation
+├── logic_travel_events.js             ← window.L — travel, sea position, events, patrols
+├── logic_combat_encounter.js          ← window.L — B11 combat resolvers + encounter helpers
+├── storage.js                         ← extends window.L — save/load + tutorial state
+├── generators.js                      ← window.G — RNG: missions, markets, crew, enemies, gossip, bios
+│
+├── engine_core.js                     ← window.E — reducer chain, initial state, actions, migration
+├── engine_port.js                     ←           port domain reducer
+├── engine_voyage.js                   ←           voyage domain reducer
+├── engine_battle.js                   ←           battle domain reducer (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER)
+├── engine_encounter.js                ←           encounter domain reducer (intercepts, random events, merchant encounters)
+├── engine_onboarding.js               ←           onboarding middleware reducer
+├── engine_career.js                   ←           career-stats middleware reducer
+├── engine_scripted.js                 ←           dev-only scripted-playthrough reducer (?scripted=1)
+│
+├── ui.jsx                             ← window.UI — theme tokens + presentational components
+├── icons.jsx                          ← extends window.UI — SVG icon library + LOG_ICONS
+├── screens_core.jsx                   ← window.S — TitleScreen, NewGameScreen, onboarding UI
+├── screens_port.jsx                   ← window.S — PortScreen, StatusScreen, JournalScreen
+├── screens_shipyard.jsx               ← window.S — ShipyardScreen
+├── screens_crew.jsx                   ← window.S — CrewScreen
+├── screens_market.jsx                 ← window.S — MarketScreen
+├── screens_voyage.jsx                 ← window.S — MapScreen, SailingScreen
+├── screens_combat.jsx                 ← window.S — EventScreen, InterceptScreen, BattleScreen, PlunderScreen
+├── App.jsx                            ← root: HUD, screen router, ErrorBoundary, DebugPanel
+│
+├── docs/
+│   ├── architecture.md                ← system architecture, data flow, state shape
+│   ├── readme.md                      ← project/documentation entry point
+│   ├── player_guide.md                ← player-facing mechanics/reference
+│   ├── developer_guide.md             ← development conventions/workflows
+│   ├── roadmap.md                     ← development roadmap and planning space
+│   ├── specs_data.md                  ← data/constants specification
+│   ├── specs_engine.md                ← engine/reducer/state specification
+│   ├── specs_logic.md                 ← logic-layer specification
+│   ├── specs_generators.md            ← generator specification
+│   ├── specs_jsx.md                   ← React/JSX/UI specification
+│   ├── Home.md                        ← wiki home
+│   └── _Sidebar.md                    ← wiki sidebar
+│
+├── tests/
+│   ├── tests.html                     ← main test runner & utilities
+│   ├── tests_integration.html         ← integration/load-order/dependency tests
+│   ├── tests_helpers.js               ← shared test helpers
+│   ├── tests_logic.js                 ← logic + generator unit tests
+│   ├── tests_engine.js                ← reducer/engine tests
+│   ├── tests_robustness.js            ← robustness tests for flaky/edge inputs
+│   └── tests_ui.js                    ← UI smoke & edge-case tests
+│
+└── tools/
+    ├── carreer-simulator.html         ← career/progression simulator
+    ├── combine_source.py              ← repository/export utility
+    ├── crew_bio_log_sim.html          ← crew bio/log redundancy analyzer
+    ├── crew_sim.html                  ← crew lifecycle simulator
+    ├── equipment_combo_analyzer.html  ← equipment combination analyzer
+    ├── gamedesignin3min.html          ← game-design reference / learning tool
+    ├── icon_preview.html              ← SVG icon preview tool
+    ├── pill_tester.html               ← UI pill/component testing tool
+    ├── port-preview-vignette.html     ← port vignette / silhouette preview
+    ├── screenshots_builder.html       ← screenshot generator/builder
+    ├── ship-preview.html              ← ship sprite preview tool
+    ├── sim.html                       ← economy playtest simulator (Monte Carlo)
+    ├── sound_tester.html              ← sound preparation/testing tool
+    └── tests_balance.html             ← balance and tuning dashboard
 ```
 
 ---

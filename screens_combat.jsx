@@ -271,8 +271,8 @@ window.S = window.S || {};
     );
     const [pulsedAction, setPulsedAction] = useState(null);
 
-    // ── Boarding ratio ──────────────────────────────────────────────
-    const ratio = isBoarding ? L.getBoardingRatio(state, battle, enemy) : 0.5;
+    // ── Boarding ratio (now using the same function as the resolver) ──
+    const ratio = L.getBoardingRatio(state, battle, enemy);
     const playerRatioPct = Math.round(ratio * 100);
     const enemyRatioPct = 100 - playerRatioPct;
 
@@ -329,7 +329,16 @@ window.S = window.S || {};
     const legalActions = LEGAL_ACTIONS_BY_DISTANCE[battle.distance] || [];
     const isActionLegal = (action) => legalActions.includes(action);
 
+    // ── Tooltip with crew check for Grapple ────────────────────────
     const getActionTooltip = (action) => {
+      if (action === "grapple") {
+        const messages = [];
+        const legal = isActionLegal(action);
+        const isCrewZero = battle.playerCrew === 0;
+        if (!legal) messages.push("Grapple requires Close distance.");
+        if (isCrewZero) messages.push("No crew left to board with.");
+        return messages.length > 0 ? messages.join(" ") : null;
+      }
       if (isActionLegal(action)) return null;
       const map = {
         broadside: "Broadside is available at all distances",
@@ -337,7 +346,6 @@ window.S = window.S || {};
         close_distance: "Close Distance requires Far or Medium distance",
         open_distance: "Open Distance requires Medium or Close distance",
         evade: "Evade requires Far distance",
-        grapple: "Grapple requires Close distance",
       };
       return map[action] || "Not available at this distance";
     };
@@ -400,13 +408,14 @@ window.S = window.S || {};
     const AdvantageBar = () => {
       if (!isBoarding) return null;
 
+      // Use the same ratio as the resolver
+      const pPct = Math.round(ratio * 100);
+      const ePct = 100 - pPct;
+
+      // For display: effective crew counts (same as resolver)
       const playerEffective = Math.round(battle.playerCrew * (0.5 + state.crew.morale / 200));
       const enemyMoraleStandin = { low: 50, medium: 65, high: 80, assault: 90 }[enemy.risk] ?? 60;
       const enemyEffective = Math.round(battle.enemyCrew * (0.5 + enemyMoraleStandin / 200));
-
-      const totalEffective = playerEffective + enemyEffective || 1;
-      const pPct = Math.round((playerEffective / totalEffective) * 100);
-      const ePct = 100 - pPct;
 
       return (
         <Panel style={{ marginBottom: 8 }}>
@@ -754,45 +763,57 @@ window.S = window.S || {};
                   gap: T.spacing.sm,
                   marginBottom: T.spacing.sm,
                 }}>
-                  {[
-                    { a: "broadside", label: React.createElement(IconCannon, { size: 14, color: T.redBr }), lbl: " Broadside", desc: actionPreviews.broadside?.description || "Full cannon volley" },
-                    { a: "precision", label: React.createElement(IconTarget, { size: 14, color: T.yellow }), lbl: " Precision", desc: actionPreviews.precision?.description || "Aimed shot" },
-                    { a: "grapple", label: React.createElement(IconGrapple, { size: 14, color: T.blueBr }), lbl: " Grapple", desc: actionPreviews.grapple?.description || "Board the enemy" },
+                  {[  
+                    { a: "broadside", label: <IconCannon size={14} color={T.redBr} />, lbl: " Broadside", desc: actionPreviews.broadside?.description || "Full cannon volley" },
+                    { a: "precision", label: <IconTarget size={14} color={T.yellow} />, lbl: " Precision", desc: actionPreviews.precision?.description || "Aimed shot" },
+                    { a: "grapple", label: <IconGrapple size={14} color={T.blueBr} />, lbl: " Grapple", desc: actionPreviews.grapple?.description || "Board the enemy" },
                   ].map(({ a, label, lbl, desc }) => {
                     const legal = isActionLegal(a);
-                    const tooltip = getActionTooltip(a);
+                    const isCrewZero = a === "grapple" && battle.playerCrew === 0;
+                    const disabled = !legal || isCrewZero;
+
+                    // Determine the tooltip and inline message
+                    let tooltip = null;
+                    if (disabled) {
+                      const messages = [];
+                      if (!legal) messages.push("Grapple requires Close distance.");
+                      if (isCrewZero) messages.push("No crew left to board with.");
+                      tooltip = messages.join(" ");
+                    }
+
                     const preview = actionPreviews[a] || {};
                     const hull = preview.hullRange ? `${preview.hullRange[0]}–${preview.hullRange[1]}` : null;
                     const crew = preview.crewRange ? `${preview.crewRange[0]}–${preview.crewRange[1]}` : null;
                     const hit = preview.hitChance !== null && preview.hitChance < 1 ? `Hit: ${Math.round(preview.hitChance*100)}%` : null;
                     const infoParts = [hull ? `Hull: ${hull}` : null, crew ? `Crew: ${crew}` : null, hit].filter(Boolean);
                     const info = infoParts.join(' · ');
+
                     return (
                       <Panel
                         key={a}
-                        color={legal ? navalColors[a] : T.borderFaint}   // <-- color applied here
+                        color={disabled ? T.borderFaint : navalColors[a]}
                         className={`combat-btn ${pulsedAction === a ? 'clicked' : ''}`}
                         style={{
                           background: T.panelAlt,
-                          cursor: legal ? "pointer" : "not-allowed",
+                          cursor: disabled ? "not-allowed" : "pointer",
                           transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s",
-                          opacity: legal ? 1 : 0.5,
+                          opacity: disabled ? 0.5 : 1,
                         }}
                         onClick={() => {
-                          if (!legal) return;
+                          if (disabled) return;
                           dispatch({ type: A.BATTLE_ACTION, action: a });
                           setPulsedAction(a);
                           setTimeout(() => setPulsedAction(null), 150);
                         }}
                         onMouseEnter={e => {
-                          if (!legal) return;
+                          if (disabled) return;
                           const color = navalColors[a];
                           e.currentTarget.style.borderColor = color;
                           e.currentTarget.style.boxShadow = `0 0 14px ${color}55`;
                           e.currentTarget.style.transform = "scale(1.03)";
                         }}
                         onMouseLeave={e => {
-                          if (!legal) return;
+                          if (disabled) return;
                           e.currentTarget.style.borderColor = '';
                           e.currentTarget.style.boxShadow = "none";
                           e.currentTarget.style.transform = "scale(1)";
@@ -806,7 +827,7 @@ window.S = window.S || {};
                         {info && (
                           <div style={{ color: T.textFaint, fontSize: 9, marginTop: 2 }}>{info}</div>
                         )}
-                        {!legal && tooltip && (
+                        {disabled && tooltip && (
                           <div style={{ color: T.redBr, fontSize: 9, marginTop: 2 }}>✗ {tooltip}</div>
                         )}
                       </Panel>
@@ -820,12 +841,19 @@ window.S = window.S || {};
                   gap: T.spacing.sm,
                 }}>
                   {[
-                    { a: "evade", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Evade", desc: actionPreviews.evade?.description || "Flee if faster" },
-                    { a: "open_distance", label: React.createElement(IconWind, { size: 14, color: T.greenBr }), lbl: " Open Distance", desc: actionPreviews.open_distance?.description || "Move further away" },
-                    { a: "close_distance", label: React.createElement(IconGrapple, { size: 14, color: T.greenBr }), lbl: " Close Distance", desc: actionPreviews.close_distance?.description || "Move closer" },
+                    { a: "evade", label: <IconWind size={14} color={T.greenBr} />, lbl: " Evade", desc: actionPreviews.evade?.description || "Flee if faster" },
+                    { a: "open_distance", label: <IconWind size={14} color={T.greenBr} />, lbl: " Open Distance", desc: actionPreviews.open_distance?.description || "Move further away" },
+                    { a: "close_distance", label: <IconGrapple size={14} color={T.greenBr} />, lbl: " Close Distance", desc: actionPreviews.close_distance?.description || "Move closer" },
                   ].map(({ a, label, lbl, desc }) => {
                     const legal = isActionLegal(a);
-                    const tooltip = getActionTooltip(a);
+                    const tooltip = !legal ? (() => {
+                      const map = {
+                        close_distance: "Close Distance requires Far or Medium distance",
+                        open_distance: "Open Distance requires Medium or Close distance",
+                        evade: "Evade requires Far distance",
+                      };
+                      return map[a] || "Not available at this distance";
+                    })() : null;
                     const preview = actionPreviews[a] || {};
                     return (
                       <Panel
