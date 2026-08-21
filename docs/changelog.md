@@ -1,4 +1,7 @@
-### 2026-08-19
+### 2026-08-21
+- **Trade missions** now ensure that you will be sent to a port where the goods are in demand, so that there is profit from the trade and the mission reward on top of that. The goal is to make trade mission more lucrative than free trade, to reward players that would focus on trading and economy rather than combat. Same goes for smuggling.
+
+### 2026-08-20
 - **Full Combat revamp**: Added distance and movement during naval battle, and now grappling (only when close to opponent ship) leads to a second combat phase, where crew size and morale counts, and if you have enough advantage, you can demand the surrender of the enemy ship in order to plunder. Or leave no one alive and take the riches anyway !
 
 ### 2026-08-19

@@ -189,21 +189,21 @@ Narrative Layer:  "Maria Navarro is disturbed by the attack on Spanish ships."
 | Layer | File(s) | May call | May NOT call |
 |---|---|---|---|
 | **Data** | `data.js`, `data_text.js` | Nothing | Logic, Engine, UI |
-| **Logic** | `logic.js` | `window.D` | Engine, UI |
+| **Logic** | `logic_core.js`, `logic_economy_crew.js`, `logic_travel_events.js`, `logic_combat_encounter.js` | `window.D` | Engine, UI |
 | **Storage** | `storage.js` | `window.D`, `window.L` | Engine, UI |
 | **Generators** | `generators.js` | `window.D`, `window.L` | Engine, UI |
-| **Engine** | `engine_core.js`, `engine_port.js`, `engine_voyage.js`, `engine_combat.js` | `window.D`, `window.L`, `window.G` | UI |
+| **Engine** | `engine_core.js`, `engine_port.js`, `engine_voyage.js`, `engine_battle.js`, `engine_encounter.js` | `window.D`, `window.L`, `window.G` | UI |
 | **UI** | `ui.jsx` | `window.D`, `window.L` | Engine, Generators |
 | **Screens** | `screens_port.jsx`, `screens_voyage.jsx`, `screens_combat.jsx`, `screens_market.jsx`, `screens_crew.jsx`, `screens_shipyard.jsx` | `window.D`, `window.L`, `window.E`, `window.UI` | Generators (directly) |
 | **App** | `App.jsx` | Everything via dispatch | — |
 
 ### Pure functions in logic.js
 
-`logic.js` contains **zero side-effects**. Every function is `(input) → output` with no mutation, no DOM access, no randomness. All RNG lives in `generators.js`.
+`logic_*.js` files contain **zero side-effects**. Every function is `(input) → output` with no mutation, no DOM access, no randomness. All RNG lives in `generators.js`.
 
 ### Storage as a logic extension
 
-`storage.js` extends `window.L` with localStorage-related helpers (save/load encoding, tutorial state management). It loads immediately after `logic.js` and attaches functions to the same `window.L` namespace. No RNG — just I/O wrappers.
+`storage.js` extends `window.L` with localStorage-related helpers (save/load encoding, tutorial state management). It loads immediately after the logic files and attaches functions to the same `window.L` namespace. No RNG — just I/O wrappers.
 
 ### Immutable state
 
@@ -212,7 +212,7 @@ The reducer always returns a **new** state object. No mutation of the previous s
 ### Single source of truth
 
 - All game constants → `data.js` + `data_text.js`
-- All derived calculations → `logic.js`
+- All derived calculations → `logic_*.js`
 - All save/load and tutorial state → `storage.js`
 - All random generation → `generators.js`
 - All state transitions → `engine_*.js` reducers
@@ -220,7 +220,7 @@ The reducer always returns a **new** state object. No mutation of the previous s
 
 ### Files that change together live together
 
-Port-related screens, port engine actions, and port-related generators are organized by domain, not by technical layer. The engine is split into domain files (`engine_port.js`, `engine_voyage.js`, `engine_combat.js`) that each register their own reducer into the core chain. Screens are split by domain: port, voyage, market, crew, shipyard.
+Port-related screens, port engine actions, and port-related generators are organized by domain, not by technical layer. The engine is split into domain files (`engine_port.js`, `engine_voyage.js`, `engine_battle.js`, `engine_encounter.js`) that each register their own reducer into the core chain. Screens are split by domain: port, voyage, market, crew, shipyard.
 
 ---
 
@@ -267,25 +267,29 @@ broadside/
 ├── index.html              ← entry point, <script> load order
 ├── data.js                 ← window.D — game constants (ports, ships, factions, equipment, resources, etc.)
 ├── data_text.js            ← extends window.D — text constants (crew names, bio openings, gossip templates, etc.)
-├── logic.js                ← window.L — pure functions
+├── logic_core.js           ← window.L — core pure helpers (reputation, ship stats, equipment, heat, game-over)
+├── logic_economy_crew.js   ← window.L — crew, economy, cargo, desertion, trade profile
+├── logic_travel_events.js  ← window.L — travel days, reachability, sea position, event/patrol triggers
+├── logic_combat_encounter.js ← window.L — B11 combat resolvers, contest helpers, encounter context
 ├── storage.js              ← extends window.L — save/load encoding, tutorial state
 ├── generators.js           ← window.G — RNG: missions, markets, crew, enemies, gossip, bios
 ├── engine_core.js          ← window.E — reducer chain, initial state, actions, save/load, state migration
 ├── engine_port.js          ←           port domain reducer (docked actions, equipment, missions, trade)
 ├── engine_voyage.js        ←           voyage domain reducer (sailing, day advance, events, patrols)
-├── engine_combat.js        ←           combat domain reducer (encounters, battles, plunder, event resolution)
-├── engine_onboarding.js       ←           onboarding middleware reducer (QM step tracking — see §8.x)
-├── engine_career.js           ←           career-stats middleware reducer (delta tracking — see §8.x)
-├── engine_scripted.js         ←           dev-only scripted-playthrough reducer, inert unless ?scripted=1 is in the URL
+├── engine_battle.js        ←           battle domain reducer (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER)
+├── engine_encounter.js     ←           encounter domain reducer (intercept, random events, merchant encounters)
+├── engine_onboarding.js    ←           onboarding middleware reducer (QM step tracking — see §8.x)
+├── engine_career.js        ←           career-stats middleware reducer (delta tracking — see §8.x)
+├── engine_scripted.js      ←           dev-only scripted-playthrough reducer, inert unless ?scripted=1 is in the URL
 ├── ui.jsx                  ← window.UI — theme tokens, all presentational components
-├── icons.jsx                  ← extends window.UI — SVG icon component library + LOG_ICONS category map
-├── screens_core.jsx           ← window.S — TitleScreen, NewGameScreen, OnboardingPopup, QMPopup
-├── screens_port.jsx        ← window.S — TitleScreen, ScenarioScreen, PortScreen, StatusScreen, JournalScreen
+├── icons.jsx               ← extends window.UI — SVG icon component library + LOG_ICONS category map
+├── screens_core.jsx        ← window.S — TitleScreen, NewGameScreen, OnboardingPopup, QMPopup
+├── screens_port.jsx        ← window.S — PortScreen, StatusScreen, JournalScreen
 ├── screens_shipyard.jsx    ← window.S — ShipyardScreen (3 tabs: Ships, Equipment, Locker)
 ├── screens_crew.jsx        ← window.S — CrewScreen
 ├── screens_market.jsx      ← window.S — MarketScreen
 ├── screens_voyage.jsx      ← window.S — MapScreen, SailingScreen
-├── screens_combat.jsx         ← window.S — EventScreen, InterceptScreen, BattleScreen, PlunderScreen
+├── screens_combat.jsx      ← window.S — EventScreen, InterceptScreen, BattleScreen, PlunderScreen
 
 ├── App.jsx                 ← Root: HUD, screen router, ErrorBoundary, DebugPanel
 ├── docs/
@@ -328,26 +332,30 @@ broadside/
 data.js (D)
 └─→ data_text.js (extends D)
     └─→ ship-sprite.js (reads D.SHIP_VISUALS, D.FACTIONS — exposes window.ShipSprite)
-        └─→ logic.js (L)
-            ├─→ storage.js (extends L)
-            └─→ generators.js (G)
-                └─→ engine_core.js (E)
-                    ├─→ engine_port.js
-                    ├─→ engine_voyage.js
-                    ├─→ engine_combat.js
-                    ├─→ engine_onboarding.js   (middleware — runs after the three domain reducers)
-                    ├─→ engine_career.js       (middleware — runs after onboarding)
-                    └─→ engine_scripted.js     (dev-only — runs last, inert without ?scripted=1)
-                        └─→ ui.jsx (UI)
-                            └─→ icons.jsx (extends UI)
-                                ├─→ screens_core.jsx (S)
-                                ├─→ screens_port.jsx (S)
-                                ├─→ screens_shipyard.jsx (S)
-                                ├─→ screens_crew.jsx (S)
-                                ├─→ screens_market.jsx (S)
-                                ├─→ screens_voyage.jsx (S)
-                                └─→ screens_combat.jsx (S)
-                                    └─→ App.jsx
+        └─→ logic_core.js (L)
+            ├─→ logic_economy_crew.js
+            ├─→ logic_travel_events.js
+            └─→ logic_combat_encounter.js
+                ├─→ storage.js (extends L)
+                └─→ generators.js (G)
+                    └─→ engine_core.js (E)
+                        ├─→ engine_port.js
+                        ├─→ engine_voyage.js
+                        ├─→ engine_battle.js
+                        ├─→ engine_encounter.js
+                        ├─→ engine_onboarding.js   (middleware — runs after the three domain reducers)
+                        ├─→ engine_career.js       (middleware — runs after onboarding)
+                        └─→ engine_scripted.js     (dev-only — runs last, inert without ?scripted=1)
+                            └─→ ui.jsx (UI)
+                                └─→ icons.jsx (extends UI)
+                                    ├─→ screens_core.jsx (S)
+                                    ├─→ screens_port.jsx (S)
+                                    ├─→ screens_shipyard.jsx (S)
+                                    ├─→ screens_crew.jsx (S)
+                                    ├─→ screens_market.jsx (S)
+                                    ├─→ screens_voyage.jsx (S)
+                                    └─→ screens_combat.jsx (S)
+                                        └─→ App.jsx
 ```
 
 ### Dependency direction rule — never violated
@@ -361,13 +369,17 @@ The `index.html` `<script>` load order matches this graph top-to-bottom:
 <script src="data.js"></script>
 <script src="data_text.js"></script>
 <script src="ship-sprite.js"></script>
-<script src="logic.js"></script>
+<script src="logic_core.js"></script>
+<script src="logic_economy_crew.js"></script>
+<script src="logic_travel_events.js"></script>
+<script src="logic_combat_encounter.js"></script>
 <script src="storage.js"></script>
 <script src="generators.js"></script>
 <script src="engine_core.js"></script>
 <script src="engine_port.js"></script>
 <script src="engine_voyage.js"></script>
-<script src="engine_combat.js"></script>
+<script src="engine_battle.js"></script>
+<script src="engine_encounter.js"></script>
 <script src="engine_onboarding.js"></script>
 <script src="engine_career.js"></script>
 <script src="engine_scripted.js"></script>
@@ -406,7 +418,7 @@ Three of these are new: **`MARKET_FLAVOUR`** (atmosphere lines for the Market sc
 
 New file, no equivalent in the previous architecture. Pure SVG silhouette renderer with zero game logic — reads `window.D.SHIP_VISUALS` for hull/mast/sail configuration and `window.D.FACTIONS` for flag colour, and exposes a single entry point: `window.ShipSprite.render(shipType, { faction, equipment, width, height, facing, showFlag })` → an `SVGElement`. Internally it composes hull-shape drawers (`drawHull_open/lowSloop/military/galleon`), mast/sail drawers per rig type, and a handful of equipment-driven visual flourishes (`war_pennants` → pennants on every mast, `extra_sails`/`lateen_rig` → taller rigging, `copper_plating` → hull banding, `ornate_figurehead` → a bow ornament). This is what powers the detailed side-view ship art in the Shipyard and Battle screens, as opposed to the small top-down `ShipSprite` icon in `ui.jsx` used on the map.
 
-### logic.js → `window.L`
+### logic_core.js / logic_economy_crew.js / logic_travel_events.js / logic_combat_encounter.js → `window.L`
 
 Pure functions, zero side-effects, zero randomness (the lone documented exception remains `roll()`, kept here to avoid a circular dependency with `buildEncounterContext`). Two functions are new since the last pass:
 
@@ -417,17 +429,28 @@ Pure functions, zero side-effects, zero randomness (the lone documented exceptio
 
 Everything else is as previously documented: ship/equipment stat math, travel/reachability (including the at-sea reroute helpers `getSeaPosition`, `travelDaysFromPosition`, `canReachFromPosition`, `getReachablePortsFromSea`), reputation, crew wages/tags/alignment, event/patrol triggers, combat resolution, encounter-context building, and hold/provision math.
 
+**New additions in B11:**
+- Combat resolvers: `resolveNavalRound` (distance-based naval battle), `resolveBoardingRound` (crew-based boarding phase), `getBoardingRatio`, `resolveSpeedContest`, `stepDistance`, `initialDistanceFor`.
+- These live in `logic_combat_encounter.js`.
+
 ### storage.js → extends `window.L`
 
 Save/load I/O and tutorial-state helpers, unchanged in shape (`hasSave`, `encodeSave`, `decodeSave`, `checkLocalStorageAvailable`, `loadTutorialState`, `saveTutorialState`, `getDefaultTutorialState`, `shouldShowTutorial`, `markTutorialSeen`, `simpleHash`) — but **`shouldShowTutorial` now has a precondition it didn't have before**: it returns `false` immediately if `state.tutorialMode` is `"full"` (guided QM mode owns onboarding entirely) or `"none"`. The old localStorage-backed per-screen popup system now only applies in `"light"` mode. This tri-state (`full`/`light`/`none`) is chosen once on the New Game screen and stored on `state.tutorialMode`.
 
 ### generators.js → `window.G`
 
-All RNG-dependent generation. One new export: **`generateMarketFlavour(state, portKey)`**, sibling to `generatePortGossip` but for the Market screen's atmosphere text — it draws from `D.MARKET_FLAVOUR` based on gold tier, hold fullness, extreme prices, rare-goods availability, fame/infamy, and port-faction ambiance, picking up to 3 non-duplicate-category lines. Everything else (crew/bio generation, port market, plunder cargo, mission generation, port gossip) is as previously documented.
+All RNG-dependent generation. One new export: **`generateMarketFlavour(state, portKey)`**, sibling to `generatePortGossip` but for the Market screen's atmosphere text — it draws from `D.MARKET_FLAVOUR` based on gold tier, hold fullness, extreme prices, rare-goods availability, fame/infamy, and port-faction ambiance, picking up to 3 non-duplicate-category lines.
+
+**Mission generation updates (B8.1 economy alignment):**
+- Trade missions now target a port where the required good is **in demand** (using `L.getPortTradeProfile`). This guarantees the trade itself is profitable, making the mission reward a pure bonus.
+- Smuggle missions now target a port where the illegal good is **scarce** (availability tier `"rarely"` or `"never"` in `GOODS_AVAILABILITY`), and the enemy faction matches the target port's faction.
+- New internal helpers: `findPortWithInDemandGood`, `findPortForGoodInDemand`.
+
+Everything else (crew/bio generation, port market, plunder cargo, port gossip) is as previously documented.
 
 ### engine_core.js → `window.E`
 
-Shared infrastructure: `window.E.A` (action constants — now ~50, including a block of `ONBOARDING_*` actions and an expanded `DEBUG_*` set), `window.E.initialState`, the reducer dispatcher, `window.E.autoSave`, `window.E.migrateState`, `window.E.createBattleState`, plus the debug and save/load reducers (these two stay inline in `engine_core.js` rather than living in a domain file).
+Shared infrastructure: `window.E.A` (action constants — now ~50, including a block of `ONBOARDING_*` actions and an expanded `DEBUG_*` set), `window.E.initialState`, the reducer dispatcher, `window.E.autoSave`, `window.E.migrateState`, plus the debug and save/load reducers (these two stay inline in `engine_core.js` rather than living in a domain file).
 **Note:** `window.E.createBattleState` was removed in the B1.4 refactor. Battle state is now built directly in `INTERCEPT_FIGHT` and stored inside `encounterSession.battle`. See [specs_engine.md](specs_engine) for the full encounter session architecture.
 
 **Two things changed at the dispatcher level that matter for anyone adding new reducers:**
@@ -453,19 +476,25 @@ Voyage domain reducer. Handles `ADVANCE_DAY` (the core sailing loop) and `DISCOV
 
 Other helpers (`advanceWind`, `advanceCrew`, `advanceProvisions`, `maybeSmugglePatrol`, `maybeMissionEncounter`, `maybeRandomEvent`, `checkRandomPatrol`, `advanceHiddenPorts`) are as previously documented.
 
-### engine_combat.js
+### engine_battle.js (new)
 
-Combat domain reducer. Handles `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_PARLEY`, `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER`, `PATROL_INSPECT`, `BATTLE_ACTION`, `DISMISS_BATTLE`, `TAKE_PLUNDER`, `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT`, `RESOLVE_DRIFTING_WRECK_SEARCH`.
+Combat domain reducer focused on battle resolution. Handles `BATTLE_ACTION`, `DISMISS_BATTLE`, `TAKE_PLUNDER`.
 
-Two action names are corrected from the old doc: the navy-patrol inspection action is **`PATROL_INSPECT`**, not `INTERCEPT_INSPECT`. **`RESOLVE_DRIFTING_WRECK_SEARCH`** is a new action (the "Drifting Wreck" event's risky-search choice dispatches into this rather than resolving inline) with four weighted outcomes: salvaged cargo, nothing found, a rescued survivor (tagged `scar_shipwreck`), or an ambush that opens an intercept.
+- Implements the full B11 combat flow: distance bands (Far/Medium/Close), ordered resolution (Evade → Damage → Hull/Crew check → Reposition → Grapple), and boarding phase (Continue Fighting, Fall Back, Demand Surrender, Surrender).
+- Uses helpers from `logic_combat_encounter.js`.
+- Exposes `window.E.applyCrewLossToState` and `window.E.washAshore` for use by `engine_encounter.js`.
 
-This file has grown a substantial helper layer to keep the action cases short: `victoryMessage`/`defeatMessage`/`fledMessage` (template pickers for battle-end log lines), `buildRoundLog` (assembles a turn's narrative from `D.COMBAT_LOG_TEMPLATES`), `applyCrewLoss`, `buildCaptainLog`, `applyAlignment` (crew-faction-alignment morale modifier on victory), and outcome-specific extractions (`handleDefeat`, `applyVictoryAftermath`, `handlePatrolVictory`, `handleFledMission`).
+### engine_encounter.js (new)
+
+Encounter setup and random events. Handles `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_PARLEY`, `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER`, `PATROL_INSPECT`, `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT`, `RESOLVE_DRIFTING_WRECK_SEARCH`.
+
+Depends on `engine_battle.js` for shared helpers.
 
 ### engine_onboarding.js (new file)
 
 Not a domain reducer — a **middleware reducer** that watches every action after the domain reducers have already run, using a declarative `STEP_RULES` lookup table keyed by action type. Each rule is a function of `(prevState, nextState, action)` returning which `onboarding.stepsCompleted` flags and `qmMessagesSeen` keys to mark, or `null` for no change. This file also owns the three onboarding lifecycle actions directly: `ONBOARDING_QM_SEEN`, `ONBOARDING_SKIP`, `ONBOARDING_COMPLETE` (both of the latter two remove the quartermaster from the crew roster and log a farewell line).
 
-**Load-order constraint:** this file must load after `engine_port.js`, `engine_voyage.js`, and `engine_combat.js`, because several `STEP_RULES` entries need to inspect *post-domain-reducer* state (e.g. whether `CONFIRM_TRADE` left the hold with both the tutorial mission's required goods and provisions).
+**Load-order constraint:** this file must load after `engine_port.js`, `engine_voyage.js`, and `engine_battle.js`/`engine_encounter.js`, because several `STEP_RULES` entries need to inspect *post-domain-reducer* state (e.g. whether `CONFIRM_TRADE` left the hold with both the tutorial mission's required goods and provisions).
 
 ### engine_career.js (new file)
 
@@ -523,7 +552,7 @@ A library of ~50 hand-drawn SVG icon components (`IconAnchor`, `IconSwords`, `Ic
 |---|---|---|
 | `window.D` | `data.js` + `data_text.js` | All constants: PORTS, SHIPS, SHIP_VISUALS, FACTIONS, EQUIPMENT, RESOURCES, STARTS, TUTORIAL_DELIVERY, TUTORIAL_HUNT, DEFAULT_CAREER, crew names, gossip/market-flavour templates, QM dialogue, etc. |
 | `window.ShipSprite` | `ship-sprite.js` | Single function `render(shipType, options) → SVGElement`. No game knowledge — pure geometry/SVG composition over `window.D.SHIP_VISUALS`. |
-| `window.L` | `logic.js` + `storage.js` | All pure functions + save/load encoding + tutorial state helpers. |
+| `window.L` | `logic_core.js` + `logic_economy_crew.js` + `logic_travel_events.js` + `logic_combat_encounter.js` + `storage.js` | All pure functions + save/load encoding + tutorial state helpers. |
 | `window.G` | `generators.js` | All RNG-dependent generators. |
 | `window.E` | `engine_core.js` + 6 domain/middleware files | Reducer chain (`window.E._reducers`), action constants (`window.E.A`), initial state, shared helpers. Not all six files contributing reducers are domain owners — three are cross-cutting middleware (onboarding, career, scripted-demo). |
 | `window.UI` | `ui.jsx` + `icons.jsx` | Theme tokens, all presentational components, the full icon library, and the `LOG_ICONS` category map. |
@@ -820,19 +849,41 @@ Each port visit generates prices via `RESOURCES[good].basePrice * (1 ± variance
 
 Missions are generated procedurally by `G.generateMissions()`. Six types: **escort, patrol, combat, trade, smuggle, assault**. Type selection is weighted by the issuing port's faction (pirate ports never offer patrol or trade missions). Risk level is tier-weighted toward higher risk as fame increases. Gold, fame, and enemy stats scale with the player's fame tier (0–4).
 
+**Trade missions** now select a target port where the required good is **in demand** (using `L.getPortTradeProfile`). This guarantees the trade itself is profitable, making the mission reward a pure bonus. The mission gold is computed from `MISSION_GOLD_RANGES` as before, and the required quantity is derived from the gold and the good's base price via `TRADE_MISSION_PROFIT_MARGINS`.
+
+**Smuggle missions** now select a target port where the illegal good is **scarce** (availability tier `"rarely"` or `"never"` in `GOODS_AVAILABILITY`). The enemy faction is set to match the target port's faction, aligning the negative reputation impact with the encounter.
+
 ### Named crew roster
 
 Crew members are generated with `G.generateCrewMember(faction)` → `{ id, firstName, lastName, role, faction, daysAboard, tags }`. Roles are weighted-random but cosmetic. Crew accumulate tags over time: hidden traits (`hidden_drunkard`, `hidden_coward`, `hidden_greedy`, `hidden_troublemaker`) revealed through gameplay, scars (`scar_battle`, `scar_storm`, `scar_shipwreck`), positive progression (`seasoned` at 50d, `veteran` at 100d, `loyal` at 200d + high faction rep), and alignment tags (`upset`, `mutineer`). Generated biographies (`G.generateCrewBio`) combine opening templates with combo sentences and suppression logic to avoid redundant scar/trait lines.
 
 ### Combat resolution flow
 
-Turn-based, resolved in `engine_combat.js` via `BATTLE_ACTION`.
+Turn-based, resolved in `engine_battle.js` via `BATTLE_ACTION`.
 
-1. Player chooses `broadside` | `precision` | `grapple` | `evade`.
-2. NPC action is weighted random (`L.getNPCAction`): 70% broadside, 25% precision, 5% grapple.
-3. `L.resolveCombatAction(state, playerAction)` resolves both sides, applies the Surgeon's Bay `crewLossMult` effect, and applies a morale-based damage-taken modifier (worse below 30 morale, better above 70).
-4. Phase check: enemy hull ≤0 → victory (sink); player hull ≤0 → defeat; successful evade → fled; successful grapple → instant victory with `canPlunder: true`.
-5. On a grapple-win victory with `canPlunder`, the player navigates to `PlunderScreen` to manually select cargo; on a sink-win victory, gold is awarded automatically and there is nothing to plunder.
+The combat system now uses **distance bands (Far/Medium/Close)** and a **boarding phase**:
+
+1. **Naval Battle**:
+   - Actions: Broadside, Precision, Close Distance, Open Distance, Evade, Grapple.
+   - Resolution order: Evade → Damage → Hull/Crew check → Reposition → Grapple.
+   - Distance changes based on Close/Open actions (contested via speed when opposing).
+   - Damage multipliers vary by distance (Broadside: 0.6× at Far, 1.0× at Medium, 0.9× at Close; Precision: 1.1× at Far, 1.0× at Medium, 0.7× at Close).
+   - Grapple requires Close distance; if successful, the battle transitions to Boarding sub‑phase.
+
+2. **Boarding Phase**:
+   - Actions: Continue Fighting, Fall Back, Demand Surrender, Surrender.
+   - Effective strength: `crew × (0.5 + morale/200)`, enemy morale derived from risk tier.
+   - Continue Fighting: both sides take losses proportional to their advantage ratio.
+   - Fall Back: returns to Naval battle at Close distance with a cost to the retreater.
+   - Demand Surrender: success chance based on advantage ratio; automatic if the opponent tries to Fall Back.
+   - Surrender: ends the battle immediately.
+
+3. **Victory/Defeat**:
+   - **Sunk** (hull reaches 0): no plunder, immediate victory screen with "Sail Away" only.
+   - **Captured/Wiped** (crew reaches 0 while hull remains): plunder available, victory screen with "Plunder" and "Sail Away" buttons.
+   - **Player defeat**: wash ashore, lose cargo, mission may fail.
+
+NPC action selection uses stubs (`getNPCNavalAction`, `getNPCBoardingAction`) that will be tuned later.
 
 ### Save / load behaviour
 
@@ -867,13 +918,13 @@ The **Hints** mode (`tutorialMode: "light"`) is unrelated to any of this — it'
 
 `engine_career.js` is the second middleware reducer, registered after `engine_onboarding.js`. It maintains `state.career` purely as derived bookkeeping — nothing in the game reads `career` to make a gameplay decision, so a bug here can never affect actual play, only the Status screen's narrative.
 
-The pattern it demonstrates is worth calling out for anyone adding similar cross-cutting tracking in the future: rather than adding `nextCareer.x++` lines scattered across `engine_port.js`/`engine_combat.js`/`engine_voyage.js` reducer cases (which is how this kind of tracking is usually bolted on, and how it used to be done here before B1.1), the middleware instead does a single `switch (action.type)` over the *already-resolved* state, comparing `action.__prevState` (the state before any domain reducer ran) against `state` (the state after every domain reducer has already run). This means:
+The pattern it demonstrates is worth calling out for anyone adding similar cross-cutting tracking in the future: rather than adding `nextCareer.x++` lines scattered across `engine_port.js`/`engine_battle.js`/`engine_voyage.js` reducer cases (which is how this kind of tracking is usually bolted on, and how it used to be done here before B1.1), the middleware instead does a single `switch (action.type)` over the *already-resolved* state, comparing `action.__prevState` (the state before any domain reducer ran) against `state` (the state after every domain reducer has already run). This means:
 
 - Gold earned/spent is just `state.gold - prevState.gold`, sign-split into the two running totals — with an explicit exemption list (`SKIP_GOLD_TRACKING = [START_GAME, LOAD_GAME, IMPORT_SAVE]`) for actions that replace the whole state wholesale, so loading a save doesn't get misread as a single enormous earning event.
 - Crew loss attribution (`inBattle`/`inStorm`/`deserted`/`other`) is derived by diffing `prevState.crew.roster` against `state.crew.roster` and using the *action type* to decide which bucket the diff belongs to (`ENTER_PORT` → desertion, `RESOLVE_EVENT` with a storm event id → storm, `DISMISS_BATTLE`/`TAKE_PLUNDER` → battle).
 - Plunder is **not** tracked under the generic `DISMISS_BATTLE` victory case, because `TAKE_PLUNDER` and `DISMISS_BATTLE` are mutually exclusive for the same fight — a grapple-won battle with cargo available routes to the Plunder screen and `DISMISS_BATTLE` is simply never dispatched for it, so `shipsPlundered`, the battle-won counter, and the combat log entry are all incremented from inside the `TAKE_PLUNDER` case instead, duplicating the small amount of bookkeeping `DISMISS_BATTLE` would otherwise have done.
 
-Domain reducers (`engine_port.js`, `engine_voyage.js`, `engine_combat.js`) have **zero knowledge** that `engine_career.js` exists. This is the property that makes the pattern worth reusing: a new piece of cross-cutting tracking can be added as a new middleware file without editing any existing reducer, as long as the data it needs can be derived from a before/after state diff plus the action type.
+Domain reducers (`engine_port.js`, `engine_voyage.js`, `engine_battle.js`, `engine_encounter.js`) have **zero knowledge** that `engine_career.js` exists. This is the property that makes the pattern worth reusing: a new piece of cross-cutting tracking can be added as a new middleware file without editing any existing reducer, as long as the data it needs can be derived from a before/after state diff plus the action type.
 
 ### Ship visual identity system
 
@@ -899,9 +950,11 @@ return {
   screen: "intercept",
   // ...
 };
+```
 
 ---
-## 9. Adding New Content -- Patterns
+
+## 9. Adding New Content — Patterns
 
 ### Add a port
 
@@ -921,131 +974,4 @@ return {
 ### Add an equipment item
 
 1. Add entry to `EQUIPMENT` in `data.js` with `name`, `desc`, `cost`, `installFee`, `slot`, `effects`, `removable`, and optionally `requiredFame`, `requiredHull`
- 2. If the item introduces a **new effect key**: stat-named keys (`cannons`, `speed`, `maxDays`, `maxCrew`) are additive and applied automatically inside `L.getShipStats()`; `hullPct`/`holdPct` are multiplicative and also applied automatically. Anything else (`repairCostPct`, `precisionHitPct`, `crewDmgPct`, `hullDmgPct`, `contrabandAvoidChance`, `crewLossMult`, `repGainBonus`, `missionCombatFameBonus`, `combatHeatMult`, `longVoyageDayReduction`, `stormHullImmune`, `calmImmune`) is **not** picked up automatically — you must add a `L.getEquipmentEffect(state, "yourNewKey")` call at whatever point in combat/travel/repair logic should consume it.
- 3. ShipyardScreen Equipment tab reads `EQUIPMENT` automatically
-
-### Add a random event
-
-1. Add entry to `RANDOM_EVENTS[]` in `data.js` following the `{ id, type, title, desc, choices[] }` pattern
-2. Each choice needs an `outcome` object with the effects to apply
-3. If the outcome includes a new field not handled by `RESOLVE_EVENT`: update `engine_combat.js`
-4. Optional: add a `condition: (state) => boolean` to restrict when the event can fire
-
-### Add a mission type
-
-1. Add generator function in `generators.js` (follow `generateCombatMission` pattern)
-2. Add to the type-selection weights in `G.generateMissions()`
-3. Add completion logic in `engine_port.js` -> `COMPLETE_MISSION` case
-4. Add gold/rep tables to `data.js` if the type has unique reward scaling
-
-### Tuning the economy
-
-All balance numbers are in `data.js`:
-
-- Ship costs -> `SHIPS[key].cost`
-- Mission rewards -> `MISSION_GOLD_RANGES`
-- Trade profits -> `TRADE_MISSION_PROFIT_MARGINS`
-- Smuggle profits -> `SMUGGLE_PROFIT_MARGINS`
-- Resource prices -> `RESOURCES[key].basePrice`
-- Plunder value -> `PLUNDER_TARGET`, `PLUNDER_GOLD_RATIO`
-
-Use `tests/sim.html` to run Monte Carlo simulations after changing values.
-
-### Add a screen
-
-1. Create the component in the matching screen file: port-related → `screens_port.jsx`, voyage (map/sailing) → `screens_voyage.jsx`, combat/event/intercept/plunder → `screens_combat.jsx`, shipyard/crew/market → their own dedicated files, title/new-game/onboarding → `screens_core.jsx`.
-2. Add to `window.S` in the `Object.assign` at the bottom of that file
-3. Add `case "screenname":` to the router in `App.jsx` -> `renderScreen()`
-4. If the screen needs a new action: add to `window.E.A` and the relevant domain reducer
-
-### Add an action
-
-1. Add the action name to `window.E.A` in `engine_core.js`
-2. Add the `case A.YOUR_ACTION:` to the appropriate domain reducer (`engine_port.js`, `engine_voyage.js`, or `engine_combat.js`)
-3. Return a new state object (spread-copy, never mutate)
-4. If the action should also be tracked for onboarding progress or career stats, add a rule to `STEP_RULES` in `engine_onboarding.js` and/or a `case` in `engine_career.js` — **do not** add tracking code to the domain reducer itself. See §8's middleware pattern writeup for why.
-
-### Add a tracked career stat
-1. Add the field (zeroed) to `D.DEFAULT_CAREER` in `data.js`.
-2. Add a `case` to the `switch` in `engine_career.js`'s `careerMiddleware`, deriving the value from `action.__prevState` vs the post-reducer `state` — never from gameplay-affecting logic.
-3. Surface it on `StatusScreen` (either the narrative "Career" highlights list or the full-ledger toggle).
-4. Do **not** touch `engine_port.js`/`engine_voyage.js`/`engine_combat.js` — that's the point of the middleware pattern.
-
----
-
-## 10. Testing Infrastructure
-
-### Test runner
-
-`tests/tests.html` -- browser-native test harness that loads all game source files via `<script>` tags and runs assertions. No npm or build tools required. Tests are split across:
-
-| File | Contents |
-|---|---|
-| `tests_helpers.js` | Shared helpers (state factories, assertion utilities) |
-| `tests_logic.js` | Unit tests for `logic.js` and `generators.js` |
-| `tests_engine.js` | Reducer tests for all engine files |
-| `tests_flows.js` | Integration and scenario tests (full game loops) |
-| `tests_ui.js` | UI smoke tests and edge case tests |
-| `tests_integration.html` | Standalone load-test: verifies every script tag loads cleanly and all core namespaces/components/data shapes exist. Catches load-order regressions (the original motivating case was `LOG_ICONS` going missing) without needing the full `tests.html` suite running. 
-
-### Simulation tools
-
-| Tool | File | Purpose |
-|---|---|---|
-| Economy simulator | `tests/sim.html` | Monte Carlo economy simulations -- 6 strategy profiles, fame-indexed charts |
-| Balance dashboard | `tests/tests_balance.html` | Reachability, economy, combat, patrol, trade, events, gossip balance checks |
-| Crew lifecycle sim | `tests/crew_sim.html` | 6 playstyles, per-member tracking, survival curves |
-| Bio/log analyser | `tests/crew_bio_log_sim.html` | Bio uniqueness scoring, log pattern detection |
-| Equipment combos | `tests/equipment_combo_analyzer.html` | Equipment combination analysis and stat delta preview |
-| Screenshot gen | `tools/screenshots_builder.html` | 5 scenes × 3 sizes + itch.io assets, html2canvas export, built on real `window.UI`/`window.D` components rather than mocked markup. |
-| Ship sprite preview | `tools/ship-preview.html` | Visual verification grid of  all ship types' procedural SVG silhouettes (`ship-sprite.js`), with toggles for faction flag, facing, and visual equipment — used when adding/adjusting `SHIP_VISUALS` entries. |
-
-All tools load real game files via `<script>` tags -- they use the live `window.D`, `window.L`, `window.G` namespaces directly.
-
----
-
-## 11. Constraints for AI Agents
-
-### Before editing any file
-
-1. Read the **dependency graph** in S4. Never import downward.
-2. Check which `window.*` namespace the file belongs to.
-3. Search for every reference to the function/constant you're changing -- use `window.L.`, `window.E.A.`, etc.
-4. If adding a new export, add it to the `return` block (for IIFEs) or `Object.assign` (for screen files).
-
-### Things that cause a blank screen with no error message
-
-- Syntax error in any `.js` file (breaks the `<script>` load chain)
-- Missing comma in `data.js` or `data_text.js` object literals
-- Referencing `window.L` before `logic.js` has loaded
-- Babel parse error in `.jsx` files (unclosed tags, mismatched braces)
-
-### Things that break silently (no crash, wrong behaviour)
-
-- Mutating `state` instead of spreading: `state.gold -= 100` <-- WRONG
-- Forgetting to add a new action to `window.E.A` (dispatch does nothing)
-- Adding an equipment key to `EQUIPMENT` that references a non-existent slot type
-- Referencing `state.crew.current` (doesn't exist) instead of `state.crew.roster.length`
-- Referencing `state.hold.capacity` directly instead of `L.getHoldCapacity(state)`
-- Referencing `state.ship.upgrades` (removed) instead of `state.ship.equipment`
-- Adding tracking/bookkeeping code directly inside `engine_port.js`/`engine_voyage.js`/`engine_combat.js` instead of as a middleware case in `engine_career.js` or `engine_onboarding.js` — works at first, but duplicates logic the moment a second domain reducer needs the same tracking, and breaks the "domain reducers know nothing about onboarding/career" invariant.
-- Registering a new equipment effect key without also adding a `getEquipmentEffect` call somewhere — `getShipStats` only auto-applies stat-named keys plus `hullPct`/`holdPct`; everything else silently does nothing.
-- Treating `L.classifyLogLine()`'s return value as an emoji/icon — it returns a **category key string** (`"arrival"`, `"combat"`, etc.); the icon comes from `window.UI.LOG_ICONS[category]` in `icons.jsx`, loaded separately.
-- Assuming `STARTS` is an array of scenario objects (`{id, name, ship, gold, ...}`) — it's a single faction-keyed object (`factionPorts`, `factionBackstory`, `factionQM`, `factionRepAdjust`, + shared `gold`/`ship`/`hold`). `specs_data.md` still documents the old shape and shouldn't be trusted as a reference until it's corrected.
-- Forgetting that `tutorialMode` is tri-state (`"full"`/`"light"`/`"none"`) — code that only checks a boolean "tutorial enabled" flag will mishandle the Hints-only mode, which uses the older localStorage-backed `TutorialPopup` system instead of `state.onboarding`.
-
-### Always do
-
-- Spread-copy: `return { ...state, gold: state.gold + 100 }`
-- Nested spread: `ship: { ...state.ship, hull: newHull }`
-- Add log entries: `log: [...state.log, "message"]`
-- Gate purchases: check `gold >= cost` AND `fame >= requiredFame` AND ship supports slot
-- Test in debug mode (`?debug=1`) after changes
-- Run `tests/sim.html` after any balance change
-- Run `tests/tests.html` after any logic/engine change
-- When adding a new middleware-style reducer (cross-cutting tracking, not domain logic), push it onto `window.E._reducers` **after** the domain reducers it needs to observe — it reads `action.__prevState` for the before-state, but needs the domain reducers to have already run to see the after-state.
-- Load-order matters doubly now: `engine_onboarding.js` and `engine_career.js` must load after `engine_port.js`/`engine_voyage.js`/`engine_combat.js`, and `icons.jsx` must load after `ui.jsx` (it extends `window.UI` rather than replacing it).
-
-### File size limit
-
-Keep each file under 1500 lines. If a file approaches this limit, split by domain (as was done with `engine.js` -> 4 files, and screens -> 5 files).
+ 2. If the item introduces a **new effect key**: stat-named keys (`cannons`, `speed`, `maxDays`, `maxCrew`) are additive and applied automatically inside `L.getShipStats()\

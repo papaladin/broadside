@@ -296,34 +296,34 @@
     u.assert(missions.length > 0, "has at least one mission");
   });
 
-reg("G.MISSION.02", "generateMissions: each mission has required fields", (u) => {
-  const state = makePortState("portRoyal", { faction: "english", fame: 50 });
-  const missions = G.generateMissions("portRoyal", state);
-  missions.forEach(m => {
-    u.assert(m.type !== undefined, "has type");
-    u.assert(m.name !== undefined, "has name");
-    u.assert(m.faction !== undefined, "has faction");
-    u.assert(m.gold !== undefined, "has gold reward");
-    // Non-combat missions must have a targetPort
-    if (m.type !== "combat") {
-      u.assert(m.targetPort !== undefined && m.targetPort !== null,
-        `mission ${m.name} (type ${m.type}) has a targetPort`);
-    }
-  });
-});
-
-reg("G.MISSION.03", "generateMissions: includes different types at high fame", (u) => {
-  const state = makePortState("portRoyal", { faction: "english", fame: 200 });
-  let seenTypes = new Set();
-  for (let i = 0; i < 50; i++) {
+  reg("G.MISSION.02", "generateMissions: each mission has required fields", (u) => {
+    const state = makePortState("portRoyal", { faction: "english", fame: 50 });
     const missions = G.generateMissions("portRoyal", state);
-    missions.forEach(m => seenTypes.add(m.type));
-    if (seenTypes.size >= 2) break;
-  }
-  u.assert(seenTypes.size >= 2, `Expected at least 2 mission types, got ${seenTypes.size}: ${Array.from(seenTypes).join(", ")}`);
-});
+    missions.forEach(m => {
+      u.assert(m.type !== undefined, "has type");
+      u.assert(m.name !== undefined, "has name");
+      u.assert(m.faction !== undefined, "has faction");
+      u.assert(m.gold !== undefined, "has gold reward");
+      // Non-combat missions must have a targetPort
+      if (m.type !== "combat") {
+        u.assert(m.targetPort !== undefined && m.targetPort !== null,
+          `mission ${m.name} (type ${m.type}) has a targetPort`);
+      }
+    });
+  });
 
-   reg("G.MISSION.04", "generateMissions: runs without error for different fame levels", (u) => {
+  reg("G.MISSION.03", "generateMissions: includes different types at high fame", (u) => {
+    const state = makePortState("portRoyal", { faction: "english", fame: 200 });
+    let seenTypes = new Set();
+    for (let i = 0; i < 50; i++) {
+      const missions = G.generateMissions("portRoyal", state);
+      missions.forEach(m => seenTypes.add(m.type));
+      if (seenTypes.size >= 2) break;
+    }
+    u.assert(seenTypes.size >= 2, `Expected at least 2 mission types, got ${seenTypes.size}: ${Array.from(seenTypes).join(", ")}`);
+  });
+
+  reg("G.MISSION.04", "generateMissions: runs without error for different fame levels", (u) => {
     const state1 = makePortState("portRoyal", { faction: "english", fame: 0 });
     const state2 = makePortState("portRoyal", { faction: "english", fame: 200 });
     const missions1 = G.generateMissions("portRoyal", state1);
@@ -341,13 +341,64 @@ reg("G.MISSION.03", "generateMissions: includes different types at high fame", (
     u.assert(Array.isArray(missions), "returns array even during onboarding");
   });
 
+  // ── NEW: Trade mission target port has required good in demand ──
+  reg("G.MISSION.06", "trade mission target port has required good in demand", (u) => {
+    const state = makePortState("portRoyal", { fame: 50 });
+    const missions = G.generateMissions("portRoyal", state);
+    const tradeMissions = missions.filter(m => m.type === "trade");
+    if (tradeMissions.length === 0) {
+      u.assert(true, "No trade missions generated – test skipped");
+      return;
+    }
+    for (const m of tradeMissions) {
+      const profile = L.getPortTradeProfile(m.targetPort);
+      u.assert(profile.inDemand.includes(m.requiredGood),
+        `Trade mission "${m.name}" targets ${m.targetPort} with good "${m.requiredGood}", but that good is NOT in demand there.`);
+    }
+  });
+
+  // ── NEW: Smuggle mission enemy faction matches target port faction ──
+  reg("G.MISSION.07", "smuggle mission enemy faction matches target port faction", (u) => {
+    const state = makePortState("portRoyal", { fame: 50 });
+    const missions = G.generateMissions("portRoyal", state);
+    const smuggleMissions = missions.filter(m => m.type === "smuggle");
+    if (smuggleMissions.length === 0) {
+      u.assert(true, "No smuggle missions generated – test skipped");
+      return;
+    }
+    for (const m of smuggleMissions) {
+      const targetFaction = D.PORTS[m.targetPort].faction;
+      u.assertEqual(m.enemy.faction, targetFaction,
+        `Smuggle mission enemy faction ${m.enemy.faction} does not match target port faction ${targetFaction}`);
+    }
+  });
+
+  // ── NEW: Smuggle mission required good is scarce at target port ──
+  reg("G.MISSION.08", "smuggle mission required good is rarely/never available at target port", (u) => {
+    const state = makePortState("portRoyal", { fame: 50 });
+    const missions = G.generateMissions("portRoyal", state);
+    const smuggleMissions = missions.filter(m => m.type === "smuggle");
+    if (smuggleMissions.length === 0) {
+      u.assert(true, "No smuggle missions generated – test skipped");
+      return;
+    }
+    const colOrder = ["food","water","rum","sugar","timber","cloth","spices","silk",
+                      "coffee","cocoa","weapons","tobacco","silver","slaves"];
+    for (const m of smuggleMissions) {
+      const avail = D.GOODS_AVAILABILITY[m.targetPort];
+      const idx = colOrder.indexOf(m.requiredGood);
+      u.assert(idx !== -1, `Good ${m.requiredGood} not in colOrder`);
+      const tier = avail[idx] || "never";
+      u.assert(tier === "rarely" || tier === "never",
+        `Smuggle good "${m.requiredGood}" at ${m.targetPort} has tier "${tier}", expected "rarely" or "never"`);
+    }
+  });
+
   reg("G.MISSION_TEXT.01", "generateMissionText: returns name and description", (u) => {
     const text = G.generateMissionText("trade", "english", "tortuga", "low");
     u.assert(text.name && typeof text.name === "string", "has name");
     u.assert(text.desc && typeof text.desc === "string", "has description");
   });
-
-
 
   reg("G.MISSION_TEXT.03", "generateMissionText: different types have different templates", (u) => {
     const trade = G.generateMissionText("trade", "english", "tortuga", "low");

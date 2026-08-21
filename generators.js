@@ -635,27 +635,116 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
   return pickRandom(eligible);
 };
 
+// ── NEW: Find a port where a specific good is in demand ──────────────────
+// Returns a port key, or null if none found.
+// Uses the GOODS_AVAILABILITY tier directly. "rarely" or "never" = in demand.
+// Options: { excludePirate: boolean }
+const findPortForGoodInDemand = (good, state, currentPort, options = {}) => {
+  const { excludePirate = false } = options;
+  const allPorts = Object.keys(window.D.PORTS);
+  let candidates = allPorts.filter(k => k !== currentPort);
+
+  // Exclude hidden ports not yet discovered
+  candidates = candidates.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
+
+  // Early-game restriction: fame < 10 limits to starter ports
+  if ((state.fame ?? 0) < 10) {
+    const starterPorts = [
+      "havana", "nassau", "santiagoDeCuba", "portDePaix", "tortuga",
+      "santoDomingo", "petitGoave", "portRoyal", "kingston"
+    ];
+    candidates = candidates.filter(k => starterPorts.includes(k));
+  }
+
+  // Optionally exclude pirate ports
+  if (excludePirate) {
+    candidates = candidates.filter(k => window.D.PORTS[k].faction !== "pirate");
+  }
+
+  // Column order used in GOODS_AVAILABILITY
+  const colOrder = [
+    "food","water","rum","sugar","timber","cloth","spices","silk",
+    "coffee","cocoa","weapons","tobacco","silver","slaves"
+  ];
+  const goodIndex = colOrder.indexOf(good);
+  if (goodIndex === -1) return null;
+
+  // Shuffle to avoid always picking the same port
+  const shuffled = shuffleArray(candidates);
+  for (const port of shuffled) {
+    const availability = window.D.GOODS_AVAILABILITY[port];
+    if (!availability) continue;
+    const tier = availability[goodIndex] || "never";
+    // "rarely" or "never" means the good is scarce → high demand
+    if (tier === "rarely" || tier === "never") {
+      return port;
+    }
+  }
+  return null;
+};
+
+// ── NEW: Find a port that has at least one "in demand" good ──────────────
+// Returns { port: string, inDemandGoods: string[] } or null.
+// Used by trade mission generator to pick a target port.
+const findPortWithInDemandGood = (state, currentPort) => {
+  const allPorts = Object.keys(window.D.PORTS);
+  let candidates = allPorts.filter(k => k !== currentPort);
+
+  // Exclude hidden ports not yet discovered
+  candidates = candidates.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
+
+  // Early-game: fame < 10 limits to starter ports
+  if ((state.fame ?? 0) < 10) {
+    const starterPorts = [
+      "havana", "nassau", "santiagoDeCuba", "portDePaix", "tortuga",
+      "santoDomingo", "petitGoave", "portRoyal", "kingston"
+    ];
+    candidates = candidates.filter(k => starterPorts.includes(k));
+  }
+
+  // Shuffle to avoid always picking the same port
+  const shuffled = shuffleArray(candidates);
+  for (const port of shuffled) {
+    const profile = window.L.getPortTradeProfile(port);
+    // Filter out illegal goods? For trade missions, we only care about legal goods.
+    // `inDemand` already excludes illegal goods by design (since it's built from
+    // `GOODS_AVAILABILITY` tiers, not from RESOURCES.illegal).
+    const demand = profile.inDemand || [];
+    if (demand.length > 0) {
+      return { port, inDemandGoods: demand };
+    }
+  }
+  return null;
+};
+
   // ── Trade mission generator ──────────────────────────────────
+  // UPDATED: Picks a target port with in‑demand goods, then selects one of those goods.
+  // No profitability checks – the player decides where to source the goods.
   const generateTradeMission = (portKey, state, faction, risk) => {
     const tier = window.L.getFameInfo(state.fame ?? 0).tier;
-    const eligibleGoods = window.D.TRADE_GOODS_BY_TIER[tier] || window.D.TRADE_GOODS_BY_TIER[0];
 
-    const good = pickRandom(eligibleGoods);
+    // ── Find a port with in‑demand goods ──────────────────────────
+    const result = findPortWithInDemandGood(state, portKey);
+    if (!result) return null;
+
+    const targetPort = result.port;
+    const inDemandGoods = result.inDemandGoods;
+
+    // ── Pick a random good from the in‑demand list ────────────────
+    const good = pickRandom(inDemandGoods);
     const res = window.D.RESOURCES[good];
     if (!res) return null;
 
-    // ── Gold reward from the standard mission gold table (same as combat/patrol/etc.) ──
+    // ── Gold reward from the standard mission gold table ──────────
     const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
     const rawGold = minGold + Math.random() * (maxGold - minGold);
     const gold = Math.round(rawGold / 25) * 25;
 
-    // ── Required quantity derived from gold reward, good base price, and profit margin ──
+    // ── Required quantity derived from gold reward and profit margin ──
     const margin = window.D.TRADE_MISSION_PROFIT_MARGINS[risk] || 0.60;
     const requiredQty = Math.max(3, Math.round(gold / (res.basePrice * (1 + margin))));
 
-    const targetPort = pickTargetPort(portKey, "trade", state, faction);
-    if (!targetPort) return null;
-
+    // ── Build mission object ──────────────────────────────────────
     const targetPortName = window.D.PORTS[targetPort]?.name || "unknown port";
     const factionAdj = pickRandom(window.D.MISSION_NAME_PARTS.factionAdj[faction] || ["Foreign"]);
     const fame = risk === "high" ? 2 : 1;
@@ -678,49 +767,46 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
     };
   };
 
-  // ── Smuggle mission generator ────────────────────────────────
-  const generateSmuggleMission = (portKey, state, risk) => {
-    const tier = window.L.getFameInfo(state.fame ?? 0).tier;
-    const infamy = state.infamy ?? 0;
+ // ── Smuggle mission generator ────────────────────────────────
+// UPDATED: uses findPortForGoodInDemand to pick a target port where the contraband good is scarce.
+const generateSmuggleMission = (portKey, state, risk) => {
+  const tier = window.L.getFameInfo(state.fame ?? 0).tier;
+  const infamy = state.infamy ?? 0;
 
-    // Good pool by tier + infamy gating
-    let eligibleGoods = window.D.SMUGGLE_GOODS_BY_TIER[tier] || ["rum", "tobacco"];
-    if (risk === "low" || infamy < 25) {
-      eligibleGoods = eligibleGoods.filter(g => g !== "slaves");
-    }
-    if (eligibleGoods.length === 0) eligibleGoods = ["tobacco"];
+  // Good pool by tier + infamy gating
+  let eligibleGoods = window.D.SMUGGLE_GOODS_BY_TIER[tier] || ["rum", "tobacco"];
+  if (risk === "low" || infamy < 25) {
+    eligibleGoods = eligibleGoods.filter(g => g !== "slaves");
+  }
+  if (eligibleGoods.length === 0) eligibleGoods = ["tobacco"];
 
-    // Infamy weighting: high infamy increases slave probability
-    let good;
-    if (eligibleGoods.includes("slaves") && infamy >= 50 && Math.random() < 0.50) {
-      good = "slaves";
-    } else {
-      good = pickRandom(eligibleGoods);
-    }
-
+  // Shuffle to try different goods if the first one fails
+  const shuffledGoods = shuffleArray(eligibleGoods);
+  for (const good of shuffledGoods) {
     const res = window.D.RESOURCES[good];
-    if (!res) return null;
+    if (!res) continue;
 
-    // ── Gold reward from the standard mission gold table ──
+    // ── Find a port where this good is in demand (scarce) ──────
+    // Exclude pirate ports – you smuggle TO colonial powers, not pirate havens.
+    const targetPort = findPortForGoodInDemand(good, state, portKey, { excludePirate: true });
+    if (!targetPort) continue;
+
+    // ── Get the target port's faction ──────────────────────────
+    const targetFaction = window.D.PORTS[targetPort]?.faction || "english";
+
+    // ── Gold reward from the standard mission gold table ──────
     const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
     const rawGold = minGold + Math.random() * (maxGold - minGold);
     const gold = Math.round(rawGold / 25) * 25;
 
-    // ── Required quantity derived from gold reward, base price, and smuggle profit margin ──
+    // ── Required quantity derived from gold reward and profit margin ──
     const margin = window.D.SMUGGLE_PROFIT_MARGINS[risk] || 0.80;
     const requiredQty = Math.max(2, Math.round(gold / (res.basePrice * (1 + margin))));
 
-    // Intercept chance: one high‑probability check per voyage
+    // ── Mission properties ──────────────────────────────────────
     const interceptChance = { low: 0.30, medium: 0.35, high: 0.40 }[risk] || 0.35;
-
-    // Infamy on completion: always +1
     const infamyGain = 1;
-
-    const targetPort = pickTargetPort(portKey, "smuggle", state, "pirate");
-    if (!targetPort) return null;
-
     const targetPortName = window.D.PORTS[targetPort]?.name || "unknown port";
-    const targetFaction = window.D.PORTS[targetPort]?.faction || "english";
     const goodName = res.name;
     const goodUnit = res.unit;
     const sourceHint = res.sourceHint || "";
@@ -728,14 +814,14 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
     const infamyWarning = good === "slaves"
       ? " Purchasing this cargo will darken your reputation."
       : "";
-
     const fame = risk === "high" ? 2 : 1;
-
-    // Rep: +pirate, −receiving faction
     const repImpact = {
       pirate: window.D.MISSION_REP_IMPACTS.smuggle?.any ?? 2,
       [targetFaction]: -3,
     };
+
+    // ── Enemy now matches the target port's faction ──────────
+    const enemy = generateEnemy(risk, state.fame ?? 0, targetFaction, targetFaction);
 
     return {
       type: "smuggle",
@@ -748,13 +834,16 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
       fame,
       infamyGain,
       repImpact,
-      enemy: generateEnemy(risk, state.fame ?? 0, "pirate"),
+      enemy,
       requiredGood: good,
       requiredQty,
       interceptChance,
       isContraband: good !== "rum",
     };
-  };
+  }
+
+  return null;
+};
 
 
    // ═══════════════════════════════════════════════════════════════

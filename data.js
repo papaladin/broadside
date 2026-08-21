@@ -863,7 +863,7 @@ const FACTION_PRICE_MODIFIERS = {
 
 const MISSION_GOLD_RANGES = {
   0: { low: [140,180],  medium: [180,230],   high: [230,300],   assault: [300,400] },
-  1: { low: [140,180],  medium: [180,230],   high: [230,300],   assault: [300,400] },
+  1: { low: [250,750],  medium: [750,2000],   high: [2000,3000],   assault: [3000,4000] },
   2: { low: [400,1500], medium: [1500,5000], high: [5000,7000], assault: [7000,10000] },
   3: { low: [2000,7000],medium: [7000,10000],high: [10000,18000],assault: [18000,22000] },
   4: { low: [6000,15000],medium:[15000,30000],high: [30000,50000],assault: [50000,75000] },
