@@ -1,22 +1,23 @@
 # Engine Architecture Specification
 
 **Broadside Game Engine**
-*Last Updated: June 27, 2026*
-*Architecture: 4-Way Split (Core + Port + Voyage + Combat + Middleware)*
+*Last Updated: August 21, 2026*
+*Architecture: 7-Way Split (Core + Port + Voyage + Battle + Encounter + Middleware + Scripted)*
 
 ---
 
 ## 1. Overview
 
-The engine is split into **7 files** for maintainability:
+The engine is split into **8 files** for maintainability:
 
 ```js
 engine_core.js      # Shared infrastructure (constants, initial state, reducer dispatcher, debug/save actions)
 engine_port.js      # Port domain (start, navigation, market, missions, crew, shipyard, equipment, repair)
 engine_voyage.js    # Voyage domain (sailing, wind, provisions, hidden ports, events, patrols)
-engine_combat.js    # Combat domain (encounters, battles, plunder, event resolution)
+engine_battle.js    # Battle domain (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER, crew loss, wash ashore)
+engine_encounter.js # Encounter domain (intercept actions, random events, merchant encounters, patrol inspect)
 engine_onboarding.js # Onboarding middleware (QM step tracking, tutorial progression)
-engine_career.js     # Career stats middleware (lifetime tracking, delta-based stats)
+engine_career.js    # Career stats middleware (lifetime tracking, delta-based stats)
 engine_scripted.js  # Dev-only scripted playthrough reducer (inert unless ?scripted=1)
 ```
 
@@ -36,7 +37,8 @@ engine_scripted.js  # Dev-only scripted playthrough reducer (inert unless ?scrip
 <!-- Domain files can load in any order after core -->
 <script src="engine_port.js"></script>
 <script src="engine_voyage.js"></script>
-<script src="engine_combat.js"></script>
+<script src="engine_battle.js"></script>
+<script src="engine_encounter.js"></script>
 <!-- Middleware files MUST load AFTER domain files -->
 <script src="engine_onboarding.js"></script>
 <script src="engine_career.js"></script>
@@ -64,7 +66,7 @@ window.E._reducers.push((state, action) => {
 ```
 
 When `window.E.reducer(state, action)` is called:
-1. **Domain reducers** (port, voyage, combat) run first.
+1. **Domain reducers** (port, voyage, battle, encounter) run first.
 2. **Middleware reducers** (onboarding, career) run afterward, using `action.__prevState` to detect deltas.
 3. **Dev-only reducer** (scripted) runs last (if enabled).
 
@@ -73,7 +75,8 @@ Action: A.COMPLETE_MISSION
 +-- Debug/save reducer: No match -> returns state unchanged
 +-- Port reducer: Matches A.COMPLETE_MISSION -> updates gold, fame, missions
 +-- Voyage reducer: No match -> returns state unchanged
-+-- Combat reducer: No match -> returns state unchanged
++-- Battle reducer: No match -> returns state unchanged
++-- Encounter reducer: No match -> returns state unchanged
 +-- Onboarding reducer: Matches -> updates stepsCompleted if applicable
 +-- Career reducer: Matches -> updates missionLog, goldEarned, etc.
 +-- Scripted reducer: No match (unless ?scripted=1) -> returns state unchanged
@@ -89,30 +92,32 @@ Action: A.COMPLETE_MISSION
 
 | Export | Description |
 |---|---|
-| `window.E.A` | Action type constants (48 total) |
+| `window.E.A` | Action type constants (49 total) |
 | `window.E.initialState` | Default game state |
 | `window.E.reducer` | Master reducer (chains all domain reducers) |
 | `window.E._reducers` | Reducer registry array |
 | `window.E.autoSave` | Auto-save helper |
 | `window.E.migrateState` | State migration for save compatibility |
+| `window.E.logEntry` | Log line formatter |
+| `window.E.buildEncounterSession` | Factory for encounterSession from context |
 
 ### Action Constants (window.E.A)
 
-All 48 action type strings:
+All 49 action type strings:
 
 | Category | Actions |
 |---|---|
 | **Navigation** | `NAVIGATE`, `SAIL_TO`, `ENTER_PORT`, `DISCOVER_PORT` |
-| **Port Services** | `REPAIR`, `BUY_SHIP`, `BUY_EQUIPMENT`, `INSTALL_EQUIPMENT`, `REMOVE_EQUIPMENT`, `HIRE_CREW`, `RAISE_MORALE` |
+| **Port Services** | `REPAIR`, `BUY_SHIP`, `BUY_EQUIPMENT`, `INSTALL_EQUIPMENT`, `REMOVE_EQUIPMENT`, `HIRE_CREW`, `DISMISS_CREW`, `RAISE_MORALE` |
 | **Missions** | `TAKE_MISSION`, `COMPLETE_MISSION`, `ABANDON_MISSION`, `REFRESH_MISSIONS` |
 | **Trade** | `CONFIRM_TRADE` |
 | **Voyage** | `ADVANCE_DAY` |
-| **Encounters** | `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_SURRENDER`, `INTERCEPT_BRIBE`, `INTERCEPT_PARLEY`, `INTERCEPT_INSPECT` |
+| **Encounters** | `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_SURRENDER`, `INTERCEPT_BRIBE`, `INTERCEPT_PARLEY`, `PATROL_INSPECT` |
 | **Combat** | `BATTLE_ACTION`, `DISMISS_BATTLE`, `TAKE_PLUNDER` |
-| **Events** | `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT` |
-| **Save/Load** | `START_GAME`, `SAVE_GAME`, `LOAD_GAME`, `EXPORT_SAVE`, `IMPORT_SAVE` |
-| **Debug** | `DEBUG_ADD_GOLD`, `DEBUG_SET_FAME`, `DEBUG_SET_INFAMY`, `DEBUG_SET_SHIP`, `DEBUG_SET_PORT_REP`, `DEBUG_FILL_HOLD`, `DEBUG_REPAIR`, `DEBUG_SET_MORALE`, `DEBUG_UNLOCK_HIDDEN_PORTS`, `DEBUG_MAX_CREW`, `DEBUG_COMPLETE_MISSION`, `DEBUG_SET_HEAT`, `DEBUG_AGE_CREW` |
-| **Onboarding** |  `ONBOARDING_QM_SEEN`, `ONBOARDING_SKIP`, `ONBOARDING_COMPLETE` |
+| **Events** | `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT`, `RESOLVE_DRIFTING_WRECK_SEARCH` |
+| **Save/Load** | `START_GAME`, `SAVE_GAME`, `LOAD_GAME`, `EXPORT_SAVE`, `IMPORT_SAVE`, `TOGGLE_AUTO_SAVE` |
+| **Onboarding** | `ONBOARDING_QM_SEEN`, `ONBOARDING_SKIP`, `ONBOARDING_COMPLETE` |
+| **Debug** | `DEBUG_ADD_GOLD`, `DEBUG_SET_FAME`, `DEBUG_SET_INFAMY`, `DEBUG_SET_SHIP`, `DEBUG_SET_PORT_REP`, `DEBUG_FILL_HOLD`, `DEBUG_REPAIR`, `DEBUG_SET_MORALE`, `DEBUG_UNLOCK_HIDDEN_PORTS`, `DEBUG_MAX_CREW`, `DEBUG_COMPLETE_MISSION`, `DEBUG_SET_HEAT`, `DEBUG_AGE_CREW`, `DEBUG_COMBAT` |
 
 ### Initial State (window.E.initialState)
 
@@ -159,8 +164,8 @@ All 48 action type strings:
   missions: [],
   activeMission: null,
   reputation: { /* all port keys: 50 */ },
-  encounterSession: null,
-  notableNPCs: {},
+  encounterSession: null,       // <-- unified encounter state (B1.4)
+  notableNPCs: {},               // <-- persistent named entities
   activeEvent: null,
   onboarding: {
     enabled: false,
@@ -189,7 +194,12 @@ All 48 action type strings:
     contrabandSeized: 0,
     combatLog: [],
     missionLog: []
-  }
+  },
+  autoSave: true,
+  completedCombatThisVisit: false,
+  daysWithoutFood: 0,
+  daysWithoutWater: 0,
+  route: null,                  // populated during sailing
 }
 ```
 
@@ -199,7 +209,8 @@ All 48 action type strings:
 |---|---|---|
 | `autoSave` | `(state) -> void` | Saves state to localStorage if screen is port-related |
 | `migrateState` | `(loaded) -> state` | Adds missing fields for save compatibility with older versions |
-| `createBattleState` | `(state, enemy, encounterType) -> battleState` | Factory for battle state objects |
+| `logEntry` | `(state, message) -> string` | Formats a log line with day prefix |
+| `buildEncounterSession` | `(state, context) -> encounterSession` | Factory for the unified encounter session object |
 
 ### Debug Reducer (registered first)
 
@@ -213,22 +224,26 @@ Handles all `DEBUG_*` actions. Only available when `?debug=1` URL param is set.
 | `DEBUG_SET_SHIP` | `{ shipType }` | Switches ship type (resets equipment, adjusts crew/hull) |
 | `DEBUG_SET_PORT_REP` | `{ port, value }` | Sets port reputation to value |
 | `DEBUG_FILL_HOLD` | -- | Fills hold with food and water |
-| `DEBUG_REPAIR` | -- | Full hull repair |
+| `DEBUG_REPAIR` | -- | Full hull repair + provisions top-up |
 | `DEBUG_SET_MORALE` | `{ value }` | Sets crew morale to value |
 | `DEBUG_UNLOCK_HIDDEN_PORTS` | -- | Adds all hidden ports to discoveredPorts |
-| `DEBUG_MAX_CREW` | -- | Fills crew roster to ship max |
+| `DEBUG_MAX_CREW` | -- | Fills crew roster to ship max with random traits |
 | `DEBUG_COMPLETE_MISSION` | -- | Force-completes active mission |
-| `DEBUG_SET_HEAT` | `{ faction, value }` | Sets faction alert level |
+| `DEBUG_SET_HEAT` | `{ faction, amount }` | Sets faction alert level (0-10) |
 | `DEBUG_AGE_CREW` | `{ days }` | Adds days to all crew daysAboard |
+| `DEBUG_COMBAT` | `{ faction, risk }` | Instantly starts a debug combat encounter |
 
 ### Save/Load Reducer (registered in core)
 
 | Action | Effect |
 |---|---|
-| `SAVE_GAME` | `localStorage.setItem("piratesSave", JSON.stringify(state))` |
+| `SAVE_GAME` | `localStorage.setItem("BroadsideGameSave", JSON.stringify(state))` |
 | `LOAD_GAME` | `JSON.parse` + `migrateState()` + regenerate market/missions |
-| `EXPORT_SAVE` | `L.encodeSave(state)` -> triggers browser download as JSON file |
+| `EXPORT_SAVE` | `L.encodeSave(state)` -> triggers browser download as `.broadside` file |
 | `IMPORT_SAVE` | File input -> `L.decodeSave(json)` -> `migrateState` -> restore |
+| `TOGGLE_AUTO_SAVE` | Toggles `state.autoSave` flag |
+
+**Note**: The save key changed from `"piratesSave"` to `"BroadsideGameSave"`. `LOAD_GAME` still checks the old key for backward compatibility.
 
 ---
 
@@ -241,19 +256,20 @@ Handles all `DEBUG_*` actions. Only available when `?debug=1` URL param is set.
 | Action | Payload | Description |
 |---|---|---|
 | `START_GAME` | `{ captainName, faction, tutorialMode }` | Initialises state from `D.STARTS` (faction-keyed). Generates crew roster, market, missions, gossip. Sets reputation adjustments. Injects QM and tutorial mission if `tutorialMode === "full"`. |
-| `NAVIGATE` | `{ screen }` | Changes `state.screen`. No side effects. |
-| `SAIL_TO` | `{ destination }` | Sets destination, calculates travel days, switches to sailing screen. |
+| `NAVIGATE` | `{ screen }` | Changes `state.screen`. Also transitions `encounterSession` to `"plunder"` if navigating to plunder screen. |
+| `SAIL_TO` | `{ port }` | Sets destination, calculates travel days, switches to sailing screen. Supports mid-voyage reroute from sea position. |
 | `ENTER_PORT` | -- | Handles port arrival: generates market/missions/gossip, processes desertion, processes positive traits (seasoned/veteran/loyal), applies heat decay, checks hostile port entry. |
-| `REPAIR` | -- | Repairs hull. Cost based on damage amount and reputation discount (via `L.getRepairCost`). |
-| `BUY_SHIP` | `{ shipType }` | Purchases new ship. Resets equipment to empty. Truncates crew if new maxCrew < current. Awards trade-in value for old ship. |
-| `BUY_EQUIPMENT` | `{ equipKey }` | Purchases equipment from shop (adds to `equipmentInventory`). Deducts cost. |
+| `REPAIR` | -- | Repairs hull. Cost based on damage amount, reputation discount, and equipment penalties. |
+| `BUY_SHIP` | `{ shipType, shipName }` | Purchases new ship. Resets equipment to empty. Truncates crew if new maxCrew < current. Awards trade-in value for old ship (optional). |
+| `BUY_EQUIPMENT` | `{ equipKey }` | Purchases and installs equipment from shop. Deducts cost + installFee. |
 | `INSTALL_EQUIPMENT` | `{ equipKey }` | Installs from locker to ship slot. Validates via `L.canInstallEquipment`. Deducts installFee. |
-| `REMOVE_EQUIPMENT` | `{ equipKey, slot }` | Removes from ship slot to locker. Only if `removable: true`. |
+| `REMOVE_EQUIPMENT` | `{ equipKey }` | Removes from ship slot to locker. Only if `removable: true`. |
 | `HIRE_CREW` | `{ count }` | Generates and adds crew members. Cost: 50g per hire. Capped at ship maxCrew. Injects tutorial hunt mission if onboarding is active and first crew hired. |
+| `DISMISS_CREW` | `{ memberId }` | Removes a crew member by ID. Blocks dismissal of quartermaster during active onboarding. |
 | `RAISE_MORALE` | -- | Spends gold to boost morale. Cost: 5g per crew member. +5 morale. |
 | `REFRESH_MISSIONS` | -- | Regenerates mission board for current port. |
-| `TAKE_MISSION` | `{ missionIndex }` | Accepts mission. Combat/patrol missions may trigger immediate intercept. |
-| `COMPLETE_MISSION` | -- | Awards gold, fame, reputation. Removes required goods from hold (trade/smuggle). Applies infamy for smuggle missions. |
+| `TAKE_MISSION` | `{ mission }` | Accepts mission. Combat missions trigger immediate intercept. Coward trait may fire on dangerous missions. |
+| `COMPLETE_MISSION` | -- | Awards gold, fame, reputation. Removes required goods from hold (trade/smuggle). Applies infamy for smuggle missions. Marks `completedCombatThisVisit` for combat missions. |
 | `ABANDON_MISSION` | -- | Clears active mission. Reputation penalty. |
 | `CONFIRM_TRADE` | `{ buys, sells }` | Executes market trade. Validates via `validateTrade`. Updates gold, hold, market quantities. |
 
@@ -277,7 +293,7 @@ Handles all `DEBUG_*` actions. Only available when `?debug=1` URL param is set.
 
 | Action | Payload | Description |
 |---|---|---|
-| `ADVANCE_DAY` | -- | The core sailing loop. Executes in order: advance wind, advance crew (days + morale), consume provisions, pay wages, check smuggle patrol, check mission encounter, check random event, check random patrol, advance hidden port discovery, decrement sailingDaysLeft, check arrival. |
+| `ADVANCE_DAY` | -- | The core sailing loop. Executes in order: advance wind, advance crew (days + morale), consume provisions, pay wages, check smuggle patrol, check mission encounter, check random event, check random patrol, check drunkard event, advance hidden port discovery, decrement sailingDaysLeft, check arrival. |
 | `DISCOVER_PORT` | `{ portKey }` | Manually adds a port to `discoveredPorts`. |
 
 ### ADVANCE_DAY Pipeline (execution order)
@@ -289,14 +305,15 @@ Handles all `DEBUG_*` actions. Only available when `?debug=1` URL param is set.
 4. Pay wages              -- 2g per crew per day (x1.5 if morale < 30)
 5. maybeSmugglePatrol()   -- if smuggle mission active, chance of intercept
 6. maybeMissionEncounter()-- if escort/patrol mission, chance of encounter on specific days
-7. maybeRandomEvent()     -- ~10% chance per day, picks from D.RANDOM_EVENTS
+7. maybeRandomEvent()     -- ~5% chance per day, picks from D.RANDOM_EVENTS
 8. checkRandomPatrol()    -- patrol chance based on infamy + heat + rep dampening
-9. advanceHiddenPorts()   -- check L.canSeePort for each undiscovered hidden port
-10. Decrement sailingDaysLeft
-11. Check arrival         -- if sailingDaysLeft <= 0, set screen to 'arriving'
+9. maybeDrunkardEvent()   -- chance to reveal drunkard trait if rum in hold
+10. advanceHiddenPorts()  -- check L.canSeePort for each undiscovered hidden port
+11. Decrement sailingDaysLeft
+12. Check arrival         -- if sailingDaysLeft <= 0, set screen to 'arriving'
 ```
 
-Steps 5-8 are mutually exclusive per day: if one triggers an intercept/event, the remaining checks are skipped.
+Steps 5-9 are mutually exclusive per day: if one triggers an intercept/event, the remaining checks are skipped.
 
 ### Helpers
 
@@ -307,73 +324,106 @@ Steps 5-8 are mutually exclusive per day: if one triggers an intercept/event, th
 | `advanceProvisions(state)` | Consumes food/water: 1 unit per 10 crew per day. Morale penalty if out. |
 | `maybeSmugglePatrol(state)` | If active smuggle mission: intercept chance based on risk level (low 70%, med 80%, high 90%) |
 | `maybeMissionEncounter(state)` | For escort/patrol missions: triggers encounter at specific sailing day thresholds |
-| `maybeRandomEvent(state)` | ~10% chance. Filters `D.RANDOM_EVENTS` by `condition(state)`. Picks random eligible event. |
+| `maybeRandomEvent(state)` | ~5% chance. Filters `D.RANDOM_EVENTS` by `condition(state)`. Picks random eligible event. |
 | `checkRandomPatrol(state)` | Patrol chance: `min(0.01 + infamy/400 + maxHeat*0.03, 0.40)`, dampened by high rep |
+| `maybeDrunkardEvent(state)` | Reveals hidden drunkard trait, consumes 1 rum. |
 | `advanceHiddenPorts(state)` | Checks `L.canSeePort` for each hidden port not yet in `discoveredPorts`. Auto-discovers if conditions met. |
 
 ---
-## 5. engine_combat.js -- Combat Domain Reducer
+## 5. engine_battle.js -- Battle Domain Reducer
 
-**Purpose**: Encounters, battles, plunder, and event resolution.
+**Purpose**: Combat resolution (naval and boarding phases), victory/defeat handling, plunder.
 
 ### Reducer Cases
 
 | Action | Description |
 |---|---|
-| `INTERCEPT_FIGHT` | Creates `battleState` from `encounterContext`. Adds heat (+3) for navy_patrol fights. Switches to battle screen. |
+| `BATTLE_ACTION` | Resolves one combat round using `L.resolveNavalRound` or `L.resolveBoardingRound`. Handles all outcomes: continue, sunk, captured, boarded, boarded, fled, victory/defeat. |
+| `DISMISS_BATTLE` | Clears the encounter session after combat. Applies aftermath (heat, upset tags, scars, morale). Routes to victory screen, plunder, or wash ashore. |
+| `TAKE_PLUNDER` | Adds goldReward and selected cargo items to state. Clears encounterSession. Marks patrol/combat missions as defeated. |
+
+### Battle Phase Flow
+
+```
+Intercept → Battle (naval) → (distance/actions) → 
+  - If Grapple at Close → Boarding phase
+  - If hull/crew zero → Victory/Defeat
+Board phase → Continue/Fall Back/Surrender/Demand Surrender → 
+  - Victory (plunder available if crew wiped or surrendered)
+  - Defeat (wash ashore)
+```
+
+### Helpers (exported for use by engine_encounter)
+
+| Helper | Purpose |
+|---|---|
+| `applyCrewLossToState(state, crewLoss)` | Removes random crew members and returns updated state + lost names |
+| `washAshore(state, battleState, extraLog)` | Handles defeat: clears cargo, sets screen to port, cancels mission, logs defeat |
+
+### Battle State Shape
+
+Encounter session `battle` sub-object:
+
+```js
+{
+  round: number,
+  log: string[],
+  playerHull: number,
+  playerCrew: number,
+  initialPlayerCrew: number,
+  lostCrewNames: string[],
+  enemyHull: number,
+  enemyCrew: number,
+  distance: "far" | "medium" | "close",
+  subPhase: "naval" | "boarding",
+  phase: "player_turn" | "victory" | "defeat" | "fled",
+  canPlunder: boolean,
+  goldReward: number,
+  enemyCargo: { [goodKey]: number },
+  convoyHull?: number, // for escort missions
+}
+```
+
+---
+
+## 6. engine_encounter.js -- Encounter Domain Reducer
+
+**Purpose**: Pre‑battle intercept logic, random event resolution, and special encounter types (merchant, patrol inspection, drunkard).
+
+### Reducer Cases
+
+| Action | Description |
+|---|---|
+| `INTERCEPT_FIGHT` | Creates `battle` sub‑object from `encounterSession`. Adds heat (+3) for navy_patrol fights. Switches to battle screen. |
 | `INTERCEPT_FLEE` | Speed check: `playerSpeed + L.roll(6) vs enemySpeed + L.roll(6)`. Success = resume sailing. Failure = forced into battle. Adds heat (+2) for navy_patrol flee. |
 | `INTERCEPT_PARLEY` | Reputation check: `L.roll(100) <= min(80, rep + 20)`. Success = pass through (+3 rep). Failure = forced into battle. |
-| `INTERCEPT_BRIBE` | Pays `bribeCost` (from encounterContext). -2 rep at current port. Returns to sailing. |
+| `INTERCEPT_BRIBE` | Pays `bribeCost` (from intercept options). -2 rep at current port. Returns to sailing. |
 | `INTERCEPT_SURRENDER` | Applies `SURRENDER_CONSEQUENCE[ctx.type]` -- cargo loss, gold loss, morale penalty, days lost. Returns to sailing. |
 | `PATROL_INSPECT` | **Navy patrol inspection.** Checks hold for contraband (tobacco, slaves, smuggle-mission rum). Hidden Compartment equipment gives 50% avoid chance. On find: seizes contraband, fine = `PATROL_FINE_RATE * value`, +2 infamy, -5 faction rep, -10 morale. |
-| `BATTLE_ACTION` | Resolves one combat round via `L.resolveCombatAction(state, playerAction, npcAction)`. Four player actions: `broadside`, `precision`, `grapple`, `evade`. NPC action via `L.getNPCAction`. Phase checks: enemy hull <= 0 = victory, player hull <= 0 = defeat, evade success = fled, grapple success = instant victory. Tracks named crew losses. Updates convoy hull for escort missions. |
-| `DISMISS_BATTLE` | Handles post-combat state transitions. **Victory**: faction upset tagging for matching-faction crew, battle scar if >= 10 crew died, heat gain, morale boost (+5 to +10). **Defeat**: wash ashore at previous port, lose all cargo, cancel mission, morale -10. **Fled**: morale -5, cancel mission if it was mission combat. War Pennants equipment multiplies heat gain. |
-| `TAKE_PLUNDER` | Player picks cargo items from defeated enemy (PlunderScreen). Gold awarded at `PLUNDER_GOLD_RATIO` (20%). Remaining cargo added to hold (capped by capacity). |
 | `RESOLVE_EVENT` | Applies all event outcome fields: `gold`, `fame`, `hullDamage`, `crewLoss`, `daysLost`, `moraleBonus`, `moralePenalty`, `repImpact`, `mapFragment`, `addCrew`, `generateCargo`, `loseCargoPercent`, `battle` (triggers combat). Special handling: mutiny (negotiate = gold / crush = crew loss + mutineer tags), storm scar tagging, calm wind immunity check, storm hull immunity check. |
 | `ATTACK_PIRATE` | Generates pirate enemy (fame-tier scaled), builds encounter context as `distressed_merchant_help`. Switches to intercept. |
 | `ATTACK_MERCHANT` | Generates weaker merchant enemy (1 tier lower), builds encounter as `distressed_merchant_plunder`. Adds +2 heat to merchant faction. Switches to intercept. |
+| `RESOLVE_DRIFTING_WRECK_SEARCH` | Handles the `drifting_wreck` event outcome: may find cargo, survivor, or nothing. |
 
-### Helpers
+### Helpers (internal)
 
 | Helper | Purpose |
 |---|---|
 | `pickMerchantFaction()` | Randomly selects a non-pirate faction for merchant encounters |
 | `addHeat(state, faction, amount)` | Adds heat to `factionAlerts[faction]`, capped at 10 |
-
-#### Battle State Shape
-
-Created by the `INTERCEPT_FIGHT` handler directly inside the `encounterSession.battle` sub-object. Shape:
-
-```js
-{
-  phase: "player_turn" | "npc_turn" | "victory" | "defeat" | "fled",
-  round: number,
-  playerHull: number,
-  playerCrew: number,
-  enemy: { name, hull, maxHull, cannons, crew, faction, gold, risk },
-  enemyHull: number,
-  enemyCrew: number,
-  log: [],           // battle log entries
-  canPlunder: boolean,
-  goldReward: number,
-  enemyCargo: {},    // generated by G.generateEnemyCargo
-  lostCrewNames: [], // names of crew lost in battle
-  distance: "far" | "medium" | "close",  // (stub for B11, currently "medium")
-  subPhase: "naval",  // (stub for B11)
-  convoyHull: number, // escort missions only
-}
+| `buildBattleFromIntercept(state, session, openingLog)` | Creates a battle sub‑object from an intercept session |
 
 ---
 
-## 6. engine_onboarding.js -- Onboarding Middleware Reducer
+## 7. engine_onboarding.js -- Onboarding Middleware Reducer
 
-**Purpose**: Tracks onboarding progress and injects tutorial-specific state changes. Runs **after** domain reducers (port, voyage, combat) to avoid polluting domain logic.
+**Purpose**: Tracks onboarding progress and injects tutorial-specific state changes. Runs **after** domain reducers (port, voyage, battle, encounter) to avoid polluting domain logic.
 
 ### Core Design
 - **Middleware Pattern**: This reducer **watches all actions** and updates onboarding state as a side effect.
 - **Declarative Rules**: Uses a `STEP_RULES` lookup table to map actions to onboarding steps.
 - **QM Integration**: Manages the Quartermaster (QM) character, who guides the player in `"full"` tutorial mode.
-- **Load Order**: Must load **after** `engine_port.js`, `engine_voyage.js`, and `engine_combat.js` because it inspects *post-domain-reducer* state.
+- **Load Order**: Must load **after** `engine_port.js`, `engine_voyage.js`, `engine_battle.js`, and `engine_encounter.js` because it inspects *post-domain-reducer* state.
 
 ---
 
@@ -417,11 +467,10 @@ A lookup table mapping action types to functions that return onboarding state up
 | `SAIL_TO` | Always | Marks `firstVoyageStarted: true`. |
 | `ENTER_PORT` | `previousPort !== null` | Marks `firstArrival: true`. |
 | `INTERCEPT_FIGHT` | `encounterContext.type === "mission_combat"` | Marks `tutorialHuntAccepted: true`. |
-| `DISMISS_BATTLE` | `battleState.phase === "victory"` | Marks `tutorialHuntCompleted: true`. |
+| `DISMISS_BATTLE` | `battle.phase === "victory"` | Marks `tutorialHuntCompleted: true`. |
 | `NAVIGATE` | Screen = `"shipyard"` | Marks `shipyardOpened: true`. |
 | `REPAIR` | Always | Marks `shipRepaired: true`. |
 | `NAVIGATE` | Screen = `"journal"` | Marks `journalOpened: true`. |
-| `ONBOARDING_ADVANCE` | Always | Advances `currentStep` by 1. |
 | `ONBOARDING_QM_SEEN` | Always | Marks a QM message as seen in `qmMessagesSeen`. |
 | `ONBOARDING_SKIP` | Always | Sets `completed: true`, removes QM from crew, logs farewell. |
 | `ONBOARDING_COMPLETE` | Always | Sets `completed: true`, removes QM from crew, logs farewell. |
@@ -451,14 +500,13 @@ A lookup table mapping action types to functions that return onboarding state up
 
 | Action | Payload | Description |
 |---|---|---|
-| `ONBOARDING_ADVANCE` | `{ step: number }` | Advances onboarding to the next step. *(Internal to middleware; not in `E.A`)* |
 | `ONBOARDING_QM_SEEN` | `{ messageId: string }` | Marks a QM message as seen (e.g., `"qm_welcome"`). |
 | `ONBOARDING_SKIP` | -- | Skips onboarding, removes QM, marks all steps as completed. |
 | `ONBOARDING_COMPLETE` | -- | Completes onboarding, removes QM, marks all steps as completed. |
 
 ---
 
-## 7. engine_career.js -- Career Stats Middleware Reducer
+## 8. engine_career.js -- Career Stats Middleware Reducer
 
 **Purpose**: Tracks **lifetime statistics** and **detailed logs** (missions, combats) as side effects of gameplay. Runs **after** domain reducers to avoid polluting core logic.
 
@@ -466,7 +514,7 @@ A lookup table mapping action types to functions that return onboarding state up
 - **Middleware Pattern**: This reducer **watches all actions** and updates `state.career` as a side effect.
 - **Delta-Based Tracking**: Uses `action.__prevState` to detect changes (e.g., gold earned = `currentGold - prevGold`).
 - **No Domain Logic**: Does **not** modify gameplay state—only tracks stats.
-- **Load Order**: Must load **after** domain reducers (port, voyage, combat) and `engine_onboarding.js`.
+- **Load Order**: Must load **after** domain reducers (port, voyage, battle, encounter) and `engine_onboarding.js`.
 
 ---
 
@@ -601,8 +649,8 @@ Stored in `state.career` (initialized from `D.DEFAULT_CAREER`):
 #### Battle Tracking
 | Action | Tracking | Notes |
 |---|---|---|
-| `DISMISS_BATTLE` | `battles[outcome] += 1` | `outcome` = `battleState.phase` ("victory", "defeat", "fled") |
-| `DISMISS_BATTLE` | `shipsSunk += 1` | If `!battleState.canPlunder` (enemy hull = 0) |
+| `DISMISS_BATTLE` | `battles[outcome] += 1` | `outcome` = `battle.phase` ("victory", "defeat", "fled") |
+| `DISMISS_BATTLE` | `shipsSunk += 1` | If `!battle.canPlunder` (enemy hull = 0) |
 | `TAKE_PLUNDER` | `shipsPlundered += 1` | Also tracks `battles.won += 1` and crew loss |
 | `DISMISS_BATTLE` | `combatLog.push({...})` | Adds entry with enemy details, outcome, crew lost |
 
@@ -626,7 +674,7 @@ Stored in `state.career` (initialized from `D.DEFAULT_CAREER`):
 | `PATROL_INSPECT` | `contrabandSeized += 1` | If tobacco or slaves were seized |
 
 ---
-## 8. engine_scripted.js -- Dev-Only Scripted Playthrough Reducer
+## 9. engine_scripted.js -- Dev-Only Scripted Playthrough Reducer
 
 **Purpose**: Enables **pre-defined playthroughs** for testing or demonstrations. **Inert unless `?scripted=1` is in the URL.**
 
@@ -647,58 +695,24 @@ if (new URLSearchParams(window.location.search).get('scripted') !== '1') {
 window.E._reducers.push((state, action) => {
   // Handle scripted actions (e.g., forced encounters, events)
   switch (action.type) {
-    case A.SCRIPTED_TRIGGER_ENCOUNTER:
-      return triggerScriptedEncounter(state, action);
-    case A.SCRIPTED_FORCE_EVENT:
-      return forceScriptedEvent(state, action);
+    case A.START_GAME: // Override initial state with scripted setup
+      return scriptedStartState();
+    case A.ADVANCE_DAY: // Inject scripted events at specific days
+      return injectScriptedEvents(state);
     default:
       return state;
   }
 });
 ```
 
----
-### Scripted Actions
-
-| Action | Payload | Description |
-|---|---|---|
-| `SCRIPTED_TRIGGER_ENCOUNTER` | `{ enemy, encounterType }` | Forces an encounter with the specified enemy. |
-| `SCRIPTED_FORCE_EVENT` | `{ eventId }` | Forces a specific random event to trigger. |
-| `SCRIPTED_SET_STATE` | `{ partialState }` | Overwrites parts of the state with the provided values. |
+### Scripted Behaviour
+- **START_GAME**: Sets up a specific captain, ship, crew, and active mission for a predetermined playthrough.
+- **ADVANCE_DAY**: Fires scripted events at fixed intervals (e.g., marooned sailors, drunkard event, combat encounter) to create a consistent gameplay sequence for recording trailers or screenshots.
 
 ---
-### Usage Example
-```html
-<!-- Enable scripted mode -->
-<script>
-  // Before loading the game:
-  window.location.search = "?scripted=1";
-</script>
-```
+## 10. Encounter Session Architecture (B1.4)
 
-```javascript
-// In a test or demo:
-dispatch({
-  type: A.SCRIPTED_TRIGGER_ENCOUNTER,
-  enemy: { name: "The Black Pearl", hull: 200, cannons: 30, crew: 100, faction: "pirate" },
-  encounterType: "mission_combat"
-});
-```
-
-
----
-
-## 9. Encounter Session Architecture (B1.4 refactor)
-
-The `encounterContext` and `battleState` fields have been consolidated into a single `encounterSession` field. This provides a cleaner model for all encounter-related state.
-
-### Three Concepts
-
-| Concept | Purpose | Lifecycle |
-|---|---|---|
-| `encounterSession` | The current confrontation being resolved (intercept → battle → plunder) | Short-lived; one per active situation |
-| `notableNPCs` | Registry of named entities in the world with persistent state | Long-lived; survives across encounters |
-| `activeMission` | The long-term goal driving player choices | Unchanged from current behavior |
+All encounter-related state is consolidated into a single `encounterSession` field. This provides a cleaner model than the previous separate `encounterContext` and `battleState` fields.
 
 ### encounterSession Shape
 
@@ -721,9 +735,9 @@ encounterSession: {
     enemyHull: number,
     enemyCrew: number,
     distance: "far" | "medium" | "close",
-    subPhase: "naval",
+    subPhase: "naval" | "boarding",
     convoyHull: number,   // escort missions only
-    phase: "player_turn" | "npc_turn" | "victory" | "defeat" | "fled",
+    phase: "player_turn" | "victory" | "defeat" | "fled",
     canPlunder: boolean,
     goldReward: number,
     enemyCargo: {},
@@ -735,13 +749,14 @@ encounterSession: {
 
 ### Phase Transitions
 
-
+```
 null → "intercept" (encounter opens)
 "intercept" → "battle" (INTERCEPT_FIGHT, INTERCEPT_FLEE_FAILED, INTERCEPT_PARLEY_FAILED)
 "intercept" → null (INTERCEPT_FLEE_SUCCESS, INTERCEPT_PARLEY_SUCCESS, INTERCEPT_BRIBE, INTERCEPT_SURRENDER, PATROL_INSPECT)
 "battle" → "plunder" (victory with canPlunder, player chooses Plunder)
 "battle" → null (victory without plunder, defeat, fled)
 "plunder" → null (TAKE_PLUNDER)
+```
 
 ### Notable NPCs Registry
 
@@ -766,42 +781,42 @@ notableNPCs: {
 }
 ```
 
-Currently unused but reserved for future story arc (B19/B20) and rival captain (B11) features.
-
+Currently unused but reserved for future story arc (B19/B20) and rival captain features.
 
 ---
-## 10. File Statistics
+## 11. File Statistics
 
 | File | Reducer Cases | Helpers | Purpose |
 |---|---|---|---|
-| `engine_core.js` | 17 (debug 13 + save/load 4) | 4 | Shared infrastructure |
+| `engine_core.js` | 18 (debug 14 + save/load 4) | 4 | Shared infrastructure |
 | `engine_port.js` | 16 | 5 | Port logic |
 | `engine_voyage.js` | 2 | 8+ | Sailing logic |
-| `engine_combat.js` | 12 | 3 | Combat logic |
+| `engine_battle.js` | 3 | 2 | Battle resolution |
+| `engine_encounter.js` | 9 | 3 | Encounter setup & events |
 | `engine_onboarding.js` | 0 (middleware) | 1 (`STEP_RULES` table) | Onboarding middleware |
 | `engine_career.js` | 0 (middleware) | 1 (`careerMiddleware`) | Career stats middleware |
-| `engine_scripted.js` | 3 | 0 | Dev-only scripted playthrough |
-| **Total** | **47 domain + 3 middleware** | **20+** | All engine logic |
+| `engine_scripted.js` | 2 | 0 | Dev-only scripted playthrough |
+| **Total** | **50 domain + 3 middleware** | **20+** | All engine logic |
 
 ---
-## 11. Dependencies
+## 12. Dependencies
 
 All engine files depend on:
 
 | Dependency | Used for |
 |---|---|
-| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, RANDOM_EVENTS, STARTS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE |
-| `window.L` | All pure game math (combat, reputation, travel, fame, equipment, crew tags, encounter context, hold capacity) |
+| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, RANDOM_EVENTS, STARTS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE, AI_ARCHETYPES, AI_ORIGIN_MODIFIERS, DISTANCE_DAMAGE_MULTIPLIERS, LEGAL_ACTIONS_BY_DISTANCE |
+| `window.L` | All pure game math (combat, reputation, travel, fame, equipment, crew tags, encounter context, hold capacity, game-over detection) |
 | `window.G` | Generators (missions, markets, crew, enemies, cargo, gossip, bios) |
 | `window.E.A` | Action constants (from `engine_core.js` -- must load first) |
 
 ---
-## 11. Domain Responsibility Summary
+## 13. Domain Responsibility Summary
 
 ### engine_core.js (Shared)
 - Global constants: All `A.*` action types
 - Initial state: Default game state
-- Shared helpers: `autoSave`, `migrateState`, `createBattleState`
+- Shared helpers: `autoSave`, `migrateState`, `logEntry`, `buildEncounterSession`
 - Reducer dispatcher: Chains all domain reducers
 - Debug actions: Development-only state manipulation
 - Save/load actions: localStorage + file export/import
@@ -820,24 +835,28 @@ All engine files depend on:
 - Day-by-day sailing simulation
 - Wind drift and travel time
 - Provision consumption and wage payment
-- Event triggering (random events, patrols, mission encounters)
+- Event triggering (random events, patrols, mission encounters, drunkard)
 - Hidden port discovery
 - Arrival detection
 
-### engine_combat.js (Combat)
-- Pre-battle intercept actions (fight, flee, parley, bribe, surrender, inspect)
-- Turn-based combat rounds
+### engine_battle.js (Battle)
+- Turn-based naval and boarding combat
 - Victory/defeat/fled state transitions
 - Plunder collection
+- Crew loss application and wash-ashore helper
+
+### engine_encounter.js (Encounter)
+- Pre-battle intercept actions (fight, flee, parley, bribe, surrender, inspect)
 - Random event resolution
-- Faction heat management
-- Crew upset tagging and scar assignment
+- Merchant encounter setup (help or plunder)
+- Patrol inspection
+- Faction heat management (via helper)
 
 ### engine_onboarding.js (Middleware)
 - Onboarding step tracking via `STEP_RULES` lookup table
 - Quartermaster (QM) character management (add/remove, dialogue)
 - Tutorial mission injection (delivery, hunt)
-- Onboarding lifecycle actions (`ONBOARDING_ADVANCE`, `ONBOARDING_SKIP`, `ONBOARDING_COMPLETE`)
+- Onboarding lifecycle actions (`ONBOARDING_SKIP`, `ONBOARDING_COMPLETE`)
 
 ### engine_career.js (Middleware)
 - Lifetime stats tracking (gold, crew, battles, ships, missions)
@@ -847,5 +866,5 @@ All engine files depend on:
 
 ### engine_scripted.js (Dev-Only)
 - Scripted encounter/event triggering
-- State overrides for testing
+- State overrides for testing/demonstration
 - Only active with `?scripted=1` URL parameter

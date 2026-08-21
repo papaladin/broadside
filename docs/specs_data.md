@@ -27,7 +27,7 @@ This document specifies the **structure, purpose, and constraints** of all const
 
 ### Structure
 
-```javascript
+```js
 FACTIONS: {
   [factionKey: string]: {
     label: string,        // Display name (e.g., "English")
@@ -51,7 +51,7 @@ FACTIONS: {
 
 - **Hostile Port Entry**: If a player enters a port owned by a rival faction with `reputation < 10`, they trigger a hostile encounter.
 - **Mission Availability**: Missions from rival factions are **blocked** at low reputation.
-- **Reputation Decay**: Reputation with rival factions decays faster (see `decayReputation` in `logic.js`).
+- **Reputation Decay**: Reputation with rival factions decays faster (see `decayReputation` in `logic_core.js`).
 
 ---
 
@@ -61,7 +61,7 @@ FACTIONS: {
 
 ### Structure
 
-```javascript
+```js
 PORTS: {
   [portKey: string]: {
     name: string,               // Display name (e.g., "Port Royal")
@@ -116,7 +116,7 @@ PORTS: {
 
 ### Structure
 
-```javascript
+```js
 SHIPS: {
   [shipType: string]: {
     name: string,           // Display name (e.g., "Sloop")
@@ -169,7 +169,7 @@ SHIPS: {
 **Purpose**: Visual configurations for each ship type, used by `ship-sprite.js` to render SVG silhouettes.
 
 ### Structure
-```javascript
+```js
 SHIP_VISUALS: {
   [shipType: string]: {
     hullShape: "open" | "lowSloop" | "military" | "galleon", // Base hull shape
@@ -212,7 +212,7 @@ SHIP_VISUALS: {
 **Purpose**: Defines all installable ship equipment, their costs, slot types, and stat effects.
 
 ### Structure
-```javascript
+```js
 EQUIPMENT: {
   [equipKey: string]: {
     name: string,           // Display name (e.g., "Reinforced Hull")
@@ -226,14 +226,12 @@ EQUIPMENT: {
     installFee: number,     // Gold cost to install at shipyard
     effects: {              // Stat modifiers (applied in L.getShipStats)
       hullPct?: number,     // Multiplicative hull HP bonus (e.g., 0.2 = +20%)
-      hullBonus?: number,   // Additive hull HP bonus (rare)
-      cannonBonus?: number, // Additive cannon bonus
-      speedBonus?: number,  // Additive speed bonus
-      speedPenalty?: number, // Additive speed penalty
-      holdPct?: number,      // Multiplicative hold bonus (e.g., 0.25 = +25%)
-      moraleBonus?: number, // Additive morale bonus
+      cannons?: number,     // Additive cannon bonus/penalty
+      speed?: number,       // Additive speed bonus/penalty
+      holdPct?: number,     // Multiplicative hold bonus (e.g., 0.25 = +25%)
+      maxCrew?: number,     // Additive max crew bonus
+      maxDays?: number,     // Additive max days at sea
       repairCostPct?: number, // Multiplicative repair cost penalty (e.g., 0.40 = +40%)
-      maxDays?: number,      // Additive max days at sea
       crewLossMult?: number, // Multiplicative crew loss modifier (e.g., 0.60 = -40% loss)
       missionCombatFameBonus?: number, // Additive fame bonus for combat missions
       combatHeatMult?: number, // Multiplicative heat gain from combat (e.g., 2 = double heat)
@@ -241,6 +239,9 @@ EQUIPMENT: {
       contrabandAvoidChance?: number, // Probability to avoid contraband detection (0.0-1.0)
       calmImmune?: boolean,   // Immune to calm wind delays
       stormHullImmune?: boolean // Immune to storm hull damage
+      crewDmgPct?: number,   // +% crew damage to enemy
+      hullDmgPct?: number,   // +% hull damage to enemy (or negative for penalty)
+      precisionHitPct?: number // +% precision hit chance (additive)
     }
   }
 }
@@ -251,33 +252,33 @@ EQUIPMENT: {
 #### Hull Slot
 | Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
 |---|---|---|---|---|---|---|---|
-| `reinforced_hull` | Reinforced Hull | 500 | 100 | `hullPct: 0.20` (+20% hull) | Yes | — | — |
-| `ironclad_plates` | Ironclad Plates | 2,000 | 400 | `hullPct: 0.35`, `speedPenalty: -2` | Yes | 50 | 100 |
-| `copper_plating` | Copper Plating | 3,500 | 300 | `speedBonus: 2`, `repairCostPct: 0.40` (+40% repair cost) | Yes | 100 | 150 |
-| `tar_sealed_hull` | Tar-Sealed Hull | 1,200 | 150 | `hullPct: 0.10` (+10% hull), `maxDays: 2`, `speedPenalty: -1`, `calmImmune: true` | Yes | 20 | 60 |
+| `reinforced_hull` | Reinforced Hull | 500 | 100 | `hullPct: 0.20` (+20% hull) | No | — | — |
+| `ironclad_plates` | Ironclad Plates | 2,000 | 200 | `hullPct: 0.35`, `speed: -2` | No | 50 | 100 |
+| `copper_plating` | Copper Plating | 3,500 | 300 | `speed: 2`, `repairCostPct: 0.40` (+40% repair cost) | No | 100 | 150 |
+| `tar_sealed_hull` | Tar-Sealed Hull | 1,200 | 150 | `maxDays: 2`, `speed: -1`, `calmImmune: true` | No | 20 | 60 |
 
 #### Armament Slot
 | Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
 |---|---|---|---|---|---|---|---|
-| `extra_cannons` | Extra Cannons | 800 | 50 | `cannonBonus: 2`, `speedPenalty: -1` | Yes | 20 | — |
-| `grapeshot_supply` | Grapeshot Supply | 1,800 | 100 | `crewDmgPct: 0.50` (+50% crew damage), `hullDmgPct: -0.20` (-20% hull damage) | Yes | 50 | 100 |
-| `long_guns` | Long Guns | 3,000 | 150 | `cannonBonus: -2`, `precisionHitPct: 0.10` (+10% precision hit chance) | Yes | 100 | 150 |
+| `extra_cannons` | Extra Cannons | 800 | 50 | `cannons: 4`, `speed: -1` | Yes | 20 | 60 |
+| `grapeshot_supply` | Grapeshot Supply | 1,800 | 100 | `crewDmgPct: 0.50`, `hullDmgPct: -0.20` | Yes | 50 | 100 |
+| `long_guns` | Long Guns | 3,000 | 150 | `cannons: -2`, `precisionHitPct: 0.10` | Yes | 100 | 150 |
 
 #### Rigging Slot
 | Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
 |---|---|---|---|---|---|---|---|
-| `extra_sails` | Extra Sails | 600 | 50 | `speedBonus: 3`, `hullPct: -0.10` (-10% hull) | Yes | — | — |
-| `storm_rigging` | Storm Rigging | 900 | 75 | `maxDays: 2`, `speedPenalty: -1`, `stormHullImmune: true` | Yes | 20 | 60 |
-| `lateen_rig` | Lateen Rig | 1,500 | 150 | `maxDays: 1`, `hullPct: -0.10` (-10% hull) | No | 50 | 100 |
+| `extra_sails` | Extra Sails | 600 | 50 | `speed: 3`, `hullPct: -0.10` | Yes | — | 60 |
+| `storm_rigging` | Storm Rigging | 900 | 75 | `maxDays: 2`, `speed: -1`, `stormHullImmune: true` | Yes | 20 | 60 |
+| `lateen_rig` | Lateen Rig | 1,500 | 150 | `maxDays: 1`, `hullPct: -0.10` | No | 50 | 100 |
 | `war_pennants` | War Pennants | 3,500 | 150 | `missionCombatFameBonus: 1`, `combatHeatMult: 2` (double heat from combat) | Yes | 100 | 100 |
 
 #### Special Slot
 | Key | Name | Cost | Install | Effects | Removable | Req Fame | Req Hull |
 |---|---|---|---|---|---|---|---|
-| `expanded_hold` | Expanded Hold | 800 | 50 | `holdPct: 0.20` (+20% hold) | Yes | — | — |
-| `hidden_compartment` | Hidden Compartment | 1,000 | 100 | `contrabandAvoidChance: 0.50` (50% chance to avoid detection) | Yes | 20 | 60 |
-| `surgeons_bay` | Surgeon's Bay | 2,000 | 100 | `crewLossMult: 0.60` (-40% crew loss in combat) | Yes | 50 | 100 |
-| `officer_quarters` | Officer Quarters | 1,800 | 100 | `maxCrew: 10`, `holdPct: -0.20` (-20% hold) | Yes | 50 | 100 |
+| `expanded_hold` | Expanded Hold | 700 | 50 | `holdPct: 0.20`, `speed: -2` | Yes | — | 60 |
+| `hidden_compartment` | Hidden Compartment | 1,000 | 100 | `contrabandAvoidChance: 0.50`, `holdPct: -0.10` | No | 20 | 60 |
+| `surgeons_bay` | Surgeon's Bay | 2,000 | 100 | `crewLossMult: 0.60`, `holdPct: -0.15` | Yes | 50 | 100 |
+| `officer_quarters` | Officer Quarters | 1,800 | 100 | `maxCrew: 10`, `holdPct: -0.20` | Yes | 50 | 100 |
 | `ornate_figurehead` | Ornate Figurehead | 300 | 25 | `repGainBonus: 2` (+2 rep gain from positive mission outcomes) | Yes | — | — |
 | `navigation_tools` | Navigation Tools | 600 | 50 | `longVoyageDayReduction: 1` (-1 day for voyages > 4 days) | Yes | 50 | 60 |
 
@@ -300,23 +301,51 @@ EQUIPMENT: {
 |---|---|---|---|---|---|---|---|
 | `food` | Food | 3 | 0% | No | 0 | ration | — |
 | `water` | Water | 2 | 0% | No | 0 | barrel | — |
-| `rum` | Rum | 30 | ±20% | No | 0 | cask | Common in pirate ports |
-| `sugar` | Sugar | 40 | ±25% | No | 0 | sack | — |
-| `timber` | Timber | 25 | ±15% | No | 0 | plank | — |
-| `cloth` | Cloth | 55 | ±20% | No | 0 | bale | — |
-| `spices` | Spices | 120 | ±45% | No | 0 | chest | — |
-| `silk` | Silk | 160 | ±30% | No | 0 | bolt | — |
-| `coffee` | Coffee | 70 | ±25% | No | 0 | bag | — |
-| `cocoa` | Cocoa | 90 | ±30% | No | 0 | crate | — |
-| `weapons` | Weapons | 80 | ±35% | No | 0 | crate | — |
-| `tobacco` | Tobacco | 90 | ±30% | **Yes** | 0 | bale | Found in Havana, Tortuga, Providencia, Nassau |
-| `silver` | Silver | 250 | ±35% | No | 0 | chest | — |
-| `slaves` | Slaves | 220 | ±60% | **Yes** | **+1** | person | Available in Portobelo, Cartagena, Libertalia, Veracruz |
+| `rum` | Rum | 30 | ±5% | No | 0 | cask | Common in pirate ports |
+| `sugar` | Sugar | 40 | ±5% | No | 0 | sack | — |
+| `timber` | Timber | 25 | ±5% | No | 0 | plank | — |
+| `cloth` | Cloth | 55 | ±5% | No | 0 | bale | — |
+| `spices` | Spices | 120 | ±5% | No | 0 | chest | — |
+| `silk` | Silk | 160 | ±5% | No | 0 | bolt | — |
+| `coffee` | Coffee | 70 | ±5% | No | 0 | bag | — |
+| `cocoa` | Cocoa | 90 | ±5% | No | 0 | crate | — |
+| `weapons` | Weapons | 80 | ±5% | No | 0 | crate | — |
+| `tobacco` | Tobacco | 90 | ±5% | **Yes** | 0 | bale | Found in Havana, Tortuga, Providencia, Nassau |
+| `silver` | Silver | 250 | ±5% | No | 0 | chest | — |
+| `slaves` | Slaves | 220 | ±5% | **Yes** | **+1** | person | Available in Portobelo, Cartagena, Libertalia, Veracruz |
 
-### Price Calculation
-- **Market Price**: `basePrice ± (basePrice × variance × random(-1, 1))`
-- **Buy Price**: `marketPrice × 1.10` (10% markup)
-- **Sell Price**: `marketPrice × 0.90` (10% discount)
+### Price Calculation (B8 — Stable Trade Routes)
+
+Prices are designed to create **stable, learnable trade routes**. Each port has a consistent price identity based on:
+1. **Availability Tier** (`always` / `frequently` / `sometimes` / `rarely` / `never`) — see `AVAILABILITY_PRICE_MODIFIERS` below.
+2. **Faction Production Bonus** — see `FACTION_PRICE_MODIFIERS` below.
+3. **Random Variance** — ±5% for all goods except food/water (which are fixed).
+
+```js
+marketPrice = basePrice × availMult × factionMod × (1 + variance × random(-1,1))
+buyFromPort = Math.round(marketPrice × 1.10)
+sellToPort  = Math.round(marketPrice × 0.90)
+```
+
+#### AVAILABILITY_PRICE_MODIFIERS
+| Tier | Multiplier | Effect |
+|---|---|---|
+| `always` | 0.72 | −28% (local surplus) |
+| `frequently` | 0.88 | −12% |
+| `sometimes` | 1.00 | Neutral |
+| `rarely` | 1.20 | +20% (scarce) |
+| `never` | 1.40 | +40% (must import) |
+
+#### FACTION_PRICE_MODIFIERS
+Faction-specific production bonuses stack multiplicatively with availability tier.
+
+| Faction | Goods | Modifier |
+|---|---|---|
+| English | sugar, cloth | 0.90 |
+| Spanish | silver, cocoa | 0.90 |
+| French | rum, coffee | 0.90 |
+| Dutch | spices (0.85), silk, timber, weapons | 0.90 |
+| Pirate | rum, tobacco | 0.90 |
 
 ### Contraband Rules
 - `illegal: true`: Carrying these goods triggers **patrol inspection risk** at sea and when entering lawful ports.
@@ -392,17 +421,19 @@ EQUIPMENT: {
 ### Trade Goods by Tier (`TRADE_GOODS_BY_TIER`)
 | Tier | Eligible Goods |
 |---|---|
-| 0 | rum, sugar, timber, cloth |
-| 1 | rum, sugar, timber, cloth, coffee, cocoa |
-| 2 | coffee, cocoa, cloth, weapons, spices |
-| 3-4 | spices, silk, weapons, cocoa |
+| 0 | rum, sugar, timber |
+| 1 | rum, sugar, timber, cloth |
+| 2 | rum, sugar, timber, cloth, coffee, cocoa |
+| 3 | coffee, cocoa, cloth, weapons, spices |
+| 4-5 | spices, silk, weapons, cocoa |
 
 ---
 ### Smuggle Goods by Tier (`SMUGGLE_GOODS_BY_TIER`)
 | Tier | Eligible Goods |
 |---|---|
-| 0-1 | rum, tobacco |
-| 2-4 | rum, tobacco, slaves |
+| 0 | rum |
+| 1-2 | rum, tobacco |
+| 3-5 | rum, tobacco, slaves |
 
 **Note**: `slaves` only appear if `state.infamy >= 25`.
 
@@ -447,7 +478,7 @@ EQUIPMENT: {
 **Purpose**: Defines random events that occur at sea during `ADVANCE_DAY`.
 
 ### Structure
-```javascript
+```js
 RANDOM_EVENTS: [
   {
     id: string,                // Unique identifier (e.g., "storm")
@@ -490,9 +521,8 @@ RANDOM_EVENTS: [
 | `whale_sighting` | reward | Whale Sighting | Always | Morale +5 |
 | `mutiny` | crew | Mutiny! | `morale < 20` | Crush (lose crew, gain mutineer tags) or negotiate (lose gold) |
 | `deserters` | crew | Deserters | `morale < 40` | Lose 1-3 crew |
-| `mysterious_chart` | discovery | A Dying Sailor's Secret | `fame >= 150` | Gain `map_fragment_libertalia` |
-| `wreckers_chart` | discovery | The Wrecker's Map | `gold >= 5000` | Pay 5,000g for `map_fragment_lasAves` or decline |
-| `drunkard_event` | crew | Rum Thief! | Has rum in hold + crew with `hidden_drunkard` tag | Reveals drunkard tag, consumes 1 rum |
+| `mysterious_chart` | discovery | A Dying Sailor's Secret | `fame >= 100` | Gain `map_fragment_libertalia` |
+| `wreckers_chart` | discovery | The Wrecker's Map | `fame >= 50` | Pay 5,000g for `map_fragment_lasAves` or decline |
 
 ### Event Triggers
 - **At Sea**: ~10% chance per day during `ADVANCE_DAY` (see `maybeRandomEvent` in `engine_voyage.js`).
@@ -501,12 +531,12 @@ RANDOM_EVENTS: [
 - **Skipped During Onboarding**: Random events are **suppressed** if `state.onboarding?.enabled && !state.onboarding?.completed`.
 
 ---
-## 11. STARTS (New Faction-Based System)
+## 11. STARTS (Faction-Based System)
 
-**Purpose**: Defines **faction-based starting scenarios** with unique characters, backstories, and initial conditions. Replaces the old scenario-array system.
+**Purpose**: Defines **faction-based starting scenarios** with unique characters, backstories, and initial conditions.
 
 ### Structure
-```javascript
+```js
 STARTS: {
   gold: number,               // Starting gold (shared across all factions)
   ship: string,               // Starting ship type (e.g., "dinghy")
@@ -564,7 +594,7 @@ Each faction starts with **reputation adjustments** to reflect their political s
 **Purpose**: Pre-built **tutorial delivery mission** auto-accepted in `"full"` onboarding mode. Introduces the player to missions and trading.
 
 ### Structure
-```javascript
+```js
 TUTORIAL_DELIVERY: {
   [factionKey]: {            // One per starting faction
     name: string,            // Mission name (e.g., "A Governor's Errand")
@@ -584,7 +614,7 @@ TUTORIAL_DELIVERY: {
 ```
 
 ### Example (English)
-```javascript
+```js
 TUTORIAL_DELIVERY: {
   english: {
     name: "A Governor's Errand",
@@ -610,7 +640,7 @@ TUTORIAL_DELIVERY: {
 **Purpose**: Pre-built **tutorial combat mission** injected after the player hires their first crew. Introduces combat mechanics.
 
 ### Structure
-```javascript
+```js
 TUTORIAL_HUNT: {
   name: string,             // Mission name (e.g., "The Rat of Port Royal")
   desc: string,             // Mission description
@@ -639,7 +669,7 @@ TUTORIAL_HUNT: {
 **Purpose**: Scripted dialogue lines for the **Quartermaster (QM)** character in `"full"` onboarding mode.
 
 ### Structure
-```javascript
+```js
 QM_DIALOGUE: {
   [stepKey: string]: (state) => string // Function returning dialogue text
 }
@@ -663,7 +693,7 @@ QM_DIALOGUE: {
 **Purpose**: Default template for `state.career` (lifetime statistics). Initialized on `START_GAME` if missing.
 
 ### Structure
-```javascript
+```js
 DEFAULT_CAREER: {
   // Lifetime counters
   goldEarned: 0,         // Total gold earned (positive deltas)
@@ -698,7 +728,7 @@ DEFAULT_CAREER: {
 **Purpose**: Defines consequences when the player surrenders during different encounter types.
 
 ### Structure
-```javascript
+```js
 SURRENDER_CONSEQUENCE: {
   [encounterType: string]: {
     loseGoldPercent?: number,  // % of gold to lose
@@ -727,10 +757,10 @@ SURRENDER_CONSEQUENCE: {
 ---
 ## 17. COMBAT_LOG_TEMPLATES
 
-**Purpose**: Templates for generating **round-by-round combat log entries** in `BattleScreen`. Used by `buildRoundLog` in `engine_combat.js`.
+**Purpose**: Templates for generating **round-by-round combat log entries** in `BattleScreen`. Used by `buildRoundLog` in `engine_battle.js`.
 
 ### Structure
-```javascript
+```js
 COMBAT_LOG_TEMPLATES: {
   player: {
     broadside: string[],    // e.g., ["You fire a devastating broadside, raking the enemy's hull!"]
@@ -762,7 +792,7 @@ COMBAT_LOG_TEMPLATES: {
 **Purpose**: Random messages for port arrivals. Used by `pickArrivalMessage` in `engine_port.js`.
 
 ### Structure
-```javascript
+```js
 ARRIVAL_MESSAGES: string[];
 // Example entries:
 [
@@ -781,7 +811,7 @@ ARRIVAL_MESSAGES: string[];
 **Purpose**: Atmospheric text for the **Market screen**. Generated by `G.generateMarketFlavour` in `generators.js`.
 
 ### Structure
-```javascript
+```js
 MARKET_FLAVOUR: {
   gold: {
     poor: string[],       // e.g., ["Your purse feels light..."]
@@ -807,7 +837,39 @@ MARKET_FLAVOUR: {
 ```
 
 ---
-## 20. Constants Summary
+## 20. NPC AI — Data Constants
+
+**Purpose**: Defines NPC combat AI personality weights and encounter-type modifiers.
+
+### AI_ARCHETYPES
+Base personality weights per faction. Used by the AI scorer in `logic_combat_encounter.js`.
+
+```js
+AI_ARCHETYPES: {
+  english:  { broadside: 1.0, precision: 1.0, close: 0.8, open: 0.8, grapple: 0.7 },
+  spanish:  { broadside: 1.2, precision: 0.8, close: 0.6, open: 0.7, grapple: 0.5 },
+  french:   { broadside: 0.9, precision: 1.1, close: 1.0, open: 0.7, grapple: 0.8 },
+  dutch:    { broadside: 1.0, precision: 1.0, close: 0.7, open: 1.1, grapple: 0.5 },
+  pirate:   { broadside: 0.8, precision: 0.7, close: 1.3, open: 0.5, grapple: 1.4 },
+}
+```
+
+### AI_ORIGIN_MODIFIERS
+Small additive deltas to grapple/continue-fighting weight, keyed by encounter type.
+
+```js
+AI_ORIGIN_MODIFIERS: {
+  mission_combat:     { grapple: +0.3, continueFighting: +0.2 },
+  escort_defend:      { grapple: -0.3, continueFighting: -0.2 },
+  hostile_port_entry: { grapple: +0.2 },
+  navy_patrol:        {},
+  navy_patrol_combat: {},
+  random:             {},
+}
+```
+
+---
+## 21. Constants Summary
 
 | Constant | Value | Purpose |
 |---|---|---|
@@ -815,21 +877,24 @@ MARKET_FLAVOUR: {
 | `PLUNDER_GOLD_RATIO` | `0.20` | 20% of plunder value is gold, 80% is cargo |
 
 ---
-## 21. Dependencies & Usage Notes
+## 22. Dependencies & Usage Notes
 
 ### Imported by
 
 | Consumer | Uses |
 |---|---|
-| `logic.js` | `PORTS`, `SHIPS`, `FACTIONS`, `EQUIPMENT`, `RESOURCES`, `RANDOM_EVENTS` |
+| `logic_core.js` | `PORTS`, `SHIPS`, `FACTIONS`, `EQUIPMENT`, `RESOURCES`, `RANDOM_EVENTS` |
+| `logic_economy_crew.js` | `PORTS`, `FACTIONS`, `RESOURCES` |
+| `logic_travel_events.js` | `PORTS`, `SHIPS`, `RANDOM_EVENTS` |
+| `logic_combat_encounter.js` | `SHIPS`, `FACTIONS`, `ENCOUNTER_FLAVOUR`, `SURRENDER_CONSEQUENCE`, `AI_ARCHETYPES`, `AI_ORIGIN_MODIFIERS`, `DISTANCE_DAMAGE_MULTIPLIERS`, `LEGAL_ACTIONS_BY_DISTANCE` |
 | `generators.js` | `MISSION_*`, `FACTION_PLUNDER_GOODS`, `ENEMY_SHIP_NAMES`, `CREW_*`, `BIO_*`, `PORT_GOSSIP_TEMPLATES`, `MARKET_FLAVOUR`, `COMBAT_LOG_TEMPLATES`, `ARRIVAL_MESSAGES` |
-| `engine_*.js` | `RANDOM_EVENTS`, `EQUIPMENT`, `STARTS`, `ENCOUNTER_FLAVOUR`, `SURRENDER_CONSEQUENCE`, `TUTORIAL_DELIVERY`, `TUTORIAL_HUNT` |
+| `engine_*.js` | `RANDOM_EVENTS`, `EQUIPMENT`, `STARTS`, `SURRENDER_CONSEQUENCE`, `TUTORIAL_DELIVERY`, `TUTORIAL_HUNT` |
 | `screens_*.jsx` | `PORTS`, `SHIPS`, `FACTIONS`, `EQUIPMENT`, `RESOURCES` (for UI rendering) |
 | `ship-sprite.js` | `SHIP_VISUALS`, `FACTIONS` (for SVG rendering) |
 
 ### Usage Rules
 
-1. **No Logic**: These files contain **only data**. All logic lives in `logic.js` or `generators.js`.
+1. **No Logic**: These files contain **only data**. All logic lives in `logic_*.js` or `generators.js`.
 2. **Immutability**: Do not modify `window.D` at runtime. Treat it as read-only.
 3. **Validation**: All data should be verified by tests (see `tests/tests_logic.js`).
 4. **New Data**: When adding new constants, document them in this spec.

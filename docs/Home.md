@@ -8,9 +8,10 @@
 ### 🎮 **Level 1: Core Guides**
    Guide | Description | Audience |
  |-------|-------------|----------|
+ | [Play the game](https://papaladin.github.io/broadside/) | Play Broadside directly from GitHub Pages | Players |
  | [Player Guide](player_guide) | How to play, mechanics, tips, and strategies. | Players |
  | [Roadmap](roadmap) | Planned features, priorities, and release timeline. | Everyone |
- | [Captain's Handbook](handbook.html) | Quick reference for game mechanics. | Players |
+ | [Captain's Handbook](https://papaladin.github.io/broadside/handbook.html) | Quick reference for game mechanics. | Players |
 
 
 

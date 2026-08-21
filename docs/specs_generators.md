@@ -1,7 +1,7 @@
-# specs_generators.md -- Generators Module Specification
+# Generators Module Specification
 
 **Broadside Runtime Content Generators**
-*Last Updated: June 8, 2026*
+*Last Updated: August 21, 2026*
 
 ---
 
@@ -10,8 +10,8 @@
 - **File**: `generators.js`
 - **Exposed as**: `window.G`
 - **Dependencies**:
-  - `window.D` (data constants: PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, MISSION_*, ENEMY_SHIP_NAMES, CREW_*, BIO_OPENINGS, BIO_COMBOS, PORT_GOSSIP_TEMPLATES, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO)
-  - `window.L` (pure logic helpers: getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag)
+  - `window.D` (data constants: PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, AVAILABILITY_PRICE_MODIFIERS, FACTION_PRICE_MODIFIERS, MISSION_*, ENEMY_SHIP_NAMES, CREW_*, BIO_OPENINGS, BIO_COMBOS, PORT_GOSSIP_TEMPLATES, MARKET_FLAVOUR, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO)
+  - `window.L` (pure logic helpers: getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getPortTradeProfile)
 - **Purpose**: Generates **runtime content** (crew, missions, enemies, markets, cargo, biographies, gossip). Uses `Math.random()` for variety.
 - **No side effects**: Functions are pure given the same RNG seed.
 
@@ -29,6 +29,8 @@ These are private to generators.js -- not exported on `window.G`.
 | `pickWeighted` | `(items, weights) -> element` | Weighted random selection |
 | `shuffleArray` | `(arr) -> arr` | Fisher-Yates shuffle (returns new array) |
 | `isExtremePrice` | `(good, buyPrice) -> object|null` | Returns `{type: 'surplus'|'shortage', deviation}` if price deviates >30% from base, else null |
+| `findPortForGoodInDemand` | `(good, state, currentPort, options) -> portKey|null` | Finds a port where the good is scarce (`"rarely"` or `"never"`). Used by smuggle missions. |
+| `findPortWithInDemandGood` | `(state, currentPort) -> { port, inDemandGoods } | null` | Finds a port that has at least one good in demand. Used by trade missions. |
 
 ---
 
@@ -122,10 +124,10 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 
 ## 5. Market Generator
 
-### generatePortMarket(portKey)
+### generatePortMarket(portKey, state)
 
 - **Purpose**: Generates market data for a specific port visit.
-- **Input**: `portKey` (string)
+- **Input**: `portKey` (string), `state` (for fame tier scaling and onboarding force-stock)
 - **Output**:
   ```js
   {
@@ -133,8 +135,8 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
     goods: {
       [goodKey]: {
         basePrice: number,     // Base price of the good
-        buyFromPort: number,   // Price player pays (basePrice * 1.10)
-        sellToPort: number,    // Price player receives (basePrice * 0.90)
+        buyFromPort: number,   // Price player pays (marketPrice * 1.10)
+        sellToPort: number,    // Price player receives (marketPrice * 0.90)
         available: number      // Quantity in market
       }
     }
@@ -143,8 +145,15 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 - **Logic**:
   1. Read `GOODS_AVAILABILITY[portKey]` tier array
   2. For each good: roll appearance chance based on tier (always=100%, frequently=66%, sometimes=33%, rarely=10%, never=0%)
-  3. If appeared: calculate price = `basePrice * (1 +/- variance * random)`, quantity from tier range
-  4. **Exception**: food/water always available with qty 999 and fixed zero-variance price
+  3. If appeared: calculate price using B8 stable trade route formula:
+     - `marketPrice = basePrice × AVAILABILITY_PRICE_MODIFIERS[tier] × FACTION_PRICE_MODIFIERS[faction][good] × (1 + variance × random(-1,1))`
+     - `buyFromPort = Math.round(marketPrice × 1.10)`
+     - `sellToPort = Math.round(marketPrice × 0.90)`
+  4. Quantity scales with fame tier (`range × (1 + fameTier)`)
+  5. **Exception**: food/water always available with qty 999 and fixed zero-variance price
+  6. **Force-stock tutorial goods**: if onboarding is active and the active mission is the tutorial delivery, ensure the required good has availability ≥ 20
+
+**Design note**: The B8 price modifiers create **stable, learnable trade routes** across the map. Each port has a consistent price identity based on availability tier and faction production bonuses, not pure random noise.
 
 ---
 
@@ -160,7 +169,7 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 - **Output**: `{ gold: number, cargo: { [goodKey]: qty } }`
 - **Logic**:
   1. Look up total plunder value from `PLUNDER_TARGET[fameTier][risk]`
-  2. Split: `gold = totalValue * PLUNDER_GOLD_RATIO` (20%), `cargoValue = totalValue * 0.80`
+  2. Split: `gold = totalValue × PLUNDER_GOLD_RATIO` (20%), `cargoValue = totalValue × 0.80`
   3. Pick 2-4 goods from `FACTION_PLUNDER_GOODS[enemy.faction]` using weighted random
   4. Distribute `cargoValue` proportionally across picked goods (qty = value / basePrice)
   5. Add small amounts of food/water (2-5 each)
@@ -207,21 +216,22 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 
 ---
 
-## 8. Trade Mission Generator
+## 8. Trade Mission Generator (B8 updated)
 
 ### generateTradeMission(portKey, state, faction, risk)
 
 - **Purpose**: Creates a trade delivery mission.
 - **Flow**:
-  1. Pick good from `TRADE_GOODS_BY_TIER[fameTier]`
-  2. Calculate quantity as % of hold capacity (low=15%, med=25%, high=40%)
-  3. Calculate gold reward: `qty * basePrice * TRADE_MISSION_PROFIT_MARGINS[risk]` + base mission gold
-  4. Pick target port (must have good `frequently` or `always` available)
+  1. Call `findPortWithInDemandGood(state, portKey)` to find a port with at least one good in demand
+  2. Pick a random good from that port's `inDemand` list
+  3. Calculate quantity: `requiredQty = Math.max(3, Math.round(gold / (basePrice × (1 + margin))))`
+  4. Gold reward from `MISSION_GOLD_RANGES[tier][risk]`
 - **Player must** source the goods themselves (buy from market) and deliver to target port
+- **Key difference**: The target port is chosen because the good is in demand there, ensuring the trade itself is profitable
 
 ---
 
-## 9. Smuggle Mission Generator
+## 9. Smuggle Mission Generator (B8 updated)
 
 ### generateSmuggleMission(portKey, state, risk)
 
@@ -229,11 +239,11 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 - **Flow**:
   1. Pick good from `SMUGGLE_GOODS_BY_TIER[fameTier]`
   2. **Slaves gated**: only appear if `state.infamy >= 25`
-  3. Calculate gold reward: `qty * basePrice * SMUGGLE_PROFIT_MARGINS[risk]`
-  4. Set intercept chance by risk: low=70%, medium=80%, high=90%
-  5. Pick target port
-- **Intercept**: During sailing, `maybeSmugglePatrol()` rolls against intercept chance each day
-- **Infamy**: Completing a smuggle mission adds `mission.infamyGain`
+  3. Call `findPortForGoodInDemand(good, state, portKey, { excludePirate: true })` to find a port where the good is scarce (`"rarely"` or `"never"`)
+  4. Enemy faction matches the target port's faction
+  5. Calculate gold reward: `qty × basePrice × SMUGGLE_PROFIT_MARGINS[risk]`
+  6. Set intercept chance by risk: low=70%, medium=80%, high=90%
+- **Key differences**: Target port chosen for scarcity, enemy faction matches target port faction
 
 ---
 
@@ -346,30 +356,45 @@ Templates are filled from `D.PORT_GOSSIP_TEMPLATES[category]` using `pickRandom`
 
 ---
 
-## 12. Exposed Functions Summary
+## 12. Market Flavour Generator
+
+### generateMarketFlavour(state, portKey)
+
+- **Purpose**: Generates 1-3 atmospheric lines for the Market screen.
+- **Source**: `D.MARKET_FLAVOUR`
+- **Logic**:
+  1. Assess gold tier, hold fullness, extreme prices, rare goods, fame/infamy, port faction
+  2. Pick up to 3 non-duplicate-category lines from the relevant pools
+  3. Fallback: always includes one ambient line
+- **Output**: Array of strings
+
+---
+
+## 13. Exported Functions Summary
 
 ### Exported on window.G
 
 | Category | Functions |
 |---|---|
 | **Crew** | `generateCrewMember`, `generateRoster`, `generateCrewBio` |
-| **Market** | `generatePortMarket` |
+| **Market** | `generatePortMarket`, `generateMarketFlavour` |
 | **Plunder** | `generateEnemyCargo` |
-| **Missions** | `generateMissions` |
+| **Missions** | `generateMissions`, `generateGold`, `generateRepImpact`, `pickTargetPort`, `generateTradeMission`, `generateSmuggleMission` |
+| **Enemies** | `generateEnemy`, `generateEnemyName`, `opposingFaction` |
 | **Gossip** | `generatePortGossip`, `generateLocalMarketGossip`, `generateHiddenPortHint` |
-| **Enemies** | `generateEnemy`, `generateEnemyName` |
+| **Events** | `pickMerchantFaction` |
 
 ### NOT exported (internal only)
 
-`randBetween`, `randInt`, `pickRandom`, `pickWeighted`, `shuffleArray`, `isExtremePrice`, `pickWeightedRole`, `opposingFaction`, `generateGold`, `generateRepImpact`, `generateMissionText`, `pickTargetPort`, `generateTradeMission`, `generateSmuggleMission`, `generateOneMission`, `generateFallbackMission`, `getEligibleFactions`, `typeWeightsFor`, `riskWeightsFor`, `pickMissionType`, `pickMissionRisk`
+`randBetween`, `randInt`, `pickRandom`, `pickWeighted`, `shuffleArray`, `isExtremePrice`, `pickWeightedRole`, `generateOneMission`, `generateFallbackMission`, `getEligibleFactions`, `typeWeightsFor`, `riskWeightsFor`, `pickMissionType`, `pickMissionRisk`, `findPortForGoodInDemand`, `findPortWithInDemandGood`, `generateEnemyForAssault`, `generateMissionText`
 
 ---
 
-## Dependencies
+## 14. Dependencies
 
 | Reads | Used for |
 |---|---|
-| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, CREW_*, BIO_*, PORT_GOSSIP_TEMPLATES, MISSION_*, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO, ENEMY_SHIP_NAMES, ENCOUNTER_FLAVOUR |
-| `window.L` | getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getEquipmentEffect |
+| `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, AVAILABILITY_PRICE_MODIFIERS, FACTION_PRICE_MODIFIERS, CREW_*, BIO_*, PORT_GOSSIP_TEMPLATES, MARKET_FLAVOUR, MISSION_*, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO, ENEMY_SHIP_NAMES |
+| `window.L` | getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getPortTradeProfile |
 
 **May NOT call**: Engine (`window.E`), UI (`window.UI`)

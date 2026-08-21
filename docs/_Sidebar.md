@@ -11,4 +11,4 @@
   - [Changelog](changelog) 
   - [Roadmap](roadmap)
 - 📖 **Reference**
-  - [Captain's Handbook](handbook.html)
+  - [Captain's Handbook](https://papaladin.github.io/broadside/handbook.html)

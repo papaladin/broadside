@@ -5,368 +5,413 @@
 ---
 
 ---
----
-## **🌍 GAME WORLD**
+
+## 🌍 GAME WORLD
 
 ---
-### **Quick Start: Choose Your Faction**
-Broadside uses a **faction-based starting system**. Each faction offers a unique backstory, starting port, and reputation adjustments.
-   Faction | Starting Port | Gold | Ship | Hold | Focus | Reputation Adjustments |
- |---|---|---|---|---|---|---|
- | **English** | Port Royal | 200g | Dinghy | { food: 5, water: 5 } | Bluffing as a legitimate captain | +10 English, -10 Spanish, -10 French |
- | **Spanish** | Havana | 205g | Dinghy | { food: 5, water: 5 } | Delivering mysterious cargo | +10 Spanish, -10 English, -10 Dutch |
- | **French** | Petit-Goave | 190g | Dinghy | { food: 5, water: 5 } | Completing a dead man's work | +10 French, -10 English |
- | **Dutch** | Curaçao | 205g | Dinghy | { food: 5, water: 5 } | Meeting a quota under pressure | +10 Dutch, -10 Spanish |
- | **Pirate** | Tortuga | 190g | Dinghy | { food: 5, water: 5 } | Rebuilding after a shipwreck | -10 English, -10 Spanish, -10 French, -10 Dutch |
 
-**Tip**: Each faction starts with a **tutorial delivery mission** to introduce core mechanics.
+### Quick Start: Choose Your Faction
+
+Broadside uses a **faction‑based starting system**. Each faction offers a unique backstory, starting port, and reputation adjustments.
+
+| Faction | Starting Port | Gold | Ship | Hold | Focus | Reputation Adjustments |
+|---|---|---|---|---|---|---|
+| **English** | Kingston | 490g | Dinghy | { food: 5, water: 5 } | Forged commission | +10 English, –5 Pirate |
+| **Spanish** | Havana | 490g | Dinghy | { food: 5, water: 5 } | Governor’s errand | +10 Spanish, –5 English |
+| **French** | Petit‑Goâve | 490g | Dinghy | { food: 5, water: 5 } | Cartographer’s debt | +10 French, –5 English |
+| **Dutch** | Santo Domingo | 490g | Dinghy | { food: 5, water: 5 } | Company’s ledger | +10 Dutch, –5 Spanish |
+| **Pirate** | Santiago de Cuba | 490g | Dinghy | { food: 5, water: 5 } | The Survivor | +10 Pirate, –5 Spanish |
+
+**Tip**: Each faction starts with a **tutorial delivery mission** to introduce core mechanics (in Guided mode).
 
 ---
----
-### **The Caribbean (1700s)**
+
+### The Caribbean (1700s)
+
 - **5 Factions**: English, Spanish, French, Dutch, Pirate.
 - **25 Ports**: Mix of **standard** (always visible), **remote** (require larger ships), and **hidden** (unlocked by conditions).
-- **Dynamic Economy**: Prices fluctuate based on supply/demand (variance % per good).
-- **Wind System**: Affects travel time (favorable wind = faster, opposing wind = slower).
+- **Dynamic Economy**: Prices are **stable and learnable** — each port has a consistent price identity based on availability and faction production. Random variance is low (±5% for most goods, fixed for food/water).
+- **Wind System**: Affects travel time (favourable wind = faster, opposing wind = slower).
 
 ---
-### **Port Types**
- | Type | Description | Requirement |
- |---|---|---|
- | **Standard** (16) | Always visible, full services | None |
- | **Remote** (5) | Visible but require a **ship with `maxHull >= 101`** (Brigantine+) | Brigantine, Corvette, Frigate, Galleon, Ship of the Line |
- | **Hidden** (4) | Unlocked by conditions (fame, reputation, or map fragments) | See [Unlocking Hidden Ports](#unlocking-hidden-ports) |
+
+### Port Types
+
+| Type | Description | Requirement |
+|---|---|---|
+| **Standard** (16) | Always visible, full services | None |
+| **Remote** (5) | Visible but require a **ship with `maxHull >= 101`** (Brigantine+) | Brigantine, Corvette, Frigate, Galleon, Ship of the Line |
+| **Hidden** (4) | Unlocked by conditions (fame, reputation, or map fragments) | See [Unlocking Hidden Ports](#unlocking-hidden-ports) |
 
 ---
-### **Port Services**
- | Service | Description |
- |---|---|
- | **Tavern** | Restore crew morale (+5 per drink, costs 5g/crew), hire crew (50g each) |
- | **Shipyard** | Buy/sell ships, install/remove equipment, access locker |
- | **Missions** | Accept missions from factions (2-3 available per port) |
- | **Market** | Buy/sell goods (prices vary by port and supply/demand) |
- | **Crew** | Hire additional crew members (up to ship `maxCrew`) |
+
+### Port Services
+
+| Service | Description |
+|---|---|
+| **Tavern** | Restore crew morale (+5 per drink, costs 5g per crew), hire crew (50g each) |
+| **Shipyard** | Buy/sell ships, install/remove equipment, access locker |
+| **Missions** | Accept missions from factions (2‑3 available per port) |
+| **Market** | Buy/sell goods (prices vary by port and supply/demand) |
+| **Crew** | Hire additional crew members (up to ship `maxCrew`) |
 
 ---
-### **Factions & Rivalries**
- | Faction | Rivals | Allied With |
- |---|---|---|
- | English | Spanish, French | Dutch |
- | Spanish | English, Dutch | French |
- | French | English | Spanish, Dutch |
- | Dutch | Spanish | English, French |
- | Pirate | All | None |
+
+### Factions & Rivalries
+
+| Faction | Rivals |
+|---|---|
+| English | Spanish, French |
+| Spanish | English, Dutch |
+| French | English |
+| Dutch | Spanish |
+| Pirate | All others |
 
 ---
-### **Reputation System**
+
+### Reputation System
+
 Reputation with each faction/port ranges from **0 (At War)** to **100 (Allied)** and affects:
-- **Port access** (At War = blocked services).
-- **Mission availability** (Hostile/At War = no missions).
-- **Prices** (Allied = -20% repair cost, +20% mission gold).
-- **Patrol frequency** (Hostile = more patrols).
- | Tier | Range | Label | Repair Discount | Mission Gold | Services | Missions |
- |---|---|---|---|---|---|---|
- | 0 | 0-9 | **At War** | +0% (blocked) | Blocked | Blocked | Blocked |
- | 1 | 10-29 | **Hostile** | +0% | -25% | Open | Blocked |
- | 2 | 30-49 | **Neutral** | +0% | Standard | Open | Open |
- | 3 | 50-79 | **Friendly** | -10% | +10% | Open | Open |
- | 4 | 80-100 | **Allied** | -20% | +20% | Open | Open |
 
-**Note**:
-- Reputation **above 50 decays by 1/day** toward 50.
+- **Port access** (At War = blocked services)
+- **Mission availability** (Hostile/At War = no missions)
+- **Prices** (Allied = –20% repair cost, +20% mission gold)
+- **Patrol frequency** – lower reputation increases patrol chance (via dampening; Allied rep halves patrol rolls, Neutral rep gives no penalty, Hostile gives full roll)
+
+| Tier | Range | Label | Repair Discount | Mission Gold | Services | Missions |
+|---|---|---|---|---|---|---|
+| 0 | 0–9 | **At War** | – (blocked) | – | Blocked | Blocked |
+| 1 | 10–29 | **Hostile** | +0% | –25% | Open | Blocked |
+| 2 | 30–49 | **Neutral** | +0% | Standard | Open | Open |
+| 3 | 50–79 | **Friendly** | –10% | +10% | Open | Open |
+| 4 | 80–100 | **Allied** | –20% | +20% | Open | Open |
+
+**Notes**:
+
+- Reputation **above 50 decays by 1/day** toward 50 while sailing.
 - Completing missions for a faction **slows decay**.
+- Reputation is per‑port, but faction‑wide actions affect all ports of that faction.
 
 ---
-### **Fame & Infamy**
-Both are **career-wide stats** that unlock content and affect gameplay.
 
-#### **Fame Tiers**
- | Tier | Range | Title | Ship Unlocks |
- |---|---|---|---|
- | 0 | 0-49 | Unknown | Dinghy, Cutter |
- | 1 | 50-99 | Recognised | Sloop |
- | 2 | 100-199 | Notorious | Schooner, Merchantman, Brigantine |
- | 3 | 200-349 | Legendary | Corvette, Frigate, Fluyt |
- | 4 | 350+ | Immortal | Galleon, Ship of the Line |
+### Fame & Infamy
 
-#### **Infamy Tiers**
- | Tier | Range | Title | Effect |
- |---|---|---|---|
- | 0 | 0-9 | Clean | Standard patrol rate |
- | 1 | 10-24 | Suspect | Slightly increased patrols |
- | 2 | 25-49 | Wanted | Noticeably more patrols |
- | 3 | 50-99 | Notorious | Frequent patrols, **bribe unavailable** |
- | 4 | 100+ | Legendary Outlaw | Maximum patrol pressure |
+Both are **career‑wide stats** that unlock content and affect gameplay.
 
----
-### **Heat System**
-**Short-term alert level (0-10)** per faction. Generated by aggressive actions and **decays over time**.
- | Action | Heat Change | Notes |
- |---|---|---|
- | Attack Faction Ship | +3 | |
- | Flee from Faction Patrol | +2 | Navy patrols only |
- | Smuggle to Faction Port | +2 | If contraband is for that faction |
- | Raid Faction Port | +5 | |
- | Enter Faction Port | -1/day | Decays faster in port |
- | Daily at Sea | -0.5/day | Decays slower at sea |
+#### Fame Tiers
 
-**Equipment Impact**: *War Pennants* **doubles heat gain** from combat.
+| Tier | Range | Title | Ship Unlocks |
+|---|---|---|---|
+| 0 | 0–9 | Greenhorn | Dinghy, Cutter |
+| 1 | 10–49 | Unknown | Sloop |
+| 2 | 50–99 | Recognised | Schooner, Merchantman, Brigantine |
+| 3 | 100–199 | Notorious | Corvette, Frigate, Fluyt |
+| 4 | 200–349 | Legendary | Galleon, Ship of the Line |
+| 5 | 350+ | Immortal | — |
+
+#### Infamy Tiers
+
+| Tier | Range | Title | Effect |
+|---|---|---|---|
+| 0 | 0–9 | Clean | Standard patrol rate |
+| 1 | 10–24 | Suspect | Slightly increased patrols |
+| 2 | 25–49 | Wanted | Noticeably more patrols |
+| 3 | 50–99 | Notorious | Frequent patrols, **bribe unavailable** |
+| 4 | 100+ | Legendary Outlaw | Maximum patrol pressure |
 
 ---
-### **Random Events**
-- **Frequency**: ~10% chance per day at sea.
+
+### Heat System
+
+**Short‑term alert level (0–10)** per faction. Generated by aggressive actions and **decays only while sailing** (every 2 days at sea).
+
+| Action | Heat Change | Notes |
+|---|---|---|
+| Attack Faction Ship | +3 | Navy patrols only |
+| Flee from Faction Patrol | +2 | Navy patrols only |
+| Smuggle to Faction Port | +1 | On mission completion |
+| Raid Faction Port | +5 | (Assault missions) |
+| Daily at Sea | –1 per 2 days | Decays gradually |
+
+**Equipment Impact**: *War Pennants* **doubles heat gain** from combat (combatHeatMult = 2).
+
+---
+
+### Random Events
+
+- **Frequency**: ~5% chance per day at sea (in `maybeRandomEvent`).
 - **Conditions**: Some events require specific states (e.g., `morale < 20` for mutiny).
 - **Exclusive**: Only **one event per day** (first triggered event blocks others).
- | Type | Examples | Effects |
- |---|---|---|
- | **Hazard** | Storm, Doldrums | Hull damage, days lost, crew loss |
- | **Choice** | Distressed Merchant, Drifting Wreck, Marooned Sailors | Gold, crew, or combat depending on choice |
- | **Reward** | Treasure Map, Whale Sighting | Gold or morale boost |
- | **Crew** | Mutiny, Deserters | Morale crisis, crew loss |
- | **Discovery** | Mysterious Chart, Wrecker's Map | Map fragments for hidden ports |
+
+| Type | Examples | Effects |
+|---|---|---|
+| **Hazard** | Storm, Doldrums | Hull damage, days lost, crew loss |
+| **Choice** | Distressed Merchant, Drifting Wreck, Marooned Sailors | Gold, crew, or combat depending on choice |
+| **Reward** | Treasure Map, Whale Sighting | Gold or morale boost |
+| **Crew** | Mutiny, Deserters | Morale crisis, crew loss |
+| **Discovery** | Mysterious Chart, Wrecker's Map | Map fragments for hidden ports |
 
 ---
-### **Unlocking Hidden Ports**
+
+### Unlocking Hidden Ports
+
 Hidden ports are **not rendered on the map** until unlocked. Discover them via **fame, reputation, or items**.
- | Port | Unlock Condition | Notes |
- |---|---|---|
- | **Roatan** | Fame ≥ 50 **OR** Pirate reputation ≥ 65 | |
- | **Dry Tortugas** | Infamy ≥ 25 **AND** Pirate reputation ≥ 65 | |
- | **Las Aves** | Acquire `map_fragment_lasAves` (from *The Wrecker's Map* event, costs 5,000g) | |
- | **Libertalia** | Fame ≥ 200 **AND** `map_fragment_libertalia` (from *A Dying Sailor's Secret* event) | |
+
+| Port | Unlock Condition | Notes |
+|---|---|---|
+| **Roatan** | Fame ≥ 50 **OR** Pirate reputation ≥ 65 | |
+| **Dry Tortugas** | Infamy ≥ 25 **AND** Pirate reputation ≥ 65 | |
+| **Las Aves** | Acquire `map_fragment_lasAves` (from *The Wrecker's Map* event, costs 5,000g) | |
+| **Libertalia** | Fame ≥ 200 **AND** `map_fragment_libertalia` (from *A Dying Sailor's Secret* event) | |
 
 ---
 
 ---
----
----
-## **📊 QUICK REFERENCE: ACTIONS BY SYSTEM**
+
+## 📊 QUICK REFERENCE: ACTIONS BY SYSTEM
+
 *(Cheat sheet: What modifies what. **Equipment can also impact these stats if installed.**)*
 
 ---
-### **💰 GOLD**
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Earn Gold** | | |
- | Complete Mission | +Mission gold (scaled by risk/fame tier) | See [Mission Gold Ranges](#mission-gold-ranges) |
- | Sell Goods | +90% of market price | Sell Price = Market Price × 0.9 |
- | Plunder Enemy | +20% of total plunder value | Gold = Total Plunder × 0.20 (PLUNDER_GOLD_RATIO) |
- | Trade Goods | +Profit (if sell > buy) | Buy Price = Market Price × 1.10 |
- | **Spend Gold** | | |
- | Buy Goods | -110% of market price | Buy Price = Market Price × 1.10 |
- | Buy Ship | -Ship cost | See [Ship List](#ship-list) |
- | Buy Equipment | -Equipment cost - Install fee | Install fee varies by item |
- | Hire Crew | -50g per crew | Capped at ship `maxCrew` |
- | Buy Drinks | -5g per crew | +5 morale |
- | Repair Ship | -Repair cost | Cost = (maxHull - currentHull) × 2 × rep discount |
- | Bribe | -Bribe cost (scaled by enemy) | Unavailable if infamy ≥ 50 |
- | Surrender | -50% gold or fine | Fine = 50% of seized contraband value (PATROL_FINE_RATE) |
- | Pay Wages | -2g per crew/day | ×1.5 if morale < 30 |
- | Fine (Patrol) | -50% of seized contraband value | Only if contraband is found |
+
+### 💰 GOLD
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Earn Gold** | | |
+| Complete Mission | +Mission gold (scaled by risk/fame tier) | See [Mission Gold Ranges](#mission-gold-ranges) |
+| Sell Goods | +90% of market price | Sell Price = Market Price × 0.9 |
+| Plunder Enemy | +20% of total plunder value | Gold = Total Plunder × 0.20 (PLUNDER_GOLD_RATIO) |
+| Trade Goods | +Profit (if sell > buy) | Buy Price = Market Price × 1.10 |
+| **Spend Gold** | | |
+| Buy Goods | –110% of market price | Buy Price = Market Price × 1.10 |
+| Buy Ship | –Ship cost | See [Ship List](#ship-list) |
+| Buy Equipment | –Equipment cost – Install fee | Install fee varies by item |
+| Hire Crew | –50g per crew | Capped at ship `maxCrew` |
+| Buy Drinks | –5g per crew | +5 morale |
+| Repair Ship | –Repair cost | Cost = (maxHull – currentHull) × 2 × rep discount × (1 + repairCostPct) |
+| Bribe | –Bribe cost (scaled by enemy) | Unavailable if infamy ≥ 50 |
+| Surrender | Varies by encounter | May lose gold, cargo, or suffer other penalties |
+| Pay Wages | –2g per crew/day | ×1.5 if morale < 30 |
+| Fine (Patrol) | –50% of seized contraband value | Only if contraband is found |
 
 ---
----
-### **🏆 FAME**
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | Complete Mission | +Mission fame | Scaled by mission risk and fame tier |
+
+### 🏆 FAME
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| Complete Mission | +Mission fame | Scaled by mission risk and fame tier |
 
 ---
----
-### **☠️ INFAMY**
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | Complete Smuggle Mission | +Mission infamyGain | Defined per mission |
- | Buy Slaves | +1 per slave | |
+
+### ☠️ INFAMY
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| Complete Smuggle Mission | +Mission infamyGain | Defined per mission |
+| Buy Slaves | +1 per slave | |
 
 ---
----
-### **👥 REPUTATION** *(Per Faction/Port, 0-100)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Reputation** | | |
- | Complete Mission | +Mission repImpact | Scaled by mission type/risk (see [Mission Reputation Impacts](#mission-reputation-impacts)) |
- | **Decrease Reputation** | | |
- | Attack Faction Ship | -3 to -5 | Scaled by ship size |
- | Raid Faction Port | -5 to -8 | Assault missions |
- | Smuggle to Faction Port | -3 | If caught |
- | Daily Decay | -1/day (if rep > 50) | Decays toward 50 |
+
+### 👥 REPUTATION *(Per Faction/Port, 0–100)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Reputation** | | |
+| Complete Mission | +Mission repImpact | Scaled by mission type/risk (see [Mission Reputation Impacts](#mission-reputation-impacts)) |
+| **Decrease Reputation** | | |
+| Attack Faction Ship | –3 to –5 | Scaled by ship size |
+| Raid Faction Port | –5 to –8 | Assault missions |
+| Smuggle to Faction Port | –3 | If caught |
+| Daily Decay | –1/day (if rep > 50) | Decays toward 50 while sailing |
 
 ---
----
-### **🔥 HEAT** *(Per Faction, 0-10, Short-Term Alert)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | Attack Faction Ship | +3 | |
- | Flee from Faction Patrol | +2 | Navy patrols only |
- | Smuggle to Faction Port | +2 | If contraband is for that faction |
- | Raid Faction Port | +5 | |
- | Enter Faction Port | -1/day | Decays faster in port |
- | Daily at Sea | -0.5/day | Decays slower at sea |
 
-**Equipment Impact**: *War Pennants* **doubles heat gain** from combat.
+### 🔥 HEAT *(Per Faction, 0–10, Short‑Term Alert)*
 
----
----
-### **❤️ CREW MORALE** *(0-100)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Morale** | | |
- | Buy Drinks | +5 | Costs 5g per crew |
- | Complete Mission | +5 | |
- | Victory | +5 to +10 | Scaled by crew ratio in battle |
- | **Decrease Morale** | | |
- | Low Provisions | -1/day | If food or water = 0 |
- | Can’t Pay Wages | -1/day | If gold < wages cost |
- | Defeat | -10 | |
- | Flee | -5 | |
- | Mutiny (Crushed) | -5 | |
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| Attack Faction Ship | +3 | |
+| Flee from Faction Patrol | +2 | Navy patrols only |
+| Smuggle to Faction Port | +1 | On mission completion |
+| Raid Faction Port | +5 | |
+| Daily at Sea | –1 per 2 days | Decays gradually |
+
+**Equipment Impact**: *War Pennants* **doubles heat gain** from combat (combatHeatMult = 2).
 
 ---
----
-### **👨‍🚢 CREW COUNT** *(0 to Ship `maxCrew`)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Crew** | | |
- | Hire Crew | +1 to +10 per action | Costs 50g per crew, capped at `maxCrew` |
- | Rescue Sailors | +1 to +3 | From `drifting_sailors` event |
- | **Decrease Crew** | | |
- | Desertion | -1 to -3 per port entry | If morale < 40 |
- | Combat | -Crew (based on damage) | Scaled by enemy crew ratio |
- | Storm | -1 to -3 | Random |
- | Mutiny (Crushed) | -1 to -3 | Crew lost in crushing mutiny |
- | Dismiss Crew | -1 per action | Manual removal |
- | Buy Ship | -Excess crew | Truncated if new `maxCrew` < current |
 
-**Equipment Impact**: *Surgeon’s Bay* **reduces crew loss in combat**.
+### ❤️ CREW MORALE *(0–100)*
 
----
----
-### **⚓ SHIP HULL** *(Current / Max)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Hull** | | |
- | Repair | +Damage (to maxHull) | Costs gold, scaled by damage and reputation |
- | **Equipment (Passive)** | **+Max Hull** | |
- | Reinforced Hull | +20% maxHull | |
- | Ironclad Plates | +40% maxHull | -2 speed |
- | Tar-Sealed Hull | +10% maxHull | |
- | **Decrease Hull** | | |
- | Storm | -10 to -20 | Random |
- | Combat (Broadside) | -60% of damage | 0.8-1.2 × enemy cannons |
- | Combat (Precision) | -90% of damage (70% hit) | 1.2-1.8 × enemy cannons |
- | **Equipment (Passive)** | **-Max Hull** | |
- | Lateen Rig | -5% maxHull | +2 speed |
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Morale** | | |
+| Buy Drinks | +5 | Costs 5g per crew |
+| Complete Mission | +5 | |
+| Victory | +5 to +10 | Scaled by crew ratio in battle |
+| **Decrease Morale** | | |
+| Low Provisions | –1/day | If food or water = 0 |
+| Can’t Pay Wages | –1/day | If gold < wages cost |
+| Defeat | –10 | |
+| Flee | –5 | |
+| Mutiny (Crushed) | –5 | |
 
 ---
----
-### **⚡ SHIP SPEED** *(Base + Modifiers)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Speed** | | |
- | **Equipment (Passive)** | **+Speed** | |
- | Extra Sails | +1 | |
- | Lateen Rig | +2 | -5% maxHull |
- | Storm Rigging | +1 | +2 maxDays, immune to storm hull damage |
- | Copper Plating | +1 | **+40% repair cost** |
- | Navigation Tools | +1 | -1 travel day for voyages > 4 days |
- | Favorable Wind | -1 travel day (indirect) | |
- | **Decrease Speed** | | |
- | **Equipment (Passive)** | **-Speed** | |
- | Long Guns | -1 | +4 cannons |
- | Ironclad Plates | -2 | +40% maxHull |
- | Opposing Wind | +1 travel day (indirect) | |
- | Hold Load (>50%) | -11% speed | Multiplicative penalty |
- | Hold Load (>75%) | -33% speed | Multiplicative penalty |
+
+### 👨‍🚢 CREW COUNT *(0 to Ship `maxCrew`)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Crew** | | |
+| Hire Crew | +1 to +10 per action | Costs 50g per crew, capped at `maxCrew` |
+| Rescue Sailors | +1 to +3 | From `drifting_sailors` event |
+| **Decrease Crew** | | |
+| Desertion | –1 to –3 per port entry | If morale < 40 |
+| Combat | –Crew (based on damage) | Scaled by enemy crew ratio |
+| Storm | –1 to –3 | Random |
+| Mutiny (Crushed) | –1 to –3 | Crew lost in crushing mutiny |
+| Dismiss Crew | –1 per action | Manual removal |
+| Buy Ship | –Excess crew | Truncated if new `maxCrew` < current |
+
+**Equipment Impact**: *Surgeon’s Bay* **reduces crew loss in combat** (crewLossMult = 0.60).
 
 ---
----
-### **💥 CANNONS** *(Base + Modifiers)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Cannons** | | |
- | **Equipment (Passive)** | **+Cannons** | |
- | Extra Cannons | +2 | |
- | Grapeshot Supply | +1 | Non-removable |
- | Long Guns | +4 | -1 speed |
- | Buy Ship | New cannons | Ship-dependent |
- | **Decrease Cannons** | | |
- | None | — | Cannons cannot be reduced |
+
+### ⚓ SHIP HULL *(Current / Max)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Hull** | | |
+| Repair | +Damage (to maxHull) | Costs gold, scaled by damage, reputation, and equipment penalties |
+| **Equipment (Passive)** | **+Max Hull** | |
+| Reinforced Hull | +20% maxHull | |
+| Ironclad Plates | +35% maxHull | –2 speed |
+| **Decrease Hull** | | |
+| Storm | –10 to –20 | Random |
+| Combat (Broadside) | –60% of damage | 0.8–1.2 × cannons |
+| Combat (Precision) | –90% of damage (70% hit) | 1.2–1.8 × cannons |
+| **Equipment (Passive)** | **–Max Hull** | |
+| Lateen Rig | –10% maxHull | +1 maxDays |
+| Extra Sails | –10% maxHull | +3 speed |
 
 ---
----
-### **📦 HOLD CAPACITY** *(Base + Modifiers)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Capacity** | | |
- | **Equipment (Passive)** | **+Hold Capacity** | |
- | Expanded Hold | +25% | |
- | Buy Ship | New capacity | Ship-dependent |
- | **Decrease Capacity** | | |
- | **Equipment (Passive)** | **-Hold Capacity** | |
- | Officer’s Quarters | -20% | **+10 max crew** |
 
-**Equipment Impact**: *Special equipment (Expanded Hold) increases capacity. Officer’s Quarters reduces capacity by 20% but increases max crew by 10.*
+### ⚡ SHIP SPEED *(Base + Modifiers)*
 
----
----
-### **🍞 FOOD & WATER** *(Consumed Daily)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Food/Water** | | |
- | Buy Goods | +Quantity | From market (unlimited in ports) |
- | **Decrease Food/Water** | | |
- | Advance Day | -1 per 10 crew | Consumed daily at sea |
- | Storm | -1 to -3 | Random additional loss |
- | **Consequences** | | |
- | Run Out | -1 morale/day | Until restocked |
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Speed** | | |
+| **Equipment (Passive)** | **+Speed** | |
+| Extra Sails | +3 | –10% maxHull |
+| Copper Plating | +2 | +40% repair cost |
+| **Decrease Speed** | | |
+| **Equipment (Passive)** | **–Speed** | |
+| Expanded Hold | –2 | +20% hold |
+| Ironclad Plates | –2 | +35% maxHull |
+| Long Guns | –1 | –2 cannons |
+| Tar‑Sealed Hull | –1 | +2 maxDays, calm immune |
+| Extra Cannons | –1 | +4 cannons |
+| Storm Rigging | –1 | +2 maxDays, storm hull immune |
+| Opposing Wind | +1 travel day (indirect) | |
+| Hold Load (>50%) | –11% speed | Multiplicative penalty |
+| Hold Load (>75%) | –33% speed | Multiplicative penalty |
 
 ---
----
-### **🗺️ NAVIGATION** *(Days at Sea)*
- | **Action** | **Effect** | **Notes** |
- |---|---|---|
- | **Increase Days** | | |
- | Advance Day | +1 day | Core sailing loop |
- | Storm | +1 to +2 days | Random delay |
- | Calm Winds | +1 to +3 days | Random delay |
- | Unfavorable Wind | +1 travel day (indirect) | Slower travel |
- | **Decrease Days** | | |
- | Favorable Wind | -1 travel day (indirect) | Faster travel |
- | **Equipment (Passive)** | | |
- | Navigation Tools | -1 day | For voyages > 4 days |
- | Arrive at Port | Reset to 0 | |
+
+### 💥 CANNONS *(Base + Modifiers)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Cannons** | | |
+| **Equipment (Passive)** | **+Cannons** | |
+| Extra Cannons | +4 | –1 speed |
+| Buy Ship | New cannons | Ship‑dependent |
+| **Decrease Cannons** | | |
+| Long Guns | –2 | +10% precision hit chance |
 
 ---
----
----
----
-## **📖 FULL GUIDE**
+
+### 📦 HOLD CAPACITY *(Base + Modifiers)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Capacity** | | |
+| **Equipment (Passive)** | **+Hold Capacity** | |
+| Expanded Hold | +20% | –2 speed |
+| Buy Ship | New capacity | Ship‑dependent |
+| **Decrease Capacity** | | |
+| **Equipment (Passive)** | **–Hold Capacity** | |
+| Officer’s Quarters | –20% | **+10 max crew** |
+| Surgeon’s Bay | –15% | –40% crew loss |
+| Hidden Compartment | –10% | +50% contraband avoid chance |
 
 ---
+
+### 🍞 FOOD & WATER *(Consumed Daily)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Food/Water** | | |
+| Buy Goods | +Quantity | From market (unlimited in ports) |
+| **Decrease Food/Water** | | |
+| Advance Day | –1 per 10 crew | Consumed daily at sea |
+| Storm | –1 to –3 | Random additional loss |
+| **Consequences** | | |
+| Run Out | –1 morale/day | Until restocked |
+
+---
+
+### 🗺️ NAVIGATION *(Days at Sea)*
+
+| **Action** | **Effect** | **Notes** |
+|---|---|---|
+| **Increase Days** | | |
+| Advance Day | +1 day | Core sailing loop |
+| Storm | +1 to +2 days | Random delay |
+| Calm Winds | +1 to +3 days | Random delay |
+| Unfavourable Wind | +1 travel day (indirect) | Slower travel |
+| **Decrease Days** | | |
+| Favourable Wind | –1 travel day (indirect) | Faster travel |
+| **Equipment (Passive)** | | |
+| Navigation Tools | –1 day | For voyages > 4 days (longVoyageDayReduction) |
+| Arrive at Port | Reset to 0 | |
+
+---
+
+---
+
+## 📖 FULL GUIDE
+
+---
+
 ## Ships & Equipment
 
 ---
+
 ### Ship List
- | Tier | Ship | Hull | Crew | Cannons | Speed | Cost | Fame Req | Days | Hold | Slots (H/A/R/S) |
- |---|---|---|---|---|---|---|---|---|---|---|
- | 0 | Dinghy | 30 | 5 | 2 | 6 | 200g | 0 | 5 | 20 | 0/0/0/0 |
- | 0 | Cutter | 60 | 20 | 6 | 12 | 1,500g | 0 | 8 | 80 | 1/0/0/0 |
- | 1 | Sloop | 100 | 40 | 10 | 11 | 4,000g | 20 | 10 | 200 | 1/1/1/0 |
- | 2 | Schooner | 110 | 55 | 8 | 11 | 20,000g | 50 | 12 | 240 | 1/0/1/1 |
- | 2 | Merchantman | 180 | 60 | 5 | 8 | 25,000g | 50 | 14 | 700 | 1/0/0/1 |
- | 2 | Brigantine | 150 | 80 | 15 | 10 | 40,000g | 50 | 14 | 448 | 1/1/1/1 |
- | 3 | Corvette | 180 | 90 | 18 | 11 | 130,000g | 100 | 16 | 500 | 1/1/1/1 |
- | 3 | Frigate | 220 | 120 | 24 | 9 | 250,000g | 100 | 18 | 720 | 1/1/1/2 |
- | 3 | Fluyt | 180 | 70 | 6 | 7 | 100,000g | 100 | 24 | 1,100 | 1/0/1/1 |
- | 4 | Galleon | 300 | 150 | 30 | 6 | 500,000g | 150 | 22 | 1,320 | 2/2/1/2 |
- | 4 | Ship of the Line | 420 | 280 | 50 | 5 | 1,000,000g | 150 | 28 | 1,600 | 2/2/1/2 |
+
+| Tier | Ship | Hull | Crew | Cannons | Speed | Cost | Fame Req | Days | Hold | Slots (H/A/R/S) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | Dinghy | 30 | 5 | 2 | 6 | 200g | 0 | 5 | 20 | 0/0/0/0 |
+| 0 | Cutter | 60 | 20 | 6 | 12 | 1,000g | 0 | 8 | 80 | 1/0/1/0 |
+| 1 | Sloop | 100 | 40 | 10 | 11 | 4,000g | 20 | 10 | 200 | 1/1/1/0 |
+| 2 | Schooner | 110 | 55 | 8 | 11 | 20,000g | 50 | 12 | 240 | 1/1/1/1 |
+| 2 | Merchantman | 180 | 60 | 5 | 8 | 25,000g | 50 | 14 | 700 | 1/0/1/2 |
+| 2 | Brigantine | 150 | 80 | 15 | 10 | 40,000g | 50 | 14 | 448 | 1/1/1/1 |
+| 3 | Corvette | 180 | 90 | 18 | 11 | 130,000g | 100 | 16 | 500 | 1/1/1/1 |
+| 3 | Frigate | 220 | 120 | 24 | 9 | 250,000g | 100 | 18 | 720 | 1/1/1/1 |
+| 3 | Fluyt | 180 | 70 | 6 | 7 | 100,000g | 100 | 24 | 1,100 | 1/0/1/3 |
+| 4 | Galleon | 300 | 150 | 30 | 6 | 500,000g | 150 | 22 | 1,000 | 1/1/1/2 |
+| 4 | Ship of the Line | 420 | 280 | 50 | 5 | 1,000,000g | 150 | 28 | 900 | 1/2/1/1 |
 
 **Slots** = Hull / Armament / Rigging / Special equipment slots.
 **Note**: Buying a new ship **clears all installed equipment** (uninstall removable items to locker first).
 
 ---
+
 ### Equipment System
+
 Ships have **equipment slots** instead of fixed upgrades. Each slot type (hull, armament, rigging, special) accepts specific equipment items. Manage equipment via the **Shipyard screen** (3 tabs):
 
 - **Equipment Tab**: Buy new equipment from the shop and install it.
@@ -376,102 +421,127 @@ Ships have **equipment slots** instead of fixed upgrades. Each slot type (hull, 
 Equipment can be **removed** to the locker (if `removable: true`) before selling your ship.
 
 ---
+
 #### Hull Equipment
- | Name | Cost | Install | Effect | Removable |
- |---|---|---|---|---|
- | Reinforced Hull | 500g | 100g | +20% maxHull | Yes |
- | Ironclad Plates | 2,000g | 400g | +40% maxHull, -2 speed | Yes |
- | Copper Plating | 1,200g | 250g | +1 speed, **+40% repair cost** | Yes |
- | Tar-Sealed Hull | 300g | 50g | +10% maxHull | No |
+
+| Name | Cost | Install | Effect | Removable |
+|---|---|---|---|---|
+| Reinforced Hull | 500g | 100g | +20% maxHull | No |
+| Ironclad Plates | 2,000g | 200g | +35% maxHull, –2 speed | No |
+| Copper Plating | 3,500g | 300g | +2 speed, **+40% repair cost** | No |
+| Tar‑Sealed Hull | 1,200g | 150g | +2 maxDays, –1 speed, **immune to calm winds** | No |
 
 ---
+
 #### Armament Equipment
- | Name | Cost | Install | Effect | Removable |
- |---|---|---|---|---|
- | Extra Cannons | 800g | 150g | +2 cannons | Yes |
- | Grapeshot Supply | 400g | 75g | +1 cannon | No |
- | Long Guns | 1,500g | 300g | +4 cannons, -1 speed | Yes |
+
+| Name | Cost | Install | Effect | Removable |
+|---|---|---|---|---|
+| Extra Cannons | 800g | 50g | +4 cannons, –1 speed | Yes |
+| Grapeshot Supply | 1,800g | 100g | +50% crew damage, –20% hull damage to enemy | Yes |
+| Long Guns | 3,000g | 150g | –2 cannons, **+10% precision hit chance** | Yes |
 
 ---
+
 #### Rigging Equipment
- | Name | Cost | Install | Effect | Removable |
- |---|---|---|---|---|
- | Extra Sails | 600g | 100g | +1 speed | Yes |
- | Storm Rigging | 400g | 75g | +1 speed, **+2 maxDays**, **immune to storm hull damage** | No |
- | Lateen Rig | 900g | 150g | +2 speed, **-5% maxHull** | Yes |
- | War Pennants | 200g | 25g | **Doubles heat gain** from combat | No |
+
+| Name | Cost | Install | Effect | Removable |
+|---|---|---|---|---|
+| Extra Sails | 600g | 50g | +3 speed, –10% maxHull | Yes |
+| Storm Rigging | 900g | 75g | +2 maxDays, –1 speed, **immune to storm hull damage** | Yes |
+| Lateen Rig | 1,500g | 150g | +1 maxDays, –10% maxHull | No |
+| War Pennants | 3,500g | 150g | **+1 fame** from combat/patrol/assault victories, **doubles heat gain** | Yes |
 
 ---
+
 #### Special Equipment
- | Name | Cost | Install | Effect | Removable |
- |---|---|---|---|---|
- | Expanded Hold | 800g | 150g | +25% hold capacity | Yes |
- | Hidden Compartment | 600g | 100g | **50% chance to hide contraband** from inspection | Yes |
- | Surgeon’s Bay | 1,000g | 200g | **Reduces crew loss in combat** | Yes |
- | **Officer’s Quarters** | **1,200g** | **250g** | **+10 max crew, -20% hold capacity** | Yes |
- | **Ornate Figurehead** | **300g** | **25g** | **+2 reputation gain from missions** | No |
- | Navigation Tools | 600g | 100g | +1 speed, **-1 travel day for voyages > 4 days** | Yes |
+
+| Name | Cost | Install | Effect | Removable |
+|---|---|---|---|---|
+| Expanded Hold | 700g | 50g | +20% hold capacity, –2 speed | Yes |
+| Hidden Compartment | 1,000g | 100g | **50% chance to hide contraband** from inspection, –10% hold | No |
+| Surgeon’s Bay | 2,000g | 100g | **–40% crew loss** in combat, –15% hold | Yes |
+| Officer’s Quarters | 1,800g | 100g | **+10 max crew**, –20% hold capacity | Yes |
+| Ornate Figurehead | 300g | 25g | **+2 reputation gain** from missions | Yes |
+| Navigation Tools | 600g | 50g | **–1 travel day** for voyages > 4 days | Yes |
 
 ---
+
 ---
+
 ## Crew Management
 
 ---
+
 ### Crew Roles
- | Role | Weight | Notes |
- |---|---|---|
- | Deckhand | 60% | Basic crew member |
- | Gunner | 20% | *Cosmetic only* (no gameplay effect) |
- | Carpenter | 10% | *Cosmetic only* |
- | Cook | 5% | *Cosmetic only* |
- | Navigator | 5% | *Cosmetic only* |
+
+| Role | Weight | Notes |
+|---|---|---|
+| Deckhand | 60% | Basic crew member |
+| Gunner | 20% | *Cosmetic only* (no gameplay effect) |
+| Carpenter | 10% | *Cosmetic only* |
+| Cook | 5% | *Cosmetic only* |
+| Navigator | 5% | *Cosmetic only* |
 
 > **Note**: Crew roles are **purely cosmetic** in the current version. All crew members function identically in combat, sailing, and morale calculations.
 
 ---
+
 ### Crew Traits & Scars
+
 Crew members accumulate **tags** over time, which affect gameplay and generate unique biographies:
- | **Tag Type** | **Examples** | **Effect** | **How Acquired** |
- |---|---|---|---|
- | **Hidden Traits** | drunkard, coward, greedy, troublemaker | Revealed through events (e.g., drunkard steals rum) | 5% chance at hire |
- | **Scars** | battle, storm, shipwreck, grapple, mutiny | No direct effect (narrative only) | Combat, storms, events |
- | **Positive** | seasoned (50d), veteran (100d), loyal (200d + conditions) | Reduces desertion chance | Days aboard, good treatment |
- | **Negative** | upset, mutineer | Increases desertion chance, may trigger mutiny | Attacking their faction, low morale |
+
+| **Tag Type** | **Examples** | **Effect** | **How Acquired** |
+|---|---|---|---|
+| **Hidden Traits** | drunkard, coward, greedy, troublemaker | Revealed through events (e.g., drunkard steals rum) | 5% chance at hire |
+| **Scars** | battle, storm, shipwreck, grapple, mutiny | No direct effect (narrative only) | Combat, storms, events |
+| **Positive** | seasoned (50d), veteran (100d), loyal (200d + conditions) | Reduces desertion chance | Days aboard, good treatment |
+| **Negative** | upset, mutineer | Increases desertion chance, may trigger mutiny | Attacking their faction, low morale |
 
 - **Faction Loyalty**: Crew from a specific faction may become **upset** if you attack their homeland. Neglect them and they may **desert at port**.
 - **Biographies**: Each crew member has a **generated bio** reflecting their history (visible in Crew detail panel).
 
 ---
+
 ---
+
 ## Trade & Economy
 
 ---
+
 ### Goods Overview
- | Good | Base Price | Variance | Illegal | Unit |
- |---|---|---|---|---|
- | Food | 3g | 0% | No | ration |
- | Water | 2g | 0% | No | barrel |
- | Rum | 30g | ±20% | No | cask |
- | Sugar | 40g | ±25% | No | sack |
- | Timber | 25g | ±15% | No | plank |
- | Cloth | 55g | ±20% | No | bale |
- | Spices | 120g | ±45% | No | chest |
- | Silk | 160g | ±30% | No | bolt |
- | Coffee | 70g | ±25% | No | bag |
- | Cocoa | 90g | ±30% | No | crate |
- | Weapons | 80g | ±35% | No | crate |
- | **Tobacco** | 90g | ±30% | **Yes** | bale |
- | Silver | 250g | ±35% | No | chest |
- | **Slaves** | 220g | ±60% | **Yes** | person |
+
+| Good | Base Price | Variance | Illegal | Unit |
+|---|---|---|---|---|
+| Food | 3g | 0% | No | ration |
+| Water | 2g | 0% | No | barrel |
+| Rum | 30g | ±5% | No | cask |
+| Sugar | 40g | ±5% | No | sack |
+| Timber | 25g | ±5% | No | plank |
+| Cloth | 55g | ±5% | No | bale |
+| Spices | 120g | ±5% | No | chest |
+| Silk | 160g | ±5% | No | bolt |
+| Coffee | 70g | ±5% | No | bag |
+| Cocoa | 90g | ±5% | No | crate |
+| Weapons | 80g | ±5% | No | crate |
+| **Tobacco** | 90g | ±5% | **Yes** | bale |
+| Silver | 250g | ±5% | No | chest |
+| **Slaves** | 220g | ±5% | **Yes** | person |
+
+> **Design note**: Prices are **stable and learnable** — each port has a consistent price identity based on availability tier and faction production. Random variance is low, so trade routes can be memorised.
 
 ---
+
 ### Buying/Selling
+
 - **Buy Price**: Market Price × **1.10** (10% markup).
 - **Sell Price**: Market Price × **0.90** (10% discount).
 - **Hold Capacity**: Limited by ship type + **Expanded Hold** equipment.
 
 ---
+
 ### Smuggling
+
 - **Contraband Goods**: Tobacco, Slaves.
 - **Patrol Risk**: Higher if carrying contraband (scaled by **infamy + heat**).
 - **Inspection**: Navy patrols can inspect your cargo.
@@ -481,110 +551,187 @@ Crew members accumulate **tags** over time, which affect gameplay and generate u
 - **Equipment Impact**: *Hidden Compartment* reduces detection chance.
 
 ---
+
 ---
+
 ## Missions
 
 ---
+
 ### Mission Types
- | Type | Description | Rep Impact | Infamy Impact |
- |---|---|---|---|
- | **Escort** | Protect a merchant ship to destination | +2/+3/+4 | None |
- | **Patrol** | Clear a region of hostiles | +2/+3/+4 | None |
- | **Combat** | Hunt down and sink a specific enemy | +3/+4/+5 | None |
- | **Trade** | Deliver goods to a port (source them yourself) | +2/+3/+4 | None |
- | **Smuggle** | Deliver contraband (high risk from patrols) | +2 (Pirate) | +Mission infamyGain |
- | **Assault** | Attack a port's defenses | +5 (Pirate) | +3 |
+
+| Type | Description | Rep Impact | Infamy Impact |
+|---|---|---|---|
+| **Escort** | Protect a merchant ship to destination | +2/+3/+4 | None |
+| **Patrol** | Clear a region of hostiles | +2/+3/+4 | None |
+| **Combat** | Hunt down and sink a specific enemy | +3/+4/+5 | None |
+| **Trade** | Deliver goods to a port (source them yourself) | +2/+3/+4 | None |
+| **Smuggle** | Deliver contraband (high risk from patrols) | +2 (Pirate) | +Mission infamyGain |
+| **Assault** | Attack a port's defenses | +5 (Pirate) | +3 |
 
 ---
+
 ### Mission Gold Ranges
- | Fame Tier | Low Risk | Medium Risk | High Risk | Assault |
- |---|---|---|---|---|
- | 0 (Unknown) | 80-100g | 100-125g | 125-150g | 150-200g |
- | 1 (Recognised) | 400-1,500g | 1,500-5,000g | 5,000-7,000g | 7,000-10,000g |
- | 2 (Notorious) | 2,000-7,000g | 7,000-10,000g | 10,000-18,000g | 18,000-22,000g |
- | 3 (Legendary) | 6,000-15,000g | 15,000-30,000g | 30,000-50,000g | 50,000-75,000g |
- | 4 (Immortal) | 15,200-25,000g | 25,000-50,000g | 50,000-80,000g | 80,000-100,000g |
+
+| Fame Tier | Low Risk | Medium Risk | High Risk | Assault |
+|---|---|---|---|---|
+| 0 (Greenhorn) | 80–100g | 100–125g | 125–150g | 150–200g |
+| 1 (Unknown) | 400–1,500g | 1,500–5,000g | 5,000–7,000g | 7,000–10,000g |
+| 2 (Recognised) | 2,000–7,000g | 7,000–10,000g | 10,000–18,000g | 18,000–22,000g |
+| 3 (Notorious) | 6,000–15,000g | 15,000–30,000g | 30,000–50,000g | 50,000–75,000g |
+| 4 (Legendary) | 15,200–25,000g | 25,000–50,000g | 50,000–80,000g | 80,000–100,000g |
+| 5 (Immortal) | 15,200–25,000g | 25,000–50,000g | 50,000–80,000g | 80,000–100,000g |
 
 ---
+
 ### Mission Enemy Stats
- | Fame Tier | Hull | Cannons | Crew |
- |---|---|---|---|
- | 0 | 20-45 | 2-6 | 8-18 |
- | 1 | 40-75 | 5-10 | 15-35 |
- | 2 | 65-110 | 8-16 | 25-55 |
- | 3 | 95-155 | 13-22 | 40-80 |
- | 4 | 135-210 | 18-30 | 60-110 |
+
+| Fame Tier | Hull | Cannons | Crew |
+|---|---|---|---|
+| 0 | 10–20 | 1–3 | 3–6 |
+| 1 | 20–45 | 2–6 | 6–18 |
+| 2 | 40–75 | 5–10 | 15–35 |
+| 3 | 65–110 | 8–16 | 25–55 |
+| 4 | 95–155 | 13–22 | 40–80 |
+| 5 | 135–210 | 18–30 | 60–110 |
 
 ---
+
 ### Mission Reputation Impacts
- | Type | Low | Medium | High |
- |---|---|---|---|
- | Escort | +2 | +3 | +4 |
- | Patrol | +2 | +3 | +4 |
- | Combat | +3 | +4 | +5 |
- | Trade | +2 | +3 | +4 |
- | Smuggle | +2 (Pirate) | — | — |
- | Assault | +5 (Pirate) | — | — |
+
+| Type | Low | Medium | High |
+|---|---|---|---|
+| Escort | +2 | +3 | +4 |
+| Patrol | +2 | +3 | +4 |
+| Combat | +3 | +4 | +5 |
+| Trade | +2 | +3 | +4 |
+| Smuggle | +2 (Pirate) | — | — |
+| Assault | +5 (Pirate) | — | — |
 
 ---
----
-## Combat
 
 ---
-### Pre-Battle: Intercept Screen
+
+## Combat (B11 Rework)
+
+---
+
+### Pre‑Battle: Intercept Screen
+
 Before every fight, you’ll see an **Intercept Screen** with options based on the encounter type:
- | Option | Description | Success Conditions | Failure Effect |
- |---|---|---|---|
- | **Fight** | Enter turn-based combat | Always available | — |
- | **Flee** | Attempt to escape | Speed check: `playerSpeed + roll(6)` vs `enemySpeed + roll(6)` | Forced into battle |
- | **Parley** | Talk your way out | Reputation check: `roll(100) <= min(80, rep + 20)` | Forced into battle |
- | **Bribe** | Pay gold to avoid combat | Enough gold, infamy < 50 | -Gold, -2 rep at current port |
- | **Surrender** | Avoid combat, lose resources | Always available | Lose 50% gold/cargo, +infamy, **no crew loss** |
- | **Allow Inspection** | Navy patrols only | — | Contraband seized, fine = 50% of value |
+
+| Option | Description | Success Conditions | Failure Effect |
+|---|---|---|---|
+| **Fight** | Enter turn‑based combat | Always available | — |
+| **Flee** | Attempt to escape | Speed check: `playerSpeed + roll(6)` vs `enemySpeed + roll(6)` | Forced into battle |
+| **Parley** | Talk your way out | Reputation check: `roll(100) <= min(80, rep + 20)` | Forced into battle |
+| **Bribe** | Pay gold to avoid combat | Enough gold, infamy < 50 | –Gold, –2 rep at current port |
+| **Surrender** | Avoid combat, lose resources | Always available | Varies by encounter (gold, cargo, morale, etc.) |
+| **Allow Inspection** | Navy patrols only | — | Contraband seized, fine = 50% of value |
 
 ---
-### Combat Actions
- | Action | Hit Chance | Damage | Damage Distribution | Special |
- |---|---|---|---|---|
- | **Broadside** | 100% | 0.8–1.2 × cannons | 60% hull, 40% crew | Reliable, consistent damage |
- | **Precision** | 70% | 1.2–1.8 × cannons | 90% hull, 10% crew | High hull damage, can miss |
- | **Grapple** | Crew-based | — | — | Success = **instant victory + plunder**. Chance = `(playerCrew / enemyCrew) × (playerHull% / 100) × (morale / 100)`. Failure = lose crew. |
- | **Evade** | Speed-based | — | — | Success = **flee**. Chance = `0.6 + (playerSpeed - enemySpeed) × 0.02` (clamped **20–95%**). Failure = take **30% enemy broadside damage**. |
 
-**Equipment Impact**:
-- *Surgeon’s Bay*: **Reduces crew loss in combat**.
-- *War Pennants*: **Doubles heat gain** from combat.
+### Naval Combat
+
+Combat is turn‑based with three **distance bands**: **Far**, **Medium**, and **Close**. Each round you choose an action, and the enemy chooses one too.
+
+#### Actions
+
+| Action | Description | Legal Distances |
+|---|---|---|
+| **Broadside** | Reliable cannon volley (100% hit). Damage: 0.8–1.2 × cannons, split 60% hull / 40% crew. | All |
+| **Precision** | Risky but high hull damage (70% hit). Damage: 1.2–1.8 × cannons, 90% hull / 10% crew. | All |
+| **Close Distance** | Move one step closer (Far → Medium → Close). | Far, Medium |
+| **Open Distance** | Move one step further (Close → Medium → Far). | Medium, Close |
+| **Evade** | Attempt to flee. Success chance = `0.6 + (yourSpeed – enemySpeed) × 0.02` (clamped 20–95%). Only possible if the enemy does **not** also choose a movement action. | Far |
+| **Grapple** | Attempt to board the enemy. Only possible at **Close** range. Success leads to the **Boarding Phase**. | Close |
+
+#### Damage Multipliers
+
+| Distance | Broadside | Precision |
+|---|---|---|
+| Far | 0.6× | 1.1× |
+| Medium | 1.0× | 1.0× |
+| Close | 0.9× | 0.7× |
+
+#### Hull / Crew Checks
+
+- If a ship’s hull reaches **0**, it is **sunk** (no plunder).
+- If a ship’s crew reaches **0**, it is **captured** (plunder available).
+- If both reach 0 in the same round, player defeat takes priority.
 
 ---
+
+### Boarding Phase
+
+If a **Grapple** action succeeds at Close range, the battle enters the **Boarding Phase**. Here, crew size and morale determine your advantage.
+
+**Advantage Ratio**:
+```
+effectivePlayerCrew = playerCrew × (0.5 + playerMorale / 200)
+effectiveEnemyCrew  = enemyCrew  × (0.5 + enemyMorale / 200)
+ratio = effectivePlayerCrew / (effectivePlayerCrew + effectiveEnemyCrew)
+```
+
+A **green/red split bar** in the UI shows your advantage percentage.
+
+#### Boarding Actions
+
+| Action | Effect |
+|---|---|
+| **Continue Fighting** | Both sides lose crew proportional to the enemy’s ratio. The fight continues. |
+| **Fall Back** | Return to naval combat at Close range. Costs you crew (15% of your current crew × (1 – ratio)). |
+| **Demand Surrender** | Force the enemy to yield. Requires **ratio ≥ 65%**. Success chance = `(ratio – 0.5) × 2`. If it fails, you lose crew. |
+| **Surrender** | Yield to the enemy. The battle ends in defeat. |
+
+#### Boarding Outcomes
+
+- **Enemy crew wiped** → **Victory** (plunder available).
+- **Your crew wiped** → **Defeat**.
+- **Both fall back** → Return to naval at Close range.
+- **Surrender** → Immediate defeat.
+
+---
+
 ### Victory / Defeat / Fled
- | Outcome | Effect |
- |---|---|
- | **Victory** | +Gold (20% of plunder), +Fame (mission.fame), +Morale (+5 to +10). If `canPlunder`: navigate to **Plunder Screen** to pick enemy cargo. |
- | **Defeat** | Wash ashore at **previous port**, lose **all cargo**, active mission **cancelled**, -10 morale, ship **scarred** (hull reduced by 10%). |
- | **Fled** | -5 morale. Mission **cancelled** if it was a mission fight. Resume sailing. |
+
+| Outcome | Effect |
+|---|---|
+| **Victory** | +Gold (20% of plunder value), +Fame (mission.fame), +Morale (+5 to +10). If `canPlunder`: navigate to **Plunder Screen** to pick enemy cargo. |
+| **Defeat** | Wash ashore at **previous port**, lose **all cargo**, active mission **cancelled**, –10 morale. |
+| **Fled** | –5 morale. Mission **cancelled** if it was a mission fight. Resume sailing. |
 
 ---
+
 ### Plunder Screen
+
 After a victory with plunder available:
+
 - **Gold Reward**: **20%** of total plunder value (automatically awarded).
 - **Enemy Cargo**: Browse and select goods to take (limited by your **hold capacity**).
 - **Jettison**: Drop items from your hold to make room.
 - **Confirm**: Dispatches `TAKE_PLUNDER` with selected cargo, returns to sailing/port.
 
 ---
+
 ---
+
 ## Controls & UI
 
 ---
+
 ### Port Screen
+
 - **Map**: Click a port to set sail (greyed out if unreachable).
 - **Services**: Navigate to **Shipyard**, **Crew**, **Market**, **Status**, **Journal**.
-- **Gossip**: *WORD ON THE DOCKS* panel shows local rumors based on **heat, reputation, fame, infamy, and market conditions**.
+- **Gossip**: *WORD ON THE DOCKS* panel shows local rumours based on **heat, reputation, fame, infamy, and market conditions**.
 - **Missions**: Accept/abandon missions on the mission board.
-- **Save/Load**: **Save Game**, **Export Save** (download `.json`), **Import Save** (upload `.json`), **Load Game**.
+- **Save/Load**: **Save Game**, **Export Save** (download `.broadside`), **Import Save** (upload `.broadside`), **Load Game**.
 
 ---
+
 ### Sailing Screen
+
 - **Progress**: SVG route with ship position.
 - **Wind**: Compass indicator (affects travel time).
 - **Provisions**: Food/water bars with **days remaining**.
@@ -592,65 +739,85 @@ After a victory with plunder available:
 - **Journal Link**: Navigate to **Journal Screen**.
 
 ---
+
 ### Battle Screen
-- **Layout**: 3-column (Player | Battle Log | Enemy).
+
+- **Layout**: 3‑column (Player | Battle Log | Enemy).
 - **Stats**: Hull bars, crew count, cannons, ship type.
+- **Distance Indicator**: Shows current distance band (Far/Medium/Close) and movement direction.
 - **Convoy Hull Bar**: For **escort missions** only.
-- **Actions**: **Broadside**, **Precision**, **Grapple**, **Evade** buttons.
-- **Battle Log**: Turn-by-turn results with damage numbers and crew loss names.
+- **Actions**:
+  - **Naval**: Broadside, Precision, Close/Open Distance, Evade, Grapple.
+  - **Boarding**: Continue Fighting, Fall Back, Demand Surrender, Surrender.
+- **Battle Log**: Turn‑by‑turn results with damage numbers and crew loss names.
 - **Result States**:
   - **Victory**: Gold/fame summary, **Plunder** button (if `canPlunder`), **Continue** button.
   - **Defeat**: Loss summary, **Return to Port** button.
   - **Fled**: Morale penalty note, **Continue Sailing** button.
 
 ---
+
 ---
+
 ## Tips & Strategies
 
 ---
+
 ### Early Game
+
 - **Start Small**: Focus on **escort** and **trade missions** (low risk, guaranteed profit).
 - **Stock Up**: Always carry **10–20 days of food/water** (1 per 10 crew per day).
 - **Save Often**: Use **Export Save** to keep a backup outside the browser.
 - **Upgrade to Cutter ASAP**: The Dinghy is **fragile and slow**.
 
 ---
+
 ### Mid Game
+
 - **Equip Your Ship**:
   - **Combat**: Reinforced Hull + Extra Cannons.
-  - **Trade**: Expanded Hold + Lateen Rig (for speed).
-  - **Survival**: Storm Rigging + Tar-Sealed Hull.
+  - **Trade**: Expanded Hold + Navigation Tools (for speed).
+  - **Survival**: Storm Rigging + Tar‑Sealed Hull.
 - **Explore**: Unlock hidden ports (e.g., **Roatan** at Fame 50 or Pirate Rep 65).
 - **Trade Smart**: Buy low in one port, sell high in another. Watch **gossip** for price hints.
 - **Manage Crew**: Keep morale **above 50**. Buy drinks at taverns. Watch for **faction tensions**.
 
 ---
+
 ### Late Game
+
 - **Big Ships**: **Frigate** or **Galleon** for assault missions and large cargo hauls.
 - **Equipment Combos**:
-  - **Combat**: Long Guns + Reinforced Hull on a Frigate.
-  - **Trade**: Expanded Hold + Lateen Rig on a Galleon.
-  - **Survival**: Storm Rigging + Tar-Sealed Hull + Extra Sails.
+  - **Combat**: Long Guns + Ironclad Plates on a Frigate.
+  - **Trade**: Expanded Hold + Navigation Tools on a Galleon.
+  - **Survival**: Storm Rigging + Tar‑Sealed Hull + Extra Sails.
 - **Balance Fame/Infamy**: Fame unlocks better ships; infamy unlocks pirate content but **increases patrols**.
 - **Locker Management**: **Remove equipment** before buying a new ship (or lose it forever)!
 
 ---
+
 ### Combat Tips
+
 - **Broadside**: Safest for **consistent damage** (100% hit, 60% hull/40% crew).
-- **Precision**: Use against **high-hull targets** (70% hit, 90% hull damage).
-- **Grapple**: Best when you have **crew advantage**. Instant win + plunder.
-- **Evade**: Check ship speeds first. Faster ships flee reliably (**up to 95%**). Slower ships may still flee at **20–60%**.
+- **Precision**: Use against **high‑hull targets** (70% hit, 90% hull damage).
+- **Close/Open Distance**: Control the engagement. Grapple only at Close range. Evade only at Far range.
+- **Boarding**: Only grapple when you have crew advantage. Use **Demand Surrender** if your advantage is ≥65%.
 - **Equipment**: *Surgeon’s Bay* reduces crew loss. *War Pennants* doubles heat gain.
 
 ---
+
 ### Economy Tips
+
 - **Trade Missions Guarantee Profit**: The reward ensures you **won’t lose money**, but you must source goods yourself.
 - **Smuggling**: High profit but **risky**. *Hidden Compartment* helps with inspections.
-- **Spices & Silk**: Highest variance (**±45% and ±30%**) = biggest trade profits (but sometimes unavailable).
+- **Spices & Silk**: Highest base values (**120g and 160g**) = biggest trade profits (but availability varies).
 - **Hold Management**: Use **Expanded Hold** to carry more cargo. Watch **speed penalties** at >50% load.
 
 ---
+
 ---
+
 ## Further Reading
+
 - [Architecture](architecture.md) — Technical deep dive into the game's design.
 - [Roadmap](roadmap.md) — Upcoming features and priorities.
