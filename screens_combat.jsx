@@ -35,11 +35,11 @@ window.S = window.S || {};
     const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS[action]?.[distance] || 1.0;
     const hullDmgPct = L.getEquipmentEffect(state, "hullDmgPct") || 0;
     const crewDmgPct = L.getEquipmentEffect(state, "crewDmgPct") || 0;
-    const randMin = 0.8, randMax = 1.2;
-    const baseMin = cannons * randMin * mult;
-    const baseMax = cannons * randMax * mult;
 
+    // Broadside: cannons * (0.8–1.2) * mult
     if (action === "broadside") {
+      const baseMin = cannons * 0.8 * mult;
+      const baseMax = cannons * 1.2 * mult;
       const hullMin = Math.max(1, Math.floor(baseMin * 0.6 * (1 + hullDmgPct)));
       const hullMax = Math.max(1, Math.floor(baseMax * 0.6 * (1 + hullDmgPct)));
       const crewMin = Math.floor(baseMin * 0.4 / 3 * (1 + crewDmgPct));
@@ -52,10 +52,13 @@ window.S = window.S || {};
       };
     }
 
+    // Precision: cannons * (1.2–1.8) * mult  (fixed)
     if (action === "precision") {
       const hitChance = Math.min(1, 0.7 + (L.getEquipmentEffect(state, "precisionHitPct") || 0));
-      const hullMin = Math.floor(baseMin * 0.9 * (1 + hullDmgPct));
-      const hullMax = Math.floor(baseMax * 0.9 * (1 + hullDmgPct));
+      const baseMin = cannons * 1.2 * mult;
+      const baseMax = cannons * 1.8 * mult;
+      const hullMin = Math.max(1, Math.floor(baseMin * 0.9 * (1 + hullDmgPct)));
+      const hullMax = Math.max(1, Math.floor(baseMax * 0.9 * (1 + hullDmgPct)));
       const crewMin = Math.floor(baseMin * 0.1 / 3 * (1 + crewDmgPct));
       const crewMax = Math.floor(baseMax * 0.1 / 3 * (1 + crewDmgPct));
       return {
@@ -66,26 +69,23 @@ window.S = window.S || {};
       };
     }
 
-    // Boarding action previews (only if battle state is provided)
+    // Continue Fighting – deterministic (fixed)
     if (action === "continue_fighting" && battle) {
       const ratio = L.getBoardingRatio(state, battle, enemy);
       const crew = battle.playerCrew;
       const enemyCrew = battle.enemyCrew;
-      // Loss ranges: min = 0, max = ceil(0.15 * (1-ratio) * crew) (for player)
-      const minPlayerLoss = 0;
-      const maxPlayerLoss = Math.ceil(crew * 0.15 * (1 - ratio));
-      const minEnemyLoss = 0;
-      const maxEnemyLoss = Math.ceil(enemyCrew * 0.15 * ratio);
+      const playerLoss = Math.ceil(crew * 0.15 * (1 - ratio));
+      const enemyLoss = Math.ceil(enemyCrew * 0.15 * ratio);
       return {
         description: "Press the attack in boarding.",
-        crewLossPlayer: [minPlayerLoss, maxPlayerLoss],
-        crewLossEnemy: [minEnemyLoss, maxEnemyLoss],
+        crewLossPlayer: playerLoss,
+        crewLossEnemy: enemyLoss,
         advantage: Math.round(ratio * 100),
         hitChance: null,
       };
     }
 
-    // Static descriptions for other actions
+    // All other actions (static descriptions)
     const staticDescriptions = {
       grapple: "Board the enemy ship. Requires Close range.",
       evade: "Attempt to flee. Speed check.",
@@ -522,10 +522,10 @@ window.S = window.S || {};
                   <li><strong>Precision</strong> — risky but devastating if it hits</li>
                   <li><strong>Close Distance</strong> — move closer to the enemy</li>
                   <li><strong>Open Distance</strong> — move further away</li>
-                  <li><strong>Grapple</strong> — board the enemy. High risk, instant victory if successful. Depends on your crew size advantage and morale.</li>
+                  <li><strong>Grapple</strong> — board the enemy and move to Boarding phase of the combat.</li>
                   <li><strong>Evade</strong> — attempt to flee the battle, depend on your ship speed.</li>
                 </ul>
-                <p>Watch your hull and crew. If your hull reaches zero, you lose.</p>
+                <p>Watch your hull and crew. If your hull reaches zero, you lose. Loosing all crew results in capture.</p>
               </>
             )}
           </TutorialPopup>
@@ -689,13 +689,13 @@ window.S = window.S || {};
                     { a: "surrender", label: "Surrender", desc: actionPreviews.surrender?.description || "Yield to the enemy" },
                   ].map(({ a, label, desc, disabled = false, tooltip = "" }) => {
                     const preview = actionPreviews[a] || {};
-                    const crewLossPlayer = preview.crewLossPlayer || [0,0];
-                    const crewLossEnemy = preview.crewLossEnemy || [0,0];
+                    const playerLoss = preview.crewLossPlayer; 
+                    const enemyLoss = preview.crewLossEnemy; 
                     const adv = preview.advantage !== undefined ? `Advantage: ${preview.advantage}%` : "";
                     const info = a === "continue_fighting"
-                      ? `You lose: ${crewLossPlayer[0]}–${crewLossPlayer[1]} crew · Enemy loses: ${crewLossEnemy[0]}–${crewLossEnemy[1]} crew ${adv ? ` · ${adv}` : ''}`
+                      ? `You lose: ${playerLoss} crew · Enemy loses: ${enemyLoss}  crew ${adv ? ` · ${adv}` : ''}`
                       : a === "fall_back"
-                        ? `You lose: ${crewLossPlayer[0]}–${crewLossPlayer[1]} crew`
+                        ? `You lose: ${playerLoss} crew`
                         : "";
                     return (
                       <Panel

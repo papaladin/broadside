@@ -72,8 +72,8 @@
 <div class="subtitle">Static AST return-point counting + runtime return-shape fingerprinting. Zero source edits.</div>
 
 <div class="method-note">
-  <b>What this measures:</b> for every exported function in <code>logic.js</code> / <code>generators.js</code>,
-  and every action case in the engine reducers, this tool statically counts how many distinct
+  <b>What this measures:</b> for every exported function in <code>logic_core.js</code>, <code>logic_economy_crew.js</code>, <code>logic_travel_events.js</code>, <code>logic_combat_encounter.js</code>, and <code>generators.js</code>,
+  and every action case in the engine reducers (<code>engine_port.js</code>, <code>engine_voyage.js</code>, <code>engine_battle.js</code>, <code>engine_encounter.js</code>), this tool statically counts how many distinct
   <code>return</code> points exist (via a real AST parse — not a text guess), then runs the full test suite
   and records how many <i>distinct return shapes</i> were actually observed at runtime.<br/><br/>
   <b>Honest limitation:</b> two different branches that both return an unchanged/no-op value in the same
@@ -104,8 +104,10 @@
 
 <div id="results"><div class="running">Loading game scripts…</div></div>
 <div class="footer">
-  Targets: logic.js, generators.js (exported functions) · engine_port.js, engine_voyage.js, engine_combat.js
-  (reducer action cases). Runs tests_helpers.js + tests_logic.js + tests_engine.js to generate call data
+  Targets: logic_core.js, logic_economy_crew.js, logic_travel_events.js, logic_combat_encounter.js (exported functions) ·
+  generators.js (exported functions) ·
+  engine_port.js, engine_voyage.js, engine_battle.js, engine_encounter.js (reducer action cases).
+  Runs tests_helpers.js + tests_logic.js + tests_engine.js to generate call data
   (tests_ui.js is skipped — it exercises screens, not the functions this tool measures).
 </div>
 
@@ -116,13 +118,17 @@
 <script src="../data.js"></script>
 <script src="../data_text.js"></script>
 <script src="../ship-sprite.js"></script>
-<script src="../logic.js"></script>
+<script src="../logic_core.js"></script>
+<script src="../logic_economy_crew.js"></script>
+<script src="../logic_travel_events.js"></script>
+<script src="../logic_combat_encounter.js"></script>
 <script src="../storage.js"></script>
 <script src="../generators.js"></script>
 <script src="../engine_core.js"></script>
 <script src="../engine_port.js"></script>
 <script src="../engine_voyage.js"></script>
-<script src="../engine_combat.js"></script>
+<script src="../engine_battle.js"></script>
+<script src="../engine_encounter.js"></script>
 <script src="../engine_onboarding.js"></script>
 <script src="../engine_career.js"></script>
 <script src="../engine_scripted.js"></script>
@@ -133,6 +139,7 @@
 <script src="tests_logic.js"></script>
 <script src="tests_generators.js"></script>
 <script src="tests_engine.js"></script>
+<script src="tests_robustness.js"></script>
 
 <script>
 (function () {
@@ -233,88 +240,88 @@
   // Find every name exported via `Object.assign(window.<ns>, { a, b, c })`
   // or `window.<ns>.a = ...`. Only functions in this set are counted,
   // since only these are instrumentable at runtime.
-function findExportedNames(ast, nsVarName) {
-  const names = new Set();
-  // Track IIFEs that reference window.<ns> via a local variable (e.g., `const L = window.L;`)
-  const nsRefs = new Set(); // Stores local variable names that reference window.<ns>
+  function findExportedNames(ast, nsVarName) {
+    const names = new Set();
+    // Track IIFEs that reference window.<ns> via a local variable (e.g., `const L = window.L;`)
+    const nsRefs = new Set(); // Stores local variable names that reference window.<ns>
 
-  walk(ast, (node) => {
-    // --- Pattern 1: Object.assign(window.L, { a, b, c }) ---
-    if (
-      node.type === "CallExpression" &&
-      node.callee?.type === "MemberExpression" &&
-      node.callee.object?.name === "Object" &&
-      node.callee.property?.name === "assign" &&
-      node.arguments?.[0]?.type === "MemberExpression" &&
-      node.arguments[0].object?.name === "window" &&
-      node.arguments[0].property?.name === nsVarName &&
-      node.arguments?.[1]?.type === "ObjectExpression"
-    ) {
-      for (const prop of node.arguments[1].properties) {
-        if (prop.key?.name) names.add(prop.key.name);
-        else if (prop.key?.value) names.add(prop.key.value);
-      }
-    }
-
-    // --- Pattern 2: window.L.foo = ... ---
-    if (
-      node.type === "AssignmentExpression" &&
-      node.left?.type === "MemberExpression" &&
-      node.left.object?.type === "MemberExpression" &&
-      node.left.object.object?.name === "window" &&
-      node.left.object.property?.name === nsVarName &&
-      node.left.property?.name
-    ) {
-      names.add(node.left.property.name);
-    }
-
-    // --- Pattern 3: window.L = (() => { return { a, b, c }; })() ---
-    if (
-      node.type === "AssignmentExpression" &&
-      node.left?.type === "MemberExpression" &&
-      node.left.object?.name === "window" &&
-      node.left.property?.name === nsVarName &&
-      node.right?.type === "CallExpression" &&
-      (node.right.callee?.type === "FunctionExpression" || node.right.callee?.type === "ArrowFunctionExpression") &&
-      node.right.callee.body?.type === "BlockStatement"
-    ) {
-      const returnStmt = node.right.callee.body.body.find(
-        n => n.type === "ReturnStatement" && n.argument?.type === "ObjectExpression"
-      );
-      if (returnStmt?.argument) {
-        for (const prop of returnStmt.argument.properties) {
+    walk(ast, (node) => {
+      // --- Pattern 1: Object.assign(window.L, { a, b, c }) ---
+      if (
+        node.type === "CallExpression" &&
+        node.callee?.type === "MemberExpression" &&
+        node.callee.object?.name === "Object" &&
+        node.callee.property?.name === "assign" &&
+        node.arguments?.[0]?.type === "MemberExpression" &&
+        node.arguments[0].object?.name === "window" &&
+        node.arguments[0].property?.name === nsVarName &&
+        node.arguments?.[1]?.type === "ObjectExpression"
+      ) {
+        for (const prop of node.arguments[1].properties) {
           if (prop.key?.name) names.add(prop.key.name);
           else if (prop.key?.value) names.add(prop.key.value);
         }
       }
-    }
 
-    // --- Pattern 4: Track local references to window.<ns> (e.g., `const L = window.L;`) ---
-    if (
-      node.type === "VariableDeclarator" &&
-      node.id?.type === "Identifier" &&
-      node.init?.type === "MemberExpression" &&
-      node.init.object?.name === "window" &&
-      node.init.property?.name === nsVarName
-    ) {
-      nsRefs.add(node.id.name); // e.g., add "L" to nsRefs
-    }
+      // --- Pattern 2: window.L.foo = ... ---
+      if (
+        node.type === "AssignmentExpression" &&
+        node.left?.type === "MemberExpression" &&
+        node.left.object?.type === "MemberExpression" &&
+        node.left.object.object?.name === "window" &&
+        node.left.object.property?.name === nsVarName &&
+        node.left.property?.name
+      ) {
+        names.add(node.left.property.name);
+      }
 
-    // --- Pattern 5: Assignments to local refs (e.g., `L.foo = ...` where L = window.L) ---
-    if (
-      node.type === "AssignmentExpression" &&
-      node.left?.type === "MemberExpression" &&
-      node.left.object?.type === "Identifier" &&
-      nsRefs.has(node.left.object.name) && // Check if this local var references window.<ns>
-      node.left.property?.name
-    ) {
-      names.add(node.left.property.name);
-    }
+      // --- Pattern 3: window.L = (() => { return { a, b, c }; })() ---
+      if (
+        node.type === "AssignmentExpression" &&
+        node.left?.type === "MemberExpression" &&
+        node.left.object?.name === "window" &&
+        node.left.property?.name === nsVarName &&
+        node.right?.type === "CallExpression" &&
+        (node.right.callee?.type === "FunctionExpression" || node.right.callee?.type === "ArrowFunctionExpression") &&
+        node.right.callee.body?.type === "BlockStatement"
+      ) {
+        const returnStmt = node.right.callee.body.body.find(
+          n => n.type === "ReturnStatement" && n.argument?.type === "ObjectExpression"
+        );
+        if (returnStmt?.argument) {
+          for (const prop of returnStmt.argument.properties) {
+            if (prop.key?.name) names.add(prop.key.name);
+            else if (prop.key?.value) names.add(prop.key.value);
+          }
+        }
+      }
 
-    return true;
-  });
-  return names;
-}
+      // --- Pattern 4: Track local references to window.<ns> (e.g., `const L = window.L;`) ---
+      if (
+        node.type === "VariableDeclarator" &&
+        node.id?.type === "Identifier" &&
+        node.init?.type === "MemberExpression" &&
+        node.init.object?.name === "window" &&
+        node.init.property?.name === nsVarName
+      ) {
+        nsRefs.add(node.id.name); // e.g., add "L" to nsRefs
+      }
+
+      // --- Pattern 5: Assignments to local refs (e.g., `L.foo = ...` where L = window.L) ---
+      if (
+        node.type === "AssignmentExpression" &&
+        node.left?.type === "MemberExpression" &&
+        node.left.object?.type === "Identifier" &&
+        nsRefs.has(node.left.object.name) && // Check if this local var references window.<ns>
+        node.left.property?.name
+      ) {
+        names.add(node.left.property.name);
+      }
+
+      return true;
+    });
+    return names;
+  }
 
   // Find all top-level function declarations (at any depth inside the IIFE)
   // whose name is in the exported set. Returns { name -> { returns, collisions, line } }.
@@ -510,28 +517,67 @@ function findExportedNames(ast, nsVarName) {
 
     const { ran, failed } = runTestsForCoverage();
 
-    // Static analysis — parse raw source of the five target files.
-    const [logicAst, genAst, portAst, voyageAst, combatAst] = await Promise.all([
-      parseFile("../logic.js"),
-      parseFile("../generators.js"),
-      parseFile("../engine_port.js"),
-      parseFile("../engine_voyage.js"),
-      parseFile("../engine_combat.js"),
-    ]);
+    // ── Static analysis: parse all logic files and merge ──────────────────────
+    const logicFiles = [
+      "../logic_core.js",
+      "../logic_economy_crew.js",
+      "../logic_travel_events.js",
+      "../logic_combat_encounter.js",
+    ];
+    const logicAsts = await Promise.all(logicFiles.map(parseFile));
 
-    const logicExports = findExportedNames(logicAst, "L");
-    const genExports    = findExportedNames(genAst, "G");
-    const logicFns = analyzeFunctions(logicAst, logicExports);
-    const genFns    = analyzeFunctions(genAst, genExports);
+    // Merge exported names from all logic files
+    const logicExports = new Set();
+    for (const ast of logicAsts) {
+      const names = findExportedNames(ast, "L");
+      for (const n of names) logicExports.add(n);
+    }
 
-    // Switch cases are spread across three files — merge them.
-    const actionCases = {
-      ...analyzeSwitchCases(portAst),
-      ...analyzeSwitchCases(voyageAst),
-      ...analyzeSwitchCases(combatAst),
-    };
+    // Merge function analyses from all logic files
+    const logicFns = {};
+    for (const ast of logicAsts) {
+      const fns = analyzeFunctions(ast, logicExports);
+      for (const [name, info] of Object.entries(fns)) {
+        // If duplicate, merge return counts and collisions
+        if (logicFns[name]) {
+          logicFns[name].returnCount += info.returnCount;
+          logicFns[name].collisions = logicFns[name].collisions.concat(info.collisions);
+          // Keep the earliest line number? We'll keep the first one we saw.
+        } else {
+          logicFns[name] = info;
+        }
+      }
+    }
 
-    // Build report rows.
+    // ── Generators ──────────────────────────────────────────────────────────────
+    const genAst = await parseFile("../generators.js");
+    const genExports = findExportedNames(genAst, "G");
+    const genFns = analyzeFunctions(genAst, genExports);
+
+    // ── Engine reducer switch cases: parse port, voyage, battle, encounter ──
+    const engineFiles = [
+      "../engine_port.js",
+      "../engine_voyage.js",
+      "../engine_battle.js",
+      "../engine_encounter.js",
+    ];
+    const engineAsts = await Promise.all(engineFiles.map(parseFile));
+
+    const actionCases = {};
+    for (const ast of engineAsts) {
+      const cases = analyzeSwitchCases(ast);
+      for (const [label, info] of Object.entries(cases)) {
+        if (actionCases[label]) {
+          // Merge: sum return counts, combine collisions, keep earliest line
+          actionCases[label].returnCount += info.returnCount;
+          actionCases[label].collisions = actionCases[label].collisions.concat(info.collisions);
+        } else {
+          actionCases[label] = info;
+        }
+      }
+    }
+
+    // ── Build report rows ──────────────────────────────────────────────────────
     const fileGroups = [];
 
     const buildFnRows = (staticMap, observedMap, prefix) => {
@@ -550,7 +596,7 @@ function findExportedNames(ast, nsVarName) {
       return rows;
     };
 
-    fileGroups.push({ file: "logic.js", rows: buildFnRows(logicFns, observedFn, "L") });
+    fileGroups.push({ file: "logic.js (combined)", rows: buildFnRows(logicFns, observedFn, "L") });
     fileGroups.push({ file: "generators.js", rows: buildFnRows(genFns, observedFn, "G") });
 
     const actionRows = [];
@@ -655,7 +701,7 @@ function findExportedNames(ast, nsVarName) {
       return { fileGroups: __coverageData.fileGroups };
     }
     const map = {
-      "L": "logic.js",
+      "L": "logic.js (combined)",
       "G": "generators.js",
       "E": "engine reducers (action cases)",
     };

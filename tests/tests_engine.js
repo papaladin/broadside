@@ -17,7 +17,7 @@
     makeState, makePortState, makeSailingState, makeBattleState,
     makeCrewMember, fillRoster, makeShip, makeHold, makeMission,
     makeBattle, dispatch,
-    setRandomSequence, resetRandomStub,  // added for deterministic RNG
+    setRandomSequence, resetRandomStub,
   } = window.testHelpers;
 
   const A = window.E.A;
@@ -122,7 +122,6 @@
       faction: "english",
       tutorialMode: "none",
     });
-    // English start adjusts english ports +10 rep (50+10=60) and pirate ports -5 (50-5=45)
     const engAdj = D.STARTS.factionRepAdjust.english;
     const portAffected = Object.keys(D.PORTS).find(k => D.PORTS[k].faction === "english");
     if (portAffected && engAdj.english) {
@@ -192,7 +191,7 @@
   reg("E.SHIP.01", "REPAIR: hull restored to maxHull", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
-      ship: { ...makeShip("sloop"), hull: 60 }, // 40 missing
+      ship: { ...makeShip("sloop"), hull: 60 },
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.ship.hull, 100, "hull restored to sloop maxHull");
@@ -207,14 +206,12 @@
     u.assert(s1.gold < s0.gold, "gold decreased");
   });
 
-  // FIX: repair cost now includes reputation multiplier. rep=50 → Friendly → repairMult=0.90.
-  // baseCost = L.shipRepairCost(s0) = 200; cost = 200 * 0.90 = 180; gold = 5000-180 = 4820.
   reg("E.SHIP.03", "REPAIR: gold deducted matches L.shipRepairCost multiplied by reputation modifier", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
     });
-    const expectedCost = 180; // 40 missing * 5 rate * 0.90 friendly discount
+    const expectedCost = 180;
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.gold, s0.gold - expectedCost,
       `expected gold ${s0.gold - expectedCost}, got ${s1.gold}`);
@@ -222,7 +219,7 @@
 
   reg("E.SHIP.04", "REPAIR: blocked when not enough gold", (u) => {
     const s0 = makePortState("portRoyal", {
-      gold: 1, // not enough for any repair
+      gold: 1,
       ship: { ...makeShip("sloop"), hull: 60 },
     });
     const s1 = dispatch(s0, A.REPAIR);
@@ -233,7 +230,7 @@
   reg("E.SHIP.05", "REPAIR: no-op when hull is already full", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
-      ship: makeShip("sloop"), // hull == maxHull
+      ship: makeShip("sloop"),
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.gold, s0.gold, "gold unchanged on full-hull repair");
@@ -245,7 +242,7 @@
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("E.BUY.01", "BUY_SHIP: gold reduced by ship cost", (u) => {
-    const cutterCost = D.SHIPS.cutter.cost; // 1000
+    const cutterCost = D.SHIPS.cutter.cost;
     const s0 = makePortState("portRoyal", { gold: cutterCost + 500 });
     const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "cutter" });
     u.assertEqual(s1.gold, 500, `gold: expected 500, got ${s1.gold}`);
@@ -281,16 +278,12 @@
 
   reg("E.BUY.06", "BUY_SHIP: blocked by fame requirement", (u) => {
     const s0 = makePortState("portRoyal", { gold: 5000, fame: 0 });
-    // sloop requires fame 20
     const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "sloop" });
-    // With fame 0 and the current ship already a sloop in makePortState,
-    // try buying schooner which requires fame 50
     const s2 = dispatch(makePortState("portRoyal", { gold: 50000, fame: 0 }), A.BUY_SHIP, { shipType: "schooner" });
     u.assertEqual(s2.ship.type, "sloop", "schooner blocked by fame requirement");
   });
 
   reg("E.BUY.07", "BUY_SHIP: roster trimmed to new ship maxCrew", (u) => {
-    // Cutter maxCrew = 20. Build a state with 25 crew on a sloop.
     const bigCrew = fillRoster(25);
     const s0 = makePortState("portRoyal", {
       gold: 10000,
@@ -307,9 +300,7 @@
 
   reg("E.EQ.01", "BUY_EQUIPMENT: adds equipment to correct slot, deducts cost+fee", (u) => {
     const item = D.EQUIPMENT.tar_sealed_hull;
-    const totalCost = item.cost + item.installFee; // 1200 + 150 = 1350
-    // cutter has hull slot, tar_sealed_hull requires fame 20, minHull 60
-    // Use a frigate (hull 180) with fame 100
+    const totalCost = item.cost + item.installFee;
     const s0 = makePortState("portRoyal", {
       gold: 10000,
       fame: 100,
@@ -321,7 +312,6 @@
   });
 
   reg("E.EQ.02", "BUY_EQUIPMENT: blocked if no slot available", (u) => {
-    // Dinghy has zero hull slots
     const s0 = makePortState("portRoyal", {
       gold: 10000,
       fame: 0,
@@ -344,7 +334,6 @@
   });
 
   reg("E.EQ.04", "REMOVE_EQUIPMENT: moves removable item from slot to locker", (u) => {
-    // extra_cannons is armament slot, removable: true
     const s0 = makePortState("portRoyal", {
       fame: 0,
       ship: {
@@ -392,7 +381,7 @@
 
   reg("E.CREW.04", "HIRE_CREW: blocked when not enough gold", (u) => {
     const s0 = makePortState("portRoyal", {
-      gold: 40, // not enough for 1 crew (costs 50)
+      gold: 40,
       crew: { roster: [], max: 40, morale: 80 },
     });
     const s1 = dispatch(s0, A.HIRE_CREW, { count: 1 });
@@ -425,7 +414,7 @@
       gold: 1000,
       crew: { roster: fillRoster(10), max: 40, morale: 70 },
     });
-    const cost = 10 * 5; // 50g
+    const cost = 10 * 5;
     const s1 = dispatch(s0, A.RAISE_MORALE);
     u.assertEqual(s1.crew.morale, 75, "morale +5");
     u.assertEqual(s1.gold, 950, "gold -50");
@@ -433,7 +422,7 @@
 
   reg("E.CREW.08", "RAISE_MORALE: blocked when not enough gold", (u) => {
     const s0 = makePortState("portRoyal", {
-      gold: 10, // not enough for 10 crew * 5g = 50g
+      gold: 10,
       crew: { roster: fillRoster(10), max: 40, morale: 70 },
     });
     const s1 = dispatch(s0, A.RAISE_MORALE);
@@ -506,7 +495,7 @@
       requiredQty: 10,
     });
     const s0 = makePortState("portRoyal", {
-      hold: makeHold({ spices: 2 }), // only 2, need 10
+      hold: makeHold({ spices: 2 }),
       activeMission: mission,
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
@@ -575,7 +564,6 @@
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("E.TRADE.01", "CONFIRM_TRADE: buying goods costs gold and fills hold", (u) => {
-    // Build a minimal market with sugar available
     const market = {
       goods: {
         sugar: { buyFromPort: 50, sellToPort: 40, available: 20, price: 50 },
@@ -687,7 +675,7 @@
     u.assert(s1.encounterSession === null, "encounter cleared");
   });
 
-  reg("E.CMB.04", "DISMISS_BATTLE victory: encounterSession cleared, screen returns", (u) => {
+  reg("E.CMB.04", "DISMISS_BATTLE victory: encounterSession cleared, screen returns (Sail Away path)", (u) => {
     const s0 = makeBattleState({ phase: "victory", log: ["Victory!"] });
     const s1 = dispatch(s0, A.DISMISS_BATTLE);
     u.assert(s1.encounterSession === null, "encounterSession cleared");
@@ -707,19 +695,16 @@
     const s1 = dispatch(s0, A.DISMISS_BATTLE);
     u.assert(s1.encounterSession === null, "encounterSession cleared");
     u.assertEqual(s1.gold, 1000, "gold unchanged");
-    // Defeat zeroes all hold items
     u.assertEqual(L.getHoldUsed(s1.hold.items), 0, "hold cleared");
   });
 
   reg("E.CMB.06", "TAKE_PLUNDER: adds goldReward to gold and clears encounterSession", (u) => {
     const s0 = makeBattleState({
-      // Override the battle object inside the session
-      phase: "plunder",        // must be "plunder" for TAKE_PLUNDER to fire
+      phase: "plunder",
       canPlunder: true,
       goldReward: 200,
       enemyCargo: {},
     });
-    // Ensure the session phase is "plunder" (makeBattleState sets phase: "battle" by default)
     s0.encounterSession.phase = "plunder";
     const newHold = { ...s0.hold.items };
     const s1 = dispatch(s0, A.TAKE_PLUNDER, { holdItems: newHold });
@@ -734,7 +719,6 @@
       distance: "far",
       subPhase: "naval",
     });
-    // Dispatch Close Distance
     const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "close_distance" });
     const battle = s1.encounterSession.battle;
     u.assert(battle.distance !== "far", "distance changed from far");
@@ -742,31 +726,22 @@
   });
 
   reg("E.CMB.NAVAL.02", "BATTLE_ACTION: boarding_begins flips subPhase to boarding", (u) => {
-    // Force a grapple action at close range.
     const s0 = makeBattleState({
       distance: "close",
       subPhase: "naval",
-      enemyHull: 100, // high enough not to be sunk by grapple
+      enemyHull: 100,
     });
-    // We need the NPC to not interfere; we can simulate by setting enemyAction to something passive,
-    // but the BATTLE_ACTION uses the NPC AI. To make this deterministic, we set the enemy to also
-    // grapple (mutual grapple) which always succeeds.
-    // However, we can't easily mock the NPC AI. Instead, we'll assume the test is run with a
-    // predictable enemy action or we can use a seeded RNG. For simplicity, we'll just check the
-    // outcome after a grapple action and if it's not boarding_begins, we skip.
     const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "grapple" });
     if (s1.encounterSession.battle.subPhase === "boarding") {
       u.assert(s1.encounterSession.battle.subPhase === "boarding", "subPhase flipped to boarding");
       u.assertEqual(s1.encounterSession.battle.distance, "close", "distance remains close");
     } else {
-      // If not boarding, it might have been a sunk or continue; we can't assert reliably.
       u.assert(true, "Grapple did not result in boarding (maybe sunk or continue)");
     }
   });
 
   reg("E.CMB.NAVAL.03", "BATTLE_ACTION: enemy_captured sets canPlunder true, enemy_sunk false", (u) => {
-    // Test sunk: enemy hull low, broadside should sink.
-    setRandomSequence([0.9]); // high damage
+    setRandomSequence([0.9]);
     const sSunk = makeBattleState({
       enemyHull: 1,
       enemyCrew: 10,
@@ -779,12 +754,10 @@
     if (battle1 && battle1.phase === "victory") {
       u.assert(!battle1.canPlunder, "sunk -> canPlunder false");
     } else {
-      // If not victory, maybe damage not lethal; skip.
       u.assert(true, "No victory in this round (damage not lethal)");
     }
 
-    // Test capture: enemy crew low, grapple at close should capture.
-    setRandomSequence([0.5]); // grapple success (mutual grapple)
+    setRandomSequence([0.5]);
     const sCap = makeBattleState({
       enemyHull: 100,
       enemyCrew: 1,
@@ -812,9 +785,7 @@
     u.assertEqual(battle.distance, "close", "distance remains close");
   });
 
-  reg("E.CMB.BOARD.02", "BATTLE_ACTION boarding: surrender applies harsher consequences than naval surrender", (u) => {
-    // This test is tricky because surrender consequences are applied in DISMISS_BATTLE or INTERCEPT_SURRENDER,
-    // not directly in BATTLE_ACTION. We'll test that boarding surrender ends the battle with a defeat phase.
+  reg("E.CMB.BOARD.02", "BATTLE_ACTION boarding: surrender leads to defeat phase", (u) => {
     const s0 = makeBattleState({
       subPhase: "boarding",
       phase: "player_turn",
@@ -822,7 +793,151 @@
     const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "surrender" });
     const battle = s1.encounterSession.battle;
     u.assertEqual(battle.phase, "defeat", "surrender leads to defeat");
-    // Further consequence checks are in DISMISS_BATTLE, which we can test separately.
+  });
+
+  // ── NEW: enemy_sunk stays on battle screen ─────────────────────────────────
+
+  reg("E.CMB.NAVAL.04", "BATTLE_ACTION enemy_sunk: stays on battle screen, not auto-clearing", (u) => {
+    setRandomSequence([0.9]); // high damage to ensure kill
+    const s0 = makeBattleState({
+      enemyHull: 1,
+      enemyCrew: 10,
+      distance: "medium",
+      subPhase: "naval",
+    });
+    const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+    resetRandomStub();
+    const battle = s1.encounterSession?.battle;
+    u.assert(battle !== null && battle !== undefined, "encounterSession still exists");
+    u.assertEqual(battle.phase, "victory", "phase is victory");
+    u.assertEqual(s1.screen, "battle", "screen stays on battle");
+    u.assert(!battle.canPlunder, "canPlunder is false for sunk");
+  });
+
+  // ── NEW: TAKE_PLUNDER marks patrol/combat missions as defeated ────────────
+
+  reg("E.CMB.NAVAL.05", "TAKE_PLUNDER: marks patrol/combat mission as defeated", (u) => {
+    const mission = makeMission({
+      type: "patrol",
+      id: "patrol_1",
+      targetPort: "portRoyal",
+      enemyDefeated: false,
+    });
+    const s0 = makeBattleState({
+      phase: "plunder",
+      canPlunder: true,
+      goldReward: 200,
+      enemyCargo: {},
+    });
+    s0.encounterSession.phase = "plunder";
+    s0.activeMission = mission;
+    const newHold = { ...s0.hold.items };
+    const s1 = dispatch(s0, A.TAKE_PLUNDER, { holdItems: newHold });
+    u.assert(s1.activeMission !== null, "mission still active");
+    u.assertEqual(s1.activeMission.enemyDefeated, true, "enemyDefeated set to true");
+    u.assert(s1.encounterSession === null, "encounterSession cleared");
+  });
+
+  // ── NEW: INTERCEPT_PARLEY failure path (the crash fix) ────────────────────
+
+  reg("E.ENC.01", "INTERCEPT_PARLEY: failure path builds battle correctly (crash fix)", (u) => {
+    const enemy = {
+      name: "The Test",
+      faction: "pirate",
+      hull: 100,
+      maxHull: 100,
+      cannons: 10,
+      crew: 20,
+      speed: 8,
+      risk: "medium",
+    };
+    const ctx = {
+      type: "random",
+      phase: "intercept",
+      enemy: enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [{ id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } }],
+      },
+      returnScreen: "port",
+    };
+    const s0 = makePortState("portRoyal", {
+      reputation: { portRoyal: 0 }, // rep 0 ensures parley fails
+      encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
+    });
+    // Force parley failure by ensuring roll fails (rep 0 + roll > 20)
+    setRandomSequence([0.9]); // roll 90 > 20 -> fails
+    const s1 = dispatch(s0, A.INTERCEPT_PARLEY);
+    resetRandomStub();
+    u.assertEqual(s1.screen, "battle", "screen transitions to battle on parley failure");
+    u.assert(s1.encounterSession !== null, "encounterSession still exists");
+    u.assertEqual(s1.encounterSession.phase, "battle", "phase is battle");
+    u.assert(s1.encounterSession.battle !== null, "battle object created");
+    u.assertEqual(s1.encounterSession.battle.enemyHull, 100, "enemy hull preserved");
+    u.assertEqual(s1.encounterSession.battle.enemyCrew, 20, "enemy crew preserved");
+  });
+
+  // ── NEW: INTERCEPT_FLEE failure path ──────────────────────────────────────
+
+  reg("E.ENC.02", "INTERCEPT_FLEE: failure path transitions to battle correctly", (u) => {
+    const enemy = {
+      name: "The Test",
+      faction: "pirate",
+      hull: 100,
+      maxHull: 100,
+      cannons: 10,
+      crew: 20,
+      speed: 8,
+      risk: "medium",
+    };
+    const ctx = {
+      type: "random",
+      phase: "intercept",
+      enemy: enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [{
+          id: "flee",
+          label: "Flee",
+          available: true,
+          reason: null,
+          action: { type: "INTERCEPT_FLEE" },
+          speedCheck: { player: 6, enemy: 12 }, // player slower, flee fails
+        }],
+      },
+      returnScreen: "port",
+    };
+    const s0 = makePortState("portRoyal", {
+      encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
+    });
+    // player speed 6 + roll vs enemy 12 + roll
+    // player max 12, enemy max 18 -> player always loses if roll >= 7
+    setRandomSequence([0.5, 0.5]); // player roll 4 (6+4=10), enemy roll 4 (12+4=16) -> player loses
+    const s1 = dispatch(s0, A.INTERCEPT_FLEE);
+    resetRandomStub();
+    u.assertEqual(s1.screen, "battle", "screen transitions to battle on flee failure");
+    u.assert(s1.encounterSession !== null, "encounterSession still exists");
+    u.assertEqual(s1.encounterSession.phase, "battle", "phase is battle");
+    u.assert(s1.encounterSession.battle !== null, "battle object created");
+  });
+
+  // ── NEW: Victory log message appears in battle log ────────────────────────
+
+  reg("E.CMB.NAVAL.06", "BATTLE_ACTION enemy_sunk: victory message appears in battle log", (u) => {
+    setRandomSequence([0.9]);
+    const s0 = makeBattleState({
+      enemyHull: 1,
+      enemyCrew: 10,
+      distance: "medium",
+      subPhase: "naval",
+      log: ["Previous round..."],
+    });
+    const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+    resetRandomStub();
+    const battleLog = s1.encounterSession?.battle?.log || [];
+    const victoryMessage = battleLog.find(line => line.includes("sunk"));
+    u.assert(victoryMessage !== undefined, "Victory message appears in battle log");
+    u.assertEqual(s1.screen, "battle", "screen stays on battle");
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -889,8 +1004,6 @@
   });
 
   reg("E.SAVE.02", "EXPORT_SAVE: action triggers file download (not unit-testable)", (u) => {
-    // This action is intentionally not unit-tested because it uses Blob/URL.createObjectURL.
-    // See L.encodeSave tests in tests_logic.js for the encoding logic.
     u.assert(true, "skipping EXPORT_SAVE test by design");
   });
 
@@ -905,12 +1018,10 @@
     u.assertEqual(s1.captainName, "Imported Captain", "captainName imported");
   });
 
-  // FIX: tamper by modifying inner JSON while keeping base64 valid; state loads with warning.
   reg("E.SAVE.04", "IMPORT_SAVE: tampered data loads state and logs warning", (u) => {
     const original = makePortState("portRoyal", { gold: 999 });
     const encoded = L.encodeSave(original);
 
-    // Decode outer base64, modify inner 'data', re-encode.
     const binary = atob(encoded);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -970,7 +1081,6 @@
   });
 
   reg("E.MIG.05", "migrateState: upgrades shape converted to equipment slots", (u) => {
-    // Simulate a pre-refactor save with upgrades field
     const oldSave = {
       gold: 100,
       ship: {
@@ -979,7 +1089,6 @@
         hull: 100,
         cannons: 10,
         upgrades: ["reinforced_hull"],
-        // no equipment field
       },
       crew: { roster: [], morale: 80, max: 40 },
     };
@@ -1004,7 +1113,6 @@
   });
 
   reg("E.GAMEOVER.02", "SAIL_TO: blocks sailing with insufficient crew (non-dinghy)", (u) => {
-    // sloop minCrew = 4, we have 2
     const s0 = makePortState("portRoyal", {
       ship: makeShip("sloop"),
       crew: { roster: fillRoster(2), max: 40, morale: 80 },
@@ -1061,14 +1169,12 @@
       encounterSession: { ...ctx, phase: "intercept", notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null, returnScreen: "port" },
     });
     const s1 = dispatch(s0, A.INTERCEPT_FIGHT);
-    // The session should remain null (or unchanged) because the fight is blocked
     u.assert(s1.encounterSession === null || s1.encounterSession?.phase === "intercept",
       "session not transitioned to battle");
     u.assert(s1.log.some(l => l.includes("ship is already lost")), "log contains reason");
   });
 
   reg("E.GAMEOVER.07", "ENTER_PORT: triggers gameover when unrecoverable and skips autosave", (u) => {
-    // Sloop, hull=0, no crew, no gold, empty hold.
     const s0 = makeSailingState("portRoyal", "tortuga", 0, {
       ship: { ...makeShip("sloop"), hull: 0 },
       crew: { roster: [], max: 40, morale: 80 },
@@ -1076,15 +1182,10 @@
       hold: makeHold(),
       autoSave: true,
     });
-    // Ensure destination is set so ENTER_PORT triggers
     const s1 = dispatch(s0, A.ENTER_PORT);
     u.assertEqual(s1.screen, "gameover", "screen changed to gameover");
     u.assert(s1.gameOverReason !== null, "gameOverReason set");
     u.assert(s1.gameOverReason.includes("wrecked"), "reason mentions wrecked ship");
-    // Autosave would have happened after the check. Since we can't easily spy on localStorage here,
-    // we check that the state returned has the gameover flag set. Autosave is called conditionally
-    // after the check. If the check returns gameover, it returns early and never calls autoSave.
-    // This is verified by the screen being gameover instead of port.
   });
 
   reg("E.GAMEOVER.08", "ENTER_PORT: does NOT trigger gameover if unrecoverable but dinghy (exempt)", (u) => {
@@ -1139,7 +1240,7 @@
       }],
     };
     const s0 = makePortState("portRoyal", {
-      ship: { ...makeShip("sloop"), hull: 15 }, // 15 - 30 = 0
+      ship: { ...makeShip("sloop"), hull: 15 },
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
       gold: 0,
       hold: makeHold(),
@@ -1221,7 +1322,6 @@
   });
 
   reg("E.STATE.04", "initialState hold has no capacity field", (u) => {
-    // Architecture rule: hold.capacity must not exist; use L.getHoldCapacity(state) instead
     u.assert(!window.E.initialState.hold.hasOwnProperty("capacity"),
       "hold.capacity should not be on initialState");
   });

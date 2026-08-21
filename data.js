@@ -1501,6 +1501,33 @@ const LEGAL_ACTIONS_BY_DISTANCE = {
   };
 
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  NPC AI – Data Constants (new)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // Base personality weights per faction.
+  // These are multiplied into action scores alongside risk and dynamic signals.
+  // Values are relative – they will be normalized during selection.
+  // Tune via the simulation harness, not by guessing.
+  const AI_ARCHETYPES = {
+    english:  { broadside: 1.0, precision: 1.0, close: 0.8, open: 0.8, grapple: 0.7 },
+    spanish:  { broadside: 1.2, precision: 0.8, close: 0.6, open: 0.7, grapple: 0.5 }, // disciplined gunnery
+    french:   { broadside: 0.9, precision: 1.1, close: 1.0, open: 0.7, grapple: 0.8 },
+    dutch:    { broadside: 1.0, precision: 1.0, close: 0.7, open: 1.1, grapple: 0.5 }, // trade‑minded, avoids melee
+    pirate:   { broadside: 0.8, precision: 0.7, close: 1.3, open: 0.5, grapple: 1.4 }, // boarders
+  };
+
+  // Small additive deltas to grapple/continue‑fighting weight, keyed by encounter type.
+  // Anything not listed gets no modifier.
+  const AI_ORIGIN_MODIFIERS = {
+    mission_combat:     { grapple: +0.3, continueFighting: +0.2 },
+    escort_defend:      { grapple: -0.3, continueFighting: -0.2 },
+    hostile_port_entry: { grapple: +0.2 },
+    navy_patrol:        {}, // neutral
+    navy_patrol_combat: {}, // neutral
+    random:              {}, // neutral
+  };
+
   // Expose all constants globally
   return {
     FACTIONS,
@@ -1531,5 +1558,8 @@ const LEGAL_ACTIONS_BY_DISTANCE = {
     DISTANCE_DAMAGE_MULTIPLIERS,
     LEGAL_ACTIONS_BY_DISTANCE,
     SURRENDER_CONSEQUENCE,
+    // NPC AI constants
+    AI_ARCHETYPES,
+    AI_ORIGIN_MODIFIERS,
   };
 })();
