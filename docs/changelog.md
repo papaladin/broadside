@@ -1,3 +1,10 @@
+
+### 2026-08-24
+- **Combat AI** is now improved, with factions specific, situation aware, player aware, advantage/disadvantage aware decisions from the NPC.
+- **Port comparison cards** display when you click on port on navigation screen, showing good deals, days of travel, reputation, trading tips, and potential illegal trades.
+- **Illustration and flavor text** have been added to event screens and intercept screens. Flavor text is generated based on the player status and standing with the opponent.
+
+
 ### 2026-08-21
 - **Trade missions** now ensure that you will be sent to a port where the goods are in demand, so that there is profit from the trade and the mission reward on top of that. The goal is to make trade mission more lucrative than free trade, to reward players that would focus on trading and economy rather than combat. Same goes for smuggling.
 

@@ -1,3 +1,4 @@
+// @ts-check
 // ═══════════════════════════════════════════════════════════════════
 //  data.js : ALL GAME CONSTANTS (FULLY UPDATED WITH COMBAT MISSIONS)
 //  No logic, no functions. Pure data.

@@ -1,3 +1,4 @@
+// @ts-check
 // engine_port.js – Port Domain (Market, Missions, Crew, Shipyard, Repairs, Start/Load)
 // Registers its reducer into window.E._reducers.
 

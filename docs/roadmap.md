@@ -147,7 +147,6 @@ The game is complete when a player can finish a run, read their journal from sta
 - [ ] Minor data balance: review port-per-faction distribution — Spanish ports are currently over-represented relative to the other four factions (DocTheYounger)
 - [ ] Core problem: patrols are confusing (multiple testers couldn't find the enemy) and hunts barely differ from generic combat missions. Explore: a guaranteed encounter after X days (rising chance), tied to a random sea point within the patrol zone; hunts requiring scouting or trail-following instead of a flat combat trigger. Decide whether to merge the two mission types or give each a genuinely distinct loop
 - [ ] Make a PWA (needs to build the icons, and ensure layout still wokrs on phone with island, camera in screen, etc.)
-- [ ] evaluate adding SVG illustration on event screen and on intercept screen (reuse ship for battle, for the rest..to inventorize to evaluate effort)
 - [ ] evaluate adding a reminder of the ongoing mission somexhere on screen? (at least during market, crew; shipyard, maybe not during combat, nav and sailing. maybe a bottom hud like? or dismissable toast?)
 - [ ] add the integration testing as part of the github actions?
 - [ ] review and potentially restructure all "random encounter", the list of encounter type, encounters from random event and from mission to have something more lean and polyvalent (not patrol, navy_patrol and navy_patrol combat, where they all represent a navy patrol checking cargo, but pirate ambush during wrek random event is different yet defaults on.. patrol ?)
@@ -182,8 +181,8 @@ The game is complete when a player can finish a run, read their journal from sta
 
 #### B11.5 — Enemy AI variety
 - [X] Design complete (`tasks_NPCAI.md`).
-- [ ] NPCs choose actions based on situation, not flat weights (low hull → grapple attempt, fast ship → evade, large crew → grapple)
-- [ ] Each enemy type gets a "preferred doctrine" reflected in its choice weights
+- [X] NPCs choose actions based on situation, not flat weights (low hull → grapple attempt, fast ship → evade, large crew → grapple)
+- [X] Each enemy type gets a "preferred doctrine" reflected in its choice weights
 
 #### B11.6 — Combat log narrative depth pass
 - [X] Leverage existing crew names/traits in the round-by-round log ("Maria refuses to load the cannons," "the cook screams when the deck is hit")
@@ -200,13 +199,13 @@ The game is complete when a player can finish a run, read their journal from sta
 **State Transition**: From "combat mechanics are solid but AI is simple and intercept screen is generic" to "AI feels intentional and intercept screen gives the player meaningful information to act on."
 
 **Tasks**:
-- [ ] **Full NPC AI scoring**: Implement utility‑based AI from `tasks_NPCAI.md` (faction archetypes, risk, dynamic signals).
-- [ ] **Intercept screen flavour**: Rich, contextual flavour text per encounter type/faction.
-- [ ] **Intercept screen UX improvements**:
+- [X] **Full NPC AI scoring**: Implement utility‑based AI from `tasks_NPCAI.md` (faction archetypes, risk, dynamic signals).
+- [X] **Intercept screen flavour**: Rich, contextual flavour text per encounter type/faction.
+- [X] **Intercept screen UX improvements**:
   - Show faction tag prominently.
   - Add qualitative risk read ("Low/Medium/High") — "the crew believes victory is likely."
-- [ ] **Combat AI simulator**: Standalone tool to validate action distribution and balance across archetypes.
-- [ ] **Optional**: SVG illustrations for intercept/event screens (faction‑specific or encounter‑type art).
+- [X] **Combat AI simulator**: Standalone tool to validate action distribution and balance across archetypes.
+- [X] **Optional**: SVG illustrations for intercept/event screens (faction‑specific or encounter‑type art).
 
 **Measurement** (to validate B11 as the stable central tactical system):
 - Action choice distribution (are players choosing intentionally, or is one action obviously best?)

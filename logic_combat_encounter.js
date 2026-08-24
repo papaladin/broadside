@@ -1,3 +1,4 @@
+// @ts-check
 // logic_combat_encounter.js — Combat resolution (old + B11) and encounter building.
 // Depends on logic_core.js and logic_economy_crew.js (must be loaded after).
 // Exposed as window.L.
@@ -141,7 +142,7 @@ const getNPCNavalAction = (state, encounterSession) => {
   const self = {
     hull: encounterSession.battle.enemyHull,
     maxHull: enemy.maxHull,
-    crew: enemy.crew,
+    crew: encounterSession.battle.enemyCrew, 
     speed: enemy.speed,
 
   };

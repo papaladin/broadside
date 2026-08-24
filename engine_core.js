@@ -1,3 +1,4 @@
+// @ts-check
 // engine_core.js : Shared Infrastructure
 // Exposes window.E with A, initialState, reducer, shared helpers.
 
@@ -71,12 +72,17 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHARED HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  let saveTimeout = null;
   window.E.autoSave = (state) => {
-    try {
-      localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
-    } catch (e) {
-      console.warn("Auto-save failed:", e);
-    }
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      try {
+        localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
+      } catch (e) {
+        console.warn("Auto-save failed:", e);
+      }
+    }, 1000); // Save at most once per second
   };
 
   window.E.migrateState = (loaded) => {

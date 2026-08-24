@@ -1,3 +1,4 @@
+// @ts-check
 // logic_core.js — Foundation layer: universal helpers, ship stats, equipment, reputation, logs, B9.
 // Exposed as window.L. Must be loaded before all other logic files.
 

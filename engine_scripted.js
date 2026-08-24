@@ -1,3 +1,4 @@
+// @ts-check
 // engine_scripted.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Scripted gameplay recorder.

@@ -1,3 +1,4 @@
+// @ts-check
 // data_text.js : All text constants for Broadside
 // Extends window.D with pure text data.
 // Must be loaded AFTER data.js.

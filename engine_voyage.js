@@ -1,3 +1,4 @@
+// @ts-check
 // engine_voyage.js – Voyage Domain (Sailing, Wind, Provisions, Hidden Ports)
 // Registers its reducer into window.E._reducers.
 

@@ -1,3 +1,4 @@
+// @ts-check
 // engine_onboarding.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Onboarding middleware reducer.

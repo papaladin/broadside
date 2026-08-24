@@ -1,3 +1,4 @@
+// @ts-check
 // logic_economy_crew.js — Crew, economy, reputation, port logic.
 // Depends on logic_core.js (must be loaded after).
 // Exposed as window.L.

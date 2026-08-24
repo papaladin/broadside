@@ -1,3 +1,4 @@
+// @ts-check
 // logic_travel_events.js — Navigation, travel, and random events.
 // Depends on logic_core.js and logic_economy_crew.js (must be loaded after).
 // Exposed as window.L.

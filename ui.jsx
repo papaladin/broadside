@@ -994,6 +994,7 @@ function PortModal({ targetPortKey, state, dispatch, onClose }) {
   const currentPortKey = state.currentPort;
   const targetPort = D.PORTS[targetPortKey];
   const currentPort = D.PORTS[currentPortKey];
+  const isAtSea = state.sailingDaysLeft > 0 && state.destination;
 
   if (!targetPort || !currentPort) return null;
 
@@ -1001,7 +1002,7 @@ function PortModal({ targetPortKey, state, dispatch, onClose }) {
   const isReachable = L.canReach(state, targetPortKey) && targetPortKey !== currentPortKey;
   const unreachableReason = isReachable ? null : L.getUnreachableReason(state, targetPortKey);
 
-  const tradeOpp = L.getTradeOpportunity(state, currentPortKey, targetPortKey);
+  const tradeOpp = isAtSea ? null : L.getTradeOpportunity(state, currentPortKey, targetPortKey);
 
   const isDinghy = state.ship.type === "dinghy";
   const minCrew = L.getMinViableCrew(state.ship.type);
@@ -1066,6 +1067,25 @@ function PortModal({ targetPortKey, state, dispatch, onClose }) {
           unreachableReason={unreachableReason}
           isCurrent={false}
         />
+                {/* Mission target badge */}
+        {state.activeMission?.targetPort === targetPortKey && (
+          <div style={{
+            marginTop: 8,
+            padding: "6px 8px",
+            background: "rgba(201,170,110,0.15)",
+            border: `1px solid ${T.gold}`,
+            borderRadius: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: T.narrativeFontSize,
+            color: T.gold,
+          }}>
+            <span>
+              Mission target: <strong>{state.activeMission.name}</strong>
+            </span>
+          </div>
+        )}
 
         {tradeOpp && (
           <div style={{
@@ -1101,38 +1121,40 @@ function PortModal({ targetPortKey, state, dispatch, onClose }) {
           </div>
         )}
 
-        <div style={{ marginTop: 16 }}>
-          <div
-            onClick={() => setShowComparison(!showComparison)}
-            style={{
-              cursor: "pointer",
-              color: T.gold,
-              fontSize: T.narrativeFontSize,
-              fontWeight: "bold",
-              padding: "6px 0",
-              borderTop: `1px solid ${T.borderFaint}`,
-              paddingTop: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span>{showComparison ? "▾" : "▸"}</span>
-            {IconBarChart && React.createElement(IconBarChart, { size: 14, color: T.gold })}
-            Compare with {currentPort.name}
-          </div>
-          {showComparison && (
-            <div style={{ marginTop: 12 }}>
-              <PortCard
-                portKey={currentPortKey}
-                state={state}
-                label="Current Port"
-                isCurrent={true}
-                distance={0}
-              />
+        {!isAtSea && (
+          <div style={{ marginTop: 16 }}>
+            <div
+              onClick={() => setShowComparison(!showComparison)}
+              style={{
+                cursor: "pointer",
+                color: T.gold,
+                fontSize: T.narrativeFontSize,
+                fontWeight: "bold",
+                padding: "6px 0",
+                borderTop: `1px solid ${T.borderFaint}`,
+                paddingTop: 12,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>{showComparison ? "▾" : "▸"}</span>
+              {IconBarChart && React.createElement(IconBarChart, { size: 14, color: T.gold })}
+              Compare with {currentPort.name}
             </div>
-          )}
-        </div>
+            {showComparison && (
+              <div style={{ marginTop: 12 }}>
+                <PortCard
+                  portKey={currentPortKey}
+                  state={state}
+                  label="Current Port"
+                  isCurrent={true}
+                  distance={0}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

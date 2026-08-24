@@ -1,3 +1,4 @@
+// @ts-check
 // ship-sprite.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure SVG ship silhouette renderer.

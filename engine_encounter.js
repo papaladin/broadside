@@ -1,3 +1,4 @@
+// @ts-check
 // engine_encounter.js – Encounter Setup & Events (Intercept, Events, Merchant Encounters)
 // Registers its reducer into window.E._reducers.
 // Depends on engine_battle.js for applyCrewLossToState and washAshore.

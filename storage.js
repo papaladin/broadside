@@ -1,3 +1,4 @@
+// @ts-check
 // storage.js — Save, Load, Export/Import, and Tutorial State
 // Non‑pure functions that read/write localStorage.
 // Must be loaded AFTER logic.js (extends window.L).

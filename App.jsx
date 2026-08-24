@@ -382,7 +382,6 @@ const App = () => {
   }
 
   const renderScreen = () => {
-    console.log("[App] Rendering screen:", state.screen, state.encounterSession?.phase);
     const { S } = window;
     switch (state.screen) {
       case "title": return <S.TitleScreen dispatch={dispatch} />;

@@ -1,3 +1,4 @@
+// @ts-check
 // ═══════════════════════════════════════════════════════════════════
 //  generators.js : ALL RUNTIME CONTENT GENERATORS
 //  Functions that use Math.random to produce game content at runtime.

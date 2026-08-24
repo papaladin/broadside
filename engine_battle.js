@@ -1,3 +1,4 @@
+// @ts-check
 // engine_battle.js – Combat Resolution (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER)
 // Registers its reducer into window.E._reducers.
 
