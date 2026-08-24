@@ -38,10 +38,12 @@
 <nav>
   <a href="#sceneA">Cover</a>
   <a href="#sceneB">Log</a>
-  <a href="#sceneC">Combat</a>
-  <a href="#sceneD">Port</a>
-  <a href="#sceneE">Crew</a>
-  <a href="#sceneF">F: itch.io Assets</a>
+  <a href="#sceneC">Naval Combat</a>
+  <a href="#sceneD">Boarding</a>
+  <a href="#sceneE">Port</a>
+  <a href="#sceneF">Crew</a>
+  <a href="#sceneG">Event</a>
+  <a href="#sceneH">itch.io Assets</a>
 </nav>
 
 <script>
@@ -55,12 +57,15 @@
 
 <script src="../data.js"></script>
 <script src="../data_text.js"></script>
-<script src="../logic.js"></script>
+<script src="../logic_core.js"></script>
+<script src="../logic_economy_crew.js"></script>
+<script src="../logic_travel_events.js"></script>
+<script src="../logic_combat_encounter.js"></script>
 <script src="../storage.js"></script>
 <script src="../ship-sprite.js"></script>
 
-<script type="text/babel" data-presets="react" src="../icons.jsx"></script>
 <script type="text/babel" data-presets="react" src="../ui.jsx"></script>
+<script type="text/babel" data-presets="react" src="../icons.jsx"></script>
 
 <div id="scenes-root"><div class="loading">Loading game UI…</div></div>
 
@@ -234,7 +239,7 @@ waitReady(() => {
     );
   };
 
-  // ── SCENE C: Combat ─────────────────────────────────────────
+  // ── SCENE C: Naval Combat (update for distance indicator) ──
   const SceneC = ({ size, sid }) => {
     const sz = size;
     const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
@@ -250,6 +255,11 @@ waitReady(() => {
             display:"flex", alignItems:"center", justifyContent:"center", gap:6}}>
             <IconSwords size={fs+4} color={T.redBr} />
             NAVAL BATTLE — ROUND 4
+          </div>
+          {/* Distance Indicator */}
+          <div style={{textAlign:"center", color:T.textDim, fontSize:fs-1,
+            padding:4, background:T.bgDeep, borderRadius:3, marginBottom:2}}>
+            Distance: <span style={{color:T.gold, fontWeight:"bold"}}>CLOSE</span>
           </div>
           <div style={{display:"grid", gridTemplateColumns:"1fr 26px 1fr",
             gap:4, alignItems:"stretch"}}>
@@ -318,13 +328,88 @@ waitReady(() => {
     );
   };
 
-  // ── SCENE D: Port (with silhouette) ─────────────────────────
+  // ── SCENE D: Boarding Combat (new) ─────────────────────────
+  const SceneD = ({ size, sid }) => {
+    const sz = size;
+    const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
+    const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
+    const spriteW = sz.w >= 1000 ? 200 : sz.w >= 500 ? 150 : 100;
+    const spriteH = sz.w >= 1000 ? 140 : sz.w >= 500 ? 100 : 70;
+    const ratio = 0.68; // player advantage 68%
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex", flexDirection:"column", gap:p/2}}>
+          <div style={{textAlign:"center", color:T.blueBr, fontSize:fs+3,
+            fontWeight:"bold", letterSpacing:"0.1em",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:6}}>
+            <IconSwords size={fs+4} color={T.blueBr} />
+            BOARDING ACTION — ROUND 3
+          </div>
+
+          {/* Advantage Bar */}
+          <div style={{background:T.bgDeep, borderRadius:3, padding:6, border:`1px solid ${T.borderFaint}`}}>
+            <div style={{position:"relative", height:20, borderRadius:2, overflow:"hidden"}}>
+              <div style={{position:"absolute", left:0, top:0, bottom:0, width:ratio*100+"%", background:T.greenBr}} />
+              <div style={{position:"absolute", right:0, top:0, bottom:0, width:(1-ratio)*100+"%", background:T.redBr}} />
+              <div style={{position:"absolute", left:0, right:0, top:0, bottom:0, display:"flex", justifyContent:"center", alignItems:"center", fontSize:fs, fontWeight:"bold", color:"#000", textShadow:"0 0 4px rgba(255,255,255,0.4)"}}>
+                {Math.round(ratio*100)}% vs {Math.round((1-ratio)*100)}%
+              </div>
+            </div>
+            <div style={{display:"flex", justifyContent:"space-between", fontSize:fs-2, marginTop:4}}>
+              <span style={{color:T.greenBr}}>Your crew: 18 (effective 22)</span>
+              <span style={{color:T.redBr}}>Enemy crew: 10 (effective 13)</span>
+            </div>
+          </div>
+
+          {/* Two ship sprites at close range */}
+          <div style={{display:"grid", gridTemplateColumns:"1fr 20px 1fr", gap:4, alignItems:"center"}}>
+            <div style={{display:"flex", justifyContent:"flex-end", alignItems:"center"}}>
+              <ShipSideSprite type="schooner" faction="pirate" equipment={["war_pennants"]}
+                width={spriteW} height={spriteH} facing="right" />
+            </div>
+            <div style={{textAlign:"center", color:T.blueBr, fontSize:22}}>⚓</div>
+            <div style={{display:"flex", justifyContent:"flex-start", alignItems:"center"}}>
+              <ShipSideSprite type="frigate" faction="spanish" width={spriteW} height={spriteH} facing="left" />
+            </div>
+          </div>
+
+          {/* Boarding log */}
+          <div style={{...panelStyle({background:T.bgDeep, padding:p-4}),
+            fontSize:fs-1, maxHeight:sz.h*0.18, overflow:"hidden"}}>
+            <div style={{color:T.text, marginBottom:3}}>
+              Your crew cuts down 4 enemy sailors. 2 of your own fall.
+            </div>
+            <div style={{color:T.greenBr}}>Enemy is wavering — you may press the attack.</div>
+          </div>
+
+          {/* Boarding actions */}
+          <div style={{display:"grid",
+            gridTemplateColumns: sz.w < 480 ? "1fr 1fr" : "repeat(4, 1fr)",
+            gap:8}}>
+            {[
+              { lbl:"Continue", desc:"Press the attack", c:T.greenBr },
+              { lbl:"Fall Back", desc:"Costs crew", c:T.goldDim },
+              { lbl:"Demand", desc:"Force surrender", c:T.blueBr },
+              { lbl:"Surrender", desc:"Yield", c:T.redBr },
+            ].map((b, i) => (
+              <div key={i} style={panelStyle({background:T.panelAlt, padding:p/2, borderColor:b.c})}>
+                <div style={{color:T.text, fontSize:fs, fontWeight:"bold", marginBottom:2}}>{b.lbl}</div>
+                {sz.w >= 500 && <div style={{color:T.textDim, fontSize:fs-2}}>{b.desc}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE E: Port (with silhouette) ─────────────────────────
   const GOSSIP = [
     "The tavern is already loud, and the sun hasn't set yet.",
     "A merchant claims Spices sell well at Curaçao. He seems unreliable.",
     "Children point at your flag. Sailors trade stories about you, and some of them are true.",
   ];
-  const SceneD = ({ size, sid }) => {
+  const SceneE = ({ size, sid }) => {
     const sz = size;
     const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
     const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
@@ -369,7 +454,7 @@ waitReady(() => {
     );
   };
 
-  // ── SCENE E: Crew ───────────────────────────────────────────
+  // ── SCENE F: Crew ───────────────────────────────────────────
   const CREW_TRAIT_LABELS = {
     loyal: "Loyal Officer",
     scar_battle: "Battle Scarred",
@@ -402,7 +487,7 @@ waitReady(() => {
     return T.textDim;
   };
   const tagLabelRaw = (tag) => tag.replace(/^revealed_/, "").replace(/_/g, " ");
-  const SceneE = ({ size, sid }) => {
+  const SceneF = ({ size, sid }) => {
     const sz = size;
     const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
     const fs = sz.w >= 1000 ? 12 : sz.w >= 500 ? 10 : 8;
@@ -466,8 +551,56 @@ waitReady(() => {
     );
   };
 
-  // ── SCENE F: itch.io Assets ─────────────────────────────────
-  const SceneFBanner = ({ sid }) => (
+  // ── SCENE G: Random Event — Wreck (new) ─────────────────────
+  const SceneG = ({ size, sid }) => {
+    const sz = size;
+    const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
+    const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
+    return (
+      <SceneBox id={sid} w={sz.w} h={sz.h}>
+        <div style={{padding:p, height:"100%", display:"flex",
+          flexDirection:"column", gap:p/2, overflow:"hidden"}}>
+          <div style={{display:"flex", justifyContent:"space-between",
+            alignItems:"center", marginBottom:4}}>
+            <Pill label="Choice" color={T.gold} />
+            <span style={{color:T.textDim, fontSize:fs-2}}>Day 23</span>
+          </div>
+          <div style={{color:T.gold, fontSize:fs+3, fontWeight:"bold"}}>Drifting Wreck</div>
+
+          {/* SVG illustration */}
+          <div style={{width:"100%", maxHeight: sz.w >= 500 ? 200 : 120,
+            overflow:"hidden", borderRadius:4, background:"#0d1824",
+            border:`1px solid ${T.borderFaint}`, marginBottom:4}}>
+            <img src="../event-wreck.svg" alt="Wreck"
+              crossOrigin="anonymous"
+              style={{width:"100%", height:"auto", display:"block"}} />
+          </div>
+
+          <p style={{color:T.text, fontSize:fs, lineHeight:1.5, marginBottom:4}}>
+            A damaged ship drifts in the current, hull split and sails in tatters.
+            You spot a wreck adrift:  broken masts, silent decks.
+          </p>
+
+          {/* Choices */}
+          {sz.w >= 500 && (
+            <div style={{display:"flex", flexDirection:"column", gap:6}}>
+              <div style={panelStyle({background:T.panelAlt, padding:8})}>
+                <div style={{color:T.text, fontSize:fs, fontWeight:"bold"}}>Search the wreck (risky)</div>
+                <div style={{color:T.textDim, fontSize:fs-2}}>You bring your ship alongside and send a party aboard...</div>
+              </div>
+              <div style={panelStyle({background:T.panelAlt, padding:8})}>
+                <div style={{color:T.text, fontSize:fs, fontWeight:"bold"}}>Leave it be</div>
+                <div style={{color:T.textDim, fontSize:fs-2}}>You leave the wreck to the mercy of the sea. The crew watches it drift past in silence.</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // ── SCENE H: itch.io Assets ─────────────────────────────────
+  const SceneHBanner = ({ sid }) => (
     <SceneBox id={sid} w={960} h={480}>
       <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04}}
            viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
@@ -498,7 +631,7 @@ waitReady(() => {
     </SceneBox>
   );
 
-  const SceneFBackground = ({ sid }) => (
+  const SceneHBackground = ({ sid }) => (
     <SceneBox id={sid} w={1920} h={1080}>
       <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.03}}
            viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
@@ -512,7 +645,7 @@ waitReady(() => {
     </SceneBox>
   );
 
-  const SceneFEmbed = ({ sid }) => (
+  const SceneHEmbed = ({ sid }) => (
     <SceneBox id={sid} w={640} h={480}>
       <svg style={{position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04}}
            viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice">
@@ -575,7 +708,7 @@ waitReady(() => {
       </div>
 
       <div id="sceneC">
-        <SectionHeader>Scene C — Combat (with real ship sprites)</SectionHeader>
+        <SectionHeader>Scene C — Naval Combat (with distance indicator)</SectionHeader>
         {SIZES.map((sz, i) => (
           <SizeBlock key={i} label={sz.l} sid={`sC${i}`}
             exportName={`broadside-combat-${sz.l}.png`}>
@@ -585,38 +718,58 @@ waitReady(() => {
       </div>
 
       <div id="sceneD">
-        <SectionHeader>Scene D — Port (with silhouette)</SectionHeader>
+        <SectionHeader>Scene D — Boarding Combat</SectionHeader>
         {SIZES.map((sz, i) => (
           <SizeBlock key={i} label={sz.l} sid={`sD${i}`}
-            exportName={`broadside-port-${sz.l}.png`}>
+            exportName={`broadside-boarding-${sz.l}.png`}>
             <SceneD size={sz} sid={`sD${i}`} />
           </SizeBlock>
         ))}
       </div>
 
       <div id="sceneE">
-        <SectionHeader>Scene E — Crew</SectionHeader>
+        <SectionHeader>Scene E — Port (with silhouette)</SectionHeader>
         {SIZES.map((sz, i) => (
           <SizeBlock key={i} label={sz.l} sid={`sE${i}`}
-            exportName={`broadside-crew-${sz.l}.png`}>
+            exportName={`broadside-port-${sz.l}.png`}>
             <SceneE size={sz} sid={`sE${i}`} />
           </SizeBlock>
         ))}
       </div>
 
       <div id="sceneF">
-        <SectionHeader>Scene F — itch.io Page Assets</SectionHeader>
-        <SizeBlock label="Banner 960×480" sid="sF0"
+        <SectionHeader>Scene F — Crew</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sF${i}`}
+            exportName={`broadside-crew-${sz.l}.png`}>
+            <SceneF size={sz} sid={`sF${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneG">
+        <SectionHeader>Scene G — Random Event: Drifting Wreck</SectionHeader>
+        {SIZES.map((sz, i) => (
+          <SizeBlock key={i} label={sz.l} sid={`sG${i}`}
+            exportName={`broadside-event-wreck-${sz.l}.png`}>
+            <SceneG size={sz} sid={`sG${i}`} />
+          </SizeBlock>
+        ))}
+      </div>
+
+      <div id="sceneH">
+        <SectionHeader>Scene H — itch.io Page Assets</SectionHeader>
+        <SizeBlock label="Banner 960×480" sid="sH0"
           exportName="broadside-banner-960x480.png">
-          <SceneFBanner sid="sF0" />
+          <SceneHBanner sid="sH0" />
         </SizeBlock>
-        <SizeBlock label="Background 1920×1080" sid="sF1"
+        <SizeBlock label="Background 1920×1080" sid="sH1"
           exportName="broadside-background-1920x1080.png">
-          <SceneFBackground sid="sF1" />
+          <SceneHBackground sid="sH1" />
         </SizeBlock>
-        <SizeBlock label="Embed BG 640×480" sid="sF2"
+        <SizeBlock label="Embed BG 640×480" sid="sH2"
           exportName="broadside-embed-640x480.png">
-          <SceneFEmbed sid="sF2" />
+          <SceneHEmbed sid="sH2" />
         </SizeBlock>
       </div>
     </>

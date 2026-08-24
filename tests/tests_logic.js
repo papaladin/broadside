@@ -11,7 +11,7 @@
   const {
     makeState, makeShip, makeHold, makeCrewMember, fillRoster,
     makePortState, makeBattleState, makeEnemy,
-    setRandomSequence, resetRandomStub,
+    setRandomSequence, resetRandomStub,makeEncounterSession,
   } = window.testHelpers;
 
   const L = window.L;
@@ -1190,51 +1190,54 @@
 
   // ── NEW: NPC AI action coverage ──────────────────────────────────────────
 
-  reg("L.BOARD.14", "getNPCBoardingAction: returns fall_back when enemy ratio is very low", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 5, risk: "low" });
-    const battle = { playerCrew: 20, enemyCrew: 5 };
-    const ratio = L.getBoardingRatio(state, battle, enemy);
-    // enemy ratio = 1 - ratio, which will be very low
-    const action = L.getNPCBoardingAction(battle, enemy, ratio);
-    // With low enemy ratio, fall_back should be chosen when roll hits that branch
-    // Since it's stochastic, we just verify it returns a valid action
-    u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-  });
+// ── NEW: NPC AI action coverage ──────────────────────────────────────────
 
-  reg("L.BOARD.15", "getNPCBoardingAction: returns surrender when enemy ratio is extremely low", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(30), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 2, risk: "low" });
-    const battle = { playerCrew: 30, enemyCrew: 2 };
-    const ratio = L.getBoardingRatio(state, battle, enemy);
-    // enemy ratio will be very low
-    const action = L.getNPCBoardingAction(battle, enemy, ratio);
-    u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-  });
+reg("L.BOARD.14", "getNPCBoardingAction: returns fall_back when enemy ratio is very low", (u) => {
+  const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
+  const enemy = makeEnemy({ crew: 5, risk: "low" });
+  const session = makeEncounterSession(state, enemy, { playerCrew: 20, enemyCrew: 5 });
+  const action = L.getNPCBoardingAction(state, session);
+  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
+});
 
-  reg("L.BOARD.16", "getNPCBoardingAction: returns continue_fighting when enemy ratio is moderate", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 10, enemyCrew: 10 };
-    const ratio = L.getBoardingRatio(state, battle, enemy);
-    const action = L.getNPCBoardingAction(battle, enemy, ratio);
-    u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-  });
+reg("L.BOARD.15", "getNPCBoardingAction: returns surrender when enemy ratio is extremely low", (u) => {
+  const state = makePortState({ crew: { roster: fillRoster(30), morale: 50, max: 40 } });
+  const enemy = makeEnemy({ crew: 2, risk: "low" });
+  const session = makeEncounterSession(state, enemy, { playerCrew: 30, enemyCrew: 2 });
+  const action = L.getNPCBoardingAction(state, session);
+  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
+});
 
-  reg("L.BOARD.17", "getNPCNavalAction: returns broadside when health is good", (u) => {
-    const enemy = makeEnemy({ hull: 100, cannons: 10, crew: 20 });
-    const battle = { distance: "medium", enemyHull: 100 };
-    const action = L.getNPCNavalAction(battle, enemy);
-    u.assert(["broadside", "precision", "close_distance", "open_distance"].includes(action), "returns valid naval action");
-  });
+reg("L.BOARD.16", "getNPCBoardingAction: returns continue_fighting when enemy ratio is moderate", (u) => {
+  const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
+  const enemy = makeEnemy({ crew: 10, risk: "medium" });
+  const session = makeEncounterSession(state, enemy, { playerCrew: 10, enemyCrew: 10 });
+  const action = L.getNPCBoardingAction(state, session);
+  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
+});
 
-  reg("L.BOARD.18", "getNPCNavalAction: returns open_distance when hull is low and at close range", (u) => {
-    const enemy = makeEnemy({ hull: 100, cannons: 10, crew: 20 });
-    const battle = { distance: "close", enemyHull: 20 };
-    // With low hull at close range, open_distance is likely
-    const action = L.getNPCNavalAction(battle, enemy);
-    u.assert(["broadside", "precision", "close_distance", "open_distance"].includes(action), "returns valid naval action");
+reg("L.BOARD.17", "getNPCNavalAction: returns broadside when health is good", (u) => {
+  const state = makePortState({ ship: makeShip("sloop"), crew: { roster: fillRoster(10), morale: 80, max: 40 } });
+  const enemy = makeEnemy({ hull: 100, maxHull: 100, cannons: 10, crew: 20, speed: 10 });
+  const session = makeEncounterSession(state, enemy, { distance: "medium", enemyHull: 100 });
+  const action = L.getNPCNavalAction(state, session);
+  u.assert(["broadside", "precision", "close_distance", "open_distance"].includes(action), "returns valid naval action");
+});
+
+reg("L.BOARD.18", "getNPCNavalAction: returns open_distance when hull is low and at close range", (u) => {
+  const state = makePortState({ ship: makeShip("sloop"), crew: { roster: fillRoster(10), morale: 80, max: 40 } });
+  // Enemy has low current hull (20 out of 100) and low crew (5) so boarding is not attractive
+  const enemy = makeEnemy({ hull: 20, maxHull: 100, cannons: 10, crew: 5, speed: 10 });
+  const session = makeEncounterSession(state, enemy, {
+    distance: "close",
+    enemyHull: 20,   // current hull matches enemy.hull
+    enemyCrew: 5,
+    playerHull: 100,
+    playerCrew: 10,
   });
+  const action = L.getNPCNavalAction(state, session);
+  u.assert(["open_distance", "broadside", "precision", "close_distance"].includes(action), "returns a valid naval action, expecting open_distance to be possible");
+});
 
   // ── NEW: maybeCrewLoss helper ────────────────────────────────────────────
 
@@ -1605,6 +1608,105 @@ reg("L.TRADE.03", "getTradeOpportunity: skips food and water", (u) => {
   window.G.generatePortMarket = origGenerate;
   // food and water should be skipped, sugar is a loss, so result should be null
   u.assertEqual(result, null, "food and water skipped, no profit -> null");
+});
+
+
+//  NPC AI – Signal Functions (L.AISIG.*)
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.AISIG.01", "getHullAdvantage: symmetric inputs → 0; clear advantage → positive", (u) => {
+  u.assertEqual(L.getHullAdvantage(100, 100, 100, 100), 0, "symmetric returns 0");
+  u.assertEqual(L.getHullAdvantage(100, 100, 50, 100), 0.5, "clear advantage positive");
+  u.assertEqual(L.getHullAdvantage(50, 100, 100, 100), -0.5, "clear disadvantage negative");
+});
+
+reg("L.AISIG.02", "getCrewAdvantage: normalized correctly, symmetric inputs → 0", (u) => {
+  u.assertEqual(L.getCrewAdvantage(10, 10), 0, "symmetric returns 0");
+  u.assertEqual(L.getCrewAdvantage(20, 10), 10/30, "positive advantage normalized");
+  u.assertEqual(L.getCrewAdvantage(10, 20), -10/30, "negative advantage normalized");
+});
+
+reg("L.AISIG.03", "computeAIDisposition: pirate medium weights", (u) => {
+  const state = makeState({ fame: 50, infamy: 0, factionAlerts: {} });
+  const enemy = { faction: "pirate", risk: "medium" };
+  const disposition = L.computeAIDisposition(state, enemy, "random");
+  u.assertApprox(disposition.weights.broadside, 0.8, 0.001);
+  u.assertApprox(disposition.weights.precision, 0.7, 0.001);
+  u.assertApprox(disposition.weights.close, 1.3, 0.001);
+  u.assertApprox(disposition.weights.open, 0.5, 0.001);
+  u.assertApprox(disposition.weights.grapple, 1.4, 0.001);
+});
+
+reg("L.AISIG.04", "computeAIDisposition: infamy/fame affect surrenderWillingness and continueFightingBonus", (u) => {
+  const lowFameState = makeState({ fame: 0, infamy: 0 });
+  const highFameState = makeState({ fame: 200, infamy: 0 });
+  const highInfamyState = makeState({ fame: 0, infamy: 100 });
+
+  const enemy = { faction: "pirate", risk: "medium" };
+
+  const lowDisc = L.computeAIDisposition(lowFameState, enemy, "random");
+  const highFameDisc = L.computeAIDisposition(highFameState, enemy, "random");
+  const highInfamyDisc = L.computeAIDisposition(highInfamyState, enemy, "random");
+
+  u.assert(highFameDisc.surrenderWillingness > lowDisc.surrenderWillingness, "higher fame increases surrender willingness");
+  u.assert(highInfamyDisc.surrenderWillingness < lowDisc.surrenderWillingness, "higher infamy decreases surrender willingness");
+  u.assert(highInfamyDisc.continueFightingBonus > lowDisc.continueFightingBonus, "higher infamy increases continue fighting bonus");
+});
+
+reg("L.AISIG.05", "computeAIDisposition: mission_combat adds grapple weight bonus", (u) => {
+  const state = makeState({ fame: 0, infamy: 0, factionAlerts: {} });
+  const enemy = { faction: "pirate", risk: "medium" };
+  const base = L.computeAIDisposition(state, enemy, "random");
+  const mission = L.computeAIDisposition(state, enemy, "mission_combat");
+  // mission_combat has grapple: +0.3 in AI_ORIGIN_MODIFIERS
+  const expectedBase = 1.4 * 1.0; // pirate grapple base * risk mult
+  const expectedMission = (1.4 + 0.3) * 1.0; // pirate grapple + origin bonus
+  u.assertApprox(base.weights.grapple, expectedBase, 0.001);
+  u.assertApprox(mission.weights.grapple, expectedMission, 0.001);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+//  NPC AI – Scorers (L.AISCORE.*)
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.AISCORE.01", "scoreNavalActions: never returns evade key", (u) => {
+  const self = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
+  const opponent = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
+  const disposition = { weights: { broadside: 1, precision: 1, close: 1, open: 1, grapple: 1 }, riskLevel: "medium" };
+  const legalActions = ["broadside", "precision", "close_distance", "evade"]; // include evade to ensure it's not added
+  const scores = L.scoreNavalActions(self, opponent, "far", disposition, legalActions);
+  u.assert(!("evade" in scores), "evade should never be in scores");
+  // Also ensure only legal non-evade actions are present
+  Object.keys(scores).forEach(key => u.assert(key !== "evade", "no evade key"));
+});
+
+reg("L.AISCORE.02", "scoreBoardingActions: never returns demand_surrender key", (u) => {
+  const disposition = { riskLevel: "medium", continueFightingBonus: 0, surrenderWillingness: 0.5 };
+  const scores = L.scoreBoardingActions(0.6, disposition);
+  u.assert(!("demand_surrender" in scores), "demand_surrender should never be in scores");
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+//  NPC AI – Selector (L.AISELECT.*)
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.AISELECT.01", "selectWeightedAction: picks the only positive score", (u) => {
+  const scores = { broadside: 1, precision: 0 };
+  const action = L.selectWeightedAction(scores, 2);
+  u.assertEqual(action, "broadside", "only positive score is chosen");
+});
+
+reg("L.AISELECT.01b", "selectWeightedAction: dominant score chosen with low random value", (u) => {
+  setRandomSequence([0.01]); // low random value ensures first (largest) weight wins
+  const scores = { broadside: 0.1, precision: 0.9 };
+  const action = L.selectWeightedAction(scores, 2);
+  resetRandomStub();
+  u.assertEqual(action, "precision", "dominant score chosen with low random value");
+});
+
+reg("L.AISELECT.02", "selectWeightedAction: empty/all-zero scores returns null", (u) => {
+  u.assertEqual(L.selectWeightedAction({}), null, "empty object returns null");
+  u.assertEqual(L.selectWeightedAction({ broadside: 0, precision: 0 }), null, "all-zero scores returns null");
 });
 
 })();

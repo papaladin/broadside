@@ -41,7 +41,12 @@ canvas{border:1px solid #2a3a4a;border-radius:4px;margin:6px 0}
 <h1>&#x2693; Broadside &#x2014; Career Simulator</h1>
 <div class="subtitle">Realistic travel + heat encounters + strict sequential upgrades + softlock + pacing + smuggle sweep</div>
 <script>window.E={A:{},_reducers:[]};window.UI={T:{}};window.S={};</script>
-<script src="../data.js"></script><script src="../logic.js"></script><script src="../generators.js"></script>
+<script src="../data.js"></script>
+<script src="../logic_core.js"></script>
+<script src="../logic_economy_crew.js"></script>
+<script src="../logic_travel_events.js"></script>
+<script src="../logic_combat_encounter.js"></script>
+<script src="../generators.js"></script>
 <div class="panel">
   <h3>&#x2699; Configuration</h3>
   <div class="row" style="margin-top:8px">
@@ -85,11 +90,12 @@ function getFameTier(f){if(f>=350)return 4;if(f>=200)return 3;if(f>=100)return 2
 function estCC(gbt,q){const c={};for(const[t,g]of Object.entries(gbt)){const ti=parseInt(t),vg=g.filter(x=>RESOURCES[x]);c[ti]=Math.round(vg.reduce((s,x)=>s+RESOURCES[x].basePrice,0)/Math.max(1,vg.length)*(q[ti]||5));}return c;}
 const TRADE_COSTS=estCC(TRADE_GOODS,{0:3,1:8,2:12,3:20,4:25});
 const SMUGGLE_COSTS=estCC(SMUGGLE_GOODS,{0:2,1:5,2:8,3:15,4:20});
-const ds=STARTS.find(s=>s.id!=='debug')||STARTS[0];
-const START_GOLD=ds.gold,START_CREW=ds.crewCount;
+// FIX: use new STARTS object
+const START_GOLD=D.STARTS.gold;
+const START_CREW=0; // matches game start (no crew until hiring)
 
-// STRICT SEQUENTIAL UPGRADE PATH - every strategy follows this exact order
-const UPGRADE_SEQ=["dinghy","cutter","sloop (F20)","schooner (F50)","brigantine (F50)","corvette (F100)","frigate(F100)","galleon (F150)","ship_of_the_line (F150)"].filter(s=>SHIPS[s]);
+// STRICT SEQUENTIAL UPGRADE PATH - plain ship type keys
+const UPGRADE_SEQ=["dinghy","cutter","sloop","schooner","brigantine","corvette","frigate","galleon","ship_of_the_line"].filter(s=>SHIPS[s]);
 
 // PORT DISTANCE MODEL
 const pArr=Array.isArray(PORTS)?PORTS:Object.values(PORTS);

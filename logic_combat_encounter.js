@@ -7,8 +7,173 @@ window.L = window.L || {};
 (() => {
   const { SHIPS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE } = window.D;
 
+
+// ─────────────────────────────────────────────────────────────
+//  NPC COMBAT AI — UTILITY SCORING FUNCTIONS
+//  (Planned per tasks_NPCAI.md — added before wiring into engine)
+// ─────────────────────────────────────────────────────────────
+
+// ── Tier 1: Static disposition computation ──────────────────
+// Computes once per battle and stores on encounterSession.aiDisposition.
+const computeAIDisposition = (state, enemy, encounterType) => {
+  const archetype = window.D.AI_ARCHETYPES[enemy.faction] ?? window.D.AI_ARCHETYPES.pirate;
+  const originMod = window.D.AI_ORIGIN_MODIFIERS[encounterType] ?? {};
+  const riskMult = { low: 0.7, medium: 1.0, high: 1.3, assault: 1.6 }[enemy.risk] ?? 1.0;
+
+  const heatLevel = state.factionAlerts?.[enemy.faction] ?? 0;
+  const fame = state.fame ?? 0;
+  const infamy = state.infamy ?? 0;
+
+  return {
+    weights: {
+      broadside: archetype.broadside * riskMult,
+      precision: archetype.precision * riskMult,
+      close:     archetype.close * riskMult,   // ← NEW: risk now affects close/open
+      open:      archetype.open * riskMult,    // ← NEW
+      grapple:   (archetype.grapple + (originMod.grapple ?? 0)) * riskMult,
+    },
+    continueFightingBonus: (originMod.continueFighting ?? 0) + (heatLevel >= 5 ? 0.3 : 0) + (infamy >= 50 ? 0.15 : 0),
+    surrenderWillingness: Math.max(0, 0.4 + (fame / 500) - (infamy / 300)),
+    riskLevel: enemy.risk,
+  };
+};
+
+// ── Tier 2: Dynamic signal helpers ──────────────────────────
+// All return 0..1-ish normalized values, not raw stat differences.
+const getHullAdvantage = (selfHull, selfMaxHull, oppHull, oppMaxHull) =>
+  (selfHull / selfMaxHull) - (oppHull / oppMaxHull);
+
+const getCrewAdvantage = (selfCrew, oppCrew) => {
+  const total = selfCrew + oppCrew;
+  return total === 0 ? 0 : (selfCrew - oppCrew) / total;
+};
+
+const getSpeedDifferential = (selfSpeed, oppSpeed) => selfSpeed - oppSpeed;
+
+// ── Side-agnostic naval action scorer ───────────────────────
+// self / opponent: { hull, maxHull, crew, speed }
+const scoreNavalActions = (self, opponent, distance, disposition, legalActions) => {
+  const hullAdv = getHullAdvantage(self.hull, self.maxHull, opponent.hull, opponent.maxHull);
+  const crewAdv = getCrewAdvantage(self.crew, opponent.crew);
+  const speedDiff = getSpeedDifferential(self.speed, opponent.speed);
+  const w = disposition.weights;
+
+  const distanceFit = {
+    broadside: window.D.DISTANCE_DAMAGE_MULTIPLIERS.broadside[distance],
+    precision: window.D.DISTANCE_DAMAGE_MULTIPLIERS.precision[distance],
+  };
+
+  const scores = {};
+  if (legalActions.includes("broadside")) {
+    scores.broadside = w.broadside * distanceFit.broadside * (1 - Math.max(0, -hullAdv));
+  }
+  if (legalActions.includes("precision")) {
+    // Cap the hull‑disadvantage boost to +50%
+    scores.precision = w.precision * distanceFit.precision * (1 + Math.min(0.5, Math.max(0, -hullAdv)));
+  }
+  if (legalActions.includes("close_distance")) {
+    scores.close_distance = w.close * (0.5 + crewAdv * 2) * (speedDiff >= 0 ? 1.0 : 0.6);
+  }
+  if (legalActions.includes("open_distance")) {
+    scores.open_distance = w.open * Math.max(0.2, 0.5 + Math.max(0, -hullAdv) + Math.max(0, -crewAdv)) * (speedDiff >= 0 ? 1.0 : 0.6);
+  }
+  if (legalActions.includes("grapple")) {
+    // Dinghy protection: never board a dinghy
+    if (opponent.shipType === 'dinghy') {
+      scores.grapple = 0;
+    } else {
+      scores.grapple = w.grapple * (0.5 + crewAdv * 2);
+    }
+  }
+
+  return scores;
+};
+
+// ── Side-agnostic boarding action scorer ─────────────────────
+// ratio: from the self side's perspective (self's share of combined effectiveness)
+// moraleThresholdShift: from disposition or a direct override
+const scoreBoardingActions = (ratio, disposition, moraleThresholdShift = 0) => {
+  const scores = {};
+  scores.continue_fighting =
+    (disposition.riskLevel === "high" || disposition.riskLevel === "assault" ? 1.2 : 1.0)
+    + disposition.continueFightingBonus
+    + ratio;
+
+  const fallBackPressure = Math.max(0, 0.5 - ratio - moraleThresholdShift);
+  scores.fall_back =
+    (disposition.riskLevel === "low" ? 1.3 : disposition.riskLevel === "high" ? 0.6 : 1.0)
+    * fallBackPressure * 2;
+
+  // Surrender only scored (and only chosen) at genuinely low ratio
+  scores.surrender = ratio < 0.25
+    ? disposition.surrenderWillingness * (0.25 - ratio) * 4
+    : 0;
+
+  return scores;
+};
+
+// ── Weighted-random selector ────────────────────────────────
+// Picks among the top `topN` scores, weighted by their relative values.
+const selectWeightedAction = (scores, topN = 2) => {
+  const entries = Object.entries(scores).filter(([, v]) => v > 0);
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => b[1] - a[1]);
+  const pool = entries.slice(0, Math.min(topN, entries.length));
+  const total = pool.reduce((sum, [, v]) => sum + v, 0);
+  let roll = Math.random() * total;
+  for (const [action, weight] of pool) {
+    roll -= weight;
+    if (roll <= 0) return action;
+  }
+  return pool[0][0]; // fallback
+};
+
+// ── New wrappers that use the utility scoring system ──────────────────
+// These are NOT yet called by the engine – they will replace the stubs
+// once the engine call sites are updated (Part 4).
+
+const getNPCNavalAction = (state, encounterSession) => {
+  const { distance } = encounterSession.battle;
+  const enemy = encounterSession.enemy;
+  const disposition = encounterSession.aiDisposition
+    ?? computeAIDisposition(state, enemy, encounterSession.type);
+
+  const self = {
+    hull: encounterSession.battle.enemyHull,
+    maxHull: enemy.maxHull,
+    crew: enemy.crew,
+    speed: enemy.speed,
+
+  };
+  const opponent = {
+    hull: encounterSession.battle.playerHull,
+    maxHull: window.L.getShipStats(state).maxHull,
+    crew: encounterSession.battle.playerCrew,
+    speed: window.L.getShipStats(state).speed,
+    shipType: state.ship.type, 
+  };
+
+  const legalActions = window.D.LEGAL_ACTIONS_BY_DISTANCE[distance];
+  const scores = scoreNavalActions(self, opponent, distance, disposition, legalActions);
+  const chosen = selectWeightedAction(scores);
+  return chosen ?? "broadside"; 
+};
+
+const getNPCBoardingAction = (state, encounterSession) => {
+  const battle = encounterSession.battle;
+  const enemy = encounterSession.enemy;
+  const ratio = 1 - window.L.getBoardingRatio(state, battle, enemy); // enemy's own share
+  const disposition = encounterSession.aiDisposition
+    ?? computeAIDisposition(state, enemy, encounterSession.type);
+  const moraleShift = { low: -0.1, medium: 0, high: 0.1, assault: 0.2 }[disposition.riskLevel] ?? 0;
+
+  const scores = scoreBoardingActions(ratio, disposition, moraleShift);
+  const chosen = selectWeightedAction(scores, 2);
+  return chosen ?? "continue_fighting";
+};
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  B11 – NAVAL & BOARDING RESOLVERS
+  //   NAVAL & BOARDING RESOLVERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // Shared contest helper
@@ -54,30 +219,6 @@ window.L = window.L || {};
     enemyCargo: {},
   });
 
-  // Naval stub
-  const getNPCNavalAction = (battle, enemy) => {
-    const distance = battle.distance;
-    const hullPct = battle.enemyHull / enemy.hull;
-    if (distance === "close" && hullPct < 0.3 && Math.random() < 0.3) {
-      return "open_distance";
-    }
-    if (distance !== "close" && Math.random() < 0.15) {
-      return "close_distance";
-    }
-    return Math.random() < 0.7 ? "broadside" : "precision";
-  };
-
-  // Boarding stub
-  const getNPCBoardingAction = (battle, enemy, ratio) => {
-    const enemyRatio = 1 - ratio;
-    if (enemyRatio < 0.25) {
-      const roll = Math.random();
-      if (roll < 0.25) return "surrender";
-      if (roll < 0.30) return "fall_back";
-      return "continue_fighting";
-    }
-    return "continue_fighting";
-  };
 
   // ─── Full naval resolver ────────────────────────────────────────────────
   const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy) => {
@@ -501,11 +642,21 @@ window.L = window.L || {};
   //  EXPOSE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Object.assign(window.L, {
-    // B11 combat
-    emptyOutcome,
-    maybeCrewLoss,
+
+    // NPC AI scoring functions
+    computeAIDisposition,
+    getHullAdvantage,
+    getCrewAdvantage,
+    getSpeedDifferential,
+    scoreNavalActions,
+    scoreBoardingActions,
+    selectWeightedAction, 
+    // New wrappers (will replace stubs later)
     getNPCNavalAction,
     getNPCBoardingAction,
+    // combat
+    emptyOutcome,
+    maybeCrewLoss,
     resolveNavalRound,
     getBoardingRatio,
     resolveBoardingRound,

@@ -150,6 +150,7 @@
           intercept: null,
           battle: battle,
           plunder: null,
+          aiDisposition: L.computeAIDisposition(state, session.enemy, session.type),
         };
 
         let s = { ...state, encounterSession: newSession, screen: "battle" };

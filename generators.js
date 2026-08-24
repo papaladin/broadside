@@ -1242,6 +1242,47 @@ const pickMerchantFaction = () => {
   return factions[Math.floor(Math.random() * factions.length)];
 };
 
+
+// ── Combat Flavour Generator  ─────────────────────────────
+const generateCombatFlavour = (disposition) => {
+  if (!disposition) return ["The two ships size each other up."];
+  const { weights, riskLevel } = disposition;
+  const pool = [];
+
+  if (weights.grapple > 1.0 && weights.close > 0.9) {
+    pool.push("They're closing fast — this crew means to board.");
+    pool.push("The enemy crew is gathering at the bow, grappling hooks in hand.");
+    pool.push("You see the enemy preparing to lash your ships together.");
+  }
+  if (weights.open > 1.0 && weights.close < 0.7) {
+    pool.push("They're keeping their distance, guns ready.");
+    pool.push("The enemy ship is falling back, clearly preferring long range.");
+    pool.push("Their sails are trimmed to stay far away from your guns.");
+  }
+  if (riskLevel === "low") {
+    pool.push("They look like they'd rather not be here.");
+    pool.push("The enemy crew seems hesitant, their gunners half-hearted.");
+    pool.push("This is no eager foe — they're going through the motions.");
+  }
+  if (riskLevel === "assault" || riskLevel === "high") {
+    pool.push("Their gunners are already in position. No hesitation here.");
+    pool.push("The enemy is bracing for a brutal fight — no quarter given.");
+    pool.push("Their sails are full and their cannons run out. This will be bloody.");
+  }
+  if (disposition.surrenderWillingness > 0.6) {
+    pool.push("Word of your reputation may have reached this crew already.");
+    pool.push("Some of the enemy crew look nervous, unsure if they want to fight you.");
+    pool.push("You overhear a voice on the wind asking if surrender is truly an option.");
+  }
+  if (disposition.surrenderWillingness < 0.2) {
+    pool.push("This crew looks ready to fight to the last.");
+    pool.push("Their captain shouts orders with fury — they will not yield.");
+    pool.push("There is no fear in their eyes. They intend to win or die.");
+  }
+
+  return pool.length > 0 ? pool : ["The two ships size each other up."];
+};
+
   // ── exports ───────────────────────────────────────────────────
   return {
     // crew 
@@ -1266,6 +1307,8 @@ const pickMerchantFaction = () => {
     generateMarketFlavour,
     // events
     pickMerchantFaction,
+    // intercept combat flavour text
+    generateCombatFlavour,
   };
 
 })();

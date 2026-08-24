@@ -838,6 +838,18 @@
     u.assert(s1.encounterSession === null, "encounterSession cleared");
   });
 
+reg("E.DEBUG.COMBAT.01", "DEBUG_COMBAT: creates encounterSession with enemy risk medium", (u) => {
+  const s0 = makePortState("portRoyal", { fame: 200, crew: { roster: fillRoster(10), max: 40, morale: 80 } });
+  const s1 = dispatch(s0, A.DEBUG_COMBAT, { faction: "english", risk: "medium" });
+  u.assert(s1.encounterSession !== null, "encounterSession created");
+  u.assert(s1.screen === "intercept", "screen is intercept");
+  u.assertEqual(s1.encounterSession.enemy.risk, "medium", "risk is medium");
+  u.assertEqual(s1.encounterSession.enemy.faction, "english", "enemy faction is english (not rival)");
+});
+
+
+
+
   // ── NEW: INTERCEPT_PARLEY failure path (the crash fix) ────────────────────
 
   reg("E.ENC.01", "INTERCEPT_PARLEY: failure path builds battle correctly (crash fix)", (u) => {

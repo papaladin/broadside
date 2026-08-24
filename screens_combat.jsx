@@ -207,82 +207,121 @@ window.S = window.S || {};
     );
   }
 
-  // ── INTERCEPT SCREEN ──────────────────────────────────────────────────
-  const InterceptScreen = ({ state, dispatch }) => {
-    const session = state.encounterSession;
-    if (!session || session.phase !== "intercept") return null;
-    const { enemy, intercept } = session;
-    const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
+// ── INTERCEPT SCREEN ──────────────────────────────────────────────────
+const InterceptScreen = ({ state, dispatch }) => {
+  const session = state.encounterSession;
+  if (!session || session.phase !== "intercept") return null;
+  const { enemy, intercept } = session;
+  const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
 
-    return (
-      <div style={{ padding: T.spacing.xl, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", letterSpacing: "0.08em" }}>
-          ⚠ ENCOUNTER
+  // Memoize combat flavour lines to avoid regeneration on re-renders
+  const combatFlavourLines = React.useMemo(() => {
+    const disposition = session.aiDisposition
+      ?? L.computeAIDisposition(state, enemy, session.type);
+    return window.G.generateCombatFlavour(disposition);
+  }, [session, state, enemy]);
+
+  return (
+    <div style={{ padding: T.spacing.xl, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", letterSpacing: "0.08em" }}>
+        ⚠ ENCOUNTER
+      </div>
+
+      {/* Merged Flavour Panel: existing + AI combat flavour */}
+      <Panel color={T.borderBr}>
+        <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{intercept.flavourText}</p>
+        {combatFlavourLines.map((line, i) => (
+          <p key={i} style={{ color: T.textDim, fontSize: T.narrativeFontSize, fontStyle: "italic", lineHeight: 1.6, marginTop: 6 }}>
+            {line}
+          </p>
+        ))}
+      </Panel>
+
+      {/* Enemy details with ship sprite, faction & risk pills */}
+      <Panel>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ color: T.redBr, fontSize: T.heading1FontSize, fontWeight: "bold" }}>
+            {enemy.name}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <FactionPill faction={enemy.faction} />
+            <Pill label={enemy.risk} color={T.riskColor?.[enemy.risk] ?? T.textDim} />
+          </div>
         </div>
 
-        <Panel color={T.borderBr}>
-          <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>{intercept.flavourText}</p>
-        </Panel>
+        {/* Ship Sprite */}
+        <div style={{
+          background: T.bgDeep,
+          borderRadius: 3,
+          border: `1px solid ${T.borderFaint}`,
+          padding: 4,
+          marginBottom: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <ShipSideSprite
+            type={enemy.shipType || L.guessShipType(enemy)}
+            faction={enemy.faction}
+            width={280}
+            height={180}
+            facing="left"
+          />
+        </div>
 
-        <Panel>
-          <div style={{ color: T.redBr, fontSize: T.heading1FontSize, fontWeight: "bold", marginBottom: 8 }}>
-            {enemy.name}
-            <span style={{ color: T.textDim, fontWeight: "normal", marginLeft: 8, fontSize: T.narrativeFontSize }}>
-              {enemyShip.name ?? enemy.shipType ?? enemy.ship}
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            {[
-              ["Hull", `${enemy.hull}/${enemy.maxHull || enemy.hull}`],
-              ["Cannons", enemy.cannons],
-              ["Crew", enemy.crew],
-              ["Speed", enemyShip.speed ?? "?"],
-            ].map(([l, v]) => (
-              <div key={l}>
-                <div style={{ color: T.textDim, fontSize: 9 }}>{l}</div>
-                <div style={{ color: T.text, fontSize: T.heading3FontSize }}>{v}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={10} />
-          </div>
-        </Panel>
-
-        <Panel>
-          <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, letterSpacing: "0.08em" }}>
-            CHOOSE YOUR RESPONSE:
-          </div>
-          {intercept.options.map(opt => (
-            <div key={opt.id} style={{ marginBottom: 8 }}>
-              <Btn
-                v={opt.available
-                  ? opt.id === "fight" ? "red"
-                    : opt.id === "inspect" ? "default"
-                    : "default"
-                  : "ghost"}
-                disabled={!opt.available}
-                onClick={() => opt.available && dispatch(opt.action)}
-                style={{ width: "100%", textAlign: "left", opacity: opt.available ? 1 : 0.45 }}
-              >
-                {opt.label}
-              </Btn>
-              {!opt.available && opt.reason && (
-                <div style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 2, marginLeft: 4 }}>
-                  ✗ {opt.reason}
-                </div>
-              )}
-              {opt.id === "flee" && opt.available && opt.speedCheck && (
-                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 2, paddingLeft: 4 }}>
-                  Speed check: your {opt.speedCheck.player} vs their {opt.speedCheck.enemy}
-                </div>
-              )}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {[
+            ["Hull", `${enemy.hull}/${enemy.maxHull || enemy.hull}`],
+            ["Cannons", enemy.cannons],
+            ["Crew", enemy.crew],
+            ["Speed", enemyShip.speed ?? "?"],
+          ].map(([l, v]) => (
+            <div key={l}>
+              <div style={{ color: T.textDim, fontSize: 9 }}>{l}</div>
+              <div style={{ color: T.text, fontSize: T.heading3FontSize }}>{v}</div>
             </div>
           ))}
-        </Panel>
-      </div>
-    );
-  };
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Bar value={enemy.hull} max={enemy.maxHull || enemy.hull} color={T.redBr} h={10} />
+        </div>
+      </Panel>
+
+      {/* Options */}
+      <Panel>
+        <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, letterSpacing: "0.08em" }}>
+          CHOOSE YOUR RESPONSE:
+        </div>
+        {intercept.options.map(opt => (
+          <div key={opt.id} style={{ marginBottom: 8 }}>
+            <Btn
+              v={opt.available
+                ? opt.id === "fight" ? "red"
+                  : opt.id === "inspect" ? "default"
+                  : "default"
+                : "ghost"}
+              disabled={!opt.available}
+              onClick={() => opt.available && dispatch(opt.action)}
+              style={{ width: "100%", textAlign: "left", opacity: opt.available ? 1 : 0.45 }}
+            >
+              {opt.label}
+            </Btn>
+            {!opt.available && opt.reason && (
+              <div style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 2, marginLeft: 4 }}>
+                ✗ {opt.reason}
+              </div>
+            )}
+            {opt.id === "flee" && opt.available && opt.speedCheck && (
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 2, paddingLeft: 4 }}>
+                Speed check: your {opt.speedCheck.player} vs their {opt.speedCheck.enemy}
+              </div>
+            )}
+          </div>
+        ))}
+      </Panel>
+    </div>
+  );
+};
 
     // ── BATTLE SCREEN ─────────────────────────────────────────────────────
   function BattleScreen({ state, dispatch }) {

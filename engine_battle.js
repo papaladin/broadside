@@ -398,10 +398,9 @@
         // NPC action
         let enemyAction;
         if (battle.subPhase === "naval") {
-          enemyAction = L.getNPCNavalAction(battle, enemy);
+          enemyAction = L.getNPCNavalAction(state, session);
         } else {
-          const ratio = L.getBoardingRatio(state, battle, enemy);
-          enemyAction = L.getNPCBoardingAction(battle, enemy, ratio);
+          enemyAction = L.getNPCBoardingAction(state, session);
         }
 
         // Resolve

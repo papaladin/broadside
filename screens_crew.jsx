@@ -2,7 +2,7 @@
 window.S = window.S || {};
 
 (() => {
-  const { useState, useMemo } = React;
+  const { useState, useMemo, useRef, useEffect } = React;
   const { SHIPS, FACTIONS, PORTS } = window.D;
   const L = window.L;
   const A = window.E.A;
@@ -35,12 +35,18 @@ window.S = window.S || {};
         </div>
       );
     }
-    const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
-    const [selectedMember, setSelectedMember] = React.useState(null);
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state,"crew"));
 
-    const bioCache = React.useRef({});
-    React.useEffect(() => {
+    const open = SHIPS[state.ship.type].maxCrew - state.crew.roster.length;
+    const [selectedMember, setSelectedMember] = useState(null);
+    const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial(state, "crew"));
+
+    // ── Filter & Sort state ────────────────────────────────────────────
+    const [filterFaction, setFilterFaction] = useState("all");
+    const [sortBy, setSortBy] = useState("name");      // "name" | "days"
+    const [sortAsc, setSortAsc] = useState(true);
+
+    const bioCache = useRef({});
+    useEffect(() => {
       bioCache.current = {};
     }, [state.currentPort]);
 
@@ -56,10 +62,52 @@ window.S = window.S || {};
       return `${member.firstName} is a crew member.`;
     };
 
+    // ── Filter & sort roster ────────────────────────────────────────────
+    const filteredRoster = useMemo(() => {
+      let result = [...state.crew.roster];
+
+      // Filter by faction
+      if (filterFaction !== "all") {
+        result = result.filter(m => m.faction === filterFaction);
+      }
+
+      // Sort
+      if (sortBy === "name") {
+        result.sort((a, b) => {
+          const nameA = `${a.firstName} ${a.lastName}`;
+          const nameB = `${b.firstName} ${b.lastName}`;
+          return sortAsc ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+        });
+      } else if (sortBy === "days") {
+        result.sort((a, b) => {
+          const daysA = a.daysAboard || 0;
+          const daysB = b.daysAboard || 0;
+          return sortAsc ? daysA - daysB : daysB - daysA;
+        });
+      }
+
+      return result;
+    }, [state.crew.roster, filterFaction, sortBy, sortAsc]);
+
+    // ── Build faction options for dropdown ──────────────────────────────
+    const factionOptions = [
+      { key: "all", label: "Show All" },
+      ...Object.entries(FACTIONS).map(([key, f]) => ({ key, label: f.label, color: f.color })),
+    ];
+
+    const toggleSort = (field) => {
+      if (sortBy === field) {
+        setSortAsc(!sortAsc);
+      } else {
+        setSortBy(field);
+        setSortAsc(true);
+      }
+    };
+
     return (
       <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
         <BackButton dispatch={dispatch} />
-        
+
         {showTutorial && (
           <TutorialPopup
             title="Your Crew"
@@ -112,7 +160,7 @@ window.S = window.S || {};
             })()}
 
             <div style={{ marginTop: 10 }}>
-              <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.crew.roster.length === 0 ||  state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>
+              <Btn v="green" onClick={() => dispatch({ type: A.RAISE_MORALE })} disabled={state.crew.roster.length === 0 || state.gold < state.crew.roster.length * 5 || state.crew.morale >= 100}>
                 <IconCheers size={12} color={T.greenBr} /> Buy Drinks ({state.crew.roster.length * 5}g) +5 Morale
               </Btn>
             </div>
@@ -123,7 +171,7 @@ window.S = window.S || {};
             <SectionTitle>HIRE</SectionTitle>
             <p style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
-            {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
+              {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
             </div>
             {open === 0 && <EmptyState message="Ship is at full capacity." />}
           </Panel>
@@ -199,11 +247,60 @@ window.S = window.S || {};
           </Panel>
         </div>
 
-        {/* ── MANIFEST ───────────────────────────────────── */}
+        {/* ── MANIFEST with Filter & Sort ────────────────── */}
         <Panel>
-          <SectionTitle>MANIFEST</SectionTitle>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <SectionTitle style={{ marginBottom: 0 }}>MANIFEST</SectionTitle>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              {/* Faction Filter Dropdown */}
+              <select
+                value={filterFaction}
+                onChange={(e) => setFilterFaction(e.target.value)}
+                style={{
+                  background: T.panel,
+                  color: T.text,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 2,
+                  padding: "4px 8px",
+                  fontSize: T.metadataFontSize,
+                  fontFamily: T.font,
+                  cursor: "pointer",
+                  minHeight: 32,
+                  outline: "none",
+                }}
+              >
+                {factionOptions.map(f => (
+                  <option key={f.key} value={f.key} style={{ color: f.color || T.text }}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Sort buttons */}
+              <div style={{ display: "flex", gap: 4 }}>
+                <Btn
+                  sm
+                  v={sortBy === "name" ? "gold" : "ghost"}
+                  onClick={() => toggleSort("name")}
+                  style={{ fontSize: T.captionFontSize, minHeight: 28, padding: "2px 10px" }}
+                >
+                  Name {sortBy === "name" && (sortAsc ? "↑" : "↓")}
+                </Btn>
+                <Btn
+                  sm
+                  v={sortBy === "days" ? "gold" : "ghost"}
+                  onClick={() => toggleSort("days")}
+                  style={{ fontSize: T.captionFontSize, minHeight: 28, padding: "2px 10px" }}
+                >
+                  Days {sortBy === "days" && (sortAsc ? "↑" : "↓")}
+                </Btn>
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-            {state.crew.roster.map(member => {
+            {filteredRoster.map(member => {
               const visibleTags = (member.tags || []).filter(t => !t.startsWith("hidden_"));
               const factionColor = FACTIONS[member.faction]?.color || T.textDim;
               const isMutineer = L.hasTag(member, "mutineer");
@@ -253,6 +350,12 @@ window.S = window.S || {};
               );
             })}
           </div>
+
+          {filteredRoster.length === 0 && (
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, textAlign: "center", padding: 16 }}>
+              No crew members match the selected filter.
+            </div>
+          )}
         </Panel>
       </div>
     );

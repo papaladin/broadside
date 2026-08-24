@@ -211,6 +211,7 @@ window.E = window.E || {};
       battle: null,
       plunder: null,
       returnScreen: state.destination ? "sailing" : "port",
+      aiDisposition: window.L.computeAIDisposition(state, context.enemy, context.type),
     };
   };
 
@@ -394,7 +395,8 @@ window.E = window.E || {};
       }
       case window.E.A.DEBUG_COMBAT: {
         const { faction, risk } = action;
-        const enemy = G.generateEnemy(risk || "medium", state.fame, faction || "pirate");
+        // Pass the selected faction as the override so the enemy IS from that faction.
+        const enemy = G.generateEnemy(risk || "medium", state.fame, faction || "pirate", faction || "pirate");
         const encounterContext = L.buildEncounterContext(state, "random", enemy);
         const encounterSession = window.E.buildEncounterSession(state, encounterContext);
         return { ...state, encounterSession, screen: "intercept" };

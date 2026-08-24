@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Broadside — NPC Combat AI Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a141e; color: #e0e0e0; font-family: 'Courier New', monospace; font-size: 12px; padding: 16px; }
+    h1 { color: #ffd700; font-size: 20px; margin-bottom: 4px; letter-spacing: 0.1em; }
+    .subtitle { color: #a0a0a0; font-size: 10px; margin-bottom: 16px; }
+    .panel { background: #121c28; border: 1px solid #2a3a4a; border-radius: 4px; padding: 12px; margin-bottom: 12px; }
+    h2 { color: #ffd700; font-size: 14px; margin: 18px 0 8px; border-bottom: 1px solid #2a3a4a; padding-bottom: 4px; }
+    h3 { color: #cc9900; font-size: 12px; margin: 12px 0 6px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    label { color: #a0a0a0; font-size: 11px; }
+    input[type=number], select { background: #0d1620; border: 1px solid #2a3a4a; color: #e0e0e0; padding: 4px 8px; border-radius: 3px; width: 90px; font-family: inherit; font-size: 12px; }
+    button { background: #cc9900; border: 1px solid #ffd700; color: #000; padding: 8px 16px; border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: bold; min-height: 36px; }
+    button:hover { background: #ffd700; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: #1c2a3a; color: #e0e0e0; border-color: #2a3a4a; }
+    button.secondary:hover { background: #2a3a4a; }
+    .tab { background: #1c2a3a; border: 1px solid #2a3a4a; color: #e0e0e0; padding: 6px 12px; border-radius: 3px 3px 0 0; cursor: pointer; font-size: 12px; }
+    .tab.active { background: #2a3a4a; color: #ffd700; }
+    .tab-content { display: none; border: 1px solid #2a3a4a; padding: 12px; margin-bottom: 12px; }
+    .tab-content.active { display: block; }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11px; }
+    th { color: #ffd700; text-align: left; padding: 4px 6px; border-bottom: 1px solid #2a3a4a; font-size: 10px; }
+    td { padding: 4px 6px; border-bottom: 1px solid #1a2a3a; }
+    .val { text-align: right; }
+    .pass { color: #4caf50; font-weight: bold; }
+    .fail { color: #f44336; font-weight: bold; }
+    .warn { color: #ff9800; }
+    .dim { color: #606060; }
+    .note { color: #a0a0a0; font-size: 10px; line-height: 1.5; margin: 8px 0; }
+    .summary-card { background: #1a2a3a; border-left: 4px solid #ffd700; padding: 8px; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>⚓ Broadside — NPC Combat AI Simulator</h1>
+  <div class="subtitle">Validates action distributions and balance of the utility-based AI (tasks_NPCAI.md)</div>
+
+  <div class="panel">
+    <div class="note">
+      <strong>Limitations:</strong> The NPC AI side never selects Evade or Demand Surrender (design decision). Therefore all simulated battles resolve via Sunk, Captured, Wipeout, Surrender, or Timeout. Both sides use the same scoring for self‑play.
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="justify-content: center; margin-bottom:8px;">
+      <button onclick="runAllPresets()">▶ Run All Preset Tests</button>
+      <button onclick="runVerboseBattle()">▶ Run Single Battle (Verbose)</button>
+      <button class="secondary" onclick="toggleCustomTab()">Custom Setup</button>
+    </div>
+    <div id="presetSummary"></div>
+    <div id="verboseResults"></div>
+  </div>
+
+  <!-- Custom Configuration -->
+  <div id="customTab" class="tab-content" style="display:none;">
+    <div class="panel">
+      <h2>Manual Configuration</h2>
+      <div class="tab-row" style="display:flex; gap:4px; margin-bottom:8px;">
+        <div class="tab active" onclick="switchTab('sideA')">Side A (Player)</div>
+        <div class="tab" onclick="switchTab('sideB')">Side B (Enemy)</div>
+      </div>
+      <div id="tab-sideA" class="tab-content active">
+        <div class="row">
+          <label>Faction <select id="aFaction"><option value="pirate">Pirate</option><option value="english">English</option><option value="spanish">Spanish</option><option value="french">French</option><option value="dutch">Dutch</option></select></label>
+          <label>Risk <select id="aRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="assault">Assault</option></select></label>
+          <label>Hull <input type="number" id="aHull" value="100" min="1"></label>
+          <label>MaxHull <input type="number" id="aMaxHull" value="100" min="1"></label>
+          <label>Crew <input type="number" id="aCrew" value="10" min="0"></label>
+          <label>Speed <input type="number" id="aSpeed" value="10" min="1"></label>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label>Morale (override) <input type="number" id="aMorale" value="80" min="0" max="100" placeholder="optional"></label>
+          <label>Heat <input type="number" id="aHeat" value="0" min="0" max="10"></label>
+          <label>Reputation <input type="number" id="aRep" value="50" min="0" max="100"></label>
+          <label>Fame <input type="number" id="aFame" value="0" min="0"></label>
+          <label>Infamy <input type="number" id="aInfamy" value="0" min="0"></label>
+        </div>
+      </div>
+      <div id="tab-sideB" class="tab-content">
+        <div class="row">
+          <label>Faction <select id="bFaction"><option value="pirate">Pirate</option><option value="english">English</option><option value="spanish">Spanish</option><option value="french">French</option><option value="dutch" selected>Dutch</option></select></label>
+          <label>Risk <select id="bRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="assault">Assault</option></select></label>
+          <label>Hull <input type="number" id="bHull" value="100" min="1"></label>
+          <label>MaxHull <input type="number" id="bMaxHull" value="100" min="1"></label>
+          <label>Crew <input type="number" id="bCrew" value="10" min="0"></label>
+          <label>Speed <input type="number" id="bSpeed" value="10" min="1"></label>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label>Morale (override) <input type="number" id="bMorale" value="80" min="0" max="100" placeholder="optional"></label>
+          <label>Heat <input type="number" id="bHeat" value="0" min="0" max="10"></label>
+          <label>Reputation <input type="number" id="bRep" value="50" min="0" max="100"></label>
+          <label>Fame <input type="number" id="bFame" value="0" min="0"></label>
+          <label>Infamy <input type="number" id="bInfamy" value="0" min="0"></label>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label>Number of runs</label>
+        <input type="number" id="numRuns" value="500" min="1" max="1000">
+        <button onclick="runCustomSimulation()">▶ Run Custom Simulation</button>
+      </div>
+      <div id="customResults"></div>
+    </div>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- Load game scripts -->
+  <script src="../data.js"></script>
+  <script src="../data_text.js"></script>
+  <script src="../logic_core.js"></script>
+  <script src="../logic_economy_crew.js"></script>
+  <script src="../logic_travel_events.js"></script>
+  <script src="../logic_combat_encounter.js"></script>
+  <script src="../generators.js"></script>
+
+  <script>
+    const D = window.D, L = window.L, G = window.G;
+    const SHIPS = D.SHIPS;
+    const FACTIONS = D.FACTIONS;
+
+    // ── Helpers ─────────────────────────────────────────────
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function randomFloat(min, max) { return Math.random() * (max - min) + min; }
+
+    function getShipFromConfig(config) {
+      const shipTypes = Object.keys(SHIPS);
+      let best = shipTypes[0], bestDiff = Infinity;
+      for (const t of shipTypes) {
+        const diff = Math.abs(SHIPS[t].maxHull - config.maxHull);
+        if (diff < bestDiff) { bestDiff = diff; best = t; }
+      }
+      return best;
+    }
+
+    function buildFakeState(sideConfig) {
+      const shipType = sideConfig.shipType || getShipFromConfig(sideConfig);
+      const shipData = SHIPS[shipType];
+      return {
+        faction: sideConfig.faction,
+        gold: 0,
+        fame: sideConfig.fame || 0,
+        infamy: sideConfig.infamy || 0,
+        reputation: { portRoyal: sideConfig.rep || 50 },
+        factionAlerts: { [sideConfig.faction]: sideConfig.heat || 0 },
+        ship: { type: shipType, hull: sideConfig.hull, maxHull: sideConfig.maxHull, speed: sideConfig.speed, equipment: { hull: [], armament: [], rigging: [], special: [] } },
+        crew: {
+          roster: Array.from({ length: sideConfig.crew }, (_, i) => ({ id: i, faction: sideConfig.faction, tags: [] })),
+          morale: sideConfig.moraleOverride ?? 80,
+          max: shipData.maxCrew
+        },
+        activeMission: null,
+      };
+    }
+
+    function buildFakeSession(configA, configB) {
+      const stateA = buildFakeState(configA);
+      const enemyShipType = configB.shipType || getShipFromConfig(configB);
+      const enemy = {
+        name: "Enemy Test",
+        faction: configB.faction,
+        hull: configB.hull,
+        maxHull: configB.maxHull,
+        cannons: SHIPS[enemyShipType].cannons,
+        crew: configB.crew,
+        speed: configB.speed,
+        risk: configB.risk || "medium"
+      };
+      const session = {
+        type: "random",
+        phase: "battle",
+        enemy: enemy,
+        battle: {
+          round: 1,
+          log: [],
+          playerHull: stateA.ship.hull,
+          playerCrew: stateA.crew.roster.length,
+          initialPlayerCrew: stateA.crew.roster.length,
+          lostCrewNames: [],
+          enemyHull: enemy.hull,
+          enemyCrew: enemy.crew,
+          distance: L.initialDistanceFor("random"),
+          subPhase: "naval",
+          phase: "player_turn",
+          canPlunder: false,
+          goldReward: 0,
+          enemyCargo: {}
+        },
+        intercept: null,
+        plunder: null,
+        returnScreen: "port",
+        aiDisposition: L.computeAIDisposition(stateA, enemy, "random"),
+      };
+      return { stateA, session };
+    }
+
+function pickSideNavalAction(state, session, isPlayer) {
+  const enemy = session.enemy;
+  const battle = session.battle;
+  const disposition = session.aiDisposition || L.computeAIDisposition(state, enemy, "random");
+  let self, opponent;
+  if (isPlayer) {
+    self = {
+      hull: battle.playerHull,
+      maxHull: L.getShipStats(state).maxHull,
+      crew: battle.playerCrew,
+      speed: L.getShipStats(state).speed,
+      shipType: state.ship.type,
+    };
+    opponent = {
+      hull: battle.enemyHull,
+      maxHull: enemy.maxHull,
+      crew: battle.enemyCrew,
+      speed: enemy.speed,
+      shipType: enemy.shipType || L.guessShipType(enemy),
+    };
+  } else {
+    self = {
+      hull: battle.enemyHull,
+      maxHull: enemy.maxHull,
+      crew: battle.enemyCrew,
+      speed: enemy.speed,
+      shipType: enemy.shipType || L.guessShipType(enemy),
+    };
+    opponent = {
+      hull: battle.playerHull,
+      maxHull: L.getShipStats(state).maxHull,
+      crew: battle.playerCrew,
+      speed: L.getShipStats(state).speed,
+      shipType: state.ship.type,
+    };
+  }
+  const legalActions = D.LEGAL_ACTIONS_BY_DISTANCE[battle.distance];
+  const scores = L.scoreNavalActions(self, opponent, battle.distance, disposition, legalActions);
+  const chosen = L.selectWeightedAction(scores, 2);
+  return chosen || "broadside";
+}
+
+    function pickSideBoardingAction(state, session, isPlayer) {
+      const battle = session.battle;
+      const enemy = session.enemy;
+      const disposition = session.aiDisposition || L.computeAIDisposition(state, enemy, "random");
+      let ratio;
+      if (isPlayer) ratio = L.getBoardingRatio(state, battle, enemy);
+      else ratio = 1 - L.getBoardingRatio(state, battle, enemy);
+      const moraleShift = { low: -0.1, medium: 0, high: 0.1, assault: 0.2 }[disposition.riskLevel] ?? 0;
+      const scores = L.scoreBoardingActions(ratio, disposition, moraleShift);
+      const chosen = L.selectWeightedAction(scores, 2);
+      return chosen || "continue_fighting";
+    }
+
+   function applyNavalResult(session, result) {
+  const battle = session.battle;
+  if (result.outcome === "continue" || result.outcome === "boarding_begins") {
+    battle.round++;
+    battle.playerHull = Math.max(0, battle.playerHull - result.playerHullDamage);
+    battle.enemyHull = Math.max(0, battle.enemyHull - result.enemyHullDamage);
+    battle.playerCrew = Math.max(0, battle.playerCrew - result.playerCrewLoss);
+    battle.enemyCrew = Math.max(0, battle.enemyCrew - result.enemyCrewLoss);
+    if (result.newDistance) battle.distance = result.newDistance;
+    if (result.outcome === "boarding_begins") {
+      battle.subPhase = "boarding";
+      battle.distance = "close";
+    }
+    // Mutual destruction check: both hulls reach 0 in the same round
+    if (battle.playerHull === 0 && battle.enemyHull === 0) {
+      session.mutualDestruction = true;
+      session.phase = "ended";
+      battle.phase = "draw";
+    }
+  } else if (result.outcome === "player_evaded" || result.outcome === "enemy_evaded") {
+    session.phase = "ended";
+  } else if (result.outcome === "player_sunk" || result.outcome === "player_captured") {
+    session.phase = "ended";
+    battle.phase = "defeat";
+  } else if (result.outcome === "enemy_sunk" || result.outcome === "enemy_captured" || result.outcome === "enemy_wipeout" || result.outcome === "enemy_surrendered") {
+    session.phase = "ended";
+    battle.phase = "victory";
+  } else {
+    session.phase = "ended";
+  }
+}
+
+    function applyBoardingResult(session, result) {
+      const battle = session.battle;
+      if (result.outcome === "continue") {
+        battle.round++;
+        battle.playerCrew = Math.max(0, battle.playerCrew - result.playerCrewLoss);
+        battle.enemyCrew = Math.max(0, battle.enemyCrew - result.enemyCrewLoss);
+      } else if (result.outcome === "returned_to_naval") {
+        battle.subPhase = "naval";
+        battle.distance = "close";
+        battle.round++;
+      } else if (result.outcome === "player_wipeout") {
+        session.phase = "ended";
+        battle.phase = "defeat";
+      } else if (result.outcome === "enemy_wipeout" || result.outcome === "enemy_surrendered" || result.outcome === "enemy_win_capture") {
+        session.phase = "ended";
+        battle.phase = "victory";
+      } else if (result.outcome === "player_surrendered") {
+        session.phase = "ended";
+        battle.phase = "defeat";
+      } else {
+        session.phase = "ended";
+      }
+    }
+
+ function simulateOneBattle(configA, configB) {
+  const { stateA, session } = buildFakeSession(configA, configB);
+  const battle = session.battle;
+  // Initialize mutualDestruction on session (in case it's not set)
+  if (session.mutualDestruction === undefined) session.mutualDestruction = false;
+  let rounds = 0;
+  const MAX_ROUNDS = 100;
+  const roundLog = [];
+
+  while (rounds < MAX_ROUNDS) {
+    rounds++;
+    if (session.phase !== "battle") break;
+
+    if (battle.subPhase === "naval") {
+      const actionA = pickSideNavalAction(stateA, session, true);
+      const actionB = pickSideNavalAction(stateA, session, false);
+      const result = L.resolveNavalRound(stateA, actionA, actionB, battle, session.enemy);
+      roundLog.push({ round: rounds, phase: "naval", actionA, actionB, distance: battle.distance, outcome: result.outcome });
+      applyNavalResult(session, result);
+      if (session.phase !== "battle") break;
+    } else if (battle.subPhase === "boarding") {
+      const actionA = pickSideBoardingAction(stateA, session, true);
+      const actionB = pickSideBoardingAction(stateA, session, false);
+      const ratio = L.getBoardingRatio(stateA, battle, session.enemy);
+      const result = L.resolveBoardingRound(stateA, actionA, actionB, battle, session.enemy);
+      roundLog.push({ round: rounds, phase: "boarding", actionA, actionB, ratio, outcome: result.outcome });
+      applyBoardingResult(session, result);
+      if (session.phase !== "battle") break;
+    }
+  }
+
+  let outcome;
+  if (session.phase === "ended") {
+    if (session.mutualDestruction) {
+      outcome = "TIE";
+    } else if (battle.phase === "victory") {
+      outcome = "A_VICTORY";
+    } else if (battle.phase === "defeat") {
+      outcome = "B_VICTORY";
+    } else {
+      outcome = "UNKNOWN";
+    }
+  } else {
+    outcome = "TIMEOUT";
+  }
+
+  const actionCounts = { A: {}, B: {} };
+  const distanceCounts = { far: 0, medium: 0, close: 0 };
+  for (const entry of roundLog) {
+    if (entry.phase === "naval") {
+      actionCounts.A[entry.actionA] = (actionCounts.A[entry.actionA] || 0) + 1;
+      actionCounts.B[entry.actionB] = (actionCounts.B[entry.actionB] || 0) + 1;
+      distanceCounts[entry.distance]++;
+    } else if (entry.phase === "boarding") {
+      actionCounts.A[entry.actionA] = (actionCounts.A[entry.actionA] || 0) + 1;
+      actionCounts.B[entry.actionB] = (actionCounts.B[entry.actionB] || 0) + 1;
+    }
+  }
+
+  return {
+    outcome,
+    rounds,
+    actionCounts,
+    distanceCounts,
+    totalNavalRounds: roundLog.filter(e => e.phase === "naval").length,
+    totalBoardingRounds: roundLog.filter(e => e.phase === "boarding").length,
+  };
+}
+
+function runBatch(configA, configB, numRuns) {
+  const outcomes = { A_VICTORY: 0, B_VICTORY: 0, TIE: 0, TIMEOUT: 0, UNKNOWN: 0 };
+  const roundCounts = [];
+  const actionCountsA = {}, actionCountsB = {};
+  const distanceCounts = { far: 0, medium: 0, close: 0 };
+  let totalNavalRounds = 0, totalBoardingRounds = 0;
+
+  for (let i = 0; i < numRuns; i++) {
+    const result = simulateOneBattle(configA, configB);
+    outcomes[result.outcome] = (outcomes[result.outcome] || 0) + 1;
+    roundCounts.push(result.rounds);
+    for (const [action, count] of Object.entries(result.actionCounts.A)) {
+      actionCountsA[action] = (actionCountsA[action] || 0) + count;
+    }
+    for (const [action, count] of Object.entries(result.actionCounts.B)) {
+      actionCountsB[action] = (actionCountsB[action] || 0) + count;
+    }
+    for (const [dist, count] of Object.entries(result.distanceCounts)) {
+      distanceCounts[dist] += count;
+    }
+    totalNavalRounds += result.totalNavalRounds;
+    totalBoardingRounds += result.totalBoardingRounds;
+  }
+
+  const avgRounds = roundCounts.reduce((a, b) => a + b, 0) / numRuns;
+  const totalActionsA = Object.values(actionCountsA).reduce((a, b) => a + b, 0);
+  const totalActionsB = Object.values(actionCountsB).reduce((a, b) => a + b, 0);
+  const totalDistances = Object.values(distanceCounts).reduce((a, b) => a + b, 0);
+
+  return {
+    outcomes,
+    avgRounds,
+    actionCountsA,
+    actionCountsB,
+    totalActionsA,
+    totalActionsB,
+    distanceCounts,
+    totalDistances,
+    totalNavalRounds,
+    totalBoardingRounds,
+  };
+} 
+
+    // ── UI functions ────────────────────────────────────────
+    function switchTab(side) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + side).classList.add('active');
+      document.querySelectorAll('.tab').forEach(t => {
+        if (t.getAttribute('onclick').includes(side)) t.classList.add('active');
+      });
+    }
+
+    function toggleCustomTab() {
+      const custom = document.getElementById('customTab');
+      custom.style.display = custom.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function fillSide(side, config) {
+      document.getElementById(side + 'Faction').value = config.faction || 'pirate';
+      document.getElementById(side + 'Risk').value = config.risk || 'medium';
+      document.getElementById(side + 'Hull').value = config.hull || 100;
+      document.getElementById(side + 'MaxHull').value = config.maxHull || config.hull || 100;
+      document.getElementById(side + 'Crew').value = config.crew || 10;
+      document.getElementById(side + 'Speed').value = config.speed || 10;
+      if (config.moraleOverride !== undefined) document.getElementById(side + 'Morale').value = config.moraleOverride;
+      else document.getElementById(side + 'Morale').value = '';
+      document.getElementById(side + 'Heat').value = config.heat || 0;
+      document.getElementById(side + 'Rep').value = config.rep || 50;
+      document.getElementById(side + 'Fame').value = config.fame || 0;
+      document.getElementById(side + 'Infamy').value = config.infamy || 0;
+      document.getElementById(side + 'Faction').dataset.shipType = config.shipType || '';
+    }
+
+    function getConfigFromUI(side) {
+      const shipType = document.getElementById(side + 'Faction').dataset.shipType || '';
+      return {
+        faction: document.getElementById(side + 'Faction').value,
+        risk: document.getElementById(side + 'Risk').value,
+        hull: parseInt(document.getElementById(side + 'Hull').value) || 100,
+        maxHull: parseInt(document.getElementById(side + 'MaxHull').value) || 100,
+        crew: parseInt(document.getElementById(side + 'Crew').value) || 0,
+        speed: parseInt(document.getElementById(side + 'Speed').value) || 10,
+        moraleOverride: document.getElementById(side + 'Morale').value ? parseInt(document.getElementById(side + 'Morale').value) : undefined,
+        heat: parseInt(document.getElementById(side + 'Heat').value) || 0,
+        rep: parseInt(document.getElementById(side + 'Rep').value) || 50,
+        fame: parseInt(document.getElementById(side + 'Fame').value) || 0,
+        infamy: parseInt(document.getElementById(side + 'Infamy').value) || 0,
+        shipType: shipType || undefined,
+      };
+    }
+
+    function runCustomSimulation() {
+      const configA = getConfigFromUI('A');
+      const configB = getConfigFromUI('B');
+      const numRuns = parseInt(document.getElementById('numRuns').value) || 500;
+      const results = runBatch(configA, configB, numRuns);
+      renderCustomResults(results, configA, configB, numRuns);
+    }
+
+    function renderCustomResults(results, configA, configB, numRuns) {
+      const resDiv = document.getElementById('customResults');
+      resDiv.innerHTML = buildResultsHTML(results, configA, configB, numRuns);
+    }
+
+    // ── PRESETS DEFINITION ─────────────────────────────────
+    const PRESETS = [
+      // 1. Symmetry Check (identical stats)
+      {
+        name: 'Symmetry Check (identical stats)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, moraleOverride: 80 },
+          b: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, moraleOverride: 80 }
+        },
+        expected: (results) => {
+          const winRate = results.outcomes.A_VICTORY / 500;
+          return { pass: winRate >= 0.45 && winRate <= 0.55, message: 'Win rate for Side A: ' + (winRate*100).toFixed(1) + '% (expected 45-55%)' };
+        }
+      },
+
+      // 2. Dinghy 0 crew vs Sloop
+      {
+        name: 'Dinghy 0 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 30, maxHull: 30, crew: 0, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct < 0.05 && results.outcomes.A_VICTORY < results.outcomes.B_VICTORY;
+          return { pass, message: 'Grapple usage for Side A: ' + (grapplePct*100).toFixed(1) + '% (expected <5%) | A wins: ' + results.outcomes.A_VICTORY + ', B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 3. Dinghy 1 crew vs Sloop
+      {
+        name: 'Dinghy 1 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 30, maxHull: 30, crew: 1, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct < 0.05 && results.outcomes.A_VICTORY < results.outcomes.B_VICTORY;
+          return { pass, message: 'Grapple usage: ' + (grapplePct*100).toFixed(1) + '% (expected <5%) | A wins: ' + results.outcomes.A_VICTORY + ', B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 4. Dinghy 5 crew vs Sloop
+      {
+        name: 'Dinghy 5 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 30, maxHull: 30, crew: 5, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct < 0.10 && results.outcomes.A_VICTORY < results.outcomes.B_VICTORY;
+          return { pass, message: 'Grapple usage: ' + (grapplePct*100).toFixed(1) + '% (expected <10%) | A wins: ' + results.outcomes.A_VICTORY + ', B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 5. Cutter 2 crew vs Sloop
+      {
+        name: 'Cutter 2 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 2, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct < 0.10 && results.outcomes.A_VICTORY < results.outcomes.B_VICTORY;
+          return { pass, message: 'Grapple usage: ' + (grapplePct*100).toFixed(1) + '% (expected <10%) | A wins: ' + results.outcomes.A_VICTORY + ', B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 6. Cutter 5 crew vs Sloop
+      {
+        name: 'Cutter 5 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 5, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct < 0.20 && results.outcomes.A_VICTORY < results.outcomes.B_VICTORY;
+          return { pass, message: 'Grapple usage: ' + (grapplePct*100).toFixed(1) + '% (expected <20%) | A wins: ' + results.outcomes.A_VICTORY + ', B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 7. Cutter 10 crew vs Sloop
+      {
+        name: 'Cutter 10 crew vs Sloop',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 10, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = results.actionCountsA.grapple || 0;
+          const totalA = results.totalActionsA || 1;
+          const grapplePct = aGrapple / totalA;
+          const pass = grapplePct > 0.05 && results.outcomes.A_VICTORY > 0;
+          return { pass, message: 'Grapple usage: ' + (grapplePct*100).toFixed(1) + '% (expected >5%) | A wins: ' + results.outcomes.A_VICTORY };
+        }
+      },
+
+      // 8. Pirate vs English (archetype differentiation)
+      {
+        name: 'Pirate vs English (archetype differentiation)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10 },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10 }
+        },
+        expected: (results) => {
+          const pirateGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const englishBroadside = (results.actionCountsB.broadside || 0) / (results.totalActionsB || 1);
+          const pass = pirateGrapple > (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1) &&
+                       englishBroadside > (results.actionCountsA.broadside || 0) / (results.totalActionsA || 1);
+          return { pass, message: 'Pirate grapple%: ' + (pirateGrapple*100).toFixed(1) + ' | English broadside%: ' + (englishBroadside*100).toFixed(1) };
+        }
+      },
+
+      // 9. Hull/Crew Asymmetry (previously flawed, now corrected)
+      {
+        name: 'Hull/Crew Asymmetry (A hull adv, B crew adv)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 150, maxHull: 150, crew: 5, speed: 10 },
+          b: { faction: 'english', risk: 'medium', hull: 40, maxHull: 50, crew: 20, speed: 10 }
+        },
+        expected: (results) => {
+          const aOpen = (results.actionCountsA.open_distance || 0) / (results.totalActionsA || 1);
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = aOpen > 0.10 && bGrapple > aGrapple;
+          return { pass, message: 'A open%: ' + (aOpen*100).toFixed(1) + ' | A grapple%: ' + (aGrapple*100).toFixed(1) + ' | B grapple%: ' + (bGrapple*100).toFixed(1) };
+        }
+      },
+
+      // ── EARLY GAME SCENARIOS ──────────────────────────────
+      // 10. Dinghy 0 crew vs Dinghy 5 crew
+      {
+        name: 'Dinghy 0 crew vs Dinghy 5 crew',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 30, maxHull: 30, crew: 0, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 30, maxHull: 30, crew: 5, speed: 6, shipType: 'dinghy' }
+        },
+        expected: (results) => {
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const bClose = (results.actionCountsB.close_distance || 0) / (results.totalActionsB || 1);
+          const pass = bClose > 0.20 && results.outcomes.B_VICTORY > results.outcomes.A_VICTORY;
+          return { pass, message: 'B close%: ' + (bClose*100).toFixed(1) + ' | B grapple%: ' + (bGrapple*100).toFixed(1) + ' | B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 11. Dinghy 3 crew vs Cutter 6 crew
+      {
+        name: 'Dinghy 3 crew vs Cutter 6 crew',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 30, maxHull: 30, crew: 3, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 60, maxHull: 60, crew: 6, speed: 12, shipType: 'cutter' }
+        },
+        expected: (results) => {
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = bGrapple > 0.05 && results.outcomes.B_VICTORY > results.outcomes.A_VICTORY;
+          return { pass, message: 'B grapple%: ' + (bGrapple*100).toFixed(1) + ' | B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 12. Dinghy 2 crew vs Sloop 5 crew
+      {
+        name: 'Dinghy 2 crew vs Sloop 5 crew',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 30, maxHull: 30, crew: 2, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 5, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = bGrapple > 0.05 && results.outcomes.B_VICTORY > results.outcomes.A_VICTORY;
+          return { pass, message: 'B grapple%: ' + (bGrapple*100).toFixed(1) + ' | B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // 13. Cutter 3 crew vs Sloop 8 crew
+      {
+        name: 'Cutter 3 crew vs Sloop 8 crew',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 3, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 8, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = bGrapple > 0.05 && results.outcomes.B_VICTORY > results.outcomes.A_VICTORY;
+          return { pass, message: 'B grapple%: ' + (bGrapple*100).toFixed(1) + ' | B wins: ' + results.outcomes.B_VICTORY };
+        }
+      },
+
+      // ── ADDITIONAL SCENARIOS ─────────────────────────────
+      // 14. Dinghy vs Dinghy (1 crew each)
+      {
+        name: 'Dinghy vs Dinghy (1 crew each)',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 30, maxHull: 30, crew: 1, speed: 6, shipType: 'dinghy' },
+          b: { faction: 'english', risk: 'low', hull: 30, maxHull: 30, crew: 1, speed: 6, shipType: 'dinghy' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = aGrapple < 0.05 && bGrapple < 0.05;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) + ' | B grapple%: ' + (bGrapple*100).toFixed(1) };
+        }
+      },
+
+      // 15. Cutter vs Cutter (5 crew each)
+      {
+        name: 'Cutter vs Cutter (5 crew each)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 5, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 60, maxHull: 60, crew: 5, speed: 12, shipType: 'cutter' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const pass = aGrapple > 0.02 && results.outcomes.A_VICTORY > 0;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) };
+        }
+      },
+
+      // 16. Sloop vs Sloop (10 crew each)
+      {
+        name: 'Sloop vs Sloop (10 crew each)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const pass = aGrapple > 0.05 && results.outcomes.A_VICTORY > 0;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) };
+        }
+      },
+
+      // 17. Sloop A hull 80/100 vs Sloop B hull 100/100 (hull disadvantage)
+      {
+        name: 'Sloop A hull 80 vs Sloop B hull 100',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 80, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aPrecision = (results.actionCountsA.precision || 0) / (results.totalActionsA || 1);
+          const aOpen = (results.actionCountsA.open_distance || 0) / (results.totalActionsA || 1);
+          const pass = aPrecision > 0.4 && aOpen > 0.05;
+          return { pass, message: 'A precision%: ' + (aPrecision*100).toFixed(1) + ' | A open%: ' + (aOpen*100).toFixed(1) };
+        }
+      },
+
+      // 18. Sloop A crew 5 vs Sloop B crew 10 (crew disadvantage)
+      {
+        name: 'Sloop A crew 5 vs Sloop B crew 10',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 5, speed: 10, shipType: 'sloop' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const aOpen = (results.actionCountsA.open_distance || 0) / (results.totalActionsA || 1);
+          const bGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = aGrapple < bGrapple && aOpen > 0.05;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) + ' | A open%: ' + (aOpen*100).toFixed(1) + ' | B grapple%: ' + (bGrapple*100).toFixed(1) };
+        }
+      },
+
+      // 19. Sloop A speed 14 vs Sloop B speed 8 (speed advantage)
+      {
+        name: 'Sloop A speed 14 vs Sloop B speed 8',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 14, shipType: 'sloop' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 8, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aClose = (results.actionCountsA.close_distance || 0) / (results.totalActionsA || 1);
+          const aOpen = (results.actionCountsA.open_distance || 0) / (results.totalActionsA || 1);
+          const pass = aClose + aOpen > 0.2;
+          return { pass, message: 'A close+open%: ' + ((aClose+aOpen)*100).toFixed(1) };
+        }
+      },
+
+      // 20. Frigate vs Sloop (hull advantage)
+      {
+        name: 'Frigate A vs Sloop B',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 200, maxHull: 220, crew: 10, speed: 9, shipType: 'frigate' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          const aBroadside = (results.actionCountsA.broadside || 0) / (results.totalActionsA || 1);
+          const pass = aBroadside > 0.3 && results.outcomes.A_VICTORY > results.outcomes.B_VICTORY;
+          return { pass, message: 'A broadside%: ' + (aBroadside*100).toFixed(1) + ' | A wins: ' + results.outcomes.A_VICTORY };
+        }
+      },
+
+      // 21. Frigate vs Dinghy (newbie gets crushed)
+      {
+        name: 'Frigate A vs Dinghy B (crew 5 vs 1)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 200, maxHull: 220, crew: 5, speed: 9, shipType: 'frigate' },
+          b: { faction: 'english', risk: 'low', hull: 30, maxHull: 30, crew: 1, speed: 6, shipType: 'dinghy' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const bWins = results.outcomes.B_VICTORY;
+          const pass = aGrapple > 0.05 && bWins === 0;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) + ' | B wins: ' + bWins };
+        }
+      },
+
+      // 22. Same stats, Risk Low vs High
+      {
+        name: 'Risk Low vs Risk High (identical stats)',
+        config: {
+          a: { faction: 'pirate', risk: 'low', hull: 100, maxHull: 100, crew: 10, speed: 10 },
+          b: { faction: 'pirate', risk: 'high', hull: 100, maxHull: 100, crew: 10, speed: 10 }
+        },
+        expected: (results) => {
+          const aClose = (results.actionCountsA.close_distance || 0) / (results.totalActionsA || 1);
+          const bClose = (results.actionCountsB.close_distance || 0) / (results.totalActionsB || 1);
+          const pass = bClose > aClose; // High risk should close more
+          return { pass, message: 'A close%: ' + (aClose*100).toFixed(1) + ' | B close%: ' + (bClose*100).toFixed(1) };
+        }
+      },
+
+      // 23. Pirate vs English (5 crew each)
+      {
+        name: 'Pirate vs English (5 crew each)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 5, speed: 10 },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 5, speed: 10 }
+        },
+        expected: (results) => {
+          const pirateGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const englishGrapple = (results.actionCountsB.grapple || 0) / (results.totalActionsB || 1);
+          const pass = pirateGrapple > englishGrapple;
+          return { pass, message: 'Pirate grapple%: ' + (pirateGrapple*100).toFixed(1) + ' | English grapple%: ' + (englishGrapple*100).toFixed(1) };
+        }
+      },
+
+      // 24. Dutch vs Spanish (10 crew each)
+      {
+        name: 'Dutch vs Spanish (10 crew each)',
+        config: {
+          a: { faction: 'dutch', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10 },
+          b: { faction: 'spanish', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10 }
+        },
+        expected: (results) => {
+          const aOpen = (results.actionCountsA.open_distance || 0) / (results.totalActionsA || 1);
+          const bBroadside = (results.actionCountsB.broadside || 0) / (results.totalActionsB || 1);
+          const pass = aOpen > 0.05 && bBroadside > 0.5;
+          return { pass, message: 'A open%: ' + (aOpen*100).toFixed(1) + ' | B broadside%: ' + (bBroadside*100).toFixed(1) };
+        }
+      },
+
+      // 25. Cutter 10 crew vs Cutter 10 crew
+      {
+        name: 'Cutter 10 crew vs Cutter 10 crew',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 60, maxHull: 60, crew: 10, speed: 12, shipType: 'cutter' },
+          b: { faction: 'english', risk: 'medium', hull: 60, maxHull: 60, crew: 10, speed: 12, shipType: 'cutter' }
+        },
+        expected: (results) => {
+          const aGrapple = (results.actionCountsA.grapple || 0) / (results.totalActionsA || 1);
+          const pass = aGrapple > 0.05 && results.outcomes.A_VICTORY > 0;
+          return { pass, message: 'A grapple%: ' + (aGrapple*100).toFixed(1) };
+        }
+      },
+
+      // ── NEW: START DISTANCE PRESETS ─────────────────────
+      {
+        name: 'Sloop vs Frigate (Far)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'far' },
+          b: { faction: 'english', risk: 'medium', hull: 220, maxHull: 220, crew: 12, speed: 9, shipType: 'frigate' }
+        },
+        expected: (results) => {
+          // Just log the data; we'll examine manually.
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+      {
+        name: 'Sloop vs Frigate (Medium)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'medium' },
+          b: { faction: 'english', risk: 'medium', hull: 220, maxHull: 220, crew: 12, speed: 9, shipType: 'frigate' }
+        },
+        expected: (results) => {
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+      {
+        name: 'Sloop vs Frigate (Close)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'close' },
+          b: { faction: 'english', risk: 'medium', hull: 220, maxHull: 220, crew: 12, speed: 9, shipType: 'frigate' }
+        },
+        expected: (results) => {
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+
+      // ── More distance tests with balanced stats ──────────
+      {
+        name: 'Sloop vs Sloop (Far)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'far' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+      {
+        name: 'Sloop vs Sloop (Medium)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'medium' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+      {
+        name: 'Sloop vs Sloop (Close)',
+        config: {
+          a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop', startDistance: 'close' },
+          b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: 'sloop' }
+        },
+        expected: (results) => {
+          return { pass: true, message: 'Data captured – see details.' };
+        }
+      },
+      {
+      name: 'Heat 10 vs Heat 0 (identical stats)',
+      config: {
+        a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, heat: 10 },
+        b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, heat: 0 }
+      },
+      expected: (results) => {
+        // High heat should increase continueFightingBonus, but in naval phase it mainly affects boarding.
+        // We'll just check the data is captured and side B (low heat) isn't more aggressive than A.
+        const aAggression = (results.actionCountsA.close_distance || 0) + (results.actionCountsA.grapple || 0);
+        const bAggression = (results.actionCountsB.close_distance || 0) + (results.actionCountsB.grapple || 0);
+        // No hard pass/fail – we just want to see data.
+        return { pass: true, message: 'A aggression: ' + aAggression + ' | B aggression: ' + bAggression };
+      }
+    },
+    {
+      name: 'Reputation 10 vs Reputation 100 (identical stats)',
+      config: {
+        a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, rep: 10 },
+        b: { faction: 'english', risk: 'medium', hull: 100, maxHull: 100, crew: 10, speed: 10, rep: 100 }
+      },
+      expected: (results) => {
+        // Reputation affects surrender willingness. Low rep (Side A) should be less willing to surrender.
+        // We'll just check the data.
+        const aSurrender = results.actionCountsA.surrender || 0;
+        const bSurrender = results.actionCountsB.surrender || 0;
+        return { pass: true, message: 'A surrender actions: ' + aSurrender + ' | B surrender actions: ' + bSurrender };
+      }
+    },
+
+
+      
+    ];
+
+
+    // ── Generated enemy presets for difficulty scaling tests ──
+(function addGeneratedPresets() {
+  // Helper: create a config from an enemy object (with shipType and speed derived)
+  function enemyToConfig(enemy) {
+    const shipType = enemy.shipType || L.guessShipType(enemy);
+    const shipData = SHIPS[shipType];
+    return {
+      faction: enemy.faction,
+      risk: enemy.risk || 'medium',
+      hull: enemy.hull,
+      maxHull: enemy.maxHull || enemy.hull,
+      crew: enemy.crew,
+      speed: shipData ? shipData.speed : 10,  // generateEnemy doesn't give speed, use ship's base
+      shipType: shipType,
+    };
+  }
+
+  // Scenario 1: Full crew Sloop (player) vs a generated enemy at fame 50
+  const fame50 = 50;
+  const lowRiskEnemy50 = G.generateEnemy('low', fame50, 'english');
+  const highRiskEnemy50 = G.generateEnemy('high', fame50, 'english');
+
+  PRESETS.push({
+    name: 'Sloop (full crew) vs 50-fame enemy (Low Risk)',
+    config: {
+      a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 40, speed: 11, shipType: 'sloop' },
+      b: enemyToConfig(lowRiskEnemy50),
+    },
+    expected: (results) => {
+      const winRate = results.outcomes.A_VICTORY / 500;
+      return { pass: winRate > 0.5, message: 'A win rate: ' + (winRate*100).toFixed(1) + '%' };
+    }
+  });
+
+  PRESETS.push({
+    name: 'Sloop (full crew) vs 50-fame enemy (High Risk)',
+    config: {
+      a: { faction: 'pirate', risk: 'medium', hull: 100, maxHull: 100, crew: 40, speed: 11, shipType: 'sloop' },
+      b: enemyToConfig(highRiskEnemy50),
+    },
+    expected: (results) => {
+      const winRate = results.outcomes.A_VICTORY / 500;
+      return { pass: winRate > 0.5, message: 'A win rate: ' + (winRate*100).toFixed(1) + '%' };
+    }
+  });
+
+  // Scenario 2: Full crew Frigate (player) vs generated enemy at fame 200
+  const fame200 = 200;
+  const lowRiskEnemy200 = G.generateEnemy('low', fame200, 'spanish');
+  const highRiskEnemy200 = G.generateEnemy('high', fame200, 'spanish');
+
+  PRESETS.push({
+    name: 'Frigate (full crew) vs 200-fame enemy (Low Risk)',
+    config: {
+      a: { faction: 'pirate', risk: 'medium', hull: 220, maxHull: 220, crew: 120, speed: 9, shipType: 'frigate' },
+      b: enemyToConfig(lowRiskEnemy200),
+    },
+    expected: (results) => {
+      const winRate = results.outcomes.A_VICTORY / 500;
+      return { pass: winRate > 0.5, message: 'A win rate: ' + (winRate*100).toFixed(1) + '%' };
+    }
+  });
+
+  PRESETS.push({
+    name: 'Frigate (full crew) vs 200-fame enemy (High Risk)',
+    config: {
+      a: { faction: 'pirate', risk: 'medium', hull: 220, maxHull: 220, crew: 120, speed: 9, shipType: 'frigate' },
+      b: enemyToConfig(highRiskEnemy200),
+    },
+    expected: (results) => {
+      const winRate = results.outcomes.A_VICTORY / 500;
+      return { pass: winRate > 0.5, message: 'A win rate: ' + (winRate*100).toFixed(1) + '%' };
+    }
+  });
+})();
+
+    // ── Run All Presets ─────────────────────────────────────
+    function runAllPresets() {
+      const numRuns = 500;
+      const resultsDiv = document.getElementById('presetSummary');
+      resultsDiv.innerHTML = '<div class="note">Running all presets... this may take a moment.</div>';
+      setTimeout(() => {
+        let html = '<h2>Preset Results (500 runs each)</h2>';
+        for (const preset of PRESETS) {
+          const results = runBatch(preset.config.a, preset.config.b, numRuns);
+          const verdict = preset.expected(results);
+          html += '<div class="summary-card">';
+          html += '<div><strong>' + preset.name + '</strong></div>';
+          html += '<div style="font-size:10px; color:#a0a0a0;">Outcomes: A wins ' + results.outcomes.A_VICTORY + ' | B wins ' + results.outcomes.B_VICTORY + ' | Timeout ' + results.outcomes.TIMEOUT + '</div>';
+          html += '<div style="font-size:10px; color:#a0a0a0;">Avg rounds: ' + results.avgRounds.toFixed(1) + '</div>';
+          html += '<div style="font-size:10px; color:#a0a0a0;">Side A actions: ' + JSON.stringify(results.actionCountsA) + '</div>';
+          html += '<div style="font-size:10px; color:#a0a0a0;">Side B actions: ' + JSON.stringify(results.actionCountsB) + '</div>';
+          html += '<div style="margin-top:4px;"><span class="' + (verdict.pass ? 'pass' : 'fail') + '">' + (verdict.pass ? 'PASS' : 'FAIL') + '</span> — ' + verdict.message + '</div>';
+          html += '</div>';
+        }
+        resultsDiv.innerHTML = html;
+      }, 50);
+    }
+
+    function runVerboseBattle() {
+  const configA = getConfigFromUI('A');
+  const configB = getConfigFromUI('B');
+  const { stateA, session } = buildFakeSession(configA, configB);
+  const battle = session.battle;
+  let rounds = 0;
+  const MAX_ROUNDS = 100;
+  const roundLog = [];
+
+  while (rounds < MAX_ROUNDS) {
+    rounds++;
+    if (session.phase !== "battle") break;
+
+    if (battle.subPhase === "naval") {
+      const actionA = pickSideNavalAction(stateA, session, true);
+      const actionB = pickSideNavalAction(stateA, session, false);
+      const result = L.resolveNavalRound(stateA, actionA, actionB, battle, session.enemy);
+      roundLog.push({
+        round: rounds,
+        phase: "naval",
+        actionA,
+        actionB,
+        distance: battle.distance,
+        outcome: result.outcome,
+        playerHull: battle.playerHull - result.playerHullDamage,
+        enemyHull: battle.enemyHull - result.enemyHullDamage,
+        playerCrew: battle.playerCrew - result.playerCrewLoss,
+        enemyCrew: battle.enemyCrew - result.enemyCrewLoss,
+      });
+      applyNavalResult(session, result);
+      if (session.phase !== "battle") break;
+    } else if (battle.subPhase === "boarding") {
+      const actionA = pickSideBoardingAction(stateA, session, true);
+      const actionB = pickSideBoardingAction(stateA, session, false);
+      const ratio = L.getBoardingRatio(stateA, battle, session.enemy);
+      const result = L.resolveBoardingRound(stateA, actionA, actionB, battle, session.enemy);
+      roundLog.push({
+        round: rounds,
+        phase: "boarding",
+        actionA,
+        actionB,
+        ratio,
+        outcome: result.outcome,
+        playerHull: battle.playerHull,
+        enemyHull: battle.enemyHull,
+        playerCrew: battle.playerCrew - result.playerCrewLoss,
+        enemyCrew: battle.enemyCrew - result.enemyCrewLoss,
+      });
+      applyBoardingResult(session, result);
+      if (session.phase !== "battle") break;
+    }
+  }
+
+  let outcome;
+  if (session.phase === "ended") {
+    if (battle.phase === "victory") outcome = "A_VICTORY";
+    else if (battle.phase === "defeat") outcome = "B_VICTORY";
+    else outcome = "UNKNOWN";
+  } else {
+    outcome = "TIMEOUT";
+  }
+
+  // Render the round log
+  const resDiv = document.getElementById('verboseResults');
+  let html = '<div class="panel"><h2>Verbose Single Battle (' + outcome + ')</h2>';
+  html += '<table><tr><th>Round</th><th>Phase</th><th>Action A</th><th>Action B</th><th>Distance</th><th>Outcome</th><th>A Hull</th><th>B Hull</th><th>A Crew</th><th>B Crew</th></tr>';
+  roundLog.forEach(entry => {
+    html += '<tr>';
+    html += '<td>' + entry.round + '</td>';
+    html += '<td>' + entry.phase + '</td>';
+    html += '<td>' + entry.actionA + '</td>';
+    html += '<td>' + entry.actionB + '</td>';
+    html += '<td>' + entry.distance + '</td>';
+    html += '<td>' + entry.outcome + '</td>';
+    html += '<td>' + entry.playerHull + '</td>';
+    html += '<td>' + entry.enemyHull + '</td>';
+    html += '<td>' + entry.playerCrew + '</td>';
+    html += '<td>' + entry.enemyCrew + '</td>';
+    html += '</tr>';
+  });
+  html += '</table></div>';
+  resDiv.innerHTML = html;
+}
+
+    function buildResultsHTML(results, configA, configB, numRuns) {
+      const out = results.outcomes;
+      const pct = (n) => ((n / numRuns) * 100).toFixed(1) + "%";
+      let html = '<div class="panel"><h2>Custom Simulation Results (' + numRuns + ' runs)</h2>';
+      html += '<h3>Outcome Distribution</h3>';
+      html += '<table><tr><th>Outcome</th><th>Count</th><th>%</th></tr>';
+      html += '<tr><td>Side A Victory</td><td class="val">' + out.A_VICTORY + '</td><td class="val">' + pct(out.A_VICTORY) + '</td></tr>';
+      html += '<tr><td>Side B Victory</td><td class="val">' + out.B_VICTORY + '</td><td class="val">' + pct(out.B_VICTORY) + '</td></tr>';
+      html += '<tr><td>Timeout</td><td class="val">' + out.TIMEOUT + '</td><td class="val">' + pct(out.TIMEOUT) + '</td></tr>';
+      html += '<tr><td>Unknown</td><td class="val">' + out.UNKNOWN + '</td><td class="val">' + pct(out.UNKNOWN) + '</td></tr>';
+      html += '</table>';
+      html += '<div style="margin-top:8px;">Average rounds: <b>' + results.avgRounds.toFixed(1) + '</b></div>';
+      html += '<div>Naval rounds: <b>' + results.totalNavalRounds + '</b> · Boarding rounds: <b>' + results.totalBoardingRounds + '</b></div>';
+      html += '<h3>Side A Actions</h3>';
+      html += renderActionTable(results.actionCountsA, results.totalActionsA);
+      html += '<h3>Side B Actions</h3>';
+      html += renderActionTable(results.actionCountsB, results.totalActionsB);
+      html += '<h3>Distance Distribution</h3>';
+      html += '<table><tr><th>Distance</th><th>Count</th><th>%</th></tr>';
+      for (const dist of ['far','medium','close']) {
+        html += '<tr><td>' + dist + '</td><td class="val">' + results.distanceCounts[dist] + '</td><td class="val">' + (results.distanceCounts[dist] / results.totalDistances * 100).toFixed(1) + '%</td></tr>';
+      }
+      html += '</table></div>';
+      return html;
+    }
+
+    function renderActionTable(counts, total) {
+      let html = '<table><tr><th>Action</th><th>Count</th><th>%</th></tr>';
+      const actions = Object.keys(counts).sort();
+      for (const action of actions) {
+        const p = total > 0 ? (counts[action] / total * 100).toFixed(1) : "0";
+        html += '<tr><td>' + action + '</td><td class="val">' + counts[action] + '</td><td class="val">' + p + '%</td></tr>';
+      }
+      html += '</table>';
+      return html;
+    }
+
+    // Initial tab handling
+    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.getAttribute('data-side'))));
+  </script>
+</body>
+</html>

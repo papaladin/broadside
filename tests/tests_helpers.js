@@ -249,6 +249,43 @@
     return { ...base, screen: "battle", encounterSession };
   };
 
+
+  // ── Encounter session factory ────────────────────────────────────────────
+// Builds an encounterSession object for testing combat AI actions.
+// This matches the shape produced by window.E.buildEncounterSession.
+function makeEncounterSession(state, enemy, battleOverrides = {}) {
+  const battle = {
+    round: 1,
+    log: ["Battle engaged!"],
+    playerHull: state.ship.hull,
+    playerCrew: state.crew.roster.length,
+    initialPlayerCrew: state.crew.roster.length,
+    lostCrewNames: [],
+    enemyHull: enemy.hull,
+    enemyCrew: enemy.crew,
+    distance: "medium",                     // default, can be overridden
+    subPhase: "naval",                      // default, can be overridden
+    phase: "player_turn",                   // default, can be overridden
+    canPlunder: false,
+    goldReward: 0,
+    enemyCargo: {},
+    ...battleOverrides,
+  };
+  const session = {
+    type: "random",
+    phase: "battle",
+    enemy: enemy,
+    battle: battle,
+    intercept: null,
+    plunder: null,
+    returnScreen: "port",
+    source: { kind: "random", id: null },
+    modifiers: [],
+    notableNPCId: null,
+  };
+  return session;
+}
+
   // ── Dispatch wrapper ───────────────────────────────────────────────────────
   // Thin wrapper so tests read cleanly: const s2 = dispatch(s, A.REPAIR);
 
@@ -275,5 +312,8 @@
     makeBattleState,
     // Dispatch
     dispatch,
+
+    //encountersession
+    makeEncounterSession,
   };
 })();
