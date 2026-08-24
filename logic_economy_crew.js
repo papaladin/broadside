@@ -271,6 +271,72 @@ window.L = window.L || {};
     };
   };
 
+
+// ── Trade Opportunity Helper ────────────────────────────────────────────
+
+const getTradeOpportunity = (state, fromPortKey, toPortKey) => {
+  // Get the current port market (already exists)
+  const fromMarket = state.portMarket;
+  if (!fromMarket) return null;
+
+  // Generate the target port market (pure, no side effects)
+  const toMarket = window.G.generatePortMarket(toPortKey, state);
+  if (!toMarket) return null;
+
+  const fromGoods = fromMarket.goods;
+  const toGoods = toMarket.goods;
+
+  let best = null;
+  let bestProfitPct = -Infinity;
+
+  // Get in-demand goods for the target port
+  const profile = window.L.getPortTradeProfile(toPortKey);
+  const inDemandSet = new Set(profile.inDemand || []);
+
+  // Loop through goods available at the current port
+  for (const [good, fromData] of Object.entries(fromGoods)) {
+    // Skip if not available at current port
+    if (fromData.available <= 0) continue;
+
+    // Skip if not available at target port
+    const toData = toGoods[good];
+    if (!toData) continue;
+
+    // Skip provisions (food/water)
+    if (good === "food" || good === "water") continue;
+
+    const buyPrice = fromData.buyFromPort;
+    const sellPrice = toData.sellToPort;
+
+    const profit = sellPrice - buyPrice;
+    const profitPct = buyPrice > 0 ? profit / buyPrice : 0;
+
+    if (profitPct <= 0) continue;
+
+    if (profitPct > bestProfitPct) {
+      bestProfitPct = profitPct;
+      best = {
+        good,
+        goodName: window.D.RESOURCES[good]?.name || good,
+        buyPrice,
+        sellPrice,
+        profit,
+        profitPct,
+        availableQty: fromData.available,
+        isInDemand: inDemandSet.has(good),
+        isIllegal: window.D.RESOURCES[good]?.illegal || false,
+      };
+    }
+  }
+
+  // Only return if profit is meaningful (> 10% or > 5g)
+  if (best && (best.profitPct >= 0.10 || best.profit >= 5)) {
+    return best;
+  }
+
+  return null;
+};
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  EXPOSE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -302,5 +368,7 @@ window.L = window.L || {};
     applyLoseCargoPercent,
     applyLoseContraband,
     getPortTradeProfile,
+    getTradeOpportunity,
+
   });
 })();

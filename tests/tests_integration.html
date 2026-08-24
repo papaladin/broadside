@@ -314,7 +314,7 @@
       "getAlignmentModifier","getHoldCapacity","getHoldUsed",
       "getProvisionConsumptionPerDay","shipRepairCost",
       "classifyLogLine","getLogTabCategory",
-      "buildEncounterContext",
+      "buildEncounterContext","getTradeOpportunity",
       "isFeatureUnlocked","applyReputationImpact",
       "encodeSave","decodeSave","simpleHash",
       "logPick","returnScreen",
@@ -418,7 +418,7 @@
       "LogList","Divider","EmptyState",
       "BackButton","Tooltip","TransferLayout","TutorialPopup",
       "ShipSprite","ShipSideSprite","PortSilhouette",
-      "panelStyle","getGoodIcon","useFlashOnChange",
+      "panelStyle","getGoodIcon","useFlashOnChange","PortCard","PortModal",
     ].forEach(c => test(`UI.${c} exists`, () =>
       assert(c in window.UI, `UI.${c} missing`)));
 

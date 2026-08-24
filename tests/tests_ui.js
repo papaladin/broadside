@@ -559,6 +559,46 @@ reg("U.SMOKE.20", "PlunderScreen: renders without throwing", (u) => {
   u.assert(r.ok, r.error || "render threw");
 });
 
+// ── U.SMOKE — PortCard & PortModal ──────────────────────────────────────
+
+reg("U.SMOKE.21", "PortCard: renders without throwing for a valid port", (u) => {
+  const state = makePortState("portRoyal", {
+    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
+  });
+  const r = renderSafe(window.UI.PortCard, {
+    portKey: "portRoyal",
+    state,
+    distance: 4,
+    isCurrent: true,
+  });
+  u.assert(r.ok, r.error || "render threw");
+});
+
+reg("U.SMOKE.22", "PortCard: renders without throwing when unreachable", (u) => {
+  const state = makePortState("portRoyal");
+  const r = renderSafe(window.UI.PortCard, {
+    portKey: "tortuga",
+    state,
+    distance: 999,
+    unreachableReason: "Out of range",
+    isCurrent: false,
+  });
+  u.assert(r.ok, r.error || "render threw");
+});
+
+reg("U.SMOKE.23", "PortModal: renders without throwing", (u) => {
+  const state = makePortState("portRoyal", {
+    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
+  });
+  const r = renderSafe(window.UI.PortModal, {
+    targetPortKey: "tortuga",
+    state,
+    dispatch: () => {},
+    onClose: () => {},
+  });
+  u.assert(r.ok, r.error || "render threw");
+});
+
   // ══════════════════════════════════════════════════════════════════════════
   // U.ICON — Icon component renders
   // ══════════════════════════════════════════════════════════════════════════

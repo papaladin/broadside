@@ -308,11 +308,18 @@ window.S = window.S || {};
             </SectionTitle>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
               {canNavigation && (
+              <div>
                 <Tooltip text={sailDisabled ? sailTooltip : "Open your chart and choose your next destination."}>
                   <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={sailDisabled}>
                     <IconMap size={12} color={T.text} /> World Map
                   </PulseBtn>
                 </Tooltip>
+                  {sailDisabled && (
+                    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                      ⚠ {sailTooltip}
+                    </div>
+                  )}
+                </div>
               )}
               <Tooltip text="Review your standing with the factions of the Caribbean.">
                 <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>

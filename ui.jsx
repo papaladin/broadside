@@ -8,6 +8,8 @@ window.UI = window.UI || {};
 (() => {
   const { FACTIONS } = window.D;
   const L = window.L;
+  const G = window.G;
+  const { useState, useRef, useLayoutEffect, useMemo } = React;
 
 const T = {
     bg: "#0a1622",      // deep navy (replaces #14110d)
@@ -870,11 +872,277 @@ const src = `port-${factionKey}.svg`;
   );
 };
 
+// ── PortCard ────────────────────────────────────────────────────────
+function PortCard({ portKey, state, label, distance, unreachableReason, isCurrent }) {
+  const port = D.PORTS[portKey];
+  if (!port) return null;
+
+  const rep = state.reputation[portKey] ?? 50;
+  const heat = state.factionAlerts?.[port.faction] ?? 0;
+  const profile = L.getPortTradeProfile(portKey);
+  const goodDeals = (profile.goodDeals || []).filter(g => g !== "food" && g !== "water");
+  const inDemand = (profile.inDemand || []).slice(0, 6);
+  const services = port.services || [];
+  const fColor = FACTIONS[port.faction]?.color ?? T.textDim;
+
+  // Get market goods for this port (if not current, generate)
+  const market = portKey === state.currentPort
+    ? state.portMarket
+    : G.generatePortMarket(portKey, state);
+
+  // Available goods — only show for current port
+  const availableGoods = useMemo(() => {
+    if (!market || !isCurrent) return [];
+    return Object.entries(market.goods)
+      .filter(([good, data]) => data.available > 0 && good !== "food" && good !== "water")
+      .map(([good, data]) => ({
+        name: D.RESOURCES[good]?.name || good,
+        qty: data.available,
+      }))
+      .slice(0, 8);
+  }, [market, isCurrent]);
+
+  // Illegal goods present (shown for both)
+  const illegalGoods = useMemo(() => {
+    if (!market) return [];
+    return Object.entries(market.goods)
+      .filter(([good, data]) => data.available > 0 && D.RESOURCES[good]?.illegal)
+      .map(([good]) => D.RESOURCES[good]?.name || good);
+  }, [market]);
+
+  return (
+    <Panel variant="subtle" style={{ padding: T.spacing.md, marginBottom: 8 }}>
+      {label && (
+        <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
+          {label}
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: T.gold, fontSize: T.heading1FontSize, fontWeight: "bold" }}>
+            {port.name}
+          </span>
+          <FactionPill faction={port.faction} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {heat > 0 && (
+            <span style={{ color: fColor, fontSize: T.metadataFontSize, fontWeight: "bold" }}>
+              Heat {heat}
+            </span>
+          )}
+          <RepPill rep={rep} />
+        </div>
+      </div>
+
+      {/* Stats row — distance only */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 10, alignItems: "center" }}>
+        {unreachableReason ? (
+          <div style={{ color: T.redBr, fontSize: T.heading3FontSize, fontWeight: "bold" }}>
+            ⚠ {unreachableReason}
+          </div>
+        ) : (
+          <StatBlock label="Distance" value={`${distance}d`} />
+        )}
+      </div>
+
+      {/* Goods & Trade */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+          Goods & Trade
+        </div>
+        {goodDeals.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+            <span style={{ color: T.textDim, fontSize: T.captionFontSize, marginRight: 4 }}>Local deals:</span>
+            {goodDeals.map(g => (
+              <Pill key={g} label={D.RESOURCES[g]?.name || g} color={T.greenBr} style={{ fontSize: 8 }} />
+            ))}
+          </div>
+        )}
+        {inDemand.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <span style={{ color: T.textDim, fontSize: T.captionFontSize, marginRight: 4 }}>In demand:</span>
+            {inDemand.map(g => (
+              <Pill key={g} label={D.RESOURCES[g]?.name || g} color={T.gold} style={{ fontSize: 8 }} />
+            ))}
+          </div>
+        )}
+        {isCurrent && availableGoods.length > 0 && (
+          <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <span style={{ color: T.textDim, fontSize: T.captionFontSize, marginRight: 4 }}>Available:</span>
+            {availableGoods.map(({ name, qty }) => (
+              <Pill key={name} label={`${name} (${qty})`} color={T.textDim} style={{ fontSize: 8 }} />
+            ))}
+          </div>
+        )}
+        {illegalGoods.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+            <span style={{ color: T.redBr, fontSize: T.captionFontSize, marginRight: 4 }}>Illegal trade:</span>
+            {illegalGoods.map(good => (
+              <Pill key={good} label={good} color={T.redBr} style={{ fontSize: 8 }} />
+            ))}
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+
+// ── PortModal ────────────────────────────────────────────────────────
+function PortModal({ targetPortKey, state, dispatch, onClose }) {
+  const [showComparison, setShowComparison] = React.useState(false);
+  const currentPortKey = state.currentPort;
+  const targetPort = D.PORTS[targetPortKey];
+  const currentPort = D.PORTS[currentPortKey];
+
+  if (!targetPort || !currentPort) return null;
+
+  const distance = L.travelDays(currentPortKey, targetPortKey, state);
+  const isReachable = L.canReach(state, targetPortKey) && targetPortKey !== currentPortKey;
+  const unreachableReason = isReachable ? null : L.getUnreachableReason(state, targetPortKey);
+
+  const tradeOpp = L.getTradeOpportunity(state, currentPortKey, targetPortKey);
+
+  const isDinghy = state.ship.type === "dinghy";
+  const minCrew = L.getMinViableCrew(state.ship.type);
+  const isHullBlocked = state.ship.hull === 0;
+  const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
+  const sailDisabled = isHullBlocked || isCrewBlocked || !isReachable;
+
+  const handleSetSail = () => {
+    if (sailDisabled) return;
+    dispatch({ type:  window.E.A.SAIL_TO, port: targetPortKey });
+    onClose();
+  };
+
+  const IconBarChart = window.UI.IconBarChart;
+  const IconGoldBag = window.UI.IconGoldBag;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: T.bgDeep,
+          border: `1px solid ${T.gold}`,
+          borderRadius: 4,
+          padding: T.spacing.lg,
+          width: "100%",
+          maxWidth: 560,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Btn sm v="ghost" onClick={onClose}>← Back to Map</Btn>
+          <Btn
+            sm
+            v={sailDisabled ? "ghost" : "gold"}
+            onClick={handleSetSail}
+            disabled={sailDisabled}
+            style={{ opacity: sailDisabled ? 0.5 : 1 }}
+          >
+            {sailDisabled ? "Cannot Sail" : "Set Sail →"}
+          </Btn>
+        </div>
+
+        <PortCard
+          portKey={targetPortKey}
+          state={state}
+          distance={distance}
+          unreachableReason={unreachableReason}
+          isCurrent={false}
+        />
+
+        {tradeOpp && (
+          <div style={{
+            marginTop: 12,
+            padding: 10,
+            background: tradeOpp.isIllegal ? T.redBg : T.greenBg,
+            border: `1px solid ${tradeOpp.isIllegal ? T.redBr : T.greenBr}`,
+            borderRadius: 3,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {IconGoldBag && React.createElement(IconGoldBag, { size: 14, color: T.gold })}
+              <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
+                Trade Tip
+              </span>
+            </div>
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, marginTop: 4 }}>
+              <strong>{tradeOpp.goodName}</strong> is <strong>{Math.round(tradeOpp.profitPct * 100)}%</strong> cheaper here.
+              Buy for <span style={{ color: T.gold }}>{tradeOpp.buyPrice}g</span>,
+              sell for <span style={{ color: T.gold }}>{tradeOpp.sellPrice}g</span>
+              → <span style={{ color: T.greenBr }}>+{tradeOpp.profit}g</span> per unit.
+              {tradeOpp.isInDemand && <span style={{ color: T.gold }}> It's in high demand there!</span>}
+              {tradeOpp.isIllegal && (
+                <span style={{ color: T.redBr, display: "block", marginTop: 4 }}>
+                  ⚠ This is contraband — patrols may inspect you.
+                </span>
+              )}
+              {tradeOpp.availableQty > 0 && (
+                <span style={{ color: T.textFaint, fontSize: T.captionFontSize, display: "block", marginTop: 2 }}>
+                  Available: {tradeOpp.availableQty} units in current port.
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 16 }}>
+          <div
+            onClick={() => setShowComparison(!showComparison)}
+            style={{
+              cursor: "pointer",
+              color: T.gold,
+              fontSize: T.narrativeFontSize,
+              fontWeight: "bold",
+              padding: "6px 0",
+              borderTop: `1px solid ${T.borderFaint}`,
+              paddingTop: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span>{showComparison ? "▾" : "▸"}</span>
+            {IconBarChart && React.createElement(IconBarChart, { size: 14, color: T.gold })}
+            Compare with {currentPort.name}
+          </div>
+          {showComparison && (
+            <div style={{ marginTop: 12 }}>
+              <PortCard
+                portKey={currentPortKey}
+                state={state}
+                label="Current Port"
+                isCurrent={true}
+                distance={0}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
   // ── Attach all public primitives to window.UI (icons live in icons.jsx) ──
   Object.assign(window.UI, {
     T, panelStyle, Btn, PulseBtn, Bar, Pill, Panel, SubPanel, StatBlock, SectionTitle, ScreenHeader,
     TutorialPopup, NarrativePanel, NarrativeLine, LogList, Divider, EmptyState,
     FactionPill, RepPill, ShipSprite, ShipSideSprite, BackButton, useFlashOnChange,
-    Tooltip,getGoodIcon,TransferLayout,PortSilhouette,
+    Tooltip,getGoodIcon,TransferLayout,PortSilhouette,PortCard,PortModal,
   });
 })();

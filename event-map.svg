@@ -1,0 +1,58 @@
+<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="parchment" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4c49a" />
+      <stop offset="50%" stop-color="#c4b48a" />
+      <stop offset="100%" stop-color="#b4a47a" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(200, 120) rotate(2) translate(-200, -120)">
+    <rect x="50" y="25" width="300" height="190" rx="6" fill="url(#parchment)" stroke="#8a7a5a" stroke-width="2" />
+    <!-- Dirt / age marks -->
+    <ellipse cx="80" cy="50" rx="20" ry="15" fill="#8a7a5a" opacity="0.15" />
+    <ellipse cx="330" cy="190" rx="25" ry="12" fill="#8a7a5a" opacity="0.12" />
+    <ellipse cx="120" cy="180" rx="15" ry="10" fill="#8a7a5a" opacity="0.2" />
+    <ellipse cx="280" cy="60" rx="12" ry="8" fill="#8a7a5a" opacity="0.15" />
+    <circle cx="200" cy="150" r="30" fill="#8a7a5a" opacity="0.08" />
+    <!-- Crease lines -->
+    <line x1="200" y1="25" x2="200" y2="215" stroke="#8a7a5a" stroke-width="0.8" opacity="0.25" />
+    <line x1="100" y1="120" x2="300" y2="120" stroke="#8a7a5a" stroke-width="0.6" opacity="0.15" />
+    <!-- Rhumb lines -->
+    <g stroke="#5a4a32" stroke-width="0.5" opacity="0.25">
+      <line x1="50" y1="30" x2="350" y2="210" />
+      <line x1="350" y1="30" x2="50" y2="210" />
+      <line x1="200" y1="25" x2="200" y2="215" />
+      <line x1="50" y1="120" x2="350" y2="120" />
+      <line x1="100" y1="25" x2="300" y2="215" />
+      <line x1="300" y1="25" x2="100" y2="215" />
+    </g>
+    <!-- Main island -->
+    <path d="M140 100 Q160 80 200 85 Q240 80 260 100 Q270 120 255 140 Q240 155 210 155 Q180 155 160 140 Q145 125 140 100 Z" fill="none" stroke="#5a4a32" stroke-width="1.8" />
+    <!-- Small islands -->
+    <ellipse cx="280" cy="70" rx="14" ry="8" fill="none" stroke="#5a4a32" stroke-width="1.2" />
+    <ellipse cx="120" cy="155" rx="10" ry="6" fill="none" stroke="#5a4a32" stroke-width="1" />
+    <ellipse cx="70" cy="60" rx="8" ry="4" fill="none" stroke="#5a4a32" stroke-width="1" />
+    <ellipse cx="330" cy="180" rx="12" ry="5" fill="none" stroke="#5a4a32" stroke-width="1" />
+    <!-- Dotted route -->
+    <path d="M160 85 Q180 80 195 90 Q210 100 215 115 Q220 125 210 135" stroke="#8a3a2a" stroke-width="1.2" stroke-dasharray="3,4" fill="none" opacity="0.7" />
+    <!-- Compass rose -->
+    <g transform="translate(310, 170)">
+      <circle cx="0" cy="0" r="14" fill="none" stroke="#5a4a32" stroke-width="1" />
+      <polygon points="0,-12 2,-4 0,0 -2,-4" fill="#5a4a32" />
+      <polygon points="0,12 2,4 0,0 -2,4" fill="#5a4a32" opacity="0.4" />
+      <polygon points="-12,0 -4,2 0,0 -4,-2" fill="#5a4a32" opacity="0.4" />
+      <polygon points="12,0 4,2 0,0 4,-2" fill="#5a4a32" />
+    </g>
+    <!-- RED X -->
+    <g transform="translate(205, 128)">
+      <line x1="-10" y1="-10" x2="10" y2="10" stroke="#cc2222" stroke-width="3.5" stroke-linecap="round" />
+      <line x1="-10" y1="10" x2="10" y2="-10" stroke="#cc2222" stroke-width="3.5" stroke-linecap="round" />
+      <line x1="-8" y1="-8" x2="8" y2="8" stroke="#ff4444" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="-8" y1="8" x2="8" y2="-8" stroke="#ff4444" stroke-width="1.5" stroke-linecap="round" />
+    </g>
+    <!-- Sea monster doodle -->
+    <path d="M95 75 Q105 68 115 75 Q125 82 135 75" fill="none" stroke="#5a4a32" stroke-width="1" opacity="0.6" />
+    <!-- Label -->
+    <text x="205" y="175" text-anchor="middle" font-family="Georgia, serif" font-size="9" fill="#5a4a32" font-style="italic">X marks the spot</text>
+  </g>
+</svg>

@@ -976,6 +976,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "storm",
       type: "hazard",
       title: "Violent Storm!",
+      svg: "event-storm.svg",
       desc: [
           "A violent storm batters the ship! Waves break over the bow.",
           "Dark clouds roll in without warning. The storm is upon you.",
@@ -997,6 +998,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "calm_winds",
       type: "hazard",
       title: "Doldrums",
+      svg: "event-calm.svg",
       desc: [
   "The wind dies completely. The sails hang limp.",
   "Not a breath of wind. The ship sits motionless under a blazing sun.",
@@ -1018,6 +1020,7 @@ const SMUGGLE_GOODS_BY_TIER = {
   id: "distressed_merchant",
   type: "choice",
   title: "Merchant in Distress",
+  svg: "event-merchant.svg",
   desc: [
   "A merchant ship flies a signal of distress. Pirates are closing in.",
   "Smoke rises from a vessel under attack. A merchant signals for help.",
@@ -1053,6 +1056,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "drifting_wreck",
       type: "choice",
       title: "Drifting Wreck",
+      svg: "event-wreck.svg",
       desc: [
   "A damaged ship drifts in the current, hull split and sails in tatters.",
   "A derelict vessel wallows in the swell, its crew long gone.",
@@ -1081,6 +1085,7 @@ const SMUGGLE_GOODS_BY_TIER = {
   id: "drifting_sailors",
   type: "choice",
   title: "Marooned Sailors",
+  svg: "event-wreck.svg",
   desc: [
   "A small boat hails you. Three sunburnt sailors beg for passage.",
   "Castaways wave frantically from a leaking jolly boat.",
@@ -1124,6 +1129,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "treasure_map",
       type: "reward",
       title: "Treasure Map Found!",
+      svg: "event-map.svg",
       desc: [
   "You discover a tattered map in a waterproof case. It marks a hidden cove.",
   "A scrap of parchment flutters from a dead sailor's hand. It's a treasure map.",
@@ -1151,6 +1157,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "whale_sighting",
       type: "reward",
       title: "Whale Sighting",
+      svg: "event-whale.svg",
       desc: [
   "A pod of whales surfaces near your ship. The crew watches in wonder.",
   "Massive spouts erupt off the bow:  whales, dozens of them.",
@@ -1179,6 +1186,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "mutiny",
       type: "crew",
       title: "Mutiny!",
+      svg: "event-mutiny.svg",
       desc: [
   "The crew has had enough. Angry voices demand changes, and they want it now.",
   "A group of sailors confronts you on the quarterdeck. This is mutiny.",
@@ -1206,6 +1214,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "deserters",
       type: "crew",
       title: "Deserters",
+      svg: "event-mutiny.svg",
       desc: [
   "Several crew members are missing this morning. They slipped away in the night.",
   "Your bosun reports empty hammocks. Deserters, no doubt.",
@@ -1237,6 +1246,7 @@ const SMUGGLE_GOODS_BY_TIER = {
       id: "mysterious_chart",
       title: "A Dying Sailor's Secret",
       type: "discovery",
+      svg: "event-map.svg",
       desc: "A dying sailor presses a folded chart into your hands. The coastline it marks is like nothing on any official map. A sheltered harbour surrounded by reefs, with no name written.",
       condition: (state) =>
         state.fame >= 100 &&
@@ -1261,6 +1271,7 @@ const SMUGGLE_GOODS_BY_TIER = {
   id: "wreckers_chart",
   title: "The Wrecker's Map",
   type: "discovery",
+  svg: "event-map.svg",
   desc: "An old wrecker in the tavern offers you a stained, salt‑crusted chart. 'Las Aves,' he says. 'The birds will show you the channel. The wrecks will make you rich.' He wants 50 gold for it.",
   condition: (state) =>
     state.fame >= 50 &&

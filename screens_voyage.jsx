@@ -10,7 +10,7 @@ window.S = window.S || {};
     T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, 
     EmptyState, TutorialPopup, BackButton, Tooltip,
     IconSailboat, IconPlay, IconAnchor, IconCompass, IconFood, IconWater,
-    Panel
+    Panel, PortCard, PortModal
   } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -18,6 +18,7 @@ window.S = window.S || {};
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
     const [hov, setHov] = useState(null);
+    const [selectedPort, setSelectedPort] = useState(null);      // <-- NEW
     const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state, "map"));
     const W = 760, H = 460;
 
@@ -71,7 +72,7 @@ window.S = window.S || {};
       return null;
     };
 
-    // ── Stable wheel zoom listener (MAP‑01 fix) ────────────────
+    // ── Stable wheel zoom listener ────────────────────────────────
     useEffect(() => {
       const el = mapRef.current;
       if (!el) return;
@@ -97,7 +98,7 @@ window.S = window.S || {};
       return () => el.removeEventListener('wheel', onWheel);
     }, []);
 
-    // ── Prevent page scroll during touch pan/pinch (MAP‑02 fix) ─
+    // ── Prevent page scroll during touch pan/pinch ──────────────
     useEffect(() => {
       const el = mapRef.current;
       if (!el) return;
@@ -160,17 +161,6 @@ window.S = window.S || {};
     };
     const handleTouchEnd = () => { setIsDragging(false); lastPinchDist.current = 0; };
 
-    // ── Compute tooltip position ──────────────────────────────────
-    let tooltipPos = null;
-    if (hov) {
-      const p = PORTS[hov];
-      const rawX = (p.x / W) * mapSize.width;
-      const rawY = (p.y / H) * mapSize.height;
-      const scaledX = rawX * transform.scale + transform.x;
-      const scaledY = rawY * transform.scale + transform.y;
-      tooltipPos = { x: scaledX, y: scaledY };
-    }
-
     return (
       <div style={{
         padding: T.spacing.lg,
@@ -183,20 +173,20 @@ window.S = window.S || {};
         <BackButton dispatch={dispatch} />
         {showTutorial && (
           <TutorialPopup title="The Caribbean" onDismiss={(disableAll) => { markTutorialSeen("map", disableAll); setShowTutorial(false); }}>
-            <p>Click any port to set sail. Hover to see:</p>
+            <p>Click any port to open its details. From there you can set sail.</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-              <li>How many days the voyage will take</li>
-              <li>Your reputation at that port</li>
+              <li>See distance, reputation, trade opportunities</li>
+              <li>Compare with your current port</li>
             </ul>
-            <p>Grey ports are out of range — you'll need a bigger ship. Upgrade at a Shipyard when you can afford it.</p>
+            <p>Grey ports are out of range — you'll need a bigger ship.</p>
           </TutorialPopup>
         )}
 
-        {/* Map container with simple border */}
+        {/* Map container */}
         <div style={{
           border: `1px solid ${T.borderBr}`,
           borderRadius: 0,
-          overflow: "visible", // allow tooltip to extend
+          overflow: "visible",
           width: mapSize.width,
           height: mapSize.height,
           margin: "0 auto",
@@ -253,7 +243,19 @@ window.S = window.S || {};
                     reachable = L.canReach(state, key) && key !== state.currentPort;
                   }
                   return (
-                    <g key={key} onClick={() => reachable && dispatch({ type: A.SAIL_TO, port: key })} onMouseEnter={() => setHov(key)} onMouseLeave={() => setHov(null)} style={{ cursor: reachable ? "pointer" : "default" }}>
+                    <g
+                      key={key}
+                      onClick={() => {
+                        // Only open modal if port is discovered and reachable (or we want to show info anyway?)
+                        // We'll allow click on any discovered port, even if unreachable, to show why.
+                        if (state.discoveredPorts?.includes(key)) {
+                          setSelectedPort(key);
+                        }
+                      }}
+                      onMouseEnter={() => setHov(key)}
+                      onMouseLeave={() => setHov(null)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <circle cx={p.x} cy={p.y} r={24} fill="transparent" />
                       {isMissionTarget && (
                         <circle cx={p.x} cy={p.y} r={11} fill="none" stroke={T.gold} strokeWidth="2" opacity="0.9" />
@@ -284,68 +286,7 @@ window.S = window.S || {};
               </g>
             </svg>
 
-            {/* ── Tooltip DOM overlay ────────────────────────────────── */}
-            {tooltipPos && (() => {
-              const port = PORTS[hov];
-              const rep = state.reputation[hov] ?? 20;
-              const fColor = FACTIONS[port.faction]?.color ?? T.textDim;
-              const days = atSea ? L.travelDaysFromPosition(seaPos, hov, state) : L.travelDays(state.currentPort, hov, state);
-              const reachable = atSea ? L.canReachFromPosition(seaPos, hov, state, remainingEndurance) : L.canReach(state, hov);
-              const profile = L.getPortTradeProfile(hov);
-              const tooltipDeals = (profile.goodDeals || []).filter(g => g !== "food" && g !== "water");
-              const tooltipDemand = (profile.inDemand || []).slice(0, 4);
-              const alertLevel = state.factionAlerts?.[port.faction] || 0;
-
-              // Keep tooltip inside the map container
-              const padding = 12;
-              let left = tooltipPos.x + 16;
-              let top = tooltipPos.y - 24;
-              if (left + 220 > mapSize.width) left = mapSize.width - 220 - padding;
-              if (left < padding) left = padding;
-              if (top + 140 > mapSize.height) top = mapSize.height - 140 - padding;
-              if (top < padding) top = padding;
-
-              return (
-                <div style={{
-                  position: "absolute",
-                  left, top,
-                  zIndex: 10,
-                  pointerEvents: "none",
-                  maxWidth: 220,
-                }}>
-                  <Panel variant="gold" style={{ padding: "8px 12px", fontSize: 11, lineHeight: 1.5 }}>
-                    <div style={{ color: T.gold, fontWeight: "bold", fontSize: 13 }}>{port.name}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
-                      <span style={{ color: fColor, fontSize: 10 }}>{FACTIONS[port.faction]?.label}</span>
-                      <span style={{ color: rep >= 40 ? T.greenBr : T.redBr, fontSize: 10 }}>{L.reputationLabel(rep)} ({rep})</span>
-                    </div>
-                    <div style={{ marginTop: 4 }}>
-                      {reachable ? (
-                        <span style={{ color: T.gold }}>{days} day{days !== 1 ? "s" : ""}</span>
-                      ) : (
-                        <span style={{ color: T.redBr }}>{atSea ? getAtSeaUnreachableReason(hov, days) : (L.getUnreachableReason(state, hov) || `Out of range — ${days} day${days !== 1 ? "s" : ""}`)}</span>
-                      )}
-                    </div>
-                    {alertLevel > 0 && (
-                      <div style={{ marginTop: 4, color: T.redBr, fontSize: 10 }}>⚠ Heat {alertLevel}</div>
-                    )}
-                    <div style={{ marginTop: 4, borderTop: `1px solid ${T.borderFaint}`, paddingTop: 4 }}>
-                      {tooltipDeals.length > 0 && (
-                        <div style={{ fontSize: 10, color: T.greenBr }}>
-                          ✦ {tooltipDeals.map(g => window.D.RESOURCES[g]?.name).join(" · ")}
-                        </div>
-                      )}
-                      {tooltipDemand.length > 0 && (
-                        <div style={{ fontSize: 10, color: T.gold }}>
-                          ⟶ {tooltipDemand.map(g => window.D.RESOURCES[g]?.name).join(" · ")}
-                        </div>
-                      )}
-                    </div>
-                  </Panel>
-                </div>
-              );
-            })()}
-
+            {/* ── Tooltip overlay is removed — replaced by modal ── */}
           </div>
         </div>
 
@@ -360,8 +301,18 @@ window.S = window.S || {};
               <span style={{ color: T.textDim, fontSize: T.metadataFontSize }}>{f.label}</span>
             </div>
           ))}
-          <span style={{ color: T.textFaint, fontSize: T.captionFontSize, marginLeft: "auto" }}>Click a port to sail there · Hover to see distance & standing</span>
+          <span style={{ color: T.textFaint, fontSize: T.captionFontSize, marginLeft: "auto" }}>Click a port to see details · Tap again to sail</span>
         </div>
+
+        {/* ── Port Modal ────────────────────────────────────────────── */}
+        {selectedPort && (
+          <PortModal
+            targetPortKey={selectedPort}
+            state={state}
+            dispatch={dispatch}
+            onClose={() => setSelectedPort(null)}
+          />
+        )}
       </div>
     );
   }
@@ -480,7 +431,7 @@ window.S = window.S || {};
           </svg>
         </Panel>
 
-        {/* Right column panels — now using Panel and titles outside */}
+        {/* Right column panels */}
         <div style={{
           flex: isNarrow ? "0 0 auto" : "1 1 240px",
           minWidth: isNarrow ? 0 : 220,
@@ -488,7 +439,6 @@ window.S = window.S || {};
           flexDirection: "column",
           gap: 10,
         }}>
-          {/* Destination heading outside any panel */}
           <div style={{ color: T.gold, fontSize: T.heading1FontSize, textAlign: "center" }}>
             <IconSailboat size={18} color={T.gold} /> En route to <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span>
           </div>
@@ -496,7 +446,6 @@ window.S = window.S || {};
             {arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}
           </div>
 
-          {/* Action panel with all buttons on the same line */}
           <Panel>
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
               <Tooltip text="Order the crew to sail one day further. Provisions will be consumed.">
@@ -506,11 +455,18 @@ window.S = window.S || {};
                 <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}><IconAnchor size={12} color={T.gold} /> Enter Port</Btn>
               </Tooltip>
               {!arrived && (
+              <div>
                 <Tooltip text={courseChangeTooltip}>
                   <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={courseChangeDisabled}>
                     <IconCompass size={12} color={T.text} /> Change Course
                   </Btn>
                 </Tooltip>
+                  {courseChangeDisabled && (
+                    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                      ⚠ {courseChangeTooltip}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             {!arrived && !canChangeCourse && (
@@ -529,7 +485,6 @@ window.S = window.S || {};
             </div>
           </Panel>
 
-          {/* Provisions — title outside, panel inside */}
           <div>
             <SectionTitle>PROVISIONS</SectionTitle>
             <Panel style={{ padding: T.spacing.sm }}>
@@ -551,7 +506,6 @@ window.S = window.S || {};
             </Panel>
           </div>
 
-          {/* Log — title outside, panel inside with proper padding and scroll */}
           <div style={{ flex: isNarrow ? "0 0 auto" : 1, display: "flex", flexDirection: "column", minHeight: isNarrow ? 120 : 0 }}>
             <SectionTitle>CAPTAIN'S LOG</SectionTitle>
             <Panel style={{ flex: 1, display: "flex", flexDirection: "column", padding: T.spacing.sm }}>

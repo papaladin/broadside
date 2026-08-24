@@ -149,6 +149,34 @@ window.S = window.S || {};
         background: `radial-gradient(ellipse at 50% 40%, #0a1828 0%, ${T.bg} 70%)`,
       }}>
         <Panel color={typeColor[ev.type] ?? T.border} style={{ maxWidth: 500, width: "100%" }}>
+
+          {/* ── SVG Illustration ── */}
+          {ev.svg && (
+            <div style={{
+              width: "100%",
+              maxHeight: "180px",
+              overflow: "hidden",
+              borderRadius: "4px",
+              marginBottom: "12px",
+              background: "#0d1824",
+              border: `1px solid ${T.borderFaint}`,
+            }}>
+              <img
+                src={ev.svg}
+                alt={ev.title}
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
+                }}
+                onError={(e) => {
+                  // Hide the container if the SVG fails to load
+                  e.currentTarget.parentElement.style.display = "none";
+                }}
+              />
+            </div>
+          )}
+          {/* ── Existing Event UI ── */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Pill label={ev.type} color={typeColor[ev.type] ?? T.textDim} />
             <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Day {state.day}</span>

@@ -1519,4 +1519,92 @@
     u.assertEqual(result.removed.length, 2, "returns removed list");
   });
 
+  // ══════════════════════════════════════════════════════════════════════════
+// L.TRADE — getTradeOpportunity
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.TRADE.01", "getTradeOpportunity: returns null when no profitable trade exists", (u) => {
+  // Create a state with a market where all goods are more expensive at the target
+  // or no goods are available.
+  const state = makePortState("portRoyal", {
+    portMarket: {
+      goods: {
+        sugar: { buyFromPort: 100, sellToPort: 90, available: 10 },
+        cloth: { buyFromPort: 200, sellToPort: 180, available: 5 },
+      },
+    },
+  });
+  // Mock generatePortMarket to return a market where sell prices are lower
+  const origGenerate = window.G.generatePortMarket;
+  window.G.generatePortMarket = (portKey) => {
+    return {
+      goods: {
+        sugar: { sellToPort: 80 }, // selling for less than buy price
+        cloth: { sellToPort: 150 }, // selling for less than buy price
+      },
+    };
+  };
+  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+  window.G.generatePortMarket = origGenerate;
+  u.assertEqual(result, null, "no profitable trade -> null");
+});
+
+reg("L.TRADE.02", "getTradeOpportunity: returns best profitable trade", (u) => {
+  const state = makePortState("portRoyal", {
+    portMarket: {
+      goods: {
+        sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
+        cloth: { buyFromPort: 100, sellToPort: 90, available: 10 },
+        rum: { buyFromPort: 30, sellToPort: 25, available: 15 },
+      },
+    },
+  });
+  // Mock generatePortMarket to return a market where rum is profitable
+  const origGenerate = window.G.generatePortMarket;
+  window.G.generatePortMarket = (portKey) => {
+    return {
+      goods: {
+        sugar: { sellToPort: 45 }, // -5 loss
+        cloth: { sellToPort: 95 }, // -5 loss
+        rum: { sellToPort: 45 }, // +15 profit (50%)
+      },
+    };
+  };
+  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+  window.G.generatePortMarket = origGenerate;
+  u.assert(result !== null, "returns a trade opportunity");
+  u.assertEqual(result.good, "rum", "best trade is rum");
+  u.assertEqual(result.buyPrice, 30, "buy price 30");
+  u.assertEqual(result.sellPrice, 45, "sell price 45");
+  u.assertEqual(result.profit, 15, "profit 15");
+  u.assert(result.profitPct >= 0.49, "profit pct ~50%");
+  u.assertEqual(result.availableQty, 15, "available quantity 15");
+});
+
+reg("L.TRADE.03", "getTradeOpportunity: skips food and water", (u) => {
+  const state = makePortState("portRoyal", {
+    portMarket: {
+      goods: {
+        food: { buyFromPort: 3, sellToPort: 2, available: 999 },
+        water: { buyFromPort: 2, sellToPort: 1, available: 999 },
+        sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
+      },
+    },
+  });
+  const origGenerate = window.G.generatePortMarket;
+  window.G.generatePortMarket = (portKey) => {
+    return {
+      goods: {
+        food: { sellToPort: 10 },
+        water: { sellToPort: 8 },
+        sugar: { sellToPort: 45 }, // -5 loss
+      },
+    };
+  };
+  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+  window.G.generatePortMarket = origGenerate;
+  // food and water should be skipped, sugar is a loss, so result should be null
+  u.assertEqual(result, null, "food and water skipped, no profit -> null");
+});
+
 })();

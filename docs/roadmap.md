@@ -145,9 +145,7 @@ The game is complete when a player can finish a run, read their journal from sta
 - [ ] Auto-topup food & water at market to a chosen target quantity --> rejecte for now. maybe later when there is a menu & options
 - [ ] Linked from the menu and from the New Game screen -> doesnt make sense. player never read user guide before stating to play and beingt stuck or having a question.
 - [ ] Minor data balance: review port-per-faction distribution — Spanish ports are currently over-represented relative to the other four factions (DocTheYounger)
-- [ ] Explore at-sea acquisition alternatives instead of always needing a port: rain-catching, fishing, whaling
 - [ ] Core problem: patrols are confusing (multiple testers couldn't find the enemy) and hunts barely differ from generic combat missions. Explore: a guaranteed encounter after X days (rising chance), tied to a random sea point within the patrol zone; hunts requiring scouting or trail-following instead of a flat combat trigger. Decide whether to merge the two mission types or give each a genuinely distinct loop
-- [ ] Explore letting a mission (the bounty hunt especially) stay tracked passively while the player does other things, instead of forcing dedicated back-and-forth travel just to keep it active (Ren). This is an architecture change — `state.activeMission` is currently singular — scope the change before committing to it.
 - [ ] Make a PWA (needs to build the icons, and ensure layout still wokrs on phone with island, camera in screen, etc.)
 - [ ] evaluate adding SVG illustration on event screen and on intercept screen (reuse ship for battle, for the rest..to inventorize to evaluate effort)
 - [ ] evaluate adding a reminder of the ongoing mission somexhere on screen? (at least during market, crew; shipyard, maybe not during combat, nav and sailing. maybe a bottom hud like? or dismissable toast?)

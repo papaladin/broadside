@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
+  <defs>
+    <radialGradient id="candleGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#ffbb55" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#ffbb55" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="400" height="240" fill="#0d0d12" />
+  <ellipse cx="200" cy="140" rx="130" ry="55" fill="#3a2818" stroke="#5a3a20" stroke-width="2" />
+  <ellipse cx="200" cy="140" rx="110" ry="45" fill="none" stroke="#2a1808" stroke-width="1" opacity="0.4" />
+  <ellipse cx="200" cy="140" rx="70" ry="30" fill="none" stroke="#2a1808" stroke-width="0.8" opacity="0.3" />
+  <ellipse cx="240" cy="122" rx="150" ry="80" fill="url(#candleGlow)" />
+  <g transform="translate(135, 148)">
+    <path d="M -12,3 A 12,12 0 1 1 12,3" fill="none" stroke="#7a7a7a" stroke-width="4" stroke-linecap="round" />
+    <rect x="-13" y="-1" width="26" height="5" rx="2" fill="#4a4a4a" />
+    <circle cx="-12" cy="1" r="2" fill="#2a2a2a" />
+    <circle cx="12" cy="1" r="2" fill="#2a2a2a" />
+  </g>
+  <g transform="translate(178, 150) rotate(8)">
+    <path d="M -12,3 A 12,12 0 1 1 12,3" fill="none" stroke="#7a7a7a" stroke-width="4" stroke-linecap="round" />
+    <rect x="-13" y="-1" width="26" height="5" rx="2" fill="#4a4a4a" />
+    <circle cx="-12" cy="1" r="2" fill="#2a2a2a" />
+    <circle cx="12" cy="1" r="2" fill="#2a2a2a" />
+  </g>
+  <g fill="none" stroke="#6a6a6a" stroke-width="2.2">
+    <ellipse cx="150" cy="149" rx="6" ry="4" transform="rotate(18 150 149)" />
+    <ellipse cx="159" cy="150" rx="6" ry="4" transform="rotate(-18 159 150)" />
+    <ellipse cx="168" cy="150" rx="6" ry="4" transform="rotate(18 168 150)" />
+  </g>
+  <g transform="translate(275, 118) rotate(30)">
+    <path d="M -3,-4 Q -9,-24 1,-46 Q 9,-22 4,-4 Z" fill="#c0c0c0" stroke="#808080" stroke-width="0.8" />
+    <path d="M -3,-4 Q -9,-24 1,-46" fill="none" stroke="#e0e0e0" stroke-width="0.8" opacity="0.5" />
+    <path d="M -2,-5 Q -10,-8 -8,-15 Q -6,-18 0,-16 Q 4,-14 2,-8" fill="none" stroke="#8a6a3a" stroke-width="2.5" />
+    <path d="M 0,-5 Q 10,-8 8,-15 Q 6,-18 2,-16" fill="none" stroke="#8a6a3a" stroke-width="2.5" />
+    <rect x="-2" y="-5" width="4" height="12" fill="#5a3a20" rx="1" />
+    <rect x="-7" y="6" width="14" height="3" rx="1.5" fill="#8a7530" stroke="#6a5720" stroke-width="0.5" />
+  </g>
+  <g transform="translate(205, 178) rotate(6)">
+    <path d="M -3,0 L 3,0 L 0,-28 Z" fill="#c8c8c8" stroke="#808080" stroke-width="0.6" />
+    <rect x="-6" y="0" width="12" height="3" rx="1" fill="#4a3020" />
+    <rect x="-2.2" y="3" width="4.4" height="10" rx="1.2" fill="#3a2010" />
+    <circle cx="0" cy="14" r="3" fill="#c9aa6e" stroke="#8a7530" stroke-width="1" />
+  </g>
+  <g transform="translate(135, 108) rotate(-12)">
+    <rect x="-22" y="-6" width="44" height="12" rx="6" fill="#d8c69a" stroke="#a89468" stroke-width="1" />
+    <line x1="-20" y1="-1" x2="20" y2="-1" stroke="#a89468" stroke-width="0.6" opacity="0.6" />
+    <line x1="-20" y1="2" x2="18" y2="2" stroke="#a89468" stroke-width="0.6" opacity="0.5" />
+    <circle cx="10" cy="0" r="4.5" fill="#8a2a20" stroke="#5a1810" stroke-width="0.8" />
+  </g>
+  <circle cx="253" cy="168" r="4.5" fill="#c9aa6e" stroke="#8a7530" stroke-width="0.5" />
+  <circle cx="265" cy="178" r="5" fill="#c9aa6e" stroke="#8a7530" stroke-width="0.5" />
+  <circle cx="277" cy="166" r="4" fill="#c9aa6e" stroke="#8a7530" stroke-width="0.5" />
+  <circle cx="268" cy="156" r="3.5" fill="#c9aa6e" stroke="#8a7530" stroke-width="0.5" />
+  <circle cx="282" cy="177" r="4" fill="#c9aa6e" stroke="#8a7530" stroke-width="0.5" />
+  <g transform="translate(238, 105)">
+    <rect x="-3" y="-20" width="6" height="20" fill="#e8d8b8" />
+    <ellipse cx="0" cy="-20" rx="3" ry="2" fill="#e8d8b8" />
+    <path d="M0 -22 L-2 -28 L2 -28 Z" fill="#ff8830" />
+    <ellipse cx="0" cy="-29" rx="3" ry="3" fill="#ff8830" opacity="0.3" />
+    <ellipse cx="0" cy="-24" rx="9" ry="9" fill="#ffbb55" opacity="0.18" />
+  </g>
+</svg>
