@@ -863,7 +863,6 @@ AI_ORIGIN_MODIFIERS: {
   escort_defend:      { grapple: -0.3, continueFighting: -0.2 },
   hostile_port_entry: { grapple: +0.2 },
   navy_patrol:        {},
-  navy_patrol_combat: {},
   random:             {},
 }
 ```

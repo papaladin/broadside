@@ -943,7 +943,7 @@ const SMUGGLE_PROFIT_MARGINS = {
   high:   1.80,
 };
 
-const PATROL_FINE_RATE = 0.50; // Fine = 50% of seized contraband base value
+const PATROL_FINE_RATE = 0.20; // Fine = 20% of seized contraband base value
 
 const TRADE_GOODS_BY_TIER = {
   0: ["rum", "sugar", "timber"],
@@ -979,18 +979,38 @@ const SMUGGLE_GOODS_BY_TIER = {
       title: "Violent Storm!",
       svg: "event-storm.svg",
       desc: [
-          "A violent storm batters the ship! Waves break over the bow.",
-          "Dark clouds roll in without warning. The storm is upon you.",
-          "A squall hits hard and fast. The crew scrambles to secure the rigging.",
-        ],
+        "A violent storm batters the ship! Waves break over the bow.",
+        "Dark clouds roll in without warning. The storm is upon you.",
+        "A squall hits hard and fast. The crew scrambles to secure the rigging.",
+      ],
       choices: [
         {
           label: "Brace for impact",
           outcome: {
-            log: "The storm rages on! Your ship takes damage.",
+            log: "You ride out the storm. The ship takes a beating.",
             hullDamage: 15,
-            daysLost: 2,
-            crewLoss: 2
+            daysLost: 1,
+            crewLoss: 3,
+          }
+        },
+        
+        {
+          label: "Seek shelter / Detour",
+          outcome: {
+            log: "You change course to escape the storm. The ship takes a beating, but less than if you'd stayed.",
+            hullDamage: 5,
+            crewLoss: 1,
+          },
+          condition: (state) => {
+            // Only offer detour if there's a reachable port (other than current destination)
+            if (!state.route || state.sailingDaysLeft <= 0) return false;
+            const seaPos = window.L.getSeaPosition(state.route);
+            const remainingEndurance = state.route.enduranceBudget - state.route.enduranceSpent;
+            const reachable = window.L.getReachablePortsFromSea(state);
+            return reachable.some(portKey => {
+              if (portKey === state.route.destinationPort) return false; // exclude current destination
+              return window.L.canReachFromPosition(seaPos, portKey, state, remainingEndurance);
+            });
           }
         }
       ]
@@ -1081,17 +1101,16 @@ const SMUGGLE_GOODS_BY_TIER = {
       ]
     },
 
-
 {
   id: "drifting_sailors",
   type: "choice",
   title: "Marooned Sailors",
   svg: "event-wreck.svg",
   desc: [
-  "A small boat hails you. Three sunburnt sailors beg for passage.",
-  "Castaways wave frantically from a leaking jolly boat.",
-  "Three desperate souls drift in a battered skiff, nearly out of water.",
-],
+    "A small boat hails you. Three sunburnt sailors beg for passage.",
+    "Castaways wave frantically from a leaking jolly boat.",
+    "Three desperate souls drift in a battered skiff, nearly out of water.",
+  ],
   condition: (state) => state.fame >= 10,
   choices: [
     {
@@ -1107,17 +1126,25 @@ const SMUGGLE_GOODS_BY_TIER = {
       }
     },
     {
-      label: "Give them supplies and gold (50g)",
+      label: "Give them supplies (50g, 15 Food, 15 Water)",
       outcome: {
         gold: -50,
+        food: -15,
+        water: -15,
         moraleBonus: 3,
         log: "You give them gold and provisions for passage to the nearest port. The crew approves of your mercy."
+      },
+      condition: (state) => {
+        const gold = state.gold ?? 0;
+        const food = state.hold?.items?.food ?? 0;
+        const water = state.hold?.items?.water ?? 0;
+        return gold >= 50 && food >= 15 && water >= 15;
       }
     },
     {
       label: "Sail on",
       outcome: {
-        moraleBonus: -1,
+        moraleBonus: -5,
         log: "You leave them to their fate. A few crew members look away."
       }
     }
@@ -1126,34 +1153,6 @@ const SMUGGLE_GOODS_BY_TIER = {
 
 
     // Reward events
-    {
-      id: "treasure_map",
-      type: "reward",
-      title: "Treasure Map Found!",
-      svg: "event-map.svg",
-      desc: [
-  "You discover a tattered map in a waterproof case. It marks a hidden cove.",
-  "A scrap of parchment flutters from a dead sailor's hand. It's a treasure map.",
-  "Tucked inside an old logbook, you find a hand‑drawn chart with an 'X' on it.",
-],
-      choices: [
-        {
-          label: "Follow the map",
-          outcome: {
-            log: "After 2 days of searching, you find the treasure!",
-            gold: 1000,
-            daysLost: 2
-          }
-        },
-        {
-          label: "Sell the map",
-          outcome: {
-            log: "You sell the map to a collector in the next port.",
-            gold: 200
-          }
-        }
-      ]
-    },
     {
       id: "whale_sighting",
       type: "reward",
@@ -1273,7 +1272,7 @@ const SMUGGLE_GOODS_BY_TIER = {
   title: "The Wrecker's Map",
   type: "discovery",
   svg: "event-map.svg",
-  desc: "An old wrecker in the tavern offers you a stained, salt‑crusted chart. 'Las Aves,' he says. 'The birds will show you the channel. The wrecks will make you rich.' He wants 50 gold for it.",
+  desc: "An old wrecker in the tavern offers you a stained, salt‑crusted chart. 'Las Aves,' he says. 'The birds will show you the channel. The wrecks will make you rich.' He wants 5000 gold for it.",
   condition: (state) =>
     state.fame >= 50 &&
     !(state.mapFragments || []).includes("map_fragment_lasAves"),
@@ -1284,7 +1283,8 @@ const SMUGGLE_GOODS_BY_TIER = {
         gold: -5000,
         mapFragment: "map_fragment_lasAves",
         log: "The chart marks a treacherous shoal called Las Aves. The wrecker wasn't lying about the birds."
-      }
+      },
+      condition: (state) => (state.gold ?? 0) >= 5000
     },
     {
       label: "Decline",
@@ -1503,14 +1503,12 @@ const LEGAL_ACTIONS_BY_DISTANCE = {
 };
 
 
-  const SURRENDER_CONSEQUENCE = {
-    patrol:                   { loseCargoPercent: 30, moralePenalty: 10 },
-    smuggling_caught:         { loseContraband: true, goldFine: 200,  moralePenalty: 8 },
-    cargo_inspection_refused: { loseContraband: true, goldFine: 150,  moralePenalty: 6 },
+const SURRENDER_CONSEQUENCE = {
+    navy_patrol:              { loseContraband: true, loseCargoPercent: 50, goldFinePct: 0.40, moralePenalty: 15, rep_loss: 5, infamyGain: 2 },
     hostile_port_entry:       { imprisoned: true, loseDays: 5, loseGoldPercent: 30, moralePenalty: 20 },
     named_rival:              { loseGoldPercent: 40, moralePenalty: 25, rep_loss: 10 },
     random:                   { loseCargoPercent: 20, moralePenalty: 8 },
-  };
+};
 
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1536,7 +1534,6 @@ const LEGAL_ACTIONS_BY_DISTANCE = {
     escort_defend:      { grapple: -0.3, continueFighting: -0.2 },
     hostile_port_entry: { grapple: +0.2 },
     navy_patrol:        {}, // neutral
-    navy_patrol_combat: {}, // neutral
     random:              {}, // neutral
   };
 

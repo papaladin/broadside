@@ -350,6 +350,8 @@
     test("E.logEntry is a function",         () => assert(typeof window.E.logEntry        === "function"));
     test("E.initialState is an object",      () => assert(window.E.initialState && typeof window.E.initialState === "object"));
     test("E._reducers is an array",          () => assert(Array.isArray(window.E._reducers)));
+  test("E.applyNavyPatrolSurrender is a function", () => assert(typeof window.E.applyNavyPatrolSurrender === "function"));
+  test("E.buildEncounterSession is a function", () => assert(typeof window.E.buildEncounterSession === "function"));
 
     test("E._reducers has the expected count (9 reducers registered)", () => {
       const count = window.E._reducers.length;

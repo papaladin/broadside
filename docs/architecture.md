@@ -800,7 +800,7 @@ When the player chooses an action (Fight, Flee, Parley, Bribe, Surrender, Inspec
 | Encounter Type | Fight | Flee | Parley | Bribe | Surrender | Inspect | Source |
 |---|---|---|---|---|---|---|---|
 | `patrol` | Y | Y | Y | Y (infamy<50) | Y | -- | Random patrol while sailing |
-| `navy_patrol` / `navy_patrol_combat` | Y | -- | -- | -- | -- | Y | Faction patrol — only inspect or fight |
+| `navy_patrol`  | Y | -- | -- | -- | -- | Y | Faction patrol — only inspect or fight |
 | `mission_combat` | Y | Y | -- | -- | -- | -- | Combat/patrol mission target |
 | `escort_defend` | Y | -- | -- | -- | -- | -- | Escort mission — pirates attack convoy |
 | `distressed_merchant_help` / `distressed_merchant_plunder` | Y | -- | -- | -- | -- | -- | Event: help or plunder a merchant |

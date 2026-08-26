@@ -48,6 +48,7 @@ window.E = window.E || {};
     RESOLVE_EVENT: "RESOLVE_EVENT",
     RESOLVE_DRIFTING_WRECK_SEARCH: "RESOLVE_DRIFTING_WRECK_SEARCH",
     PATROL_INSPECT: "PATROL_INSPECT",
+    RESOLVE_INSPECTION: "RESOLVE_INSPECTION",
     ATTACK_PIRATE: "ATTACK_PIRATE",
     ATTACK_MERCHANT: "ATTACK_MERCHANT",
     ONBOARDING_QM_SEEN: "ONBOARDING_QM_SEEN",
@@ -66,7 +67,8 @@ window.E = window.E || {};
     DEBUG_COMPLETE_MISSION: "DEBUG_COMPLETE_MISSION",
     DEBUG_SET_HEAT: "DEBUG_SET_HEAT",
     DEBUG_AGE_CREW: "DEBUG_AGE_CREW",
-    DEBUG_COMBAT: "DEBUG_COMBAT",           // <-- FIXED: was DEBUT_COMBAT
+    DEBUG_COMBAT: "DEBUG_COMBAT",
+    DEBUG_TRIGGER_EVENT: "DEBUG_TRIGGER_EVENT",
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -169,7 +171,7 @@ window.E = window.E || {};
     }
 
     // Override for random patrols
-    if (context.type === "random" || context.type === "navy_patrol" || context.type === "navy_patrol_combat") {
+    if (context.type === "random" || context.type === "navy_patrol") {
       sourceKind = "random";
     }
 
@@ -406,6 +408,20 @@ window.E = window.E || {};
         const encounterContext = L.buildEncounterContext(state, "random", enemy);
         const encounterSession = window.E.buildEncounterSession(state, encounterContext);
         return { ...state, encounterSession, screen: "intercept" };
+      }
+      case window.E.A.DEBUG_TRIGGER_EVENT: {
+        const available = window.D.RANDOM_EVENTS;
+        if (!available || available.length === 0) return state;
+        const event = available[Math.floor(Math.random() * available.length)];
+        // Clone the event and remove its condition (if any) to force it
+        const forcedEvent = { ...event };
+        delete forcedEvent.condition; // ensure it fires regardless
+        return {
+          ...state,
+          activeEvent: forcedEvent,
+          screen: "event",
+          log: [...state.log, `⚙ Debug: triggered random event "${forcedEvent.title}".`]
+        };
       }
       default:
         return state;

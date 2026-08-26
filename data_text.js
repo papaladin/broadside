@@ -779,6 +779,9 @@ const ENEMY_SHIP_NAMES = {
     escort_defend: (enemy, rep) =>
       `Pirates are raiding the convoy! Protect the merchant ship at all costs.`,
 
+    pirate_ambush: (enemy) =>
+      `Pirates burst from hiding! ${enemy.name} attacks without warning. `,
+
     random: (enemy) =>
       `${enemy.name} moves to intercept. They haven't fired yet.`,
   };

@@ -21,6 +21,7 @@ td { padding: 3px 6px; border-bottom: 1px solid #1a2a3a; }
 .dim { color: #606060; }
 .gold { color: #ffd700; }
 #output { max-width: 1200px; margin: 0 auto; }
+.note { color: #a0a0a0; font-size: 10px; line-height: 1.5; margin: 6px 0; }
 </style>
 </head>
 <body>
@@ -201,27 +202,86 @@ html += h2('\uD83D\uDCCA Mission Gold Ranges by Tier');
   html += table(hd, rows);
 }
 
-html += h2('\uD83C\uDFF4\u200d\u2620\ufe0f Smuggle Risk/Reward');
+// ── NEW: Smuggler Economics Comparison ──────────────────────────────────
+html += h2('\uD83D\uDCE6 Smuggler Economics — Inspection vs Bribe vs Surrender');
 {
-  let intercept = D.SMUGGLE_INTERCEPT_CHANCE || null;
+  html += `<div class="panel">`;
+  html += `<div class="note">
+    <strong>Assumptions:</strong> Cargo is the contraband required for the mission. 
+    Trade profit = Cargo Cost × Smuggle Margin. 
+    Total Gain = Trade Profit + Mission Reward.<br/>
+    <strong>Inspection:</strong> 20% fine, cargo lost. 
+    <strong>Bribe:</strong> 50% of cargo value, cargo kept. 
+    <strong>Surrender:</strong> 40% fine + 50% cargo loss.
+    <strong>Bribe gating:</strong> Infamy &lt; 25, Reputation &gt; 50.
+  </div>`;
+
+  // Get the goods and their base prices
+  const smuggleGoods = D.SMUGGLE_GOODS_BY_TIER;
   const margins = D.SMUGGLE_PROFIT_MARGINS;
-  if (!intercept) {
-    intercept = { low: 0.30, medium: 0.35, high: 0.40 };
-    html += '<div class="warn">\u26a0 Intercept from fallback (0.30/0.35/0.40). Move to D.SMUGGLE_INTERCEPT_CHANCE for auto-read.</div>';
-  } else {
-    html += '<div class="good">\u2705 Reading intercept from D.SMUGGLE_INTERCEPT_CHANCE</div>';
-  }
-  const hd = ['Risk', 'Intercept', 'Margin', 'T0 Cargo~', 'T0 Mission~', 'EV Clean', 'EV w/Flee', 'Net EV', 'Verdict']; const rows = [];
-  ['low', 'medium', 'high'].forEach(risk => {
-    const ic = intercept[risk] || 0.35, mg = margins[risk] || 1.0;
-    const t0 = GOLD_RANGES[0][risk], am = Math.round((t0[0] + t0[1]) / 2), cc = 100, profit = Math.round(cc * mg);
-    const evC = profit + am;
-    const evI = 0.70 * (profit + am) + 0.20 * (cc * 0.5) - 0.10 * (cc + cc * 0.5);
-    const net = Math.round((1 - ic) * evC + ic * evI);
-    const v = net > 0 ? '\u2705 Positive' : '\u274c Negative';
-    rows.push([risk, pct(ic), `${(mg * 100).toFixed(0)}%`, `~${gold(cc)}`, `~${gold(am)}`, gold(evC), gold(Math.round(evI)), `<span class="${net > 0 ? 'good' : 'bad'}">${gold(net)}</span>`, `<span class="${net > 0 ? 'good' : 'bad'}">${v}</span>`]);
+
+  // Define tiers and risks to test
+  const testCases = [
+    { tier: 0, risk: 'low', good: 'rum', qtyMultiplier: 3 },
+    { tier: 0, risk: 'medium', good: 'rum', qtyMultiplier: 3 },
+    { tier: 0, risk: 'high', good: 'rum', qtyMultiplier: 3 },
+    { tier: 1, risk: 'medium', good: 'tobacco', qtyMultiplier: 5 },
+    { tier: 1, risk: 'high', good: 'tobacco', qtyMultiplier: 5 },
+    { tier: 2, risk: 'high', good: 'tobacco', qtyMultiplier: 20 },
+    { tier: 3, risk: 'high', good: 'slaves', qtyMultiplier: 37 },
+  ];
+
+  const hd = ['Tier/Risk', 'Cargo Cost', 'Trade Profit', 'Clean Gain', 
+              'Inspection (20%)', 'Bribe (50%)', 'Surrender (40%+50%)'];
+  const rows = [];
+
+  testCases.forEach(tc => {
+    const tier = tc.tier;
+    const risk = tc.risk;
+    const good = tc.good;
+    const qtyMult = tc.qtyMultiplier;
+    const basePrice = RESOURCES[good]?.basePrice || 100;
+    const margin = margins[risk] || 0.80;
+    const cargoCost = qtyMult * basePrice;
+    const tradeProfit = Math.round(cargoCost * margin);
+    const rewardRange = GOLD_RANGES[tier]?.[risk] || [100, 200];
+    const missionReward = Math.round((rewardRange[0] + rewardRange[1]) / 2);
+    const cleanGain = tradeProfit + missionReward;
+
+    const inspFine = Math.round(cargoCost * 0.20 / 25) * 25;
+    const inspNet = cleanGain - inspFine;
+
+    const bribeCost = Math.round(cargoCost * 0.50 / 25) * 25;
+    const bribeNet = cleanGain - bribeCost;
+
+    const surrenderFine = Math.round(cargoCost * 0.40 / 25) * 25;
+    const surrenderCargoLoss = Math.round(cargoCost * 0.50 / 25) * 25;
+    const surrenderCost = surrenderFine + surrenderCargoLoss;
+    const surrenderNet = cleanGain - surrenderCost;
+
+    rows.push([
+      `T${tier} ${risk}`,
+      gold(cargoCost),
+      gold(tradeProfit),
+      `<span class="gold">${gold(cleanGain)}</span>`,
+      `<span class="warn">${gold(inspFine)}</span> / <span class="gold">${gold(inspNet)}</span>`,
+      `<span class="warn">${gold(bribeCost)}</span> / <span class="gold">${gold(bribeNet)}</span>`,
+      `<span class="bad">${gold(surrenderCost)}</span> / <span class="gold">${gold(surrenderNet)}</span>`
+    ]);
   });
+
   html += table(hd, rows);
+
+  html += `<div class="note" style="margin-top: 12px;">
+    <div><span class="good">■</span> Profit remains positive in all outcomes.</div>
+    <div><span class="warn">■</span> Bribe is 2-3× inspection but keeps cargo.</div>
+    <div><span class="bad">■</span> Surrender is the most costly — 40% fine + 50% cargo loss.</div>
+    <div style="margin-top: 6px;">
+      <strong>Gating:</strong> Bribe requires infamy &lt; 25, reputation &gt; 50, and enough gold.<br/>
+      <strong>Outcome:</strong> Bribe keeps your cargo — you can still complete the mission.
+    </div>
+  </div>`;
+  html += `</div>`;
 }
 
 out.innerHTML += html; html = '';
@@ -366,20 +426,55 @@ html += h2('\uD83D\uDCE6 Hold Capacity vs Trade Viability');
   html += `<div class="dim">Avg good price: ${gold(Math.round(avgP))} (excl food/water). Penalty above 50% load.</div>`;
 }
 
-html += h2('\uD83D\uDCB9 Trade Profit by Tier (real prices)');
+// ── NEW: Trade Profitability by Tier (with Mission Reward) ──────────────
+html += h2('\uD83D\uDCB9 Trade Profitability by Tier (with Mission Reward)');
 {
-  const tg = D.TRADE_GOODS_BY_TIER, tm = D.TRADE_MISSION_PROFIT_MARGINS;
-  const hd = ['Tier', 'Goods', 'Avg Price', 'Cargo Cost', 'Low Margin', 'Med Margin', 'High Margin', 'Mission Gold', 'Net Profit(Med)']; const rows = [];
+  html += `<div class="panel">`;
+  html += `<div class="note">
+    <strong>Assumptions:</strong> Cargo is the required good for the trade mission.
+    Trade profit = Cargo Cost × Trade Margin.
+    Total Gain = Trade Profit + Mission Reward.
+    Mission reward = Average of the tier's medium risk reward.
+  </div>`;
+
+  const tg = D.TRADE_GOODS_BY_TIER;
+  const tm = D.TRADE_MISSION_PROFIT_MARGINS;
+  const qtyByTier = { 0: 3, 1: 8, 2: 12, 3: 20, 4: 25 };
+
+  const hd = ['Tier', 'Goods', 'Cargo Cost', 'Trade Profit', 'Mission Reward (Med)', 'Net Gain', 'Profit Ratio'];
+  const rows = [];
+
   for (let t = 0; t <= 4; t++) {
-    const goods = tg[t]; if (!goods) continue;
+    const goods = tg[t]; if (!goods || goods.length === 0) continue;
     const prices = goods.map(g => RESOURCES[g]?.basePrice || 50);
-    const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-    const qty = [3, 8, 12, 20, 25][t]; const cc = avg * qty;
-    const mg = GOLD_RANGES[t] ? Math.round((GOLD_RANGES[t].medium[0] + GOLD_RANGES[t].medium[1]) / 2) : 0;
-    const net = Math.round(cc * (tm.medium || 0.8)) + mg;
-    rows.push([`T${t}`, goods.join(', '), gold(avg), gold(cc), pct(tm.low), pct(tm.medium), pct(tm.high), gold(mg), `<span class="${net > 0 ? 'good' : 'bad'}">${gold(net)}</span>`]);
+    const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+    const qty = qtyByTier[t] || 5;
+    const cargoCost = avgPrice * qty;
+    const margin = tm.medium || 0.80;
+    const tradeProfit = Math.round(cargoCost * margin);
+    const rewardRange = GOLD_RANGES[t]?.medium || [100, 200];
+    const missionReward = Math.round((rewardRange[0] + rewardRange[1]) / 2);
+    const netGain = tradeProfit + missionReward;
+    const profitRatio = cargoCost > 0 ? (netGain / cargoCost).toFixed(2) : 'N/A';
+
+    rows.push([
+      `T${t}`,
+      goods.join(', '),
+      gold(cargoCost),
+      gold(tradeProfit),
+      gold(missionReward),
+      `<span class="gold">${gold(netGain)}</span>`,
+      `<span class="${profitRatio >= 2.0 ? 'good' : profitRatio >= 1.2 ? 'warn' : 'bad'}">${profitRatio}×</span>`
+    ]);
   }
+
   html += table(hd, rows);
+  html += `<div class="note" style="margin-top: 12px;">
+    <div><span class="good">■</span> 2.0×+ = Excellent profit margin.</div>
+    <div><span class="warn">■</span> 1.2×–2.0× = Moderate profit margin.</div>
+    <div><span class="bad">■</span> &lt; 1.2× = Thin margin — consider smuggling or combat.</div>
+  </div>`;
+  html += `</div>`;
 }
 
 html += h2('\uD83D\uDCC8 Price Spread Sanity');
@@ -440,7 +535,7 @@ out.innerHTML += html; html = '';
 // ══════════════════════════════════════════════════════════
 //  S7: EVENTS
 // ══════════════════════════════════════════════════════════
-html += h2('\uD83C\uDFB2 Random Event EV');
+html += h2('\uD83C\uDFB2 Random Event EV (Updated for B12)');
 {
   const events = D.RANDOM_EVENTS;
   const hd = ['Event', 'Type', 'Choices', 'Best EV', 'Worst EV', 'Condition']; const rows = [];
@@ -452,10 +547,21 @@ html += h2('\uD83C\uDFB2 Random Event EV');
       if (o.moraleBonus) v += o.moraleBonus * 5; if (o.moralePenalty) v -= o.moralePenalty * 5;
       if (v > best) best = v; if (v < worst) worst = v;
     });
-    rows.push([ev.title, ev.type, ev.choices?.length || 0, `<span class="${best >= 0 ? 'good' : 'bad'}">${best === -Infinity ? '?' : Math.round(best)}</span>`, `<span class="${worst >= 0 ? 'good' : 'bad'}">${worst === Infinity ? '?' : Math.round(worst)}</span>`, ev.condition ? '\u2705 Conditional' : 'Always']);
+    // Check if event is removed (treasure_map) or has special conditions
+    const isRemoved = ev.id === 'treasure_map';
+    const condition = ev.condition ? '\u2705 Conditional' : 'Always';
+    rows.push([
+      isRemoved ? `<span class="bad">${ev.title} (REMOVED)</span>` : ev.title,
+      ev.type,
+      ev.choices?.length || 0,
+      `<span class="${best >= 0 ? 'good' : 'bad'}">${best === -Infinity ? '?' : Math.round(best)}</span>`,
+      `<span class="${worst >= 0 ? 'good' : 'bad'}">${worst === Infinity ? '?' : Math.round(worst)}</span>`,
+      isRemoved ? `<span class="bad">Retired</span>` : condition
+    ]);
   });
   html += table(hd, rows);
-  html += '<div class="dim">EV = gold + fame\u00d7100 \u2212 hullDmg\u00d72 \u2212 crewLoss\u00d750 \u2212 daysLost\u00d710 \u00b1 morale\u00d75</div>';
+  html += '<div class="dim">EV = gold + fame\u00d7100 \u2212 hullDmg\u00d72 \u2212 crewLoss\u00d750 \u2212 daysLost\u00d710 \u00b1 morale\u00d75. ' +
+          '<span class="bad">REMOVED</span> events are no longer in the active pool.</div>';
 }
 
 html += h2('\uD83D\uDDE3 Gossip System Check');
@@ -508,6 +614,7 @@ html += h2('\uD83D\uDC65 Enemy Stats by Tier (Updated)');
   for (let t = 0; t <= 5; t++) { rows.push([`T${t}`, `${ENEMY_RANGES.hull[t]?.[0]}\u2013${ENEMY_RANGES.hull[t]?.[1]}`, `${ENEMY_RANGES.cannons[t]?.[0]}\u2013${ENEMY_RANGES.cannons[t]?.[1]}`, `${ENEMY_RANGES.crew[t]?.[0]}\u2013${ENEMY_RANGES.crew[t]?.[1]}`]); }
   html += table(hd, rows);
 }
+
 html += h2('\uD83E\uDD1D Faction Rivalries');
 {
   const fk = Object.keys(FACTIONS);

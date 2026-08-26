@@ -208,17 +208,15 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
     <div
       style={{
         position: "sticky", top: 0, zIndex: 100,
-        // No background or padding here — we'll put them on the inner container
         padding: 0,
         fontFamily: T.font,
         boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-        overflow: "visible", // allow border to extend below
+        overflow: "visible",
       }}
     >
-      {/* Inner container with background and content */}
       <div style={{
         background: "linear-gradient(180deg, #1e1812, #161210)",
-        padding: "5px 8px 6px", // reduced bottom padding to give room for border
+        padding: "5px 8px 6px",
       }}>
         {isNarrowHUD ? (
           <>
@@ -265,14 +263,12 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
         </div>
       </div>
 
-      {/* ── Bottom double‑stroke border (hand‑drawn style) ──────────── */}
       <div style={{
         position: "relative",
         height: 4,
         width: "100%",
-        marginTop: 0, // no extra spacing – sits directly below inner container
+        marginTop: 0,
       }}>
-        {/* First stroke: horizontal, solid, full opacity */}
         <div style={{
           position: "absolute",
           left: 0, right: 0, top: 0,
@@ -280,7 +276,6 @@ const HUD = ({ state, dispatch, debugOpen, setDebugOpen, isDebug }) => {
           background: T.border,
           opacity: 0.9,
         }} />
-        {/* Second stroke: sloped and offset, slightly lower opacity */}
         <div style={{
           position: "absolute",
           left: 0, right: 0, top: 2,
@@ -300,6 +295,43 @@ const App = () => {
   const [state, dispatch] = React.useReducer(window.E.reducer, window.E.initialState);
   const { T, Btn } = window.UI;
   const { OnboardingPopup } = window.S;
+
+  // ── Ref to track latest state for beforeunload ──
+  const stateRef = React.useRef(state);
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // ── Save on page unload (catches Live Server reloads) ──
+  React.useEffect(() => {
+    const handleBeforeUnload = () => {
+      const s = stateRef.current;
+      if (s.autoSave === false) return;
+
+      // ── GUARD: Skip saving if this is the debug state ──
+      const isDebugState =
+        s.ship?.type === "sloop" &&
+        s.ship?.hull === 0 &&
+        s.gold === 1000 &&
+        s.crew?.roster?.length === 1 &&
+        s.day === 1 &&
+        s.fame === 0 &&
+        s.infamy === 0;
+
+      if (isDebugState) {
+        // Silently skip – don't overwrite a valid save with debug state
+        return;
+      }
+
+      try {
+        localStorage.setItem("BroadsideGameSave", JSON.stringify(s));
+      } catch (e) {
+        // Silently fail – don't block the reload
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const [savedFlash, setSavedFlash] = React.useState(false);
   React.useEffect(() => {
@@ -356,7 +388,7 @@ const App = () => {
 
   // ── Detect new discoveries (only runs after seeding) ──────────────
   React.useEffect(() => {
-    if (!seededForSessionRef.current) return; // wait for seeding
+    if (!seededForSessionRef.current) return;
 
     const prev = prevDiscoveredRef.current || [];
     const current = state.discoveredPorts || [];
@@ -477,7 +509,9 @@ const DebugPanel = ({ state, dispatch }) => {
       </div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Ship</div>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-        {["dinghy","sloop","brigantine","frigate","galleon"].map(t => (<button key={t} onClick={() => dispatch({ type: A.DEBUG_SET_SHIP, shipType: t })} style={{ ...btnStyle, color: state.ship.type === t ? T.gold : T.textDim }}>{t}</button>))}
+        {["dinghy","sloop","brigantine","frigate","galleon"].map(t => (
+          <button key={t} onClick={() => dispatch({ type: A.DEBUG_SET_SHIP, shipType: t })} style={{ ...btnStyle, color: state.ship.type === t ? T.gold : T.textDim }}>{t}</button>
+        ))}
       </div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Rep (current port)</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
@@ -490,7 +524,8 @@ const DebugPanel = ({ state, dispatch }) => {
           <div key={faction} style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
             <span style={{ color: fac?.color || T.textDim, fontSize: T.captionFontSize, width: 50 }}>{fac?.label || faction}</span>
             {[5, 10].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_HEAT, faction, amount: n })} style={btnStyle}>{n}</button>))}
-          </div>);
+          </div>
+        );
       })}
       <button onClick={() => dispatch({ type: A.DEBUG_FILL_HOLD })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>Fill hold</button>
       <button onClick={() => dispatch({ type: A.DEBUG_REPAIR })} style={{ ...btnStyle, width: "100%", marginBottom: 4 }}>Full repair + provisions</button>
@@ -550,6 +585,12 @@ const DebugPanel = ({ state, dispatch }) => {
         style={{ ...btnStyle, width: "100%", background: T.gold, color: "#000", border: "none", marginBottom: 4 }}
       >
         Start Combat
+      </button>
+      <button
+        onClick={() => dispatch({ type: window.E.A.DEBUG_TRIGGER_EVENT })}
+        style={{ ...btnStyle, width: "100%", background: T.purpleBr, color: "#000", border: "none", marginBottom: 4 }}
+      >
+        Trigger Random Event
       </button>
     </div>
   );

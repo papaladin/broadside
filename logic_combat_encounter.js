@@ -194,7 +194,6 @@ const getNPCBoardingAction = (state, encounterSession) => {
     const closeRangeTypes = [
       "hostile_port_entry",
       "escort_defend",
-      "navy_patrol_combat",
       "navy_patrol",
       "assault",
     ];
@@ -202,6 +201,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
       "distressed_merchant_help",
       "distressed_merchant_plunder",
       "patrol",
+      "pirate_ambuhs",
       "random",
     ];
     if (closeRangeTypes.includes(encounterType)) return "close";
@@ -260,30 +260,45 @@ const getNPCBoardingAction = (state, encounterSession) => {
       return { hullDamage: hullDmg, crewLoss: crewLoss, hit: true };
     };
 
+    // ── Convoy damage (for escort missions and merchant defense) ──
+    let convoyDamage = 0;
+    if (battle.convoyHull !== undefined && battle.convoyHull > 0) {
+      // Enemy actions that damage the convoy: broadside and precision
+      if (enemyAction === "broadside") {
+        convoyDamage = Math.floor(Math.random() * 4) + 2; // 2-5 damage
+      } else if (enemyAction === "precision") {
+        if (Math.random() < 0.7) {
+          convoyDamage = Math.floor(Math.random() * 6) + 3; // 3-8 damage
+        } else {
+          convoyDamage = 0;
+        }
+      }
+    }
+
     // Step 1: Evade
     if (playerAction === "evade") {
       const opposed = enemyAction === "close_distance";
       if (!opposed) {
-        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
+        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
       const succeeds = resolveSpeedContest(playerSpeed, enemySpeed);
       if (succeeds) {
-        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
+        return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
       const newDistance = stepDistance(distance, -1);
-      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [], convoyDamage: 0 };
     }
     if (enemyAction === "evade") {
       const opposed = playerAction === "close_distance";
       if (!opposed) {
-        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
+        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
       const succeeds = resolveSpeedContest(enemySpeed, playerSpeed);
       if (succeeds) {
-        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [] };
+        return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
       const newDistance = stepDistance(distance, -1);
-      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+      return { outcome: "continue", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [], convoyDamage: 0 };
     }
 
     // Step 2: Damage (Broadside / Precision)
@@ -324,10 +339,10 @@ const getNPCBoardingAction = (state, encounterSession) => {
     if (playerDefeated || enemyDefeated) {
       if (playerDefeated) {
         const outcome = newPlayerHull === 0 ? "player_sunk" : "player_captured";
-        return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, distanceChangeWinner: null, playerHit, npcHit: enemyHit, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+        return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, distanceChangeWinner: null, playerHit, npcHit: enemyHit, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [], convoyDamage };
       }
       const outcome = newEnemyHull === 0 ? "enemy_sunk" : "enemy_captured";
-      return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, distanceChangeWinner: null, playerHit, npcHit: enemyHit, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [] };
+      return { outcome, playerHullDamage, enemyHullDamage, playerCrewLoss, enemyCrewLoss, newDistance: null, distanceChangeWinner: null, playerHit, npcHit: enemyHit, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: false, log: [], convoyDamage };
     }
 
     // Step 4: Reposition
@@ -336,7 +351,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
     const bothClose = playerAction === "close_distance" && enemyAction === "close_distance";
     const bothOpen = playerAction === "open_distance" && enemyAction === "open_distance";
     const closeOpenContest = (playerAction === "close_distance" && enemyAction === "open_distance") ||
-                            (playerAction === "open_distance" && enemyAction === "close_distance");
+                              (playerAction === "open_distance" && enemyAction === "close_distance");
     if (bothClose) {
       newDistance = stepDistance(distance, +1);
       distanceChangeWinner = "none";
@@ -380,7 +395,8 @@ const getNPCBoardingAction = (state, encounterSession) => {
         playerGrappleSuccess: playerGrapples,
         npcGrappleSuccess: enemyGrapples,
         fled: false,
-        log: []
+        log: [],
+        convoyDamage
       };
     }
     return {
@@ -396,7 +412,8 @@ const getNPCBoardingAction = (state, encounterSession) => {
       playerGrappleSuccess: false,
       npcGrappleSuccess: false,
       fled: false,
-      log: []
+      log: [],
+      convoyDamage
     };
   };
 
@@ -518,7 +535,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
   //  ENCOUNTER CONTEXT BUILDER
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  function buildEncounterContext(state, type, enemy) {
+ function buildEncounterContext(state, type, enemy) {
     const shipStats = window.L.getShipStats(state);
     const mySpeed = shipStats.speed;
     const enemyShip = window.L.guessShipType(enemy);
@@ -527,67 +544,63 @@ const getNPCBoardingAction = (state, encounterSession) => {
     const gold = state.gold;
     const bribeCost = Math.round(((enemy.gold ?? (enemy.cannons * 10 + enemy.crew * 5)) || 500) * 0.4);
 
-    const noFleeTypes = ["hostile_port_entry", "bounty_target", "mission_combat", "navy_patrol", "navy_patrol_combat", "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend"];
+    // ── Encounter-type-specific option availability ──
+
+    // Fight types where fleeing is blocked (you're committed)
+    const noFleeTypes = [
+      "hostile_port_entry", "bounty_target", "mission_combat",
+      "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend",
+      "pirate_ambush"
+    ];
     const canFlee = !noFleeTypes.includes(type);
     const fleeReason = canFlee ? null
       : type === "hostile_port_entry" ? "Already in range of the harbour guns"
-      : type === "navy_patrol" || type === "navy_patrol_combat" ? "You cannot outrun a patrol in open waters"
+      : type === "navy_patrol" ? "You cannot outrun a patrol in open waters"
       : "The target is cornered. No escape";
 
-    const noParleyTypes = ["hostile_port_entry", "bounty_target", "mission_combat", "smuggling_caught", "navy_patrol", "navy_patrol_combat", "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend"];
+    // Parley blocked for combat/commitment encounters
+    const noParleyTypes = [
+      "hostile_port_entry", "bounty_target", "mission_combat",
+      "smuggling_caught", "navy_patrol",
+      "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend",
+      "pirate_ambush"
+    ];
     const canParley = !noParleyTypes.includes(type) && rep >= 30;
-    const parleyReason = noParleyTypes.includes(type) ? "They are not here to negotiate" : rep < 30 ? `Reputation too low (${rep} : need 30)` : null;
+    const parleyReason = noParleyTypes.includes(type)
+      ? "They are not here to negotiate"
+      : rep < 30 ? `Reputation too low (${rep} : need 30)` : null;
 
-    const noBribeTypes = ["hostile_port_entry", "bounty_target", "mission_combat", "navy_patrol", "navy_patrol_combat", "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend"];
+    // Bribe blocked for combat/commitment encounters
+    const noBribeTypes = [
+      "hostile_port_entry", "bounty_target", "mission_combat",
+      "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend",
+      "pirate_ambush"
+    ];
     const bribeBlocked = noBribeTypes.includes(type);
     const canAffordBribe = gold >= bribeCost;
     const bribeInfamyBlocked = !window.L.canBribe(state);
     const canBribeResult = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
-    const bribeReason = bribeBlocked ? "They cannot be bought"
-      : bribeInfamyBlocked ? "Your reputation for bribery has preceded you"
-      : !canAffordBribe ? `Need ${bribeCost}g (you have ${gold}g)` : null;
+    const bribeReason = bribeBlocked
+      ? "They cannot be bought"
+      : bribeInfamyBlocked
+        ? "Your reputation for bribery has preceded you"
+        : !canAffordBribe
+          ? `Need ${bribeCost}g (you have ${gold}g)`
+          : null;
 
-    const noSurrenderTypes = ["bounty_target", "mission_combat", "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend"];
+    // Surrender blocked for bounty/mission/merchant
+    const noSurrenderTypes = [
+      "bounty_target", "mission_combat",
+      "distressed_merchant_help", "distressed_merchant_plunder", "escort_defend"
+    ];
     const canSurrender = !noSurrenderTypes.includes(type);
     const surrenderReason = canSurrender ? null : "Surrender means death here";
 
+    // ── Merchant / Escort / Plunder (custom options with disabled reasons) ──
     if (type === "distressed_merchant_help" || type === "distressed_merchant_plunder" || type === "escort_defend") {
-      return {
-        type,
-        encounterType: type,
-        enemy: { ...enemy, ship: enemyShip },
-        flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
-        options: [{
-          id: "fight",
-          label: "Fight",
-          available: true,
-          reason: null,
-          action: { type: "INTERCEPT_FIGHT" },
-          speedCheck: null,
-        }],
-      };
-    }
+      const options = [];
 
-    const isNavyPatrol = type === "navy_patrol" || type === "navy_patrol_combat";
-    const options = [];
-    if (isNavyPatrol) {
-      options.push({
-        id: "inspect",
-        label: "Allow Inspection",
-        available: true,
-        reason: null,
-        action: { type: "PATROL_INSPECT" },
-        speedCheck: null,
-      });
-      options.push({
-        id: "fight",
-        label: "Refuse and Open Fire",
-        available: true,
-        reason: null,
-        action: { type: "INTERCEPT_FIGHT" },
-        speedCheck: null,
-      });
-    } else {
+      // Fight (always available)
       options.push({
         id: "fight",
         label: "Fight",
@@ -596,40 +609,196 @@ const getNPCBoardingAction = (state, encounterSession) => {
         action: { type: "INTERCEPT_FIGHT" },
         speedCheck: null,
       });
+
+      // Flee (disabled – you're committed)
+      const fleeReason = type === "escort_defend"
+        ? "You cannot abandon the convoy"
+        : type === "distressed_merchant_help"
+          ? "You are committed to protecting the merchant"
+          : "You have engaged the enemy";
+
       options.push({
         id: "flee",
         label: "Attempt to Flee",
-        available: canFlee,
+        available: false,
         reason: fleeReason,
-        action: { type: "INTERCEPT_FLEE" },
-        speedCheck: canFlee ? { player: mySpeed, enemy: eSpeed } : null,
+        action: null,
+        speedCheck: null,
       });
+
+      // Parley (disabled – they're not interested)
       options.push({
         id: "parley",
         label: "Parley",
-        available: canParley,
-        reason: parleyReason,
-        action: { type: "INTERCEPT_PARLEY" },
+        available: false,
+        reason: type === "distressed_merchant_plunder"
+          ? "The merchant crew is terrified – they won't negotiate"
+          : "The enemy is not interested in talking",
+        action: null,
         speedCheck: null,
       });
+
+      // Bribe (disabled – they want blood, not gold)
       options.push({
         id: "bribe",
-        label: canBribeResult ? `Bribe (${bribeCost}g)` : "Bribe",
-        available: canBribeResult,
-        reason: bribeReason,
-        action: { type: "INTERCEPT_BRIBE" },
+        label: "Bribe",
+        available: false,
+        reason: type === "distressed_merchant_plunder"
+          ? "You are here to plunder – bribery is beneath you"
+          : "They cannot be bought off",
+        action: null,
         speedCheck: null,
-        cost: bribeCost,
       });
+
+      // Surrender (available for defense, disabled for plunder)
+      const canSurrender = type !== "distressed_merchant_plunder";
       options.push({
         id: "surrender",
         label: "Surrender",
         available: canSurrender,
-        reason: surrenderReason,
-        action: { type: "INTERCEPT_SURRENDER" },
+        reason: canSurrender ? null : "There is no surrender in plunder",
+        action: canSurrender ? { type: "INTERCEPT_SURRENDER" } : null,
         speedCheck: null,
       });
+
+      return {
+        type,
+        encounterType: type,
+        enemy: { ...enemy, ship: enemyShip },
+        flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
+        options,
+      };
     }
+
+    // ── Navy Patrol (custom: Inspect + Fight + Bribe) ──
+    const isNavyPatrol = type === "navy_patrol";
+    const options = [];
+
+    if (isNavyPatrol) {
+      // Inspect
+      options.push({
+        id: "inspect",
+        label: "Allow Inspection",
+        available: true,
+        reason: null,
+        action: { type: "PATROL_INSPECT" },
+        speedCheck: null,
+      });
+
+      // Fight
+      options.push({
+        id: "fight",
+        label: "Refuse and Open Fire",
+        available: true,
+        reason: null,
+        action: { type: "INTERCEPT_FIGHT" },
+        speedCheck: null,
+      });
+
+      // ── Bribe (navy patrol only) ──
+      // Calculate contraband value for bribe cost
+      const items = state.hold?.items || {};
+      const activeMission = state.activeMission;
+
+      const hasTobacco = (items.tobacco || 0) > 0;
+      const hasSlaves  = (items.slaves  || 0) > 0;
+      const hasRumSmuggle = activeMission?.type === "smuggle"
+        && activeMission?.requiredGood === "rum"
+        && (items.rum || 0) > 0;
+
+      let contrabandValue = 0;
+      if (hasTobacco) contrabandValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
+      if (hasSlaves)  contrabandValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
+      if (hasRumSmuggle) contrabandValue += (items.rum     || 0) * (window.D.RESOURCES.rum?.basePrice     || 30);
+
+      const bribeCost = Math.round(contrabandValue * 0.50 / 25) * 25;
+      const canAfford = state.gold >= bribeCost;
+      const infamyOk = (state.infamy ?? 0) < 25;
+      const repOk = (state.reputation[state.destination ?? state.currentPort] ?? 0) > 50;
+      const hasContraband = contrabandValue > 0;
+
+      let bribeAvailable = false;
+      let bribeDisabledReason = null;
+
+      if (!hasContraband) {
+        bribeDisabledReason = "You have no contraband – no need to bribe";
+      } else if (!infamyOk) {
+        bribeDisabledReason = "Your reputation for bribery has preceded you";
+      } else if (!repOk) {
+        bribeDisabledReason = "They don't trust you enough to take a bribe";
+      } else if (!canAfford) {
+        bribeDisabledReason = `Need ${bribeCost}g (you have ${state.gold}g)`;
+      } else {
+        bribeAvailable = true;
+      }
+
+      options.push({
+        id: "bribe",
+        label: canAfford ? `Bribe (${bribeCost}g)` : `Bribe (${bribeCost}g)`,
+        available: bribeAvailable,
+        reason: bribeDisabledReason,
+        action: bribeAvailable ? { type: "INTERCEPT_BRIBE" } : null,
+        speedCheck: null,
+        cost: bribeCost,
+      });
+
+      // Note: Navy patrols do NOT get Flee, Parley, or Surrender
+      return {
+        type,
+        encounterType: type,
+        enemy: { ...enemy, ship: enemyShip },
+        flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
+        options,
+      };
+    }
+
+    // ── Generic encounter (Fight, Flee, Parley, Bribe, Surrender) ──
+    options.push({
+      id: "fight",
+      label: "Fight",
+      available: true,
+      reason: null,
+      action: { type: "INTERCEPT_FIGHT" },
+      speedCheck: null,
+    });
+
+    options.push({
+      id: "flee",
+      label: "Attempt to Flee",
+      available: canFlee,
+      reason: fleeReason,
+      action: canFlee ? { type: "INTERCEPT_FLEE" } : null,
+      speedCheck: canFlee ? { player: mySpeed, enemy: eSpeed } : null,
+    });
+
+    options.push({
+      id: "parley",
+      label: "Parley",
+      available: canParley,
+      reason: parleyReason,
+      action: canParley ? { type: "INTERCEPT_PARLEY" } : null,
+      speedCheck: null,
+    });
+
+    options.push({
+      id: "bribe",
+      label: canBribeResult ? `Bribe (${bribeCost}g)` : "Bribe",
+      available: canBribeResult,
+      reason: bribeReason,
+      action: canBribeResult ? { type: "INTERCEPT_BRIBE" } : null,
+      speedCheck: null,
+      cost: bribeCost,
+    });
+
+    options.push({
+      id: "surrender",
+      label: "Surrender",
+      available: canSurrender,
+      reason: surrenderReason,
+      action: canSurrender ? { type: "INTERCEPT_SURRENDER" } : null,
+      speedCheck: null,
+    });
+
     return {
       type,
       encounterType: type,

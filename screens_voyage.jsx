@@ -461,17 +461,12 @@ window.S = window.S || {};
                     <IconCompass size={12} color={T.text} /> Change Course
                   </Btn>
                 </Tooltip>
-                  {courseChangeDisabled && (
-                    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
-                      ⚠ {courseChangeTooltip}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
             {!arrived && !canChangeCourse && (
-              <div style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 4 }}>
-                No alternate port is reachable from your current position under present conditions.
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                ⚠ {courseChangeTooltip}
               </div>
             )}
             <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 8 }}>

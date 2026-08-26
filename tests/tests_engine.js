@@ -16,7 +16,7 @@
   const {
     makeState, makePortState, makeSailingState, makeBattleState,
     makeCrewMember, fillRoster, makeShip, makeHold, makeMission,
-    makeBattle, dispatch,
+    makeBattle, makeEnemy, dispatch,
     setRandomSequence, resetRandomStub,
   } = window.testHelpers;
 
@@ -847,7 +847,218 @@ reg("E.DEBUG.COMBAT.01", "DEBUG_COMBAT: creates encounterSession with enemy risk
   u.assertEqual(s1.encounterSession.enemy.faction, "english", "enemy faction is english (not rival)");
 });
 
+ // surender / patrol inspection
 
+   // ── NEW: Navy Patrol Surrender (applyNavyPatrolSurrender) ──────────────
+
+  reg("E.NAVYSURR.01", "applyNavyPatrolSurrender: applies all consequences correctly", (u) => {
+    const items = { food: 10, water: 10, tobacco: 5, slaves: 2, rum: 10, cloth: 20 };
+    const s0 = makePortState("portRoyal", {
+      gold: 1000,
+      infamy: 5,
+      hold: makeHold(items),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    });
+    const enemy = { name: "Patrol", faction: "english" };
+    const session = { type: "navy_patrol", enemy, phase: "intercept" };
+
+    const s1 = window.E.applyNavyPatrolSurrender(s0, session);
+
+    // 1. Gold: fine = 40% of contraband value (tobacco 90*5=450, slaves 220*2=440, total 890 * 0.4 = 356, rounded to nearest 25 → 350)
+    u.assertEqual(s1.gold, 650, "gold reduced by fine");
+    // 2. Contraband removed
+    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
+    u.assertEqual(s1.hold.items.slaves, 0, "slaves seized");
+    // 3. Rum unaffected (not smuggle-related)
+    u.assertEqual(s1.hold.items.rum, 10, "rum preserved");
+    // 4. Food and water preserved (excluded from cargo loss)
+    u.assertEqual(s1.hold.items.food, 10, "food preserved");
+    u.assertEqual(s1.hold.items.water, 10, "water preserved");
+    // 5. Non-contraband, non-provisions goods halved (cloth: 20 → 10)
+    u.assertEqual(s1.hold.items.cloth, 10, "cloth halved (50% cargo loss)");
+    // 6. Morale penalty
+    u.assertEqual(s1.crew.morale, 65, "morale -15");
+    // 7. Infamy gain
+    u.assertEqual(s1.infamy, 7, "infamy +2");
+    // 8. Reputation loss
+    const repAfter = s1.reputation[s1.currentPort];
+    u.assert(repAfter < 50, `rep should be <50 (was ${repAfter})`);
+    // 9. Encounter cleared
+    u.assert(s1.encounterSession === null, "encounterSession cleared");
+    // 10. Screen is returnScreen (port)
+    u.assertEqual(s1.screen, "port", "screen set to port");
+  });
+
+reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatrolSurrender", (u) => {
+  const items = { food: 10, tobacco: 3 };
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    infamy: 0,
+    hold: makeHold(items),
+    crew: { roster: fillRoster(5), max: 40, morale: 80 },
+  });
+  const enemy = { name: "HMS Vigilant", faction: "english", hull: 100, cannons: 10, crew: 20 };
+  const ctx = {
+    type: "navy_patrol",
+    phase: "intercept",
+    enemy: enemy,
+    intercept: {
+      flavourText: "Test",
+      options: [
+        { id: "surrender", label: "Surrender", available: true, reason: null, action: { type: "INTERCEPT_SURRENDER" } }
+      ]
+    },
+    returnScreen: "port",
+  };
+  // Attach the session to the state
+  const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
+  s0.encounterSession = session;
+
+  const s1 = dispatch(s0, A.INTERCEPT_SURRENDER);
+
+  // Fine = Math.round(3*90*0.40/25)*25 = Math.round(108/25)*25 = 4*25 = 100
+  u.assertEqual(s1.gold, 400, "gold reduced by fine (500 - 100)");
+  u.assertEqual(s1.hold.items.tobacco, 0, "contraband seized");
+  u.assert(s1.encounterSession === null, "encounterSession cleared");
+  u.assert(s1.log.some(l => l.includes("surrendered")), "log contains surrender message");
+});
+
+  reg("E.NAVYSURR.03", "DISMISS_BATTLE with inspectionRefused and defeat applies navy patrol surrender", (u) => {
+    const items = { tobacco: 2 };
+    const s0 = makeBattleState(
+      { phase: "defeat", enemy: { name: "Patrol", faction: "english", hull: 50, cannons: 5, crew: 10 } },
+      {
+        gold: 400,
+        hold: makeHold(items),
+        crew: { roster: fillRoster(3), max: 40, morale: 80 },
+        previousPort: "portRoyal",
+      }
+    );
+    // Mark that the player refused inspection and the battle is lost
+    s0.encounterSession.type = "navy_patrol";
+    s0.encounterSession.inspectionRefused = true;
+
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+
+    // Should have applied the surrender consequences, NOT the full wash-ashore
+    u.assert(s1.gold < 400, "gold reduced by fine");
+    u.assertEqual(s1.hold.items.tobacco, 0, "contraband seized");
+    u.assert(s1.encounterSession === null, "encounter cleared");
+    // It should NOT have wiped the hold entirely (wash-ashore would clear everything)
+    u.assert(s1.hold.items.food === s0.hold.items.food, "non-contraband cargo preserved (not fully washed)");
+    u.assert(s1.screen === "port", "screen is port (not gameover)");
+  });
+
+  // ── NEW: PATROL_INSPECT tests ──────────────────────────────────────────
+
+  reg("E.PATROL.01", "PATROL_INSPECT: seizes contraband, applies fine, rep/infamy/morale penalties", (u) => {
+    const items = { food: 5, water: 5, tobacco: 4, slaves: 1 };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      infamy: 0,
+      hold: makeHold(items),
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      reputation: { portRoyal: 60 },
+    });
+    const enemy = { name: "Patrol", faction: "english" };
+    const ctx = {
+      type: "navy_patrol",
+      phase: "intercept",
+      enemy: enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [{ id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } }]
+      },
+      returnScreen: "port",
+    };
+    const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
+    const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
+
+    // Value: tobacco 90*4=360, slaves 220*1=220, total 580. Fine rate 20% → 116, rounded to nearest 25 → 125
+    u.assertEqual(s1.gold, 375, "gold reduced by fine (500 - 125)");
+    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
+    u.assertEqual(s1.hold.items.slaves, 0, "slaves seized");
+    u.assertEqual(s1.hold.items.food, 5, "food preserved");
+    u.assertEqual(s1.infamy, 2, "infamy +2");
+    u.assertEqual(s1.crew.morale, 70, "morale -10");
+    // Reputation: should be -5 from all ports of that faction
+    const repAfter = s1.reputation[s1.currentPort];
+    u.assertEqual(repAfter, 55, "reputation -5");
+    u.assert(s1.encounterSession === null, "encounter cleared");
+  });
+
+  reg("E.PATROL.02", "PATROL_INSPECT: Hidden Compartment can avoid detection", (u) => {
+    const items = { tobacco: 3 };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      hold: makeHold(items),
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      ship: {
+        ...makeShip("sloop"),
+        equipment: { hull: [], armament: [], rigging: [], special: ["hidden_compartment"] },
+      },
+    });
+    const enemy = { name: "Patrol", faction: "english" };
+    const ctx = {
+      type: "navy_patrol",
+      phase: "intercept",
+      enemy: enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [{ id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } }]
+      },
+      returnScreen: "port",
+    };
+    const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
+
+    // Force the avoid chance to succeed (random < 0.50)
+    setRandomSequence([0.1]);
+    const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
+    resetRandomStub();
+
+    // Contraband should still be there
+    u.assertEqual(s1.hold.items.tobacco, 3, "tobacco not seized (hidden compartment succeeded)");
+    u.assertEqual(s1.gold, 500, "gold not deducted");
+    u.assertEqual(s1.infamy, 0, "no infamy");
+    u.assertEqual(s1.crew.morale, 80, "morale unchanged");
+    u.assert(s1.encounterSession === null, "encounter cleared");
+  });
+
+  reg("E.PATROL.03", "PATROL_INSPECT: detection occurs when avoid chance fails", (u) => {
+    const items = { tobacco: 2 };
+    const s0 = makePortState("portRoyal", {
+      gold: 500,
+      hold: makeHold(items),
+      crew: { roster: fillRoster(5), max: 40, morale: 80 },
+      ship: {
+        ...makeShip("sloop"),
+        equipment: { hull: [], armament: [], rigging: [], special: ["hidden_compartment"] },
+      },
+    });
+    const enemy = { name: "Patrol", faction: "english" };
+    const ctx = {
+      type: "navy_patrol",
+      phase: "intercept",
+      enemy: enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [{ id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } }]
+      },
+      returnScreen: "port",
+    };
+    const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
+
+    // Force the avoid chance to fail (random > 0.50)
+    setRandomSequence([0.9]);
+    const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
+    resetRandomStub();
+
+    // Contraband should be seized
+    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
+    // Fine: 2*90 = 180, *0.20 = 36 → rounded to 25
+    u.assertEqual(s1.gold, 475, "gold reduced by fine (500 - 25)");
+    u.assertEqual(s1.infamy, 2, "infamy +2");
+  });
 
 
   // ── NEW: INTERCEPT_PARLEY failure path (the crash fix) ────────────────────
@@ -951,6 +1162,281 @@ reg("E.DEBUG.COMBAT.01", "DEBUG_COMBAT: creates encounterSession with enemy risk
     u.assert(victoryMessage !== undefined, "Victory message appears in battle log");
     u.assertEqual(s1.screen, "battle", "screen stays on battle");
   });
+
+  // ── NEW: CONVOY / MERCHANT PROTECTED OBJECTIVE TESTS ──────────────
+
+reg("E.CONVOY.01", "buildBattleFromIntercept: sets convoyHull for escort and merchant defense", (u) => {
+  const state = makePortState("portRoyal", {
+    ship: makeShip("sloop"), // maxHull 100 -> convoyHull 50
+  });
+  const enemy = makeEnemy();
+
+  // ── Escort mission ──
+  const sessionEscort = {
+    type: "escort_defend",
+    enemy: enemy,
+    phase: "intercept",
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } }],
+    },
+    returnScreen: "port",
+    notableNPCId: null,
+    source: { kind: "random", id: null },
+    modifiers: [],
+    battle: null,
+    plunder: null,
+  };
+  // Attach session to state
+  const sWithSession = { ...state, encounterSession: sessionEscort };
+  const s1 = dispatch(sWithSession, A.INTERCEPT_FIGHT);
+  u.assert(s1.encounterSession !== null, "encounter session created");
+  u.assertEqual(s1.screen, "battle", "screen changed to battle");
+  const battle1 = s1.encounterSession.battle;
+  u.assert(battle1.convoyHull !== undefined, "convoyHull set for escort");
+  u.assertEqual(battle1.convoyHull, 50, "convoyHull = maxHull/2 for escort");
+
+  // ── Merchant defense ──
+  const sessionMerchant = {
+    type: "distressed_merchant_help",
+    enemy: enemy,
+    phase: "intercept",
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } }],
+    },
+    returnScreen: "port",
+    notableNPCId: null,
+    source: { kind: "random", id: null },
+    modifiers: [],
+    battle: null,
+    plunder: null,
+  };
+  const sWithMerchant = { ...state, encounterSession: sessionMerchant };
+  const s2 = dispatch(sWithMerchant, A.INTERCEPT_FIGHT);
+  const battle2 = s2.encounterSession.battle;
+  u.assert(battle2.convoyHull !== undefined, "convoyHull set for merchant defense");
+  u.assertEqual(battle2.convoyHull, 50, "convoyHull = maxHull/2 for merchant defense");
+
+  // ── Random encounter (should NOT have convoyHull) ──
+  const sessionRandom = {
+    type: "random",
+    enemy: enemy,
+    phase: "intercept",
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } }],
+    },
+    returnScreen: "port",
+    notableNPCId: null,
+    source: { kind: "random", id: null },
+    modifiers: [],
+    battle: null,
+    plunder: null,
+  };
+  const sWithRandom = { ...state, encounterSession: sessionRandom };
+  const s3 = dispatch(sWithRandom, A.INTERCEPT_FIGHT);
+  const battle3 = s3.encounterSession.battle;
+  u.assert(battle3.convoyHull === undefined, "random encounter has no convoyHull");
+});
+
+  reg("E.CONVOY.02", "resolveNavalRound: returns convoyDamage for enemy broadside and precision", (u) => {
+    const state = makePortState("portRoyal", {
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    });
+    const enemy = makeEnemy({ cannons: 10, crew: 10 });
+    const battle = {
+      distance: "medium",
+      playerHull: 100,
+      playerCrew: 10,
+      enemyHull: enemy.hull,
+      enemyCrew: enemy.crew,
+      convoyHull: 50,
+    };
+
+    // Enemy broadside
+    setRandomSequence([0.5]);
+    const resultBroadside = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy);
+    resetRandomStub();
+    // convoyDamage should be 2-5 (we can check it's > 0)
+    u.assert(resultBroadside.convoyDamage > 0, "broadside deals convoy damage");
+
+    // Enemy precision (hit)
+    setRandomSequence([0.5, 0.5]); // hit + random damage
+    const resultPrecision = L.resolveNavalRound(state, "broadside", "precision", battle, enemy);
+    resetRandomStub();
+    u.assert(resultPrecision.convoyDamage >= 0, "precision can deal convoy damage (0 on miss)");
+
+    // Enemy evade (no damage)
+    const resultEvade = L.resolveNavalRound(state, "broadside", "evade", battle, enemy);
+    u.assertEqual(resultEvade.convoyDamage, 0, "evade deals no convoy damage");
+  });
+
+  reg("E.CONVOY.03", "BATTLE_ACTION: applies convoy damage and tracks convoyLost", (u) => {
+    // Create a battle with low convoy hull so it gets destroyed
+    const s0 = makeBattleState(
+      {
+        distance: "medium",
+        subPhase: "naval",
+        enemyHull: 100,
+        enemyCrew: 10,
+        convoyHull: 2, // low so it gets destroyed
+        log: [],
+      },
+      {
+        ship: makeShip("sloop"),
+        crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      }
+    );
+    // Ensure we have an enemy that uses broadside
+    s0.encounterSession.enemy.cannons = 10;
+    s0.encounterSession.enemy.crew = 10;
+
+    // Force enemy action to broadside (we'll mock the NPC action to be broadside)
+    // We need to override L.getNPCNavalAction temporarily
+    const originalGetNPC = L.getNPCNavalAction;
+    L.getNPCNavalAction = () => "broadside";
+
+    // Set random sequence to control damage
+    setRandomSequence([0.5, 0.5, 0.5]); // broadside calc, convoy damage calc
+    const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+    resetRandomStub();
+    L.getNPCNavalAction = originalGetNPC;
+
+    const battle = s1.encounterSession?.battle;
+    u.assert(battle !== null, "battle exists");
+    // convoyHull should be 0 and convoyLost true
+    u.assertEqual(battle.convoyHull, 0, "convoyHull reduced to 0");
+    u.assert(battle.convoyLost === true, "convoyLost set to true");
+    // Log should contain the destruction message
+    u.assert(battle.log.some(l => l.includes("merchant ship is destroyed") || l.includes("convoy")), "destruction message logged");
+  });
+
+  reg("E.CONVOY.04", "DISMISS_BATTLE: merchant defense gives reward when convoy survives", (u) => {
+    const s0 = makeBattleState(
+      {
+        phase: "victory",
+        canPlunder: false,
+        convoyHull: 10,
+        convoyLost: false,
+        log: [],
+        enemy: { name: "Pirate", faction: "pirate" },
+      },
+      {
+        gold: 1000,
+        ship: makeShip("sloop"),
+        crew: { roster: fillRoster(10), max: 40, morale: 80 },
+        reputation: { portRoyal: 50 },
+      }
+    );
+    // Set merchant info on session
+    s0.encounterSession.merchantFaction = "english";
+    s0.encounterSession.merchantProtected = true;
+    s0.encounterSession.returnScreen = "port";
+
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+
+    // Gold should have increased (bonus 200-400)
+    u.assert(s1.gold > 1000, "gold increased for merchant rescue");
+    // Reputation should have increased for merchant faction
+    const repAfter = s1.reputation["portRoyal"] || 0;
+    u.assert(repAfter > 50, "reputation increased for merchant faction");
+    // Log should mention the rescue
+    u.assert(s1.log.some(l => l.includes("merchant is saved")), "rescue log present");
+    // Encounter session cleared
+    u.assert(s1.encounterSession === null, "encounter cleared");
+  });
+
+  reg("E.CONVOY.05", "DISMISS_BATTLE: merchant defense gives no reward when convoy destroyed", (u) => {
+    const s0 = makeBattleState(
+      {
+        phase: "victory",
+        canPlunder: false,
+        convoyHull: 0,
+        convoyLost: true,
+        log: [],
+        enemy: { name: "Pirate", faction: "pirate" },
+      },
+      {
+        gold: 1000,
+        ship: makeShip("sloop"),
+        crew: { roster: fillRoster(10), max: 40, morale: 80 },
+        reputation: { portRoyal: 50 },
+      }
+    );
+    s0.encounterSession.merchantFaction = "english";
+    s0.encounterSession.merchantProtected = true;
+    s0.encounterSession.returnScreen = "port";
+
+    const s1 = dispatch(s0, A.DISMISS_BATTLE);
+
+    // Gold should NOT have increased (no bonus)
+    u.assertEqual(s1.gold, 1000, "gold unchanged when merchant destroyed");
+    // Reputation should NOT have increased
+    u.assertEqual(s1.reputation["portRoyal"], 50, "reputation unchanged");
+    // Log should mention no reward
+    u.assert(s1.log.some(l => l.includes("merchant ship was destroyed") || l.includes("no reward")), "no reward log present");
+    // Encounter cleared
+    u.assert(s1.encounterSession === null, "encounter cleared");
+  });
+
+reg("E.CONVOY.06", "COMPLETE_MISSION: blocks escort completion when convoyLost is true", (u) => {
+  const mission = {
+    type: "escort",
+    id: "escort_1",
+    targetPort: "portRoyal",
+    faction: "english",
+    gold: 300,
+    fame: 2,
+    repImpact: { english: 3 },
+    convoyLost: true,
+    encounterOccurred: true,
+    enemyDefeated: true,
+    requiredGood: null,
+    requiredQty: 0,
+  };
+  const s0 = makePortState("portRoyal", {
+    activeMission: mission,
+    gold: 1000,
+    reputation: { portRoyal: 50 },
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+
+  u.assert(s1.activeMission === null, "mission cleared");
+  u.assertEqual(s1.gold, 1000, "gold not awarded for failed escort");
+  u.assert(s1.reputation["portRoyal"] < 50, "reputation decreased for failed escort");
+  u.assert(s1.log.some(l => l.includes("convoy was destroyed")), "failure log present");
+});
+
+reg("E.CONVOY.07", "COMPLETE_MISSION: allows escort completion when convoy survives", (u) => {
+  const mission = {
+    type: "escort",
+    id: "escort_2",
+    targetPort: "portRoyal",
+    faction: "english",
+    gold: 300,
+    fame: 2,
+    repImpact: { english: 3 },
+    convoyLost: false,
+    encounterOccurred: true,
+    enemyDefeated: true,
+    requiredGood: null,
+    requiredQty: 0,
+  };
+  const s0 = makePortState("portRoyal", {
+    activeMission: mission,
+    gold: 1000,
+    reputation: { portRoyal: 50 },
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+
+  u.assert(s1.activeMission === null, "mission cleared");
+  // Reputation perk at 50 = 1.10 → 300 * 1.10 = 330
+  u.assertEqual(s1.gold, 1330, "gold awarded for successful escort (1000 + 330 with rep perk)");
+  u.assert(s1.reputation["portRoyal"] > 50, "reputation increased");
+});
+
 
   // ══════════════════════════════════════════════════════════════════════════
   // E.EVENT — RESOLVE_EVENT (deterministic gold/rep choices)

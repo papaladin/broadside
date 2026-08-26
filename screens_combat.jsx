@@ -132,7 +132,7 @@ window.S = window.S || {};
   };
 
   // ── EVENT SCREEN ─────────────────────────────────────────────────────
-  function EventScreen({ state, dispatch }) {
+ function EventScreen({ state, dispatch }) {
     const ev = state.activeEvent;
     if (!ev) return null;
     const typeColor = {
@@ -154,10 +154,14 @@ window.S = window.S || {};
           {ev.svg && (
             <div style={{
               width: "100%",
-              maxHeight: "180px",
+              maxWidth: 400,
+              aspectRatio: "5 / 3",
+              margin: "0 auto 12px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
               overflow: "hidden",
-              borderRadius: "4px",
-              marginBottom: "12px",
+              borderRadius: 4,
               background: "#0d1824",
               border: `1px solid ${T.borderFaint}`,
             }}>
@@ -166,17 +170,17 @@ window.S = window.S || {};
                 alt={ev.title}
                 style={{
                   width: "100%",
-                  height: "auto",
+                  height: "100%",
+                  objectFit: "contain",
                   display: "block",
                 }}
                 onError={(e) => {
-                  // Hide the container if the SVG fails to load
                   e.currentTarget.parentElement.style.display = "none";
                 }}
               />
             </div>
           )}
-          {/* ── Existing Event UI ── */}
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Pill label={ev.type} color={typeColor[ev.type] ?? T.textDim} />
             <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>Day {state.day}</span>
@@ -188,19 +192,36 @@ window.S = window.S || {};
             color: T.text, fontSize: T.narrativeFontSize, marginBottom: 20,
             lineHeight: T.narrativeLineHeight,
           }}>{ev.desc}</p>
+
           <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
-            {ev.choices.map((c, i) => (
-              <Panel
-                key={i}
-                style={{ background: T.panelAlt, cursor: "pointer", transition: "border-color 0.15s" }}
-                onClick={() => dispatch({ type: A.RESOLVE_EVENT, choiceIndex: i })}
-                onMouseEnter={e => e.currentTarget.style.borderColor = T.borderBr}
-                onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
-              >
-                <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 3 }}>{c.label}</div>
-                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{c.outcome.log}</div>
-              </Panel>
-            ))}
+            {ev.choices.map((c, i) => {
+              // Evaluate condition if it exists
+              const isEnabled = !c.condition || c.condition(state);
+              return (
+                <Panel
+                  key={i}
+                  style={{
+                    background: T.panelAlt,
+                    cursor: isEnabled ? "pointer" : "not-allowed",
+                    transition: "border-color 0.15s",
+                    opacity: isEnabled ? 1 : 0.55,
+                  }}
+                  onClick={() => isEnabled && dispatch({ type: A.RESOLVE_EVENT, choiceIndex: i })}
+                  onMouseEnter={e => isEnabled && (e.currentTarget.style.borderColor = T.borderBr)}
+                  onMouseLeave={e => isEnabled && (e.currentTarget.style.borderColor = T.border)}
+                >
+                  <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold", marginBottom: 3 }}>
+                    {c.label}
+                  </div>
+                  <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>{c.outcome.log}</div>
+                  {!isEnabled && (
+                    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                      Insufficient resources
+                    </div>
+                  )}
+                </Panel>
+              );
+            })}
           </div>
         </Panel>
       </div>
@@ -210,7 +231,67 @@ window.S = window.S || {};
 // ── INTERCEPT SCREEN ──────────────────────────────────────────────────
 const InterceptScreen = ({ state, dispatch }) => {
   const session = state.encounterSession;
-  if (!session || session.phase !== "intercept") return null;
+  if (!session || (session.phase !== "intercept" && session.phase !== "inspection_pending")) return null;
+  // ── Inspection Pending ──────────────────────────────────────────────────
+  if (session.phase === "inspection_pending") {
+    const contraband = session.inspectionContraband;
+    const enemyCrew = session.enemy?.crew || 0;
+    const playerCrew = state.crew.roster.length;
+    const canResist = playerCrew > 0 && state.ship.hull > 0;
+
+    return (
+      <div style={{ padding: T.spacing.xl, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", letterSpacing: "0.08em" }}>
+          ⚠ CONTRABAND FOUND
+        </div>
+
+        <Panel color={T.borderBr}>
+          <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: 1.6 }}>
+            The patrol has discovered contraband in your hold.
+            <br/><br/>
+            You have two choices:
+          </p>
+        </Panel>
+
+        <Panel>
+          <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md }}>
+            {/* ── Hand it over ── */}
+            <Btn
+              v="default"
+              onClick={() => dispatch({ type: A.RESOLVE_INSPECTION, choice: "handOver" })}
+              style={{ width: "100%", textAlign: "left", padding: "12px 16px" }}
+            >
+              <div style={{ fontWeight: "bold", fontSize: T.heading3FontSize }}>✋ Hand it over</div>
+              <div style={{ color: T.textDim, fontSize: T.metadataFontSize, marginTop: 4 }}>
+                Lose contraband · Fine: {contraband.fine}g · +2 infamy · -5 reputation · -10 morale
+              </div>
+            </Btn>
+
+            {/* ── Resist seizure ── */}
+            <Btn
+              v={canResist ? "red" : "ghost"}
+              disabled={!canResist}
+              onClick={() => canResist && dispatch({ type: A.RESOLVE_INSPECTION, choice: "resist" })}
+              style={{ width: "100%", textAlign: "left", padding: "12px 16px", opacity: canResist ? 1 : 0.55 }}
+            >
+              <div style={{ fontWeight: "bold", fontSize: T.heading3FontSize }}>⚔ Resist seizure</div>
+              <div style={{ color: T.textDim, fontSize: T.metadataFontSize, marginTop: 4 }}>
+                Fight the patrol · Your crew: {playerCrew} · Enemy crew: {enemyCrew}
+                <br/>
+                <span style={{ color: T.redBr }}>⚠ Victory keeps your cargo · Defeat means wash ashore</span>
+              </div>
+              {!canResist && (
+                <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                  {playerCrew === 0 ? "No crew to fight" : "Your ship is destroyed"}
+                </div>
+              )}
+            </Btn>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
+
   const { enemy, intercept } = session;
   const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
 

@@ -723,12 +723,21 @@ if (
           };
       }
 
- case A.COMPLETE_MISSION: {
+case A.COMPLETE_MISSION: {
   const mission = state.activeMission;
   if (!mission) return state;
-  if (mission.targetPort && state.currentPort !== mission.targetPort) return { ...state };
 
-  // Patrol must have defeated enemy
+  // ── Escort: convoy lost → mission failed ──
+  if (mission.type === "escort" && mission.convoyLost) {
+    return {
+      ...state,
+      activeMission: null,
+      log: [...state.log, window.E.logEntry(state, "The convoy was destroyed. The escort mission has failed.")],
+      reputation: L.applyReputationImpact(state, { [mission.faction]: -5 }),
+    };
+  }
+
+  // ── Patrol: must have defeated enemy ──
   if (mission.type === "patrol" && !mission.enemyDefeated) {
     return {
       ...state,
@@ -736,7 +745,12 @@ if (
     };
   }
 
-  // Required good check
+  // ── Target port check ──
+  if (mission.targetPort && state.currentPort !== mission.targetPort) {
+    return { ...state };
+  }
+
+  // ── Required goods check ──
   if (mission.requiredGood && mission.requiredQty) {
     const inHold = state.hold?.items?.[mission.requiredGood] || 0;
     if (inHold < mission.requiredQty) {
