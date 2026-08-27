@@ -8,6 +8,9 @@ window.L = window.L || {};
 (() => {
   const { PORTS, SHIPS, RANDOM_EVENTS } = window.D;
 
+  // Shared RNG from logic_core.js (injectable)
+  const defaultRng = window.L.RNG;
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  TRAVEL & NAVIGATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -166,15 +169,19 @@ window.L = window.L || {};
   //  EVENTS & PATROLS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  const triggerRandomEvent = (state) => {
+  const triggerRandomEvent = (state, rng = defaultRng) => {
     const availableEvents = RANDOM_EVENTS.filter(event => !event.condition || event.condition(state));
     if (availableEvents.length === 0) return null;
-    const event = availableEvents[Math.floor(Math.random() * availableEvents.length)];
-    if (Array.isArray(event.desc)) event.desc = event.desc[Math.floor(Math.random() * event.desc.length)];
-    return { ...event };
+    const selected = availableEvents[rng.int(0, availableEvents.length - 1)];
+    // Create a shallow copy; never modify the original D.RANDOM_EVENTS entry.
+    const event = { ...selected };
+    if (Array.isArray(event.desc)) {
+      event.desc = event.desc[rng.int(0, event.desc.length - 1)];
+    }
+    return event;
   };
 
-  const maybeRandomPatrol = (state) => {
+  const maybeRandomPatrol = (state, rng = defaultRng) => {
     const port = PORTS[state.currentPort];
     if (!port || port.faction === "pirate") return false;
     const baseChance = 0.01;
@@ -190,7 +197,7 @@ window.L = window.L || {};
     const effectiveHeat = Math.floor(relevantHeat * heatDampening);
     const heatBonus = effectiveHeat * 0.03;
     const chance = Math.min(baseChance + infamyBonus + heatBonus, 0.40);
-    return Math.random() < chance;
+    return rng.random() < chance;
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

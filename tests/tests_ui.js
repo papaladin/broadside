@@ -282,6 +282,19 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     }
   });
 
+  reg("U.NS.18", "ui.jsx and screens_*.jsx do not call window.G", (u) => {
+    const sourceFiles = [
+      "ui.jsx",
+      "screens_core.jsx", "screens_port.jsx", "screens_status.jsx",
+      "screens_shipyard.jsx", "screens_crew.jsx", "screens_market.jsx",
+      "screens_voyage.jsx", "screens_combat.jsx", "screens_menu.jsx"
+    ];
+    for (const file of sourceFiles) {
+      const source = document.querySelector(`script[src*="${file}"]`)?.textContent || "";
+      u.assert(!source.includes("G.generate"), `${file} contains direct G.generate call`);
+    }
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   // U.SMOKE — Screen smoke renders
   // Each test: render the component with valid state, assert no exception thrown.

@@ -83,9 +83,9 @@ The game is complete when a player can finish a run, read their journal from sta
 | **B7** | Player menu, reference & community links | ✅ DONE |
 | **B8** | Economy & mission design discovery | ✅ DONE |
 | **B9** | Player trust & resilience | ✅ DONE |
-| **B11** | Combat depth rework | ONGOING |
+| **B11** | Combat depth rework | ✅ DONE|
 | **B10** | Starts variety & captain identity discovery | 🔲 Planned |
-| **B12** | Sailing enrichment | 🔲 Planned |
+| **B12** | Sailing enrichment | ✅ DONE |
 | **B13** | Narrative layer upgrade | 🔲 Planned |
 | **B14** | Playtest Wave 2 | 🔲 Planned |
 | **B15** | Functional crew roles | 🔲 Planned |
@@ -155,70 +155,6 @@ The game is complete when a player can finish a run, read their journal from sta
 
 ---
 
-### B11 — Combat Depth Rework
-
-**Goal**: four actions where the enemy picks broadside 70% of the time will feel repetitive over a long campaign, no matter how good the narrative log gets — and this was independently confirmed by petripeeduhpedro ("grappling pushed me away from combat"), Ren ("you just steamroll"), and the save audit (140 grapple wins, near-zero combat variety). Scope and direction informed by Wave 1.
-
-#### B11.1 — Encounter architecture refactor (carried over from B1.4)
-- [X] Apply the unified encounter/activeMission/battleState model already designed during the B1.3 discovery, before adding distance, AI variety, or a boarding minigame on top of the old per-type conditionals
-- **Pillar**: Consequence (every new encounter type should be a data addition, not a code conditional)
-
-#### B11.2 — Discovery: what role should combat play?
-- [X] Primary activity vs. punishment for failed negotiation
-- [X] How much depth vs. how much speed (1-minute fights vs. 5-minute fights)
-- [X] Decision stacking vs. positional play
-- [X] Cross-reference Wave 1 findings on combat fatigue
-
-#### B11.3 — Discovery: wind & position
-- [X] Should wind affect combat actions (favourable for chase, opposing for boarding)?
-- [X] Distance bands (long / medium / boarding range), with a "close distance" / "open distance" action that makes fleeing easier at range and grappling easier up close?
-- [X] A maneuver phase?
-
-#### B11.4 — Implement combat depth changes
-- [X] Apply the model chosen in B11.2/B11.3: distance system, revised enemy AI (situational, not flat weights)
-- [X] **Post-boarding crew-fight phase**: grappling success no longer ends the fight outright. A boarding success still favours the larger crew, but resolves into a separate crew-combat roll/phase so a 80-vs-60 crew advantage is still an advantage, not an automatic, costless win (petripeeduhpedro, Ren, save audit all converge on this exact complaint)
-- **Pillar**: Consequence
-
-#### B11.5 — Enemy AI variety
-- [X] Design complete (`tasks_NPCAI.md`).
-- [X] NPCs choose actions based on situation, not flat weights (low hull → grapple attempt, fast ship → evade, large crew → grapple)
-- [X] Each enemy type gets a "preferred doctrine" reflected in its choice weights
-
-#### B11.6 — Combat log narrative depth pass
-- [X] Leverage existing crew names/traits in the round-by-round log ("Maria refuses to load the cannons," "the cook screams when the deck is hit")
-- [X] Connects combat to the crew attachment pillar
-- **Pillar**: Consequence
-
-#### B11.7 — Weapons & ammunition as a combat resource
-- [0] Add weapons/ammunition as a consumable resource analogous to food/water, gating combat actions the way provisions gate morale (Ren's suggestion). Touches the market and hold the same way provisions do — if B8.2's provisions redesign has already shipped, model this consistently with whatever direction that took. --> REJECTED FOR NOW, TOO COMPLEX FOR WHAT IS ENVISONNED. ITS NOT A NAVAL BATTLE GAME.
-
-#### B11.8 — Combat AI & Intercept UX
-
-**Goal**: Complete the missing piece of B11 — make the AI use the distance/boarding mechanics intelligently, and make the intercept screen a rich, informative pre‑battle experience.
-
-**State Transition**: From "combat mechanics are solid but AI is simple and intercept screen is generic" to "AI feels intentional and intercept screen gives the player meaningful information to act on."
-
-**Tasks**:
-- [X] **Full NPC AI scoring**: Implement utility‑based AI from `tasks_NPCAI.md` (faction archetypes, risk, dynamic signals).
-- [X] **Intercept screen flavour**: Rich, contextual flavour text per encounter type/faction.
-- [X] **Intercept screen UX improvements**:
-  - Show faction tag prominently.
-  - Add qualitative risk read ("Low/Medium/High") — "the crew believes victory is likely."
-- [X] **Combat AI simulator**: Standalone tool to validate action distribution and balance across archetypes.
-- [X] **Optional**: SVG illustrations for intercept/event screens (faction‑specific or encounter‑type art).
-
-**Measurement** (to validate B11 as the stable central tactical system):
-- Action choice distribution (are players choosing intentionally, or is one action obviously best?)
-- Combat duration
-- Distance transitions
-- Grapple/boarding frequency
-- Surrender frequency
-- Crew loss
-- Flee rate
-- Player understanding (qualitative)
-
----
-
 ### B10 — Starts Variety & Captain Identity Discovery
 
 **Goal**: The five faction starts currently differ only in opening flavour text and a fixed rep adjustment. This block makes the player's captain identity explicit and evolutionary.
@@ -241,50 +177,7 @@ The game is complete when a player can finish a run, read their journal from sta
 
 See dedicated task list.
 
----
 
-### B12 — Voyage Decision Density (Sailing Enrichment) (🔲 Planned)
-
-**Goal**: Make the voyage — the most‑repeated action — worth paying attention to. The problem is not event frequency; it's that normal sailing days lack decision density.
-
-**State Transition**: From "sailing is mostly passive time with occasional interruptions" to "sailing is a continuous decision space where the player actively navigates opportunities and risks."
-
-**Design Intent**:
-- Frame this as **"How do we make sailing itself worth paying attention to?"** before "What new events should we add?"
-- Focus on **decision density**, not encounter frequency.
-- Quality over quantity — 1 good event every 8–12 days is better than 1 mediocre event every 2–3 days.
-- The Change Course mechanic should evolve from route correction to route strategy.
-
-**Tasks**:
-- [ ] **Tactical route choices**: Do I take the risky shortcut? Do I push further or turn back?
-- [ ] **Sightings as information**: "Smoke on the horizon" — investigate or ignore? Decision before commitment.
-- [ ] **Crew‑initiated sailing events**: Arguments, sightings, morale moments that the player can respond to (not just passive logs).
-- [ ] **Weather as trade‑off**: Weather should create trade‑offs (shortcut vs. safe route), not just modifiers.
-- [ ] **At‑sea acquisition**: Fishing, rain‑catching, whaling — activities that give the player something to do during sailing.
-- [ ] **Patrol/hunt mission differentiation**: Differentiate patrol (find/intercept) from combat (deliberate violence) experientially.
-- [ ] **Do NOT increase random event frequency**. The current framework is approximately right.
-
-**Out of Scope**:
-- Full ship simulation (not that kind of game).
-- Real‑time weather system (turn‑based game).
-
-#### B12.1 — Sailing micro-loop improvement
-- [ ] More frequent micro-decisions during sailing (currently 50-60% dead air estimated)
-- [ ] Crew events at sea: arguments, sightings, morale moments, trait reveals
-- [ ] **Press-your-luck choices** in random events — give players genuine risk/reward decisions at sea rather than a single safe option and a single risky one
-- [ ] Weather changes that affect speed and create decisions ("storm approaching — push through or divert?")
-- [ ] Wind system that matters more: tacking, favourable/unfavourable wind as an active consideration
-- [ ] Sighting reports: "smoke on the horizon," "sail spotted," "land ahead" — information before commitment
-- **Note**: mid-voyage course change is already implemented and turns passive clicking into active route decisions; this tier enriches the between-ports experience further.
-- **Pillar**: Freedom (the journey is a decision space, not dead air)
-
-#### B12.2 — Dynamic event expansion
-- [ ] Expand the random event pool (currently ~5% per day, ~10 event types)
-- [ ] Conditional events: appear only when specific state conditions are met (low morale + storm, high infamy + bounty hunter, etc.)
-- [ ] Multi-part events: "you found a map" → later "the island from the map is nearby"
-- [ ] Crew-specific events: triggered by individual crew traits (drunkard causes brawl, coward panics in storm)
-- [ ] Scale event frequency with fame, the way patrol frequency already scales with infamy and heat, so the late game feels progressively busier rather than emptier
-- **Pillar**: Discovery (every voyage holds surprises)
 
 ---
 
@@ -874,17 +767,53 @@ SVG icon library in icons.jsx. LOG_ICONS lookup map (window.UI.LOG_ICONS) maps c
 
 ---
 
-### B11 — Combat Depth Rework (✅ DONE)
-- **Encounter session architecture**: unified `encounterSession` replaces the old `encounterContext` + `battleState` split (B1.4).
-- **Distance bands**: Far, Medium, and Close with `Close Distance` / `Open Distance` actions.
-- **Damage multipliers by distance**: Broadside (0.6× at Far, 1.0× at Medium, 0.9× at Close); Precision (1.1× at Far, 1.0× at Medium, 0.7× at Close).
-- **Grapple rework**: no longer instant victory; requires **Close** range and leads to a **boarding phase**.
-- **Boarding phase**: Continue Fighting, Fall Back, Demand Surrender, Surrender. Uses crew × morale effectiveness ratio (`getBoardingRatio`).
-- **Advantage Bar**: visual split bar showing player vs enemy boarding advantage percentage, now using the same calculation as the resolver.
-- **NPC AI stubs**: `getNPCNavalAction` and `getNPCBoardingAction` now use scoring‑based logic (full utility AI is a separate task list).
-- **Combat log templates**: narrative log entries for all actions (broadside, precision, grapple, evade, boarding outcomes).
-- **Zero‑crew grapple guard**: Grapple button is disabled when player crew is 0, with a clear tooltip.
-- **B11 integration**: fully wired into `engine_battle.js` and `engine_encounter.js`; battle screen shows proportional ship sprites, distance indicator, and boarding phase UI.
+### B11 — Combat Depth Rework (✅ COMPLETE)
+
+**Goal**: Replace simplistic combat with a distance‑based naval system and a boarding phase, and give NPC opponents intelligent, situational behaviour.
+
+**Implemented:**
+
+- **Encounter session architecture** – Unified `encounterSession` replaces the old split; all encounters (mission, patrol, random, merchant, etc.) flow through one model with explicit source and phase.
+- **Distance bands** – Far, Medium, Close. Actions `Close Distance` and `Open Distance` manage range; damage multipliers vary per band (Broadside: 0.6/1.0/0.9; Precision: 1.1/1.0/0.7).
+- **Grapple rework** – Now requires **Close** range and transitions to a dedicated **boarding phase**.
+- **Boarding phase** – Actions: Continue Fighting, Fall Back, Demand Surrender, Surrender. Advantage bar uses crew × morale effectiveness (`getBoardingRatio`); demand surrender requires ≥65% advantage.
+- **NPC AI (full utility‑based)** – `getNPCNavalAction` and `getNPCBoardingAction` now use scored decisions based on faction archetypes (`AI_ARCHETYPES`), hull/crew/speed advantages, distance, and encounter type. The AI decides between broadside, precision, movement, grapple, continue, fall back, and surrender dynamically. No more random stubs.
+- **Encounter flavour** – `generateCombatFlavour(disposition)` produces context‑aware lines based on the enemy's AI disposition (aggressive, evasive, wavering, etc.). Generated once at session creation and stored on the session, so the UI never calls generators directly.
+- **Combat log templates** – Narrative entries for every naval/boarding action and outcome, including convoy damage and crew loss names.
+- **Zero‑crew grapple guard** – Grapple is disabled when the player has no crew, with a clear tooltip.
+- **Convoy/merchant protection** – `convoyHull` tracks the protected vessel; its loss fails the objective but does not end the battle, allowing continued fighting for plunder.
+- **Ship sprite scaling** – Visual ship sizes reflect relative hull length, so a dinghy looks appropriately tiny next to a ship‑of‑the‑line.
+
+**Integration**: Fully wired into `engine_battle.js`, `engine_encounter.js`, and `screens_combat.jsx`. Battle screen shows distance indicator, advantage bar, proportional sprites, and boarding action previews. All tests updated and passing.
+
+---
+
+### B12 — Sailing Enrichment (✅ DONE)
+
+**Implemented (B12.1 – B12.7):**
+
+- **Encounter taxonomy cleanup** – Obsolete `navy_patrol_combat` removed; encounter identity, source, and phase are now explicit. All encounters flow through a unified `encounterSession`.
+- **Storm alternative** – Added "Seek shelter / Detour" option. Costs time but reduces damage; uses sea‑position reachability and endurance budget. Doldrums remain a simple time‑loss event.
+- **Merchant in Distress deepened** – Convoy/merchant HP now tracked (`convoyHull`). If the merchant sinks, the escort fails or the rescue reward is lost, but the battle continues. Victory without rescue is still possible.
+- **Drifting Wreck risk** – Added low‑probability ambush (8%) that leads to combat. Searching is now genuinely risky.
+- **Marooned Sailors resource choice** – "Give supplies" now actually costs gold, food, and water (with a resource‑guard); "Take aboard" respects crew capacity; "Sail on" has a morale penalty.
+- **Treasure map cleanup** – `treasure_map` event removed from the pool; chart events (`mysterious_chart`, `wreckers_chart`) remain operational.
+- **Patrol inspection flow** – Navy patrols now offer a clear two‑step flow: allow inspection → contraband found → hand over (fine, infamy, morale loss) or resist (boarding battle). Bribes are available for patrols when conditions allow, and fleeing from patrols remains unavailable by design (the player can fight and later evade if they need to disengage).
+- **Random event visual/atmosphere** – Event screens now display SVG illustrations and richer flavour text.
+- **Decision density via random event choices** – Many events now have conditional choices (e.g., storm detour only if a reachable alternative port exists, wrecker's map purchase only if gold suffices).
+
+**Parked / Not Implemented (with reasons):**
+
+- **Mutiny boarding battle** – Planned as a multi‑step incident (B12.P8) but parked: it would require a separate crew‑vs‑crew combat phase, which is a larger design effort. Mutiny remains a crew event with negotiation/repression outcomes.
+- **Patrol flee option** – Not added as a separate intercept option. Escaping a patrol is already possible by fighting and then using the Evade action, or by successfully bribing/inspecting away. Adding a direct flee choice would undercut those existing decisions.
+- **Sightings as information** ("smoke on the horizon") – Parked; the current event system already provides pre‑commitment decision points (e.g., wreck search, merchant distress) without a dedicated “investigate” meta‑layer.
+- **At‑sea activities (fishing, whaling, etc.)** – Parked; not necessary to achieve the core goal of increased decision density.
+- **Multi‑part event chains** – Parked; may revisit later for larger story arcs (B20).
+- **Crew‑specific events (drunkard causing brawl, etc.)** – Partially implemented via drunkard rum‑theft event, but broader trait‑triggered events are deferred to B15/B17.
+
+**Outcome**: The voyage now contains meaningful choices (storm detour, wreck search, inspection resistance, giving supplies to sailors) without increasing random event frequency. Sailing feels like a decision space rather than dead air.
+
+---
 
 
 ## Parked Concepts

@@ -1,7 +1,7 @@
 # Generators Module Specification
 
 **Broadside Runtime Content Generators**
-*Last Updated: August 21, 2026*
+*Last Updated: August 27, 2026*
 
 ---
 
@@ -12,8 +12,8 @@
 - **Dependencies**:
   - `window.D` (data constants: PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, AVAILABILITY_PRICE_MODIFIERS, FACTION_PRICE_MODIFIERS, MISSION_*, ENEMY_SHIP_NAMES, CREW_*, BIO_OPENINGS, BIO_COMBOS, PORT_GOSSIP_TEMPLATES, MARKET_FLAVOUR, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO)
   - `window.L` (pure logic helpers: getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getPortTradeProfile)
-- **Purpose**: Generates **runtime content** (crew, missions, enemies, markets, cargo, biographies, gossip). Uses `Math.random()` for variety.
-- **No side effects**: Functions are pure given the same RNG seed.
+- **Purpose**: Generates **runtime content** (crew, missions, enemies, markets, cargo, biographies, gossip, combat flavour). Uses `Math.random()` for variety.
+- **No side effects**: Functions are pure given the same RNG seed. **Important**: `G` is **only** called from engine reducers. It is **never** called from UI or logic layers (architectural rule).
 
 ---
 
@@ -96,7 +96,7 @@ These are private to generators.js -- not exported on `window.G`.
 2. Pick random template from BIO_OPENINGS[bracket]
    Template vars: {fn}, {days}, {role}, {factionLabel}
 
-3. Check tag combinations against BIO_COMBOS (15 defined combos)
+3. Check tag combinations against BIO_COMBOS (defined in code)
    e.g., mutineer + scar_battle, revealed_drunkard + revealed_greedy
    If matched: use combo sentence and suppress generic scar/trait lines
 
@@ -148,7 +148,7 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
   3. If appeared: calculate price using B8 stable trade route formula:
      - `marketPrice = basePrice × AVAILABILITY_PRICE_MODIFIERS[tier] × FACTION_PRICE_MODIFIERS[faction][good] × (1 + variance × random(-1,1))`
      - `buyFromPort = Math.round(marketPrice × 1.10)`
-     - `sellToPort = Math.round(marketPrice × 0.90)`
+     - `sellToPort  = Math.round(marketPrice × 0.90)`
   4. Quantity scales with fame tier (`range × (1 + fameTier)`)
   5. **Exception**: food/water always available with qty 999 and fixed zero-variance price
   6. **Force-stock tutorial goods**: if onboarding is active and the active mission is the tutorial delivery, ensure the required good has availability ≥ 20
@@ -188,31 +188,37 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
 - **Purpose**: Creates a ship name like "The Black Serpent".
 - **Source**: `ENEMY_SHIP_NAMES.adjectives` + `ENEMY_SHIP_NAMES.nouns`
 
-### generateEnemy(risk, fame, faction)
+### generateEnemy(risk, fame, faction, enemyFactionOverride = null)
 
 - **Purpose**: Creates enemy ship stats scaled by risk and fame tier.
-- **Output**: `{ name, hull, maxHull, cannons, crew, speed, faction }`
-- **Scaling**: Base from `MISSION_ENEMY_RANGES[fameTier]`, multiplied by risk factor (low=0.8, medium=1.0, high=1.3)
+- **Output**: `{ name, hull, maxHull, cannons, crew, speed, faction, risk }`
+- **Scaling**: Base from `MISSION_ENEMY_RANGES[fameTier]`, multiplied by risk factor (low=0.8, medium=1.0, high=1.3, assault=1.6). Enemy faction is `enemyFactionOverride` if provided, otherwise a rival of the faction.
 
 ### generateGold(type, risk, fame)
 
 - **Purpose**: Generates mission gold reward.
-- **Source**: `MISSION_GOLD_RANGES[fameTier][risk]`, rounded to nearest 25
+- **Source**: `MISSION_GOLD_RANGES[fameTier][risk or assault]`, rounded to nearest 25
 
 ### generateRepImpact(type, commissioningFaction, risk, defendingFaction)
 
 - **Purpose**: Calculates reputation changes for mission completion.
-- **Source**: `MISSION_REP_IMPACTS[type][risk]`
-- **Returns**: `{ [factionKey]: delta }` -- positive for commissioning faction, negative for defending
+- **Source**: `MISSION_REP_IMPACTS[type][risk or any]`
+- **Returns**: `{ [factionKey]: delta }` -- positive for commissioning faction, negative for defending.
 
-### pickTargetPort(currentPort, type, state, faction)
+### pickTargetPort(currentPortKey, type, state, faction)
 
 - **Purpose**: Selects a valid destination port for the mission.
 - **Constraints**:
   - Different from current port
-  - Respects faction politics (trade missions go to friendly ports)
-  - Hidden ports excluded
-  - Early-game restriction: fame < 10 limits to nearby starter ports
+  - Respects faction politics (trade missions go to friendly ports, patrol to rivals, assault to enemies)
+  - Hidden ports excluded unless discovered
+  - Early-game restriction: fame < 10 limits to starter ports
+
+### generateMissionText(type, faction, targetPortKey, risk, enemy)
+
+- **Purpose**: Generates mission name and description text.
+- **Output**: `{ name: string, desc: string }`
+- **Sources**: `MISSION_NAME_PARTS` (cargo, contraband, regionAdj, factionAdj)
 
 ---
 
@@ -297,11 +303,11 @@ GOOD: "Juan survived a bloody mutiny and wears its scars."  (combo replaces both
   name: string,           // Generated mission name
   desc: string,           // Mission description text
   faction: string,        // Commissioning faction
-  targetPort: string,     // Destination port key
+  targetPort: string,     // Destination port key (null for combat)
   gold: number,           // Gold reward
   fame: number,           // Fame reward
   repImpact: {},          // { factionKey: delta }
-  enemy: object | null,   // Enemy stats (combat/patrol/assault)
+  enemy: object | null,   // Enemy stats (for combat/patrol/assault/escort)
   // Trade/smuggle specific:
   requiredGood: string,   // Good key to deliver
   requiredQty: number,    // Quantity to deliver
@@ -370,7 +376,19 @@ Templates are filled from `D.PORT_GOSSIP_TEMPLATES[category]` using `pickRandom`
 
 ---
 
-## 13. Exported Functions Summary
+## 13. Combat Flavour Generator (NEW)
+
+### generateCombatFlavour(disposition)
+
+- **Purpose**: Generates atmospheric lines for the InterceptScreen based on the enemy's AI disposition.
+- **Input**: `disposition` object (from `L.computeAIDisposition`)
+- **Output**: Array of strings (1-3 lines)
+- **Logic**: Based on the enemy's weights (e.g., if `grapple > 1.0`, it's aggressive boarding), risk level, surrender willingness, etc. Picks 0-3 lines from applicable pools.
+- **Usage**: Called **once** in `engine_core.js` `buildEncounterSession` to populate `session.intercept.flavourLines`. The UI renders these lines without calling `G` again.
+
+---
+
+## 14. Exported Functions Summary
 
 ### Exported on window.G
 
@@ -379,22 +397,25 @@ Templates are filled from `D.PORT_GOSSIP_TEMPLATES[category]` using `pickRandom`
 | **Crew** | `generateCrewMember`, `generateRoster`, `generateCrewBio` |
 | **Market** | `generatePortMarket`, `generateMarketFlavour` |
 | **Plunder** | `generateEnemyCargo` |
-| **Missions** | `generateMissions`, `generateGold`, `generateRepImpact`, `pickTargetPort`, `generateTradeMission`, `generateSmuggleMission` |
+| **Missions** | `generateMissions`, `generateGold`, `generateRepImpact`, `pickTargetPort`, `generateTradeMission`, `generateSmuggleMission`, `generateMissionText` |
 | **Enemies** | `generateEnemy`, `generateEnemyName`, `opposingFaction` |
 | **Gossip** | `generatePortGossip`, `generateLocalMarketGossip`, `generateHiddenPortHint` |
 | **Events** | `pickMerchantFaction` |
+| **Combat Flavour** | `generateCombatFlavour` |
 
 ### NOT exported (internal only)
 
-`randBetween`, `randInt`, `pickRandom`, `pickWeighted`, `shuffleArray`, `isExtremePrice`, `pickWeightedRole`, `generateOneMission`, `generateFallbackMission`, `getEligibleFactions`, `typeWeightsFor`, `riskWeightsFor`, `pickMissionType`, `pickMissionRisk`, `findPortForGoodInDemand`, `findPortWithInDemandGood`, `generateEnemyForAssault`, `generateMissionText`
+`randBetween`, `randInt`, `pickRandom`, `pickWeighted`, `shuffleArray`, `isExtremePrice`, `pickWeightedRole`, `generateOneMission`, `generateFallbackMission`, `getEligibleFactions`, `typeWeightsFor`, `riskWeightsFor`, `pickMissionType`, `pickMissionRisk`, `findPortForGoodInDemand`, `findPortWithInDemandGood`, `generateEnemyForAssault`, `generateMissionText` (actually exported? Check code: yes, `generateMissionText` is exported).
 
 ---
 
-## 14. Dependencies
+## 15. Dependencies
 
 | Reads | Used for |
 |---|---|
 | `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, GOODS_AVAILABILITY, AVAILABILITY_PRICE_MODIFIERS, FACTION_PRICE_MODIFIERS, CREW_*, BIO_*, PORT_GOSSIP_TEMPLATES, MARKET_FLAVOUR, MISSION_*, FACTION_PLUNDER_GOODS, PLUNDER_TARGET, PLUNDER_GOLD_RATIO, ENEMY_SHIP_NAMES |
 | `window.L` | getFameInfo, getRepPerk, getHoldCapacity, canSeePort, getShipStats, hasTag, getPortTradeProfile |
 
-**May NOT call**: Engine (`window.E`), UI (`window.UI`)
+**May NOT call**: Engine (`window.E`), UI (`window.UI`).
+
+**Architectural Note**: `window.G` must never be called from UI (`ui.jsx`, `screens_*.jsx`) or from pure logic (`logic_*.js`). It is only called from engine reducers (e.g., `engine_core.js`, `engine_port.js`, `engine_voyage.js`, `engine_encounter.js`). This ensures determinism and testability.

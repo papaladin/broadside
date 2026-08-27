@@ -50,7 +50,7 @@
     const faction = destPort?.faction || "english";
     const enemy = G.generateEnemy("medium", baseState.fame, faction);
     enemy.name = `${FACTIONS[faction]?.label || "Colonial"} Revenue Cutter`;
-    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
+    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy,{ kind: "mission", id: mission.id });
     return {
       activeMission: { ...mission, encounterOccurred: true },
       encounterSession: buildEncounterSession(baseState, context),
@@ -72,7 +72,7 @@
       const chance = 0.20 + 0.60 * progress;
       if (newDays <= 1 || Math.random() < chance) {
         const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
-        const context = L.buildEncounterContext(baseState, "escort_defend", enemy);
+        const context = L.buildEncounterContext(baseState, "escort_defend", enemy,{ kind: "mission", id: mission.id });
         return {
           activeMission: { ...mission, encounterOccurred: true },
           encounterSession: buildEncounterSession(baseState, context),
@@ -85,7 +85,7 @@
         const chance = 0.20 + 0.60 * (progress - 0.60) / 0.40;
         if (Math.random() < chance) {
           const enemy = mission.enemy || G.generateEnemy("medium", baseState.fame, mission.faction);
-          const context = L.buildEncounterContext(baseState, "mission_combat", enemy);
+          const context = L.buildEncounterContext(baseState, "mission_combat", enemy,{ kind: "mission", id: mission.id });
           return {
             activeMission: { ...mission, encounterOccurred: true },
             encounterSession: buildEncounterSession(baseState, context),
@@ -118,7 +118,7 @@
     const heatLevel = baseState.factionAlerts?.[faction] || 0;
     const patrolRisk = heatLevel >= 7 ? "high" : heatLevel >= 3 ? "medium" : "low";
     const enemy = G.generateEnemy(patrolRisk, baseState.fame, faction);
-    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy);
+    const context = L.buildEncounterContext(baseState, "navy_patrol", enemy,{ kind: "random", id: null });
     return {
       encounterSession: buildEncounterSession(baseState, context),
       screen: "intercept",

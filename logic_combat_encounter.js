@@ -8,6 +8,8 @@ window.L = window.L || {};
 (() => {
   const { SHIPS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE } = window.D;
 
+  // Use the shared RNG from logic_core.js (injectable)
+  const defaultRng = window.L.RNG;
 
 // ─────────────────────────────────────────────────────────────
 //  NPC COMBAT AI — UTILITY SCORING FUNCTIONS
@@ -115,13 +117,13 @@ const scoreBoardingActions = (ratio, disposition, moraleThresholdShift = 0) => {
 
 // ── Weighted-random selector ────────────────────────────────
 // Picks among the top `topN` scores, weighted by their relative values.
-const selectWeightedAction = (scores, topN = 2) => {
+const selectWeightedAction = (scores, topN = 2, rng = defaultRng) => {
   const entries = Object.entries(scores).filter(([, v]) => v > 0);
   if (entries.length === 0) return null;
   entries.sort((a, b) => b[1] - a[1]);
   const pool = entries.slice(0, Math.min(topN, entries.length));
   const total = pool.reduce((sum, [, v]) => sum + v, 0);
-  let roll = Math.random() * total;
+  let roll = rng.random() * total;
   for (const [action, weight] of pool) {
     roll -= weight;
     if (roll <= 0) return action;
@@ -133,7 +135,7 @@ const selectWeightedAction = (scores, topN = 2) => {
 // These are NOT yet called by the engine – they will replace the stubs
 // once the engine call sites are updated (Part 4).
 
-const getNPCNavalAction = (state, encounterSession) => {
+const getNPCNavalAction = (state, encounterSession, rng = defaultRng) => {
   const { distance } = encounterSession.battle;
   const enemy = encounterSession.enemy;
   const disposition = encounterSession.aiDisposition
@@ -156,11 +158,11 @@ const getNPCNavalAction = (state, encounterSession) => {
 
   const legalActions = window.D.LEGAL_ACTIONS_BY_DISTANCE[distance];
   const scores = scoreNavalActions(self, opponent, distance, disposition, legalActions);
-  const chosen = selectWeightedAction(scores);
+  const chosen = selectWeightedAction(scores, 2, rng);
   return chosen ?? "broadside"; 
 };
 
-const getNPCBoardingAction = (state, encounterSession) => {
+const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
   const battle = encounterSession.battle;
   const enemy = encounterSession.enemy;
   const ratio = 1 - window.L.getBoardingRatio(state, battle, enemy); // enemy's own share
@@ -169,7 +171,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
   const moraleShift = { low: -0.1, medium: 0, high: 0.1, assault: 0.2 }[disposition.riskLevel] ?? 0;
 
   const scores = scoreBoardingActions(ratio, disposition, moraleShift);
-  const chosen = selectWeightedAction(scores, 2);
+  const chosen = selectWeightedAction(scores, 2, rng);
   return chosen ?? "continue_fighting";
 };
 
@@ -178,10 +180,10 @@ const getNPCBoardingAction = (state, encounterSession) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // Shared contest helper
-  const resolveSpeedContest = (actorSpeed, opposerSpeed) => {
+  const resolveSpeedContest = (actorSpeed, opposerSpeed, rng = defaultRng) => {
     const chance = 0.5 + (actorSpeed - opposerSpeed) * 0.03;
     const clamped = Math.max(0.15, Math.min(0.85, chance));
-    return Math.random() < clamped;
+    return rng.random() < clamped;
   };
 
   const stepDistance = (current, delta) => {
@@ -209,7 +211,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
     return "medium";
   };
 
-  const maybeCrewLoss = (amount) => Math.random() < 0.5 ? 0 : Math.floor(amount);
+  const maybeCrewLoss = (amount, rng = defaultRng) => rng.random() < 0.5 ? 0 : Math.floor(amount);
   const emptyOutcome = () => ({
     player: { hullDamage: 0, crewLoss: 0 },
     enemy: { hullDamage: 0, crewLoss: 0 },
@@ -220,9 +222,51 @@ const getNPCBoardingAction = (state, encounterSession) => {
     enemyCargo: {},
   });
 
+  // ── NEW: applyCrewLoss moved from engine_battle.js ───────────────
+  const applyCrewLoss = (state, crewLoss, rng = defaultRng) => {
+    if (crewLoss <= 0) return { state, lostNames: [], lostCount: 0 };
+    const safeLoss = Math.min(crewLoss, state.crew.roster.length);
+    if (safeLoss <= 0) return { state, lostNames: [], lostCount: 0 };
+    // Note: removeRandomCrew does not yet accept rng; we'll update it later.
+    const { newRoster, removed } = window.L.removeRandomCrew(state.crew.roster, safeLoss, rng);
+    const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
+    return {
+      state: { ...state, crew: { ...state.crew, roster: newRoster } },
+      lostNames,
+      lostCount: safeLoss,
+    };
+  };
+
+  // ── NEW: getPatrolContrabandInfo ───────────────────────────────────
+  const getPatrolContrabandInfo = (state, fineRate = window.D.PATROL_FINE_RATE || 0.20) => {
+    const items = state.hold?.items || {};
+    const activeMission = state.activeMission;
+
+    const hasTobacco = (items.tobacco || 0) > 0;
+    const hasSlaves  = (items.slaves  || 0) > 0;
+    const hasRumSmuggle = activeMission?.type === "smuggle"
+      && activeMission?.requiredGood === "rum"
+      && (items.rum || 0) > 0;
+
+    let seizedValue = 0;
+    if (hasTobacco) seizedValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
+    if (hasSlaves)  seizedValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
+    if (hasRumSmuggle) seizedValue += (items.rum     || 0) * (window.D.RESOURCES.rum?.basePrice     || 30);
+
+    const fine = Math.round(seizedValue * fineRate / 25) * 25;
+
+    return {
+      hasContraband: seizedValue > 0,
+      hasTobacco,
+      hasSlaves,
+      hasRumSmuggle,
+      seizedValue,
+      fine,
+    };
+  };
 
   // ─── Full naval resolver ────────────────────────────────────────────────
-  const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy) => {
+  const resolveNavalRound = (state, playerAction, enemyAction, battle, enemy, rng = defaultRng) => {
     const distance = battle.distance;
     const shipStats = window.L.getShipStats(state);
     const playerSpeed = shipStats.speed;
@@ -235,9 +279,9 @@ const getNPCBoardingAction = (state, encounterSession) => {
 
     const calcBroadside = (cannons, dist, isPlayer) => {
       const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS.broadside[dist] || 1.0;
-      const dmg = cannons * (0.8 + Math.random() * 0.4);
+      const dmg = cannons * (0.8 + rng.random() * 0.4);
       let hullDmg = Math.max(1, Math.floor(dmg * 0.6 * mult));
-      let crewLoss = maybeCrewLoss(dmg * 0.4 / 3 * mult);
+      let crewLoss = maybeCrewLoss(dmg * 0.4 / 3 * mult, rng);
       if (isPlayer) {
         hullDmg = Math.floor(hullDmg * (1 + hullDmgPct));
         crewLoss = Math.floor(crewLoss * (1 + crewDmgPct));
@@ -248,11 +292,11 @@ const getNPCBoardingAction = (state, encounterSession) => {
     const calcPrecision = (cannons, dist, isPlayer) => {
       const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS.precision[dist] || 1.0;
       const hitChance = 0.7 + (isPlayer ? precisionHitPct : 0);
-      const hit = Math.random() < hitChance;
+      const hit = rng.random() < hitChance;
       if (!hit) return { hullDamage: 0, crewLoss: 0, hit: false };
-      const dmg = cannons * (1.2 + Math.random() * 0.6);
+      const dmg = cannons * (1.2 + rng.random() * 0.6);
       let hullDmg = Math.floor(dmg * 0.9 * mult);
-      let crewLoss = maybeCrewLoss(dmg * 0.1 / 3 * mult);
+      let crewLoss = maybeCrewLoss(dmg * 0.1 / 3 * mult, rng);
       if (isPlayer) {
         hullDmg = Math.floor(hullDmg * (1 + hullDmgPct));
         crewLoss = Math.floor(crewLoss * (1 + crewDmgPct));
@@ -265,10 +309,10 @@ const getNPCBoardingAction = (state, encounterSession) => {
     if (battle.convoyHull !== undefined && battle.convoyHull > 0) {
       // Enemy actions that damage the convoy: broadside and precision
       if (enemyAction === "broadside") {
-        convoyDamage = Math.floor(Math.random() * 4) + 2; // 2-5 damage
+        convoyDamage = 2 + rng.int(0, 3); // 2-5 damage
       } else if (enemyAction === "precision") {
-        if (Math.random() < 0.7) {
-          convoyDamage = Math.floor(Math.random() * 6) + 3; // 3-8 damage
+        if (rng.random() < 0.7) {
+          convoyDamage = 3 + rng.int(0, 5); // 3-8 damage
         } else {
           convoyDamage = 0;
         }
@@ -281,7 +325,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
       if (!opposed) {
         return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
-      const succeeds = resolveSpeedContest(playerSpeed, enemySpeed);
+      const succeeds = resolveSpeedContest(playerSpeed, enemySpeed, rng);
       if (succeeds) {
         return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
@@ -293,7 +337,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
       if (!opposed) {
         return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
-      const succeeds = resolveSpeedContest(enemySpeed, playerSpeed);
+      const succeeds = resolveSpeedContest(enemySpeed, playerSpeed, rng);
       if (succeeds) {
         return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
@@ -362,7 +406,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
       const playerWantsClose = playerAction === "close_distance";
       const actorSpeed = playerWantsClose ? playerSpeed : enemySpeed;
       const opposerSpeed = playerWantsClose ? enemySpeed : playerSpeed;
-      const actorWins = resolveSpeedContest(actorSpeed, opposerSpeed);
+      const actorWins = resolveSpeedContest(actorSpeed, opposerSpeed, rng);
       if (actorWins) {
         newDistance = stepDistance(distance, playerWantsClose ? +1 : -1);
         distanceChangeWinner = playerWantsClose ? "player" : "enemy";
@@ -431,7 +475,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
     return total === 0 ? 0.5 : playerEffective / total;
   };
 
-  const resolveBoardingRound = (state, playerAction, enemyAction, battle, enemy) => {
+  const resolveBoardingRound = (state, playerAction, enemyAction, battle, enemy, rng = defaultRng) => {
     if (playerAction === "surrender" || enemyAction === "surrender") {
       const whoSurrendered = playerAction === "surrender" ? "player" : "enemy";
       return { outcome: `${whoSurrendered}_surrendered`, playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
@@ -450,7 +494,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
         throw new Error("Demand Surrender declared below threshold – UI should have blocked this");
       }
       const successChance = (ratio - 0.5) * 2;
-      if (Math.random() < successChance) {
+      if (rng.random() < successChance) {
         return { outcome: "enemy_win_capture", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
       }
       const cost = Math.ceil(battle.playerCrew * 0.15 * (1 - ratio));
@@ -472,7 +516,7 @@ const getNPCBoardingAction = (state, encounterSession) => {
         throw new Error("Enemy Demand Surrender below threshold – AI should not have chosen this");
       }
       const successChance = (enemyRatio - 0.5) * 2;
-      if (Math.random() < successChance) {
+      if (rng.random() < successChance) {
         return { outcome: "player_defeated_by_demand", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
       }
       const cost = Math.ceil(battle.enemyCrew * 0.15 * ratio);
@@ -535,14 +579,15 @@ const getNPCBoardingAction = (state, encounterSession) => {
   //  ENCOUNTER CONTEXT BUILDER
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
- function buildEncounterContext(state, type, enemy) {
+ function buildEncounterContext(state, type, enemy, source = null) {
     const shipStats = window.L.getShipStats(state);
     const mySpeed = shipStats.speed;
     const enemyShip = window.L.guessShipType(enemy);
     const eSpeed = SHIPS[enemyShip]?.speed ?? 5;
     const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
     const gold = state.gold;
-    const bribeCost = Math.round(((enemy.gold ?? (enemy.cannons * 10 + enemy.crew * 5)) || 500) * 0.4);
+    // Use centralized helper for contraband-based bribe cost (A8)
+    const patrolInfo = type === "navy_patrol" ? getPatrolContrabandInfo(state) : null;
 
     // ── Encounter-type-specific option availability ──
 
@@ -577,7 +622,9 @@ const getNPCBoardingAction = (state, encounterSession) => {
       "pirate_ambush"
     ];
     const bribeBlocked = noBribeTypes.includes(type);
-    const canAffordBribe = gold >= bribeCost;
+    const canAffordBribe = gold >= (patrolInfo?.fine ?? 0); // Use fine as base cost? Actually original used contrabandValue*0.5
+    // For generic, bribeCost was previously based on enemy gold; we'll keep for non-patrol.
+    const bribeCost = type === "navy_patrol" ? patrolInfo.fine : Math.round(((enemy.gold ?? (enemy.cannons * 10 + enemy.crew * 5)) || 500) * 0.4);
     const bribeInfamyBlocked = !window.L.canBribe(state);
     const canBribeResult = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
     const bribeReason = bribeBlocked
@@ -663,10 +710,10 @@ const getNPCBoardingAction = (state, encounterSession) => {
 
       return {
         type,
-        encounterType: type,
         enemy: { ...enemy, ship: enemyShip },
         flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
         options,
+        source,
       };
     }
 
@@ -696,26 +743,12 @@ const getNPCBoardingAction = (state, encounterSession) => {
       });
 
       // ── Bribe (navy patrol only) ──
-      // Calculate contraband value for bribe cost
-      const items = state.hold?.items || {};
-      const activeMission = state.activeMission;
-
-      const hasTobacco = (items.tobacco || 0) > 0;
-      const hasSlaves  = (items.slaves  || 0) > 0;
-      const hasRumSmuggle = activeMission?.type === "smuggle"
-        && activeMission?.requiredGood === "rum"
-        && (items.rum || 0) > 0;
-
-      let contrabandValue = 0;
-      if (hasTobacco) contrabandValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
-      if (hasSlaves)  contrabandValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
-      if (hasRumSmuggle) contrabandValue += (items.rum     || 0) * (window.D.RESOURCES.rum?.basePrice     || 30);
-
-      const bribeCost = Math.round(contrabandValue * 0.50 / 25) * 25;
-      const canAfford = state.gold >= bribeCost;
+      // Use the centralized contraband info for consistency (A8)
+      const hasContraband = patrolInfo.hasContraband;
+      const bribeCostForPatrol = Math.round(patrolInfo.seizedValue * 0.50 / 25) * 25; // Original formula
+      const canAfford = state.gold >= bribeCostForPatrol;
       const infamyOk = (state.infamy ?? 0) < 25;
       const repOk = (state.reputation[state.destination ?? state.currentPort] ?? 0) > 50;
-      const hasContraband = contrabandValue > 0;
 
       let bribeAvailable = false;
       let bribeDisabledReason = null;
@@ -727,28 +760,28 @@ const getNPCBoardingAction = (state, encounterSession) => {
       } else if (!repOk) {
         bribeDisabledReason = "They don't trust you enough to take a bribe";
       } else if (!canAfford) {
-        bribeDisabledReason = `Need ${bribeCost}g (you have ${state.gold}g)`;
+        bribeDisabledReason = `Need ${bribeCostForPatrol}g (you have ${state.gold}g)`;
       } else {
         bribeAvailable = true;
       }
 
       options.push({
         id: "bribe",
-        label: canAfford ? `Bribe (${bribeCost}g)` : `Bribe (${bribeCost}g)`,
+        label: canAfford ? `Bribe (${bribeCostForPatrol}g)` : `Bribe (${bribeCostForPatrol}g)`,
         available: bribeAvailable,
         reason: bribeDisabledReason,
         action: bribeAvailable ? { type: "INTERCEPT_BRIBE" } : null,
         speedCheck: null,
-        cost: bribeCost,
+        cost: bribeCostForPatrol,
       });
 
       // Note: Navy patrols do NOT get Flee, Parley, or Surrender
       return {
         type,
-        encounterType: type,
         enemy: { ...enemy, ship: enemyShip },
         flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
         options,
+        source,
       };
     }
 
@@ -801,12 +834,83 @@ const getNPCBoardingAction = (state, encounterSession) => {
 
     return {
       type,
-      encounterType: type,
       enemy: { ...enemy, ship: enemyShip },
       flavourText: ENCOUNTER_FLAVOUR[type]?.(enemy, rep) ?? `A ${enemy.name} moves to intercept.`,
       options,
+      source,
     };
   }
+
+    // ── Combat action preview (for UI) ────────────────────────────────
+  const getActionPreview = (state, action, distance, enemy, battle = null) => {
+    const shipStats = window.L.getShipStats(state);
+    const cannons = shipStats.cannons;
+    const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS[action]?.[distance] || 1.0;
+    const hullDmgPct = window.L.getEquipmentEffect(state, "hullDmgPct") || 0;
+    const crewDmgPct = window.L.getEquipmentEffect(state, "crewDmgPct") || 0;
+
+    if (action === "broadside") {
+      const baseMin = cannons * 0.8 * mult;
+      const baseMax = cannons * 1.2 * mult;
+      const hullMin = Math.max(1, Math.floor(baseMin * 0.6 * (1 + hullDmgPct)));
+      const hullMax = Math.max(1, Math.floor(baseMax * 0.6 * (1 + hullDmgPct)));
+      const crewMin = Math.floor(baseMin * 0.4 / 3 * (1 + crewDmgPct));
+      const crewMax = Math.floor(baseMax * 0.4 / 3 * (1 + crewDmgPct));
+      return {
+        description: "Full cannon volley. Reliable damage.",
+        hullRange: [hullMin, hullMax],
+        crewRange: [crewMin, crewMax],
+        hitChance: 1.0,
+      };
+    }
+
+    if (action === "precision") {
+      const hitChance = Math.min(1, 0.7 + (window.L.getEquipmentEffect(state, "precisionHitPct") || 0));
+      const baseMin = cannons * 1.2 * mult;
+      const baseMax = cannons * 1.8 * mult;
+      const hullMin = Math.max(1, Math.floor(baseMin * 0.9 * (1 + hullDmgPct)));
+      const hullMax = Math.max(1, Math.floor(baseMax * 0.9 * (1 + hullDmgPct)));
+      const crewMin = Math.floor(baseMin * 0.1 / 3 * (1 + crewDmgPct));
+      const crewMax = Math.floor(baseMax * 0.1 / 3 * (1 + crewDmgPct));
+      return {
+        description: "Aimed shot. High damage if it hits.",
+        hullRange: [hullMin, hullMax],
+        crewRange: [crewMin, crewMax],
+        hitChance,
+      };
+    }
+
+    if (action === "continue_fighting" && battle) {
+      const ratio = window.L.getBoardingRatio(state, battle, enemy);
+      const playerCrew = battle.playerCrew;
+      const enemyCrew = battle.enemyCrew;
+      const playerLoss = Math.ceil(playerCrew * 0.15 * (1 - ratio));
+      const enemyLoss = Math.ceil(enemyCrew * 0.15 * ratio);
+      return {
+        description: "Press the attack in boarding.",
+        crewLossPlayer: playerLoss,
+        crewLossEnemy: enemyLoss,
+        advantage: Math.round(ratio * 100),
+        hitChance: null,
+      };
+    }
+
+    const staticDescriptions = {
+      grapple: "Board the enemy ship. Requires Close range.",
+      evade: "Attempt to flee. Speed check.",
+      close_distance: "Move closer to the enemy.",
+      open_distance: "Move further away.",
+      fall_back: "Return to naval combat. Costs crew.",
+      demand_surrender: "Force them to yield (requires advantage).",
+      surrender: "Yield to the enemy.",
+    };
+    return {
+      description: staticDescriptions[action] || "",
+      hullRange: null,
+      crewRange: null,
+      hitChance: null,
+    };
+  };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  EXPOSE
@@ -835,5 +939,10 @@ const getNPCBoardingAction = (state, encounterSession) => {
     initialDistanceFor,
     // Encounter
     buildEncounterContext,
+    getActionPreview,
+    // NEW: moved from engine_battle, centralizes crew loss
+    applyCrewLoss,
+    // NEW: centralizes patrol contraband info
+    getPatrolContrabandInfo,
   });
 })();

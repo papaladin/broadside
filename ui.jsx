@@ -886,9 +886,7 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
   const fColor = FACTIONS[port.faction]?.color ?? T.textDim;
 
   // Get market goods for this port (if not current, generate)
-  const market = portKey === state.currentPort
-    ? state.portMarket
-    : G.generatePortMarket(portKey, state);
+    const market = portKey === state.currentPort ? state.portMarket : null;
 
   // Available goods — only show for current port
   const availableGoods = useMemo(() => {
@@ -1002,7 +1000,15 @@ function PortModal({ targetPortKey, state, dispatch, onClose }) {
   const isReachable = L.canReach(state, targetPortKey) && targetPortKey !== currentPortKey;
   const unreachableReason = isReachable ? null : L.getUnreachableReason(state, targetPortKey);
 
-  const tradeOpp = isAtSea ? null : L.getTradeOpportunity(state, currentPortKey, targetPortKey);
+  // Dispatch PREVIEW_PORT when the modal opens (or when targetPortKey changes)
+  React.useEffect(() => {
+    if (!isAtSea) {
+      dispatch({ type: window.E.A.PREVIEW_PORT, port: targetPortKey });
+    }
+  }, [targetPortKey, isAtSea]);
+
+  // Then use the preview market for the trade opportunity
+  const tradeOpp = isAtSea ? null : L.getTradeOpportunity(state, currentPortKey, targetPortKey, state.previewPortMarket);
 
   const isDinghy = state.ship.type === "dinghy";
   const minCrew = L.getMinViableCrew(state.ship.type);

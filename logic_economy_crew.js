@@ -8,6 +8,7 @@ window.L = window.L || {};
 (() => {
   const { PORTS, FACTIONS } = window.D;
   // Use L functions from core; they exist at runtime due to load order.
+  const defaultRng = window.L.RNG;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REPUTATION
@@ -51,10 +52,10 @@ window.L = window.L || {};
     return Math.floor(state.crew.roster.length * 2 * wageMultiplier);
   };
 
-  const removeRandomCrew = (roster, count) => {
+  const removeRandomCrew = (roster, count, rng = defaultRng) => {
     if (count <= 0) return { newRoster: [...roster], removed: [] };
     const eligible = roster.filter(m => !(m.tags || []).includes("protected"));
-    const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+    const shuffled = [...eligible].sort(() => rng.random() - 0.5);
     const removed = shuffled.slice(0, count);
     const removedIds = new Set(removed.map(m => m.id));
     const newRoster = roster.filter(m => !removedIds.has(m.id));
@@ -85,7 +86,7 @@ window.L = window.L || {};
     return 0.5 + window.L.getCrewAlignment(state, faction);
   };
 
-  const processDesertion = (crewRoster, crewMorale, currentPort, state) => {
+  const processDesertion = (crewRoster, crewMorale, currentPort, state, rng = defaultRng) => {
     const destFaction = PORTS[currentPort]?.faction;
     const deserters = [];
     const settlers = [];
@@ -98,7 +99,7 @@ window.L = window.L || {};
         if (window.L.hasTag(member, "mutineer")) desertChance *= 2;
         if (window.L.hasTag(member, "seasoned") || window.L.hasTag(member, "veteran")) desertChance *= 0.5;
         if (destFaction && member.faction === destFaction) desertChance += 0.20;
-        if (Math.random() < desertChance) {
+        if (rng.random() < desertChance) {
           deserters.push(`${member.firstName} ${member.lastName}`);
         } else {
           settlers.push(`${member.firstName} ${member.lastName}`);
@@ -134,7 +135,7 @@ window.L = window.L || {};
         " The mood aboard has improved. Tensions are easing.",
         " Your upset crew appear to have calmed down. For now.",
       ];
-      const settledMsg = settledTemplates[Math.floor(Math.random() * settledTemplates.length)];
+      const settledMsg = settledTemplates[Math.floor(rng.random() * settledTemplates.length)];
       logLines.push(window.E.logEntry(state, settledMsg));
     }
     return { roster: newRoster, logLines };
@@ -272,71 +273,60 @@ window.L = window.L || {};
     };
   };
 
+  // ── Trade Opportunity Helper ────────────────────────────────────────────
+  const getTradeOpportunity = (state, fromPortKey, toPortKey, targetMarket = null) => {
+    const fromMarket = state.portMarket;
+    if (!fromMarket) return null;
 
-// ── Trade Opportunity Helper ────────────────────────────────────────────
-
-const getTradeOpportunity = (state, fromPortKey, toPortKey) => {
-  // Get the current port market (already exists)
-  const fromMarket = state.portMarket;
-  if (!fromMarket) return null;
-
-  // Generate the target port market (pure, no side effects)
-  const toMarket = window.G.generatePortMarket(toPortKey, state);
+  // If a target market was passed (e.g., from state.previewPortMarket), use it;
+  // otherwise, use the stored preview market if available; else return null.
+  const toMarket = targetMarket ?? state.previewPortMarket;
   if (!toMarket) return null;
 
-  const fromGoods = fromMarket.goods;
-  const toGoods = toMarket.goods;
+    const fromGoods = fromMarket.goods;
+    const toGoods = toMarket.goods;
 
-  let best = null;
-  let bestProfitPct = -Infinity;
+    let best = null;
+    let bestProfitPct = -Infinity;
 
-  // Get in-demand goods for the target port
-  const profile = window.L.getPortTradeProfile(toPortKey);
-  const inDemandSet = new Set(profile.inDemand || []);
+    const profile = window.L.getPortTradeProfile(toPortKey);
+    const inDemandSet = new Set(profile.inDemand || []);
 
-  // Loop through goods available at the current port
-  for (const [good, fromData] of Object.entries(fromGoods)) {
-    // Skip if not available at current port
-    if (fromData.available <= 0) continue;
+    for (const [good, fromData] of Object.entries(fromGoods)) {
+      if (fromData.available <= 0) continue;
+      const toData = toGoods[good];
+      if (!toData) continue;
+      if (good === "food" || good === "water") continue;
 
-    // Skip if not available at target port
-    const toData = toGoods[good];
-    if (!toData) continue;
+      const buyPrice = fromData.buyFromPort;
+      const sellPrice = toData.sellToPort;
+      const profit = sellPrice - buyPrice;
+      const profitPct = buyPrice > 0 ? profit / buyPrice : 0;
 
-    // Skip provisions (food/water)
-    if (good === "food" || good === "water") continue;
+      if (profitPct <= 0) continue;
 
-    const buyPrice = fromData.buyFromPort;
-    const sellPrice = toData.sellToPort;
-
-    const profit = sellPrice - buyPrice;
-    const profitPct = buyPrice > 0 ? profit / buyPrice : 0;
-
-    if (profitPct <= 0) continue;
-
-    if (profitPct > bestProfitPct) {
-      bestProfitPct = profitPct;
-      best = {
-        good,
-        goodName: window.D.RESOURCES[good]?.name || good,
-        buyPrice,
-        sellPrice,
-        profit,
-        profitPct,
-        availableQty: fromData.available,
-        isInDemand: inDemandSet.has(good),
-        isIllegal: window.D.RESOURCES[good]?.illegal || false,
-      };
+      if (profitPct > bestProfitPct) {
+        bestProfitPct = profitPct;
+        best = {
+          good,
+          goodName: window.D.RESOURCES[good]?.name || good,
+          buyPrice,
+          sellPrice,
+          profit,
+          profitPct,
+          availableQty: fromData.available,
+          isInDemand: inDemandSet.has(good),
+          isIllegal: window.D.RESOURCES[good]?.illegal || false,
+        };
+      }
     }
-  }
 
-  // Only return if profit is meaningful (> 10% or > 5g)
-  if (best && (best.profitPct >= 0.10 || best.profit >= 5)) {
-    return best;
-  }
+    if (best && (best.profitPct >= 0.10 || best.profit >= 5)) {
+      return best;
+    }
 
-  return null;
-};
+    return null;
+  };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  EXPOSE
@@ -370,6 +360,5 @@ const getTradeOpportunity = (state, fromPortKey, toPortKey) => {
     applyLoseContraband,
     getPortTradeProfile,
     getTradeOpportunity,
-
   });
 })();

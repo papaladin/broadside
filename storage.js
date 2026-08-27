@@ -27,6 +27,62 @@
     }
   };
 
+  // ── LocalStorage persistence (save/load) ─────────────────────
+const saveToLocalStorage = (state) => {
+  try {
+    localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
+  } catch (e) {
+    console.warn("Save to localStorage failed:", e);
+  }
+};
+
+const loadFromLocalStorage = () => {
+  try {
+    let raw = localStorage.getItem("BroadsideGameSave");
+    if (!raw) {
+      raw = localStorage.getItem("piratesSave"); // legacy
+      if (raw) {
+        localStorage.setItem("BroadsideGameSave", raw);
+        localStorage.removeItem("piratesSave");
+      }
+    }
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Load from localStorage failed:", e);
+    return null;
+  }
+};
+
+const clearLocalStorage = () => {
+  try {
+    localStorage.removeItem("BroadsideGameSave");
+    localStorage.removeItem("piratesSave");
+  } catch (e) {
+    console.warn("Clear localStorage failed:", e);
+  }
+};
+
+// ── Hidden port discovery persistence ───────────────────────
+const SEEN_DISCOVERY_KEY = "BroadsideSeenDiscoveries";
+
+const getSeenDiscoveries = () => {
+  try {
+    const raw = localStorage.getItem(SEEN_DISCOVERY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+const setSeenDiscovery = (portName) => {
+  try {
+    const seen = getSeenDiscoveries();
+    if (!seen.includes(portName)) {
+      seen.push(portName);
+      localStorage.setItem(SEEN_DISCOVERY_KEY, JSON.stringify(seen));
+    }
+  } catch {}
+};
+
 const SAVE_KEY = "BroadsideGameSave";
 const OLD_SAVE_KEY = "piratesSave";
 
@@ -117,6 +173,11 @@ const hasSave = () => {
 
     //save & import-export
     simpleHash,
+    saveToLocalStorage,
+  loadFromLocalStorage,
+  clearLocalStorage,
+  getSeenDiscoveries,
+  setSeenDiscovery,
     checkLocalStorageAvailable,
     hasSave,
     encodeSave,

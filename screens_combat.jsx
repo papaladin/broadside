@@ -28,81 +28,6 @@ window.S = window.S || {};
   // Import distance-based action lookup
   const { LEGAL_ACTIONS_BY_DISTANCE } = window.D;
 
-  // ── Action preview helper ──────────────────────────────────────────────
-  function getActionPreview(state, action, distance, enemy, battle = null) {
-    const shipStats = L.getShipStats(state);
-    const cannons = shipStats.cannons;
-    const mult = window.D.DISTANCE_DAMAGE_MULTIPLIERS[action]?.[distance] || 1.0;
-    const hullDmgPct = L.getEquipmentEffect(state, "hullDmgPct") || 0;
-    const crewDmgPct = L.getEquipmentEffect(state, "crewDmgPct") || 0;
-
-    // Broadside: cannons * (0.8–1.2) * mult
-    if (action === "broadside") {
-      const baseMin = cannons * 0.8 * mult;
-      const baseMax = cannons * 1.2 * mult;
-      const hullMin = Math.max(1, Math.floor(baseMin * 0.6 * (1 + hullDmgPct)));
-      const hullMax = Math.max(1, Math.floor(baseMax * 0.6 * (1 + hullDmgPct)));
-      const crewMin = Math.floor(baseMin * 0.4 / 3 * (1 + crewDmgPct));
-      const crewMax = Math.floor(baseMax * 0.4 / 3 * (1 + crewDmgPct));
-      return {
-        description: "Full cannon volley. Reliable damage.",
-        hullRange: [hullMin, hullMax],
-        crewRange: [crewMin, crewMax],
-        hitChance: 1.0,
-      };
-    }
-
-    // Precision: cannons * (1.2–1.8) * mult  (fixed)
-    if (action === "precision") {
-      const hitChance = Math.min(1, 0.7 + (L.getEquipmentEffect(state, "precisionHitPct") || 0));
-      const baseMin = cannons * 1.2 * mult;
-      const baseMax = cannons * 1.8 * mult;
-      const hullMin = Math.max(1, Math.floor(baseMin * 0.9 * (1 + hullDmgPct)));
-      const hullMax = Math.max(1, Math.floor(baseMax * 0.9 * (1 + hullDmgPct)));
-      const crewMin = Math.floor(baseMin * 0.1 / 3 * (1 + crewDmgPct));
-      const crewMax = Math.floor(baseMax * 0.1 / 3 * (1 + crewDmgPct));
-      return {
-        description: "Aimed shot. High damage if it hits.",
-        hullRange: [hullMin, hullMax],
-        crewRange: [crewMin, crewMax],
-        hitChance,
-      };
-    }
-
-    // Continue Fighting – deterministic (fixed)
-    if (action === "continue_fighting" && battle) {
-      const ratio = L.getBoardingRatio(state, battle, enemy);
-      const crew = battle.playerCrew;
-      const enemyCrew = battle.enemyCrew;
-      const playerLoss = Math.ceil(crew * 0.15 * (1 - ratio));
-      const enemyLoss = Math.ceil(enemyCrew * 0.15 * ratio);
-      return {
-        description: "Press the attack in boarding.",
-        crewLossPlayer: playerLoss,
-        crewLossEnemy: enemyLoss,
-        advantage: Math.round(ratio * 100),
-        hitChance: null,
-      };
-    }
-
-    // All other actions (static descriptions)
-    const staticDescriptions = {
-      grapple: "Board the enemy ship. Requires Close range.",
-      evade: "Attempt to flee. Speed check.",
-      close_distance: "Move closer to the enemy.",
-      open_distance: "Move further away.",
-      fall_back: "Return to naval combat. Costs crew.",
-      demand_surrender: "Force them to yield (requires advantage).",
-      surrender: "Yield to the enemy.",
-    };
-    return {
-      description: staticDescriptions[action] || "",
-      hullRange: null,
-      crewRange: null,
-      hitChance: null,
-    };
-  }
-
   // ── Detect if the player's action missed or failed ──────────────────
   const MISS_PHRASES = [
     "splashes harmlessly",
@@ -295,12 +220,7 @@ const InterceptScreen = ({ state, dispatch }) => {
   const { enemy, intercept } = session;
   const enemyShip = SHIPS[enemy.shipType || L.guessShipType(enemy)] || {};
 
-  // Memoize combat flavour lines to avoid regeneration on re-renders
-  const combatFlavourLines = React.useMemo(() => {
-    const disposition = session.aiDisposition
-      ?? L.computeAIDisposition(state, enemy, session.type);
-    return window.G.generateCombatFlavour(disposition);
-  }, [session, state, enemy]);
+  const combatFlavourLines = session.intercept?.flavourLines || [];
 
   return (
     <div style={{ padding: T.spacing.xl, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -443,8 +363,7 @@ const InterceptScreen = ({ state, dispatch }) => {
         if (isBoarding && ["broadside", "precision", "grapple", "evade", "close_distance", "open_distance"].includes(a)) {
           previews[a] = { description: "Not available in boarding.", hullRange: null, crewRange: null, hitChance: null };
         } else {
-          previews[a] = getActionPreview(state, a, battle.distance, enemy, isBoarding ? battle : null);
-        }
+          previews[a] = L.getActionPreview(state, a, battle.distance, enemy, isBoarding ? battle : null);        }
       });
       return previews;
     }, [state, battle.distance, enemy, isBoarding, battle]);

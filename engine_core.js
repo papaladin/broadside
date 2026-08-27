@@ -18,6 +18,7 @@ window.E = window.E || {};
     ADVANCE_DAY: "ADVANCE_DAY",
     ENTER_PORT: "ENTER_PORT",
     DISCOVER_PORT: "DISCOVER_PORT",
+    PREVIEW_PORT: "PREVIEW_PORT",
     START_GAME: "START_GAME",
     SAVE_GAME: "SAVE_GAME",
     LOAD_GAME: "LOAD_GAME",
@@ -72,29 +73,36 @@ window.E = window.E || {};
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  VERSION CONSTANT & CAREER FACTORY
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const CURRENT_STATE_VERSION = 2;
+
+  const createDefaultCareer = () => {
+    // Deep clone to avoid any shared references with D.DEFAULT_CAREER.
+    return JSON.parse(JSON.stringify(window.D.DEFAULT_CAREER));
+  };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHARED HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  
+
   let saveTimeout = null;
   window.E.autoSave = (state) => {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-      try {
-        localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
-      } catch (e) {
-        console.warn("Auto-save failed:", e);
-      }
+      window.L.saveToLocalStorage(state);
     }, 1000); // Save at most once per second
   };
 
   window.E.migrateState = (loaded) => {
     let s = { ...loaded };
-    if (!s.version) s.version = 1;
-    if (!s.version || s.version < 2) {
+    if (!s.version) s.version = 1; // legacy default
+    if (s.version < CURRENT_STATE_VERSION) {
+      // Apply migrations for each version step (simplified: just fill missing fields)
       s.discoveredPorts = s.discoveredPorts ||
         Object.keys(window.D.PORTS).filter(k => !window.D.PORTS[k].hidden);
       s.mapFragments = s.mapFragments || [];
-      s.version = 2;
+      s.version = CURRENT_STATE_VERSION;
     }
     if (!s.factionAlerts) {
       s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
@@ -131,7 +139,7 @@ window.E = window.E || {};
       s.tutorialMode = s.onboarding?.completed ? "light" : "full";
     }
     if (!s.career) {
-      s.career = { ...window.D.DEFAULT_CAREER };
+      s.career = createDefaultCareer();
     }
     if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
     if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
@@ -147,43 +155,24 @@ window.E = window.E || {};
     if (s.encounterContext !== undefined) delete s.encounterContext;
     if (s.battleState !== undefined) delete s.battleState;
 
+    if (s.previewPortMarket === undefined) s.previewPortMarket = null;
+
+
     return s;
   };
 
   window.E.logEntry = (state, message) => `[${state.day}] ${message}`;
 
   // ── Build encounterSession from context (B1.4 batch) ──────────────
-  // Creates an encounterSession object from an encounterContext, enemy,
-  // and encounter type. Used by engine_port.js and engine_voyage.js
-  // to populate the new session field.
   const buildEncounterSession = (state, context) => {
-    // Determine source kind
-    let sourceKind = "world";
-    let sourceId = null;
+    
+    // Use explicit source from context (default to "world" if not provided)
+    const source = context.source || { kind: "world", id: null };
 
-    // If there's an active mission and it references this enemy, mark as mission
-    if (state.activeMission?.enemy) {
-      const missionEnemy = state.activeMission.enemy;
-      if (missionEnemy.name === context.enemy.name && missionEnemy.faction === context.enemy.faction) {
-        sourceKind = "mission";
-        sourceId = state.activeMission.id || null;
-      }
-    }
+    const aiDisposition = window.L.computeAIDisposition(state, context.enemy, context.type);
 
-    // Override for random patrols
-    if (context.type === "random" || context.type === "navy_patrol") {
-      sourceKind = "random";
-    }
-
-    // Override for events
-    if (context.type === "distressed_merchant_help" || context.type === "distressed_merchant_plunder") {
-      sourceKind = "event";
-    }
-
-    // Override for port entries
-    if (context.type === "hostile_port_entry") {
-      sourceKind = "port";
-    }
+    // Generate combat flavour lines now, so the UI never calls the generator.
+    const flavourLines = window.G.generateCombatFlavour(aiDisposition);
 
     return {
       type: context.type,
@@ -199,13 +188,10 @@ window.E = window.E || {};
         speed: context.enemy.speed || 10,
         risk: context.enemy.risk || "medium",
       },
-      source: {
-        kind: sourceKind,
-        id: sourceId,
-      },
-      modifiers: [],
+      source: source,
       intercept: {
         flavourText: context.flavourText,
+        flavourLines: flavourLines,      // <-- new field, generated here
         options: context.options.map(opt => ({
           id: opt.id,
           label: opt.label,
@@ -219,7 +205,7 @@ window.E = window.E || {};
       battle: null,
       plunder: null,
       returnScreen: state.destination ? "sailing" : "port",
-      aiDisposition: window.L.computeAIDisposition(state, context.enemy, context.type),
+      aiDisposition: aiDisposition,
     };
   };
 
@@ -229,7 +215,7 @@ window.E = window.E || {};
   //  INITIAL STATE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   window.E.initialState = {
-    version: 1,
+    version: CURRENT_STATE_VERSION,
     screen: "title",
     day: 1,
     startDate: { day: 1, month: 6, year: 1695 },
@@ -274,6 +260,7 @@ window.E = window.E || {};
     autoSave: true,
     scenarioId: null,
     previousPort: null,
+    previewPortMarket: null,
     destination: null,
     discoveredPorts: Object.keys(PORTS).filter(k => !PORTS[k].hidden),
     mapFragments: [],
@@ -305,7 +292,7 @@ window.E = window.E || {};
     notableNPCs: {},
     activeEvent: null,
     gameOverReason: null,
-    career: window.D.DEFAULT_CAREER,
+    career: createDefaultCareer(),   // <-- uses deep clone
   };
 
   Object.keys(PORTS).forEach(portKey => {
@@ -403,7 +390,6 @@ window.E = window.E || {};
       }
       case window.E.A.DEBUG_COMBAT: {
         const { faction, risk } = action;
-        // Pass the selected faction as the override so the enemy IS from that faction.
         const enemy = G.generateEnemy(risk || "medium", state.fame, faction || "pirate", faction || "pirate");
         const encounterContext = L.buildEncounterContext(state, "random", enemy);
         const encounterSession = window.E.buildEncounterSession(state, encounterContext);
@@ -413,9 +399,8 @@ window.E = window.E || {};
         const available = window.D.RANDOM_EVENTS;
         if (!available || available.length === 0) return state;
         const event = available[Math.floor(Math.random() * available.length)];
-        // Clone the event and remove its condition (if any) to force it
         const forcedEvent = { ...event };
-        delete forcedEvent.condition; // ensure it fires regardless
+        delete forcedEvent.condition;
         return {
           ...state,
           activeEvent: forcedEvent,
@@ -433,23 +418,15 @@ window.E = window.E || {};
     const A = window.E.A;
     switch (action.type) {
       case window.E.A.SAVE_GAME:
-        localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
+        window.L.saveToLocalStorage(state);
         return { ...state };
 
       case window.E.A.LOAD_GAME: {
         try {
-          let raw = localStorage.getItem("BroadsideGameSave");
-          if (!raw) {
-            raw = localStorage.getItem("piratesSave");
-            if (raw) {
-              localStorage.setItem("BroadsideGameSave", raw);
-              localStorage.removeItem("piratesSave");
-            }
-          }
+          const raw = window.L.loadFromLocalStorage();
           if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
 
-          const parsed = JSON.parse(raw);
-          const loaded = window.E.migrateState(parsed);
+          const loaded = window.E.migrateState(raw);
           const currentPort = loaded.currentPort || "portRoyal";
           return {
             ...loaded,
@@ -465,8 +442,6 @@ window.E = window.E || {};
 
       case window.E.A.EXPORT_SAVE: {
         const encoded = L.encodeSave(state);
-        const scenario = state.scenarioId || "unknown";
-        const day = state.day || 0;
         const filename = `broadside-${state.captainName || "captain"}-${state.faction || "unknown"}-day${state.day}.broadside`;
         const blob = new Blob([encoded], { type: "text/plain" });
         const url = URL.createObjectURL(blob);

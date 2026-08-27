@@ -1,27 +1,28 @@
 # Logic Module Specification
 
 **Broadside Pure Functions — 4‑File Split**
-*Last Updated: August 21, 2026*
+*Last Updated: August 27, 2026*
 
 ---
 
 ## 1. Overview
 
-The logic layer is split across **four files**, each exposing functions on `window.L`. All functions are **pure** (no side effects, no DOM, no `localStorage`) with the single documented exception of `roll()` (which uses `Math.random()` and is kept here to avoid a circular dependency).
+The logic layer is split across **four files**, each exposing functions on `window.L`. All functions are **pure** (no side effects, no DOM, no `localStorage`) with the single documented exception of `L.roll()` (which uses the injectable RNG and is kept here for convenience). All randomness is now **injectable** through an optional `rng` parameter (default `window.L.RNG`), enabling deterministic testing.
 
 | File | Namespace | Contents |
 |---|---|---|
-| `logic_core.js` | `window.L` | Core helpers: reputation, fame, infamy, heat, ship stats, equipment effects, game‑over detection, universal utilities. |
+| `logic_core.js` | `window.L` | Core helpers: reputation, fame, infamy, heat, ship stats, equipment effects, game‑over detection, universal utilities, RNG object. |
 | `logic_economy_crew.js` | `window.L` | Crew management (tags, alignment, desertion, positive traits), economy (hold capacity, cargo loss, trade profiles), reputation application/decay. |
 | `logic_travel_events.js` | `window.L` | Travel days, reachability, sea position, route helpers, random event/patrol triggers, starvation processing. |
-| `logic_combat_encounter.js` | `window.L` | B11 combat resolvers (naval + boarding), contest helpers, encounter context builder, NPC AI stubs. |
+| `logic_combat_encounter.js` | `window.L` | B11 combat resolvers (naval + boarding), encounter helpers, NPC AI scoring, action preview, contraband info, crew loss application. |
 
 **Core Principles:**
 
-- **Zero side‑effects** in all files (except `roll()`).
+- **Zero side‑effects** in all files (except the injectable RNG which is used by functions, not a side effect itself).
 - **Immutable state**: all functions return new objects/arrays; never mutate inputs.
 - **Read‑only access** to `window.D` (data constants).
 - **May NOT call** engine (`window.E`), generators (`window.G`), or UI (`window.UI`).
+- **Injectable RNG**: Functions that require randomness accept an optional `rng` parameter, defaulting to `window.L.RNG`. This makes them deterministic when tested.
 
 ---
 
@@ -29,14 +30,26 @@ The logic layer is split across **four files**, each exposing functions on `wind
 
 **Purpose**: Foundational pure functions used across the game.
 
+### Default RNG Object
+
+```js
+window.L.RNG = {
+  random: () => Math.random(),
+  int: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
+  pick: (arr) => arr[Math.floor(Math.random() * arr.length)]
+};
+```
+
+This is the default used by all other logic functions. It can be overridden by passing a custom RNG object as the last argument.
+
 ### Exported Functions
 
 #### General Helpers
 
 | Function | Signature | Description |
 |---|---|---|
-| `roll` | `(sides) -> number` | Returns a random integer between 1 and `sides` (inclusive). The **only** non‑pure function in the logic layer. |
-| `reputationLabel` | `(rep) -> string` | Returns `"Allied"`, `"Friendly"`, `"Neutral"`, `"Hostile"`, or `"At War"` based on the rep value (0‑100). |
+| `roll` | `(sides, rng = defaultRng) -> number` | Returns a random integer between 1 and `sides` (inclusive). Uses `rng.random()`. |
+| `reputationLabel` | `(rep) -> string` | Returns `"Allied"`, `"Friendly"`, `"Neutral"`, `"Unfriendly"`, `"Hostile"`, or `"At War"` based on the rep value (0‑100). |
 | `getFameInfo` | `(fame) -> { label, tier }` | Returns the fame label and tier (0‑5). Labels: Greenhorn, Unknown, Recognised, Notorious, Legendary, Immortal. |
 | `getInfamyLabel` | `(infamy) -> string` | Returns `"Clean"`, `"Suspect"`, `"Wanted"`, `"Notorious"`, or `"Legendary Outlaw"`. |
 | `getHeatLabel` | `(level) -> string` | Returns `""`, `"Alert"`, `"Active Search"`, `"Hunted"`, or `"Manhunt"` for heat levels 0‑10. |
@@ -44,6 +57,10 @@ The logic layer is split across **four files**, each exposing functions on `wind
 | `meetsRequirement` | `(state, item) -> { allowed, reason }` | Checks fame/hull requirements for ships/equipment. |
 | `canBribe` | `(state) -> boolean` | Returns `true` if `state.infamy < 50`. |
 | `returnScreen` | `(state) -> "sailing" | "port"` | Returns the screen to return to after events/combat, based on `destination` and `sailingDaysLeft`. |
+| `classifyLogLine` | `(text) -> string | null` | Classifies a log entry into a category key (`"arrival"`, `"combat"`, `"crew"`, etc.) or `null`. |
+| `getLogTabCategory` | `(text) -> string` | Maps a log line to Journal tab (`"crew"`, `"combat"`, `"ports"`, `"missions"`, `"trade"`, `"other"`). |
+| `logPick` | `(pool, state, ...args) -> string` | Selects a template function from a pool and calls it. Uses `Math.random` internally (not injectable in this version). |
+| `isFeatureUnlocked` | `(state, feature) -> boolean` | Checks if a feature is unlocked based on onboarding state. |
 
 #### Ship & Equipment
 
@@ -63,6 +80,7 @@ The logic layer is split across **four files**, each exposing functions on `wind
 | `getCaptainTag` | `(state) -> { text, colorKey }` | Returns a narrative caption and colour based on fame and infamy. |
 | `getCareerHighlights` | `(state) -> string[]` | Returns an array of narrative sentences summarising the career. |
 | `isUnrecoverable` | `(state) -> { unrecoverable, reason }` | Checks if the player is in a dead‑end state (0 hull and not enough gold/cargo to recover, or 0 crew on a non‑dinghy). |
+| `guessShipType` | `(enemy) -> string` | Estimates ship type from enemy cannons. |
 
 ---
 
@@ -85,14 +103,14 @@ The logic layer is split across **four files**, each exposing functions on `wind
 | Function | Signature | Description |
 |---|---|---|
 | `payCrewWages` | `(state) -> number` | Returns daily wage cost: `2g × crewCount × (1.5 if morale < 30 else 1)`. |
-| `removeRandomCrew` | `(roster, count) -> { newRoster, removed }` | Removes `count` random crew members (preserves order, respects `protected` tag). |
+| `removeRandomCrew` | `(roster, count, rng = defaultRng) -> { newRoster, removed }` | Removes `count` random crew members (preserves order, respects `protected` tag). Uses `rng`. |
 | `hasTag` | `(member, tag) -> boolean` | Checks if a crew member has a tag. |
 | `addTag` | `(member, tag) -> member` | Returns a new member with the tag added. |
 | `removeTag` | `(member, tag) -> member` | Returns a new member with the tag removed. |
 | `revealTag` | `(member, trait) -> member` | Converts `hidden_X` to `revealed_X`. |
 | `getCrewAlignment` | `(state, faction) -> number` | Returns the fraction of crew belonging to the given faction. |
 | `getAlignmentModifier` | `(state, faction) -> number` | Returns `0.5 + getCrewAlignment(state, faction)`. |
-| `processDesertion` | `(crewRoster, morale, currentPort, state) -> { roster, logLines }` | Processes upset crew desertion and settling. |
+| `processDesertion` | `(crewRoster, morale, currentPort, state, rng = defaultRng) -> { roster, logLines }` | Processes upset crew desertion and settling. Uses `rng`. |
 | `processPositiveTraits` | `(crewRoster, state) -> { roster, logLines }` | Awards `seasoned`, `veteran`, or `loyal` tags based on days aboard and faction reputation. |
 
 #### Economy / Cargo / Hold
@@ -108,6 +126,7 @@ The logic layer is split across **four files**, each exposing functions on `wind
 | `applyLoseCargoPercent` | `(holdItems, percent) -> holdItems` | Reduces all goods by a percentage. |
 | `applyLoseContraband` | `(holdItems) -> holdItems` | Zeros out illegal goods (tobacco, slaves). |
 | `getPortTradeProfile` | `(portKey) -> { goodDeals, inDemand }` | Returns lists of goods that are cheap (good deals) and scarce (in demand) at a port. |
+| `getTradeOpportunity` | `(state, fromPortKey, toPortKey, targetMarket = null) -> opportunity \| null` | Finds the best profitable trade from the current port to a target port. **Important**: no longer calls `G.generatePortMarket`; it uses the provided `targetMarket` or `state.previewPortMarket`. |
 
 ---
 
@@ -135,58 +154,63 @@ The logic layer is split across **four files**, each exposing functions on `wind
 
 | Function | Signature | Description |
 |---|---|---|
-| `triggerRandomEvent` | `(state) -> event | null` | Filters `D.RANDOM_EVENTS` by condition, picks one. |
-| `maybeRandomPatrol` | `(state) -> boolean` | Returns true if a random patrol should trigger based on infamy, heat, and reputation. |
+| `triggerRandomEvent` | `(state, rng = defaultRng) -> event | null` | Filters `D.RANDOM_EVENTS` by condition, picks one, returns a **copy** (does not mutate `D.RANDOM_EVENTS`). Uses `rng`. |
+| `maybeRandomPatrol` | `(state, rng = defaultRng) -> boolean` | Returns true if a random patrol should trigger based on infamy, heat, and reputation. Uses `rng`. |
 
 #### Starvation
 
 | Function | Signature | Description |
 |---|---|---|
-| `processStarvation` | `(state, prov, roster) -> { daysWithoutFood, daysWithoutWater, warningLogs, deathLog, roster }` | Advances starvation counters and kills crew after 14 days no food / 3 days no water. |
+| `processStarvation` | `(state, prov, roster, rng = defaultRng) -> { daysWithoutFood, daysWithoutWater, warningLogs, deathLog, roster }` | Advances starvation counters and kills crew after 14 days no food / 3 days no water. Uses `rng` for random crew removal. |
 
 ---
 
 ## 5. logic_combat_encounter.js — Combat & Encounter
 
-**Purpose**: B11 naval and boarding resolvers, contest helpers, encounter context builder, and NPC AI stubs.
+**Purpose**: B11 naval and boarding resolvers, encounter context builder, NPC AI scoring, combat preview, contraband info, crew loss application.
 
 ### Exported Functions
 
-#### Naval Combat Resolver
+#### NPC AI Scoring
 
 | Function | Signature | Description |
 |---|---|---|
-| `resolveNavalRound` | `(state, playerAction, enemyAction, battle, enemy) -> result` | Full naval round resolution. Handles Evade, Damage (Broadside/Precision), Hull/Crew check, Reposition (Close/Open distance), and Grapple transition. Returns an outcome object. |
-| `resolveSpeedContest` | `(actorSpeed, opposerSpeed) -> boolean` | Returns true if the actor wins a speed contest. Clamped to 15‑85% chance. |
-| `stepDistance` | `(current, delta) -> "far" | "medium" | "close"` | Moves distance by +1 or -1, clamped. |
-| `initialDistanceFor` | `(encounterType) -> "far" | "medium" | "close"` | Returns the starting distance based on encounter type. |
+| `computeAIDisposition` | `(state, enemy, encounterType) -> disposition` | Computes static disposition for an encounter (weights, continueFightingBonus, surrenderWillingness, riskLevel). |
+| `getHullAdvantage` | `(selfHull, selfMaxHull, oppHull, oppMaxHull) -> number` | Normalized hull advantage (0‑ish). |
+| `getCrewAdvantage` | `(selfCrew, oppCrew) -> number` | Normalized crew advantage. |
+| `getSpeedDifferential` | `(selfSpeed, oppSpeed) -> number` | Speed difference. |
+| `scoreNavalActions` | `(self, opponent, distance, disposition, legalActions) -> scores` | Scores all available naval actions for an AI. |
+| `scoreBoardingActions` | `(ratio, disposition, moraleThresholdShift = 0) -> scores` | Scores boarding actions for an AI. |
+| `selectWeightedAction` | `(scores, topN = 2, rng = defaultRng) -> action | null` | Selects an action via weighted random among top N scores. Uses `rng`. |
+| `getNPCNavalAction` | `(state, encounterSession, rng = defaultRng) -> action` | Determines NPC naval action based on disposition and scores. |
+| `getNPCBoardingAction` | `(state, encounterSession, rng = defaultRng) -> action` | Determines NPC boarding action based on disposition and ratio. |
 
-#### Boarding Resolver
+#### Combat Resolvers
 
 | Function | Signature | Description |
 |---|---|---|
+| `emptyOutcome` | `() -> outcome` | Returns a blank outcome object. |
+| `maybeCrewLoss` | `(amount, rng = defaultRng) -> number` | Returns 0 or `floor(amount)` with 50% chance. |
+| `resolveNavalRound` | `(state, playerAction, enemyAction, battle, enemy, rng = defaultRng) -> outcome` | Full naval round resolution. Handles Evade, Damage, Hull/Crew check, Reposition, Grapple. |
+| `resolveBoardingRound` | `(state, playerAction, enemyAction, battle, enemy, rng = defaultRng) -> outcome` | Full boarding round resolution. Handles Continue, Fall Back, Demand Surrender, Surrender. |
 | `getBoardingRatio` | `(state, battle, enemy) -> number` | Computes player's boarding advantage based on `crew × (0.5 + morale/200)` for both sides. |
-| `resolveBoardingRound` | `(state, playerAction, enemyAction, battle, enemy) -> result` | Resolves a boarding round. Handles Continue Fighting, Fall Back, Demand Surrender, and Surrender. Returns outcome (continue, returned_to_naval, player/enemy_wipeout, surrender, etc.). |
+| `resolveSpeedContest` | `(actorSpeed, opposerSpeed, rng = defaultRng) -> boolean` | Contest winner between two speeds (clamped 15‑85%). Uses `rng`. |
+| `stepDistance` | `(current, delta) -> "far" | "medium" | "close"` | Moves distance by +1 or -1, clamped. |
+| `initialDistanceFor` | `(encounterType) -> distance` | Returns starting distance based on encounter type. |
+
+#### New Helpers (Post‑Refactor)
+
+| Function | Signature | Description |
+|---|---|---|
+| `applyCrewLoss` | `(state, crewLoss, rng = defaultRng) -> { state, lostNames, lostCount }` | Applies crew loss to state, returns updated state and lost crew names. Used by engine. |
+| `getPatrolContrabandInfo` | `(state, fineRate = D.PATROL_FINE_RATE) -> { hasContraband, hasTobacco, hasSlaves, hasRumSmuggle, seizedValue, fine }` | Centralizes contraband detection and fine calculation for patrol encounters. |
+| `getActionPreview` | `(state, action, distance, enemy, battle = null) -> preview` | Returns combat action preview for UI (hull/crew ranges, hit chance, descriptions). Used by `screens_combat.jsx`. |
 
 #### Encounter Context Builder
 
 | Function | Signature | Description |
 |---|---|---|
-| `buildEncounterContext` | `(state, type, enemy) -> context` | Builds the data‑driven intercept screen options (fight, flee, parley, bribe, surrender, inspect) with availability reasons and speed checks. Used by the engine to populate `encounterSession.intercept`. |
-
-#### NPC AI Stubs (Naval & Boarding)
-
-| Function | Signature | Description |
-|---|---|---|
-| `getNPCNavalAction` | `(battle, enemy) -> string` | Returns a naval action (`broadside`, `precision`, `close_distance`, `open_distance`) based on a simple heuristic (scoring stubbed; full utility AI is in a separate task list but not yet shipped). |
-| `getNPCBoardingAction` | `(battle, enemy, ratio) -> string` | Returns a boarding action (`continue_fighting`, `fall_back`, `surrender`) based on the enemy's ratio and risk. |
-
-#### Other Helpers
-
-| Function | Signature | Description |
-|---|---|---|
-| `emptyOutcome` | `() -> { player, enemy, ... }` | Returns a blank outcome object for combat resolution. |
-| `maybeCrewLoss` | `(amount) -> number` | Returns 0 or `floor(amount)` with 50% chance. |
+| `buildEncounterContext` | `(state, type, enemy, source = null) -> context` | Builds the data‑driven intercept screen options with availability reasons and speed checks. Includes explicit `source`. |
 
 ---
 
@@ -197,6 +221,7 @@ All logic files share the same dependencies and constraints:
 | Reads | Used for |
 |---|---|
 | `window.D` | PORTS, SHIPS, FACTIONS, EQUIPMENT, RESOURCES, RANDOM_EVENTS, ENCOUNTER_FLAVOUR, SURRENDER_CONSEQUENCE, DISTANCE_DAMAGE_MULTIPLIERS, LEGAL_ACTIONS_BY_DISTANCE, AI_ARCHETYPES, AI_ORIGIN_MODIFIERS |
+| `window.L.RNG` | Default RNG object (injectable) |
 
 **May NOT call**: `window.E` (engine), `window.G` (generators), `window.UI` (UI).
 
@@ -205,26 +230,27 @@ All logic files share the same dependencies and constraints:
 ## 7. Exposed Functions Summary
 
 ### From logic_core.js
-`roll`, `reputationLabel`, `getFameInfo`, `getInfamyLabel`, `getHeatLabel`, `getEffectiveMorale`, `meetsRequirement`, `canBribe`, `returnScreen`, `getShipStats`, `getEquipmentEffect`, `canInstallEquipment`, `shipRepairCost`, `addHeat`, `getMinViableCrew`, `getCaptainTag`, `getCareerHighlights`, `isUnrecoverable`
+`roll`, `reputationLabel`, `getFameInfo`, `getInfamyLabel`, `getHeatLabel`, `getEffectiveMorale`, `meetsRequirement`, `canBribe`, `returnScreen`, `classifyLogLine`, `getLogTabCategory`, `logPick`, `isFeatureUnlocked`, `getShipStats`, `getEquipmentEffect`, `canInstallEquipment`, `shipRepairCost`, `addHeat`, `getMinViableCrew`, `getCaptainTag`, `getCareerHighlights`, `isUnrecoverable`, `guessShipType`, `RNG`
 
 ### From logic_economy_crew.js
-`decayReputation`, `applyReputationImpact`, `getRepPerk`, `payCrewWages`, `removeRandomCrew`, `hasTag`, `addTag`, `removeTag`, `revealTag`, `getCrewAlignment`, `getAlignmentModifier`, `processDesertion`, `processPositiveTraits`, `getHoldCapacity`, `getHoldUsed`, `getHoldLoadPct`, `getHoldSpeedMultiplier`, `getProvisionConsumptionPerDay`, `getDaysOfProvisions`, `applyLoseCargoPercent`, `applyLoseContraband`, `getPortTradeProfile`
+`decayReputation`, `applyReputationImpact`, `getRepPerk`, `payCrewWages`, `removeRandomCrew`, `hasTag`, `addTag`, `removeTag`, `revealTag`, `getCrewAlignment`, `getAlignmentModifier`, `processDesertion`, `processPositiveTraits`, `getHoldCapacity`, `getHoldUsed`, `getHoldLoadPct`, `getHoldSpeedMultiplier`, `getProvisionConsumptionPerDay`, `getDaysOfProvisions`, `applyLoseCargoPercent`, `applyLoseContraband`, `getPortTradeProfile`, `getTradeOpportunity`
 
 ### From logic_travel_events.js
 `getSeaPosition`, `travelDaysBetween`, `travelDays`, `travelDaysFromPosition`, `canReachFrom`, `canReach`, `canReachFromPosition`, `getReachablePortsFromSea`, `getUnreachableReason`, `triggerRandomEvent`, `maybeRandomPatrol`, `processStarvation`
 
 ### From logic_combat_encounter.js
-`emptyOutcome`, `maybeCrewLoss`, `getNPCNavalAction`, `getNPCBoardingAction`, `resolveNavalRound`, `resolveBoardingRound`, `resolveSpeedContest`, `stepDistance`, `initialDistanceFor`, `getBoardingRatio`, `buildEncounterContext`
+`computeAIDisposition`, `getHullAdvantage`, `getCrewAdvantage`, `getSpeedDifferential`, `scoreNavalActions`, `scoreBoardingActions`, `selectWeightedAction`, `getNPCNavalAction`, `getNPCBoardingAction`, `emptyOutcome`, `maybeCrewLoss`, `resolveNavalRound`, `resolveBoardingRound`, `getBoardingRatio`, `resolveSpeedContest`, `stepDistance`, `initialDistanceFor`, `applyCrewLoss`, `getPatrolContrabandInfo`, `getActionPreview`, `buildEncounterContext`
 
 ---
 
 ## 8. Usage Rules
 
-1. **No Side Effects**: All functions are pure (except `roll()`). Never mutate inputs.
+1. **No Side Effects**: All functions are pure (except `roll` which uses RNG, but is still deterministic with injected RNG). Never mutate inputs.
 2. **No DOM / localStorage**: All I/O must go through `storage.js` or engine reducers.
 3. **Immutable State**: Always return new objects/arrays.
 4. **Read `window.D` only**: Never modify it.
-5. **Encapsulation**: The combat resolvers (`resolveNavalRound`, `resolveBoardingRound`) are the single source of truth for combat rules; the engine (`engine_battle.js`) only dispatches and interprets outcomes.
+5. **RNG Injection**: Functions that need randomness accept an optional `rng` parameter. Do not use `Math.random()` directly; use `rng.random()`, `rng.int()`, or `rng.pick()`.
+6. **Encapsulation**: The combat resolvers (`resolveNavalRound`, `resolveBoardingRound`) are the single source of truth for combat rules; the engine (`engine_battle.js`) only dispatches and interprets outcomes.
 
 ---
 
@@ -236,3 +262,13 @@ All logic files share the same dependencies and constraints:
 | `logic_economy_crew.js` | `window.D`, `window.L` (from core) | Engine, Generators, UI |
 | `logic_travel_events.js` | `window.D`, `window.L` (from core + economy/crew) | Engine, Generators, UI |
 | `logic_combat_encounter.js` | `window.D`, `window.L` (from core) | Engine, Generators, UI |
+
+---
+
+## 10. Recent Refactors
+
+- **RNG injection**: All randomness in logic is now injectable via an optional `rng` parameter, enabling deterministic tests.
+- **`applyCrewLoss`** moved from `engine_battle.js` to `logic_combat_encounter.js`.
+- **`getPatrolContrabandInfo`** centralizes contraband detection.
+- **`getActionPreview`** moved combat math from UI to logic.
+- **`getTradeOpportunity`** no longer calls `G.generatePortMarket`; uses provided market or `state.previewPortMarket`.

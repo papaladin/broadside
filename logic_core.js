@@ -11,6 +11,13 @@ window.L = window.L || {};
   //  HELPERS (universal)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+    // ── Default RNG object (injectable) ───────────────────────────────
+  const defaultRng = {
+    random: () => Math.random(),
+    int: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
+    pick: (arr) => arr[Math.floor(Math.random() * arr.length)]
+  };
+
   const reputationLabel = (rep) => {
     if (rep >= 80) return "Allied";
     if (rep >= 60) return "Friendly";
@@ -191,10 +198,15 @@ window.L = window.L || {};
     }
   };
 
-  const logPick = (pool, state, ...args) => {
-    const fn = pool[Math.floor(Math.random() * pool.length)];
-    return fn(...args, state);
-  };
+ const logPick = (pool, state, ...args) => {
+  // If the last argument is an RNG object, use it; otherwise use defaultRng.
+  const maybeRng = args[args.length - 1];
+  const rng = (maybeRng && typeof maybeRng.random === 'function') ? maybeRng : defaultRng;
+  const fn = pool[rng.int(0, pool.length - 1)];
+  // Remove the rng from args before calling fn
+  const finalArgs = (maybeRng && typeof maybeRng.random === 'function') ? args.slice(0, -1) : args;
+  return fn(...finalArgs, state);
+};
 
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";
@@ -221,7 +233,7 @@ window.L = window.L || {};
   //  ENCOUNTER HELPERS (used by combat & intercept)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  const roll = (sides) => Math.ceil(Math.random() * sides);
+    const roll = (sides, rng = defaultRng) => Math.ceil(rng.random() * sides);
 
   const guessShipType = (enemy) => {
     if (!enemy) return "sloop";
@@ -387,6 +399,7 @@ window.L = window.L || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Object.assign(window.L, {
     // Helpers
+    RNG : defaultRng,
     reputationLabel,
     getFameInfo,
     getInfamyLabel,

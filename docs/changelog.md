@@ -1,3 +1,6 @@
+### 2026-08-26
+- **Random event** have improved and deepened choices. You can now reroute to evade a storm, risk an ambush when searching wrecks, and try to bribe your way out of navy patrol inspections.
+- **Escort defense** was updated so that during Escort mission and when defending attacked ships, even if the escort is sunk and you loose the reward or quest, you can continue the battle to sink or catpure the attacker and still make some profit.
 
 ### 2026-08-24
 - **Combat AI** is now improved, with factions specific, situation aware, player aware, advantage/disadvantage aware decisions from the NPC.

@@ -1,8 +1,7 @@
-
 # Storage Module Specification
 
 **Broadside Save/Load & Tutorial State**
-*Last Updated: August 21, 2026*
+*Last Updated: August 27, 2026*
 
 ---
 
@@ -10,7 +9,7 @@
 
 | File | Namespace | Contents |
 |---|---|---|
-| `storage.js` | extends `window.L` | Save/load encoding, tutorial state management, localStorage I/O |
+| `storage.js` | extends `window.L` | Save/load encoding, tutorial state management, localStorage I/O, persistence helpers |
 
 **Core Principles:**
 
@@ -19,8 +18,9 @@
 - **Tutorial state separation**: Tutorial progress is stored separately from game saves.
 - **Error resilience**: Graceful fallbacks for localStorage failures (e.g., private browsing, iframe restrictions).
 - **No dependencies on Engine/UI**: Only reads `window.D` and `window.L` (for hash utilities).
+- **Single ownership**: All browser persistence (game saves, tutorial state, discovery flags) now flows through this module.
 
-**Note**: This file **extends `window.L`** (loaded immediately after `logic.js`). All functions are attached to the same `window.L` namespace as `logic.js`.
+**Note**: This file **extends `window.L`** (loaded immediately after logic files). All functions are attached to the same `window.L` namespace.
 
 ---
 
@@ -35,6 +35,47 @@
 - **Usage**:
   ```javascript
   if (L.hasSave()) { /* Show "Continue" button */ }
+  ```
+
+---
+
+### saveToLocalStorage(state)
+
+- **Purpose**: Persists a game state to localStorage.
+- **Signature**: `(state: Object) => void`
+- **Side Effect**: Writes to `localStorage.setItem("BroadsideGameSave", JSON.stringify(state))`.
+- **Error Handling**: Catches exceptions and logs a warning without blocking.
+- **Usage**:
+  ```javascript
+  // Called by engine_core.js autoSave, SAVE_GAME action, and App.jsx beforeunload
+  L.saveToLocalStorage(state);
+  ```
+
+---
+
+### loadFromLocalStorage()
+
+- **Purpose**: Loads a game state from localStorage.
+- **Signature**: `() => Object | null`
+- **Output**: Parsed state object, or `null` if no save exists or parsing fails.
+- **Fallback**: Migrates from legacy `"piratesSave"` key if present (copies to new key, removes old).
+- **Error Handling**: Returns `null` on parse failure or storage access error.
+- **Usage**:
+  ```javascript
+  const state = L.loadFromLocalStorage();
+  if (state) { /* Continue game */ }
+  ```
+
+---
+
+### clearLocalStorage()
+
+- **Purpose**: Removes the game save from localStorage.
+- **Signature**: `() => void`
+- **Side Effect**: Removes both `"BroadsideGameSave"` and `"piratesSave"`.
+- **Usage**:
+  ```javascript
+  L.clearLocalStorage(); // e.g., before starting a new game
   ```
 
 ---
@@ -106,51 +147,45 @@
 
 ---
 
-## 3. Tutorial State Functions
+### simpleHash(str)
 
-### loadTutorialState()
+- **Purpose**: Generates a simple hash for save integrity checking.
+- **Signature**: `(str: string) => number`
+- **Output**: Absolute integer hash value (not cryptographically secure).
+- **Usage**: Used internally by `encodeSave`/`decodeSave`.
 
-- **Purpose**: Loads the tutorial progress state from localStorage.
-- **Signature**: `() => Object`
-- **Storage Key**: `"broadside_tutorial"`
-- **Output Shape**:
-  ```javascript
-  {
-    enabled: boolean,         // true if tutorial popups are enabled
-    seen: {
-      port: boolean,
-      map: boolean,
-      sailing: boolean,
-      battle: boolean,
-      market: boolean,
-      crew: boolean,
-      shipyard: boolean,
-      journal: boolean,
-      status: boolean,
-    }
-  }
-  ```
-- **Fallback**: If no state exists, returns `getDefaultTutorialState()`.
+---
+
+## 3. Hidden Port Discovery Persistence
+
+### getSeenDiscoveries()
+
+- **Purpose**: Loads the list of hidden port names that have already been "charted" (seen in popup).
+- **Signature**: `() => string[]`
+- **Storage Key**: `"BroadsideSeenDiscoveries"`
+- **Output**: Array of port names (e.g., `["Roatán", "Dry Tortugas"]`).
+- **Fallback**: Returns `[]` if no data or parse fails.
 - **Usage**:
   ```javascript
-  const tutState = L.loadTutorialState();
-  if (tutState.seen.port) { /* Skip port tutorial */ }
+  const seen = L.getSeenDiscoveries();
   ```
 
 ---
 
-### saveTutorialState(tutState)
+### setSeenDiscovery(portName)
 
-- **Purpose**: Saves the tutorial progress state to localStorage.
-- **Signature**: `(tutState: Object) => void`
-- **Input**: Tutorial state object (same shape as `loadTutorialState` output).
-- **Side Effect**: Writes to `localStorage.setItem("broadside_tutorial", JSON.stringify(tutState))`.
+- **Purpose**: Marks a hidden port name as charted.
+- **Signature**: `(portName: string) => void`
+- **Side Effect**: Reads current list, appends if not present, writes back to localStorage.
 - **Usage**:
   ```javascript
-  L.saveTutorialState({ ...tutState, seen: { ...tutState.seen, port: true } });
+  // Called when player clicks "Chart it" on discovery popup
+  L.setSeenDiscovery("Roatán");
   ```
 
 ---
+
+## 4. Tutorial State Functions
 
 ### getDefaultTutorialState()
 
@@ -161,18 +196,29 @@
   {
     enabled: true,
     seen: {
-      port: false,
-      map: false,
-      sailing: false,
-      battle: false,
-      market: false,
-      crew: false,
-      shipyard: false,
-      journal: false,
-      status: false,
+      port: false, map: false, sailing: false, battle: false,
+      market: false, crew: false, shipyard: false, journal: false, status: false,
     }
   }
   ```
+
+---
+
+### loadTutorialState()
+
+- **Purpose**: Loads the tutorial progress state from localStorage.
+- **Signature**: `() => Object`
+- **Storage Key**: `"broadside_tutorial"`
+- **Output**: Merges default state with stored state (so new screens default to unseen).
+- **Fallback**: If no stored state, returns `getDefaultTutorialState()`.
+
+---
+
+### saveTutorialState(tutState)
+
+- **Purpose**: Saves the tutorial progress state to localStorage.
+- **Signature**: `(tutState: Object) => void`
+- **Side Effect**: Writes to `localStorage.setItem("broadside_tutorial", JSON.stringify(tutState))`.
 
 ---
 
@@ -181,17 +227,10 @@
 - **Purpose**: Checks if a tutorial should be shown for a specific screen.
 - **Signature**: `(state: Object, screenName: string) => boolean`
 - **Logic**:
-  1. Returns `false` if `state.tutorialMode === "full"` (QM mode handles tutorials internally).
-  2. Returns `false` if `state.tutorialMode === "none"` (tutorials disabled).
+  1. Returns `false` if `state.tutorialMode === "none"`.
+  2. Returns `false` if `state.tutorialMode === "full"` (QM mode handles tutorials).
   3. Returns `false` if `screenName` is already `seen` in the tutorial state.
   4. Returns `true` otherwise.
-- **Dependencies**: Reads `state.tutorialMode` and `tutState` from `loadTutorialState()`.
-- **Usage**:
-  ```javascript
-  if (L.shouldShowTutorial(state, "port")) {
-    // Show tutorial popup for port screen
-  }
-  ```
 
 ---
 
@@ -204,28 +243,34 @@
   2. Sets `tutState.seen[screenName] = true`.
   3. Sets `tutState.enabled = false` if `disableAll` is `true`.
   4. Saves updated state via `saveTutorialState(tutState)`.
-- **Usage**:
-  ```javascript
-  // User clicked "Got it" on port tutorial
-  L.markTutorialSeen("port");
-
-  // User clicked "Don't show tutorials again"
-  L.markTutorialSeen("port", true);
-  ```
 
 ---
 
-## 4. Save File Format
+## 5. Tutorial Mode Integration
+
+Broadside supports **three tutorial modes**, set during new game creation (`state.tutorialMode`):
+
+| Mode | Value | Behavior |
+|------|-------|----------|
+| **Guided (QM)** | `"full"` | Quartermaster character guides the player; tutorials are handled by `engine_onboarding.js`. `shouldShowTutorial` always returns `false`. |
+| **Hints Only** | `"light"` | Per-screen popups appear until dismissed. Uses `shouldShowTutorial`/`markTutorialSeen`. |
+| **None** | `"none"` | No tutorials or popups. `shouldShowTutorial` always returns `false`. |
+
+**Note**: The `seen` object in tutorial state **only applies to `"light"` mode**. In `"full"` mode, the Quartermaster (QM) system in `engine_onboarding.js` manages all onboarding.
+
+---
+
+## 6. Save File Format
 
 ### LocalStorage Save (`BroadsideGameSave`)
 
 - **Key**: `"BroadsideGameSave"`
 - **Format**: Raw `JSON.stringify(state)`
-- **Legacy Key**: `"piratesSave"` (still checked by `hasSave()` and `LOAD_GAME` for backward compatibility)
+- **Legacy Key**: `"piratesSave"` (still checked by `hasSave()` and `loadFromLocalStorage()` for backward compatibility)
 - **Example**:
   ```json
   {
-    "version": 1,
+    "version": 2,
     "screen": "port",
     "day": 42,
     "gold": 15000,
@@ -251,46 +296,33 @@
 
 ---
 
-## 5. Tutorial Mode Integration
-
-Broadside supports **three tutorial modes**, set during new game creation (`state.tutorialMode`):
-
-| Mode | Value | Behavior |
-|------|-------|----------|
-| **Guided (QM)** | `"full"` | Quartermaster character guides the player; tutorials are handled by `engine_onboarding.js`. `shouldShowTutorial` always returns `false`. |
-| **Hints Only** | `"light"` | Per-screen popups appear until dismissed. Uses `shouldShowTutorial`/`markTutorialSeen`. |
-| **None** | `"none"` | No tutorials or popups. `shouldShowTutorial` always returns `false`. |
-
-**Note**: The `seen` object in tutorial state **only applies to `"light"` mode**. In `"full"` mode, the Quartermaster (QM) system in `engine_onboarding.js` manages all onboarding.
-
----
-
-## 6. Dependencies
+## 7. Dependencies
 
 | Reads | Used For | May NOT Call |
 |---|---|---|
 | `window.D` | None (storage.js does not read data constants) | Engine, Generators, UI |
 | `window.L` | None (storage.js extends `window.L` but does not call its functions) | Engine, Generators, UI |
-| `localStorage` | Save/load game state, tutorial progress | — |
+| `localStorage` | Save/load game state, tutorial progress, seen discoveries | — |
 
 **Load Order Constraint**:
 - Must load **after `logic.js`** (to extend `window.L`).
-- Must load **before any file that calls `L.hasSave()` or tutorial functions** (e.g., `App.jsx`, `screens_*.jsx`).
+- Must load **before any file that calls persistence functions** (e.g., `engine_core.js`, `App.jsx`).
 
 ---
 
-## 7. Exposed Functions Summary
+## 8. Exposed Functions Summary
 
 ### From `storage.js` (extends `window.L`)
 
 | Category | Functions | Side Effects |
 |----------|-----------|---------------|
-| **Save/Load** | `hasSave`, `encodeSave`, `decodeSave`, `checkLocalStorageAvailable` | `localStorage` access (except `encodeSave`, which is pure) |
+| **Save/Load** | `hasSave`, `saveToLocalStorage`, `loadFromLocalStorage`, `clearLocalStorage`, `encodeSave`, `decodeSave`, `checkLocalStorageAvailable`, `simpleHash` | `localStorage` access (except `encodeSave`, which is pure) |
 | **Tutorial** | `loadTutorialState`, `saveTutorialState`, `getDefaultTutorialState`, `shouldShowTutorial`, `markTutorialSeen` | `localStorage` access |
+| **Discovery** | `getSeenDiscoveries`, `setSeenDiscovery` | `localStorage` access |
 
 ---
 
-## 8. Usage Rules
+## 9. Usage Rules
 
 1. **No Game Logic**: `storage.js` contains **only I/O helpers**. All game rules live in `logic_*.js` or `engine_*.js`.
 2. **Immutable State**: Never mutate the input `state` in any function. Always return new objects.
@@ -300,47 +332,46 @@ Broadside supports **three tutorial modes**, set during new game creation (`stat
 
 ---
 
-## 9. Migration Notes
+## 10. Migration Notes
 
 - **Version 1 → 2**:
-  - Added `factionAlerts`, `portGossip`, `crew.tags`, `startDate`, `scenarioId`, `ship.equipment`, `equipmentInventory`, and `onboarding` fields.
+  - Added `factionAlerts`, `portGossip`, `crew.tags`, `startDate`, `scenarioId`, `ship.equipment`, `equipmentInventory`, `onboarding`, `previewPortMarket`, `career`, etc.
   - Handled by `E.migrateState` in `engine_core.js`.
 - **Tutorial State**: No migration needed. Missing fields default to `getDefaultTutorialState()`.
 - **Save Key Migration**: Old saves using the legacy `"piratesSave"` key are automatically migrated to `"BroadsideGameSave"` on load.
 
 ---
 
-## 10. Example Workflows
+## 11. Example Workflows
 
 ### Saving a Game
 ```javascript
 // In engine_core.js (SAVE_GAME action)
 case A.SAVE_GAME:
-  localStorage.setItem("BroadsideGameSave", JSON.stringify(state));
-  return state;
+  window.L.saveToLocalStorage(state);
+  return { ...state };
 ```
 
 ### Loading a Game
 ```javascript
 // In engine_core.js (LOAD_GAME action)
-case A.LOAD_GAME:
-  let raw = localStorage.getItem("BroadsideGameSave");
-  if (!raw) {
-    raw = localStorage.getItem("piratesSave"); // legacy fallback
-    if (raw) {
-      localStorage.setItem("BroadsideGameSave", raw);
-      localStorage.removeItem("piratesSave");
-    }
+case A.LOAD_GAME: {
+  try {
+    const raw = window.L.loadFromLocalStorage();
+    if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
+    const loaded = window.E.migrateState(raw);
+    const currentPort = loaded.currentPort || "portRoyal";
+    return {
+      ...loaded,
+      screen: "port",
+      activeEvent: null,
+      portMarket: G.generatePortMarket(currentPort),
+      missions: G.generateMissions(currentPort, loaded),
+    };
+  } catch (e) {
+    return { ...state, log: [...state.log, "Failed to load save. Corrupted data."] };
   }
-  if (!raw) return { ...state, log: [...state.log, "No saved game found."] };
-  const parsed = JSON.parse(raw);
-  const loaded = E.migrateState(parsed);
-  return {
-    ...loaded,
-    screen: "port",
-    portMarket: G.generatePortMarket(loaded.currentPort, loaded),
-    missions: G.generateMissions(loaded.currentPort, loaded)
-  };
+}
 ```
 
 ### Exporting a Save File
@@ -373,7 +404,7 @@ reader.readAsText(file);
 
 ---
 
-## 11. Storage Key Reference
+## 12. Storage Key Reference
 
 | Purpose | Key | Format |
 |---|---|---|
@@ -381,6 +412,12 @@ reader.readAsText(file);
 | Game save (legacy) | `"piratesSave"` | `JSON.stringify(state)` (fallback only) |
 | Tutorial state | `"broadside_tutorial"` | `JSON.stringify({ enabled, seen })` |
 | Discovery seen list | `"BroadsideSeenDiscoveries"` | `JSON.stringify(string[])` |
-```
 
 ---
+
+## 13. Recent Refactors
+
+- **Persistence ownership centralized**: All direct `localStorage` calls removed from `engine_core.js` and `App.jsx`. They now delegate to `L.saveToLocalStorage`, `L.loadFromLocalStorage`, `L.clearLocalStorage`, `L.getSeenDiscoveries`, and `L.setSeenDiscovery`.
+- **`loadFromLocalStorage`** handles legacy key migration internally.
+- **`saveToLocalStorage`** and `clearLocalStorage` added for completeness.
+- **Discovery persistence** moved from `App.jsx` to `storage.js`.

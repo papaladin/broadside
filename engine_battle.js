@@ -13,8 +13,6 @@
   //  HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
   // ── Build a narrative round log using the combined templates ───────
   const buildRoundLog = (phase, playerAction, npcAction, result, battle, state) => {
     const T = D.COMBAT_LOG_TEMPLATES;
@@ -192,20 +190,6 @@
     return "";
   };
 
-  // ── Apply crew loss to state ──────────────────────────────────────────
-  const applyCrewLossToState = (state, crewLoss) => {
-    if (crewLoss <= 0) return { state, lostNames: [], lostCount: 0 };
-    const safeLoss = Math.min(crewLoss, state.crew.roster.length);
-    if (safeLoss <= 0) return { state, lostNames: [], lostCount: 0 };
-    const { newRoster, removed } = L.removeRandomCrew(state.crew.roster, safeLoss);
-    const lostNames = removed.map(m => `${m.firstName} ${m.lastName}`);
-    return {
-      state: { ...state, crew: { ...state.crew, roster: newRoster } },
-      lostNames,
-      lostCount: safeLoss,
-    };
-  };
-
   // ── Apply victory aftermath (upset tagging, battle scars) ───────────
   const applyVictoryAftermath = (currentState) => {
     const session = currentState.encounterSession;
@@ -255,16 +239,15 @@
   };
 
   // ── Handles all victory‑with‑plunder outcomes ────────────────────────
-  // FIX: added battleLogMessage parameter to also append to battle log
-  const handleVictoryWithPlunder = (state, session, battle, result, logMessage, battleLogMessage) => {
-    const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+  const handleVictoryWithPlunder = (state, session, battle, result, logMessage) => {
+    const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
     const updatedState = crewResult.state;
     const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
     const enemy = session.enemy;
     const plunder = G.generateEnemyCargo(state, enemy, enemy.risk || "medium");
 
     // Append the victory message to the battle log
-    const updatedBattleLog = [...battle.log, battleLogMessage];
+    const updatedBattleLog = [...battle.log, logMessage];
 
     const newBattle = {
       ...battle,
@@ -276,7 +259,7 @@
       canPlunder: true,
       goldReward: plunder.gold,
       enemyCargo: plunder.cargo,
-      log: updatedBattleLog, // <-- now includes victory message
+      log: updatedBattleLog,
       lostCrewNames: newLostNames,
     };
     const newSession = { ...session, battle: newBattle };
@@ -322,62 +305,6 @@
       log: [...currentState.log, window.E.logEntry(currentState, L.logPick(D.FLED_MESSAGES, currentState)), window.E.logEntry(currentState, "The mission is a failure.")],
     };
   };
-
-  // ── WASH ASHORE (generalized defeat handler) ──────────────────────────
-  const washAshore = (state, battleState = null, extraLog = []) => {
-    const returnPort = state.previousPort || state.currentPort;
-    const portName = D.PORTS[returnPort]?.name || "a nearby port";
-
-    const session = state.encounterSession;
-    const isMissionFight = session && (
-      session.type === "mission_combat" ||
-      session.type === "escort_defend"
-    );
-    const missionFailed = isMissionFight && state.activeMission;
-
-    const defeatLog = session
-      ? L.logPick(D.DEFEAT_MESSAGES, state, session.enemy?.name || "unknown", portName)
-      : `The ship, crippled and adrift, washes ashore near ${portName}.`;
-
-    const infamyGain = session && (extraLog.length > 0 || session.type === "navy_patrol") ? 2 : 0;
-
-    const result = {
-      ...state,
-      encounterSession: null,
-      activeMission: missionFailed ? null : state.activeMission,
-      screen: "port",
-      currentPort: returnPort,
-      destination: null,
-      sailingDaysLeft: 0,
-      sailingDaysTotal: 0,
-      hold: {
-        ...state.hold,
-        items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
-      },
-      portMarket: G.generatePortMarket(returnPort, state),
-      missions: G.generateMissions(returnPort, state),
-      infamy: Math.min(999, (state.infamy ?? 0) + infamyGain),
-      log: [
-        ...state.log,
-        window.E.logEntry(state, defeatLog),
-        window.E.logEntry(state, "All cargo lost."),
-        ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
-        ...extraLog,
-      ],
-    };
-
-    const check = L.isUnrecoverable(result);
-    if (check.unrecoverable) {
-      return { ...result, screen: "gameover", gameOverReason: check.reason };
-    }
-    return result;
-  };
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  EXPOSE SHARED HELPERS FOR OTHER ENGINE FILES
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  window.E.applyCrewLossToState = applyCrewLossToState;
-  window.E.washAshore = washAshore;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REDUCER
@@ -450,20 +377,22 @@
             let nextState = { ...state, encounterSession: null, screen: newScreen, log: [...state.log, window.E.logEntry(state, logMsg)] };
             const sessionType = state.encounterSession?.type;
             if ((sessionType === "mission_combat" || sessionType === "escort_defend") && state.activeMission) {
-              nextState.activeMission = null;
-              nextState.log.push(window.E.logEntry(state, "The mission has been abandoned."));
+              nextState = {
+                ...nextState,
+                activeMission: null,
+                log: [...nextState.log, window.E.logEntry(state, "The mission has been abandoned.")]
+              };
             }
             return nextState;
           }
 
           // ---- Boarding transition ----
           case "boarding_begins": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newPlayerCrew = updatedState.crew.roster.length;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const newBattle = {
@@ -488,12 +417,11 @@
 
           // ---- Return to naval (Fall Back) ----
           case "returned_to_naval": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newPlayerCrew = updatedState.crew.roster.length;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const newBattle = {
@@ -519,7 +447,7 @@
           // ---- Continue (next round) ----
           case "continue":
           default: {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newPlayerCrew = updatedState.crew.roster.length;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
@@ -531,7 +459,6 @@
               newEnemyHull = Math.max(0, battle.enemyHull - result.enemyHullDamage);
             }
 
-            // Apply convoy damage
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const newBattle = {
@@ -559,11 +486,10 @@
           // ---- PLAYER DEFEAT ----
           case "player_sunk":
           case "player_captured": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage (for logging)
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
@@ -610,15 +536,13 @@
 
           // ---- ENEMY SUNK (no plunder) ----
           case "enemy_sunk": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newPlayerCrew = updatedState.crew.roster.length;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage (for logging)
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
-            // FIX: Append victory message to battle log
             const victoryLogMsg = `The ${enemy.name} is sunk!`;
             const updatedBattleLog = [...newLog, victoryLogMsg];
 
@@ -638,7 +562,6 @@
             const newSession = { ...session, battle: newBattle };
             let currentState = applyVictoryAftermath({ ...updatedState, encounterSession: newSession });
 
-            // Also add to state log
             return {
               ...currentState,
               encounterSession: newSession,
@@ -648,42 +571,36 @@
           }
 
           // ---- ENEMY CAPTURED / WIPEOUT / SURRENDER / DEMAND SUCCESS ----
-          // FIX: pass battleLogMessage as second log string
           case "enemy_captured":
             return handleVictoryWithPlunder(
               state, session, battle, result,
-              `The ${enemy.name} is captured!`,
               `The ${enemy.name} is captured!`
             );
 
           case "enemy_wipeout":
             return handleVictoryWithPlunder(
               state, session, battle, result,
-              `The ${enemy.name}'s crew is wiped out!`,
               `The ${enemy.name}'s crew is wiped out!`
             );
 
           case "enemy_win_capture":
             return handleVictoryWithPlunder(
               state, session, battle, result,
-              `The ${enemy.name} surrenders!`,
               `The ${enemy.name} surrenders!`
             );
 
           case "enemy_surrendered":
             return handleVictoryWithPlunder(
               state, session, battle, result,
-              `The ${enemy.name} surrenders!`,
               `The ${enemy.name} surrenders!`
             );
 
           // ---- PLAYER WIPEOUT (defeat) ----
           case "player_wipeout": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage (for logging)
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
@@ -725,7 +642,6 @@
 
           // ---- PLAYER DEFEATED BY DEMAND (defeat) ----
           case "player_defeated_by_demand": {
-            // Apply convoy damage (for logging)
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const newBattle = {
@@ -741,11 +657,10 @@
 
           // ---- PLAYER SURRENDERED (defeat) ----
           case "player_surrendered": {
-            const crewResult = applyCrewLossToState(state, result.playerCrewLoss);
+            const crewResult = L.applyCrewLoss(state, result.playerCrewLoss);
             const updatedState = crewResult.state;
             const newLostNames = [...battle.lostCrewNames, ...crewResult.lostNames];
 
-            // Apply convoy damage (for logging)
             const { newConvoyHull, convoyLost } = applyConvoyDamage(battle, result);
 
             const newBattle = {
@@ -790,58 +705,67 @@
         }
 
         if (battle.phase === "defeat") {
-          return washAshore(state, battle, patrolLog);
+          return window.E.washAshore(state, battle, patrolLog);
         }
 
-        let currentState = applyVictoryAftermath(state);
+        let nextState = applyVictoryAftermath(state);
 
         // ── Merchant / Convoy reward handling ──────────────────────────
-        // Only applies when:
-        // - The battle was won (victory phase)
-        // - The session has merchantProtected flag (from distress_merchant event)
-        // - OR it's an escort mission (activeMission.type === "escort")
         if (battle.phase === "victory") {
-          const isEscort = currentState.activeMission?.type === "escort";
+          const isEscort = nextState.activeMission?.type === "escort";
           const isMerchantDefense = session.merchantProtected === true;
 
           if (isMerchantDefense || isEscort) {
             const merchantFaction = session.merchantFaction ||
-              (isEscort ? currentState.activeMission?.faction : null);
+              (isEscort ? nextState.activeMission?.faction : null);
 
             if (!battle.convoyLost) {
               // ── Convoy survived ──
               if (isMerchantDefense && merchantFaction) {
                 const bonusGold = 200 + Math.floor(Math.random() * 200);
                 const bonusRep = { [merchantFaction]: 5 };
-                currentState.gold += bonusGold;
-                currentState.reputation = L.applyReputationImpact(currentState, bonusRep);
-                currentState.log.push(window.E.logEntry(currentState,
-                  `The merchant is saved! You receive ${bonusGold}g and gratitude from the ${FACTIONS[merchantFaction]?.label || merchantFaction}.`
-                ));
+                nextState = {
+                  ...nextState,
+                  gold: (nextState.gold ?? 0) + bonusGold,
+                  reputation: L.applyReputationImpact(nextState, bonusRep),
+                  log: [...nextState.log, window.E.logEntry(nextState,
+                    `The merchant is saved! You receive ${bonusGold}g and gratitude from the ${FACTIONS[merchantFaction]?.label || merchantFaction}.`
+                  )],
+                };
               } else if (isEscort && merchantFaction) {
                 // Escort mission: convoy survived → mission can be completed
-                // (COMPLETE_MISSION will handle the actual reward)
-                currentState.log.push(window.E.logEntry(currentState,
-                  `The convoy is safe! You protected them against the attack.`
-                ));
+                nextState = {
+                  ...nextState,
+                  log: [...nextState.log, window.E.logEntry(nextState,
+                    `The convoy is safe! You protected them against the attack.`
+                  )],
+                };
               }
             } else {
               // ── Convoy was destroyed ──
               if (isMerchantDefense) {
-                currentState.log.push(window.E.logEntry(currentState,
-                  "The merchant ship was destroyed. There is no reward for the rescue."
-                ));
+                nextState = {
+                  ...nextState,
+                  log: [...nextState.log, window.E.logEntry(nextState,
+                    "The merchant ship was destroyed. There is no reward for the rescue."
+                  )],
+                };
               } else if (isEscort) {
                 // Escort mission: convoy destroyed → mission fails
-                currentState.log.push(window.E.logEntry(currentState,
-                  "The convoy was destroyed! The escort mission has failed."
-                ));
-                // Mark mission as failed so COMPLETE_MISSION won't reward it
-                if (currentState.activeMission) {
-                  currentState.activeMission = {
-                    ...currentState.activeMission,
-                    convoyLost: true,
-                    failed: true,
+                nextState = {
+                  ...nextState,
+                  log: [...nextState.log, window.E.logEntry(nextState,
+                    "The convoy was destroyed! The escort mission has failed."
+                  )],
+                };
+                if (nextState.activeMission) {
+                  nextState = {
+                    ...nextState,
+                    activeMission: {
+                      ...nextState.activeMission,
+                      convoyLost: true,
+                      failed: true,
+                    },
                   };
                 }
               }
@@ -850,12 +774,9 @@
         }
 
         // ── Resist inspection: victory ──
-        // If the player won the battle after resisting inspection, they keep their cargo
         if (battle.phase === "victory" && session.inspectionContraband && session.inspectionRefused) {
-          // +3 infamy (more than hand-over's +2)
-          currentState.infamy = Math.min(999, (currentState.infamy ?? 0) + 3);
-          // -8 reputation with the inspecting faction
           const inspectingFaction = session.enemy.faction;
+          let reputation = nextState.reputation;
           if (inspectingFaction) {
             const repImpact = {};
             Object.keys(PORTS).forEach(portKey => {
@@ -863,34 +784,35 @@
                 repImpact[portKey] = -8;
               }
             });
-            currentState.reputation = L.applyReputationImpact(currentState, repImpact);
+            reputation = L.applyReputationImpact(nextState, repImpact);
           }
-          // -5 morale (you fought your way out)
-          currentState.crew = { ...currentState.crew, morale: Math.max(0, currentState.crew.morale - 5) };
-          // Log
-          currentState.log.push(window.E.logEntry(currentState,
-            "You defeated the patrol! Your cargo remains intact. But you have earned a powerful enemy."
-          ));
-          // Clear the inspection data so it's not processed again
-          currentState.encounterSession.inspectionContraband = null;
+
+          nextState = {
+            ...nextState,
+            infamy: Math.min(999, (nextState.infamy ?? 0) + 3),
+            reputation,
+            crew: { ...nextState.crew, morale: Math.max(0, nextState.crew.morale - 5) },
+            log: [...nextState.log, window.E.logEntry(nextState,
+              "You defeated the patrol! Your cargo remains intact. But you have earned a powerful enemy."
+            )],
+            encounterSession: {
+              ...nextState.encounterSession,
+              inspectionContraband: null,
+            },
+          };
         }
 
         // ── Resist inspection: defeat ──
-        // If the player lost the battle after resisting inspection, apply hand-over penalties
         if (battle.phase === "defeat" && session.inspectionContraband && session.inspectionRefused) {
           const contraband = session.inspectionContraband;
           const inspectingFaction = session.enemy.faction;
 
-          // Apply hand-over consequences (same as RESOLVE_INSPECTION handOver)
-          let newHoldItems = L.applyLoseContraband(currentState.hold?.items || {});
+          let newHoldItems = L.applyLoseContraband(nextState.hold?.items || {});
           if (contraband.hasRumSmuggle) {
             newHoldItems.rum = 0;
           }
 
-          currentState.gold = Math.max(0, currentState.gold - contraband.fine);
-          currentState.hold = { ...currentState.hold, items: newHoldItems };
-          currentState.infamy = Math.min(999, (currentState.infamy ?? 0) + 2);
-
+          let reputation = nextState.reputation;
           if (inspectingFaction) {
             const repImpact = {};
             Object.keys(PORTS).forEach(portKey => {
@@ -898,43 +820,43 @@
                 repImpact[portKey] = -5;
               }
             });
-            currentState.reputation = L.applyReputationImpact(currentState, repImpact);
+            reputation = L.applyReputationImpact(nextState, repImpact);
           }
 
-          currentState.crew = { ...currentState.crew, morale: Math.max(0, currentState.crew.morale - 10) };
+          const finalState = {
+            ...nextState,
+            gold: Math.max(0, (nextState.gold ?? 0) - contraband.fine),
+            hold: { ...nextState.hold, items: newHoldItems },
+            infamy: Math.min(999, (nextState.infamy ?? 0) + 2),
+            reputation,
+            crew: { ...nextState.crew, morale: Math.max(0, nextState.crew.morale - 10) },
+            log: [...nextState.log, window.E.logEntry(nextState,
+              "You fought but were defeated. The patrol confiscates your contraband and fines you."
+            )],
+            encounterSession: null,
+            screen: L.returnScreen(nextState),
+          };
 
-          currentState.log.push(window.E.logEntry(currentState,
-            "You fought but were defeated. The patrol confiscates your contraband and fines you."
-          ));
-
-          // Clear the session and return to port/sailing
-          currentState.encounterSession = null;
-          currentState.screen = L.returnScreen(currentState);
-
-          // ── IMPORTANT: Return early to skip normal defeat flow (wash-ashore) ──
-          return currentState;
+          return finalState;
         }
 
-
-
-
-        const patrolResult = handlePatrolVictory(currentState);
+        const patrolResult = handlePatrolVictory(nextState);
         if (patrolResult) return patrolResult;
 
         if (battle.phase === "fled") {
-          const fledResult = handleFledMission(currentState);
+          const fledResult = handleFledMission(nextState);
           if (fledResult) return fledResult;
         }
 
-        const returnToSailing = session.returnScreen === "sailing" && currentState.destination && currentState.sailingDaysLeft > 0;
+        const returnToSailing = session.returnScreen === "sailing" && nextState.destination && nextState.sailingDaysLeft > 0;
         const finalState = {
-          ...currentState,
+          ...nextState,
           encounterSession: null,
           screen: returnToSailing ? "sailing" : (session.returnScreen || "port"),
-          infamy: Math.min(999, (currentState.infamy ?? 0) + patrolInfamy),
+          infamy: Math.min(999, (nextState.infamy ?? 0) + patrolInfamy),
           log: [
-            ...currentState.log,
-            window.E.logEntry(currentState, L.logPick(D.VICTORY_MESSAGES, currentState, session.enemy.name)),
+            ...nextState.log,
+            window.E.logEntry(nextState, L.logPick(D.VICTORY_MESSAGES, nextState, session.enemy.name)),
             ...patrolLog,
           ],
         };
@@ -950,10 +872,12 @@
         const finalHoldItems = action.holdItems;
         const plunderMsg = L.logPick(D.PLUNDER_MESSAGES, state, session.enemy.name);
 
-        // ── Mark patrol/combat missions as defeated ──────────────────────────
         let nextState = { ...state };
         if (state.activeMission && (state.activeMission.type === "patrol" || state.activeMission.type === "combat")) {
-          nextState.activeMission = { ...state.activeMission, enemyDefeated: true };
+          nextState = {
+            ...nextState,
+            activeMission: { ...state.activeMission, enemyDefeated: true },
+          };
         }
 
         return {

@@ -307,27 +307,7 @@ const App = () => {
     const handleBeforeUnload = () => {
       const s = stateRef.current;
       if (s.autoSave === false) return;
-
-      // ── GUARD: Skip saving if this is the debug state ──
-      const isDebugState =
-        s.ship?.type === "sloop" &&
-        s.ship?.hull === 0 &&
-        s.gold === 1000 &&
-        s.crew?.roster?.length === 1 &&
-        s.day === 1 &&
-        s.fame === 0 &&
-        s.infamy === 0;
-
-      if (isDebugState) {
-        // Silently skip – don't overwrite a valid save with debug state
-        return;
-      }
-
-      try {
-        localStorage.setItem("BroadsideGameSave", JSON.stringify(s));
-      } catch (e) {
-        // Silently fail – don't block the reload
-      }
+      window.L.saveToLocalStorage(s);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -344,22 +324,8 @@ const App = () => {
   const [debugOpen, setDebugOpen] = React.useState(false);
 
   // ── Hidden port discovery popup ──────────────────────────────────
-  const SEEN_DISCOVERY_KEY = "BroadsideSeenDiscoveries";
-  const getSeenDiscoveries = () => {
-    try {
-      const raw = localStorage.getItem(SEEN_DISCOVERY_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  };
-  const markDiscoverySeen = (portName) => {
-    try {
-      const seen = getSeenDiscoveries();
-      if (!seen.includes(portName)) {
-        seen.push(portName);
-        localStorage.setItem(SEEN_DISCOVERY_KEY, JSON.stringify(seen));
-      }
-    } catch {}
-  };
+  const getSeenDiscoveries = () => window.L.getSeenDiscoveries();
+  const markDiscoverySeen = (portName) => window.L.setSeenDiscovery(portName);
 
   const prevDiscoveredRef = React.useRef(state.discoveredPorts || []);
   const [discoveryPopup, setDiscoveryPopup] = React.useState(null);
@@ -370,16 +336,11 @@ const App = () => {
     if (!seededForSessionRef.current && state.screen === "port") {
       const seen = getSeenDiscoveries();
       const discoveredHidden = state.discoveredPorts.filter(p => window.D.PORTS[p]?.hidden);
-      let changed = false;
       for (const portKey of discoveredHidden) {
         const portName = window.D.PORTS[portKey]?.name || portKey;
         if (!seen.includes(portName)) {
-          seen.push(portName);
-          changed = true;
+          window.L.setSeenDiscovery(portName);
         }
-      }
-      if (changed) {
-        localStorage.setItem(SEEN_DISCOVERY_KEY, JSON.stringify(seen));
       }
       seededForSessionRef.current = true;
       prevDiscoveredRef.current = state.discoveredPorts || [];

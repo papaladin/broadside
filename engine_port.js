@@ -348,7 +348,7 @@ case A.ENTER_PORT: {
   }
 
   if (combatEncounter) {
-    const encounterContext = L.buildEncounterContext(state, combatEncounter.type, combatEncounter.enemy);
+    const encounterContext = L.buildEncounterContext(state, combatEncounter.type, combatEncounter.enemy, { kind: "port", id: state.destination });
     const logMsg = state.activeMission?.type === "assault"
       ? `Arrived at ${port.name}. The garrison is on high alert!`
       : `Arrived at ${port.name}. Hostile port!`;
@@ -426,6 +426,17 @@ if (
 
   if (state.autoSave !== false) autoSave(nextState);
   return nextState;
+}
+
+// --- PREVIEW PORT MARKET ---
+case A.PREVIEW_PORT: {
+   const targetPortKey = action.port;
+    if (!targetPortKey || !PORTS[targetPortKey]) return state;
+      const previewMarket = G.generatePortMarket(targetPortKey, state);
+    return {
+      ...state,
+     previewPortMarket: previewMarket,
+  };
 }
 
 // --------------------- PORT ACTIONS --------------------------------
@@ -670,7 +681,7 @@ if (
 
         // ── Instant combat mission: jump straight into intercept ──────
        if (mission.type === "combat" && mission.enemy) {
-        const encounterContext = L.buildEncounterContext(state, "mission_combat", mission.enemy);
+        const encounterContext = L.buildEncounterContext(state, "mission_combat", mission.enemy,  { kind: "mission", id: mission.id });
         // ── B1.4 batch: use encounterSession instead of encounterContext ──
         return {
           ...state,

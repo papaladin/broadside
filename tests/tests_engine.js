@@ -951,7 +951,7 @@ reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatr
 
   // ── NEW: PATROL_INSPECT tests ──────────────────────────────────────────
 
-  reg("E.PATROL.01", "PATROL_INSPECT: seizes contraband, applies fine, rep/infamy/morale penalties", (u) => {
+ reg("E.PATROL.01", "PATROL_INSPECT: seizes contraband, applies fine, rep/infamy/morale penalties", (u) => {
     const items = { food: 5, water: 5, tobacco: 4, slaves: 1 };
     const s0 = makePortState("portRoyal", {
       gold: 500,
@@ -973,18 +973,19 @@ reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatr
     };
     const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
     const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
+    // Now handle over:
+    const s2 = dispatch(s1, A.RESOLVE_INSPECTION, { choice: "handOver" });
 
-    // Value: tobacco 90*4=360, slaves 220*1=220, total 580. Fine rate 20% → 116, rounded to nearest 25 → 125
-    u.assertEqual(s1.gold, 375, "gold reduced by fine (500 - 125)");
-    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
-    u.assertEqual(s1.hold.items.slaves, 0, "slaves seized");
-    u.assertEqual(s1.hold.items.food, 5, "food preserved");
-    u.assertEqual(s1.infamy, 2, "infamy +2");
-    u.assertEqual(s1.crew.morale, 70, "morale -10");
-    // Reputation: should be -5 from all ports of that faction
-    const repAfter = s1.reputation[s1.currentPort];
+    // Value: tobacco 90*4=360, slaves 220*1=220, total 580, fine 20% = 116 → rounded to 125
+    u.assertEqual(s2.gold, 375, "gold reduced by fine (500 - 125)");
+    u.assertEqual(s2.hold.items.tobacco, 0, "tobacco seized");
+    u.assertEqual(s2.hold.items.slaves, 0, "slaves seized");
+    u.assertEqual(s2.hold.items.food, 5, "food preserved");
+    u.assertEqual(s2.infamy, 2, "infamy +2");
+    u.assertEqual(s2.crew.morale, 70, "morale -10");
+    const repAfter = s2.reputation[s2.currentPort];
     u.assertEqual(repAfter, 55, "reputation -5");
-    u.assert(s1.encounterSession === null, "encounter cleared");
+    u.assert(s2.encounterSession === null, "encounter cleared");
   });
 
   reg("E.PATROL.02", "PATROL_INSPECT: Hidden Compartment can avoid detection", (u) => {
@@ -1048,16 +1049,16 @@ reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatr
     };
     const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
 
-    // Force the avoid chance to fail (random > 0.50)
+    // Force avoid chance to fail (random > 0.50)
     setRandomSequence([0.9]);
     const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
     resetRandomStub();
+    const s2 = dispatch(s1, A.RESOLVE_INSPECTION, { choice: "handOver" });
 
-    // Contraband should be seized
-    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
+    u.assertEqual(s2.hold.items.tobacco, 0, "tobacco seized");
     // Fine: 2*90 = 180, *0.20 = 36 → rounded to 25
-    u.assertEqual(s1.gold, 475, "gold reduced by fine (500 - 25)");
-    u.assertEqual(s1.infamy, 2, "infamy +2");
+    u.assertEqual(s2.gold, 475, "gold reduced by fine (500 - 25)");
+    u.assertEqual(s2.infamy, 2, "infamy +2");
   });
 
 
@@ -1831,5 +1832,18 @@ reg("E.CONVOY.07", "COMPLETE_MISSION: allows escort completion when convoy survi
     u.assert(Array.isArray(eq.rigging)   && eq.rigging.length === 0,   "rigging slot empty");
     u.assert(Array.isArray(eq.special)   && eq.special.length === 0,   "special slot empty");
   });
+
+  reg("E.CAREER.01", "initialState.career is not shared with D.DEFAULT_CAREER", (u) => {
+  const s = window.E.initialState;
+  u.assert(s.career !== window.D.DEFAULT_CAREER, "references differ");
+  u.assert(s.career.portsVisited !== window.D.DEFAULT_CAREER.portsVisited, "nested arrays differ");
+});
+
+reg("E.PREVIEW.01", "PREVIEW_PORT sets previewPortMarket", (u) => {
+  const s0 = makePortState("portRoyal");
+  const s1 = dispatch(s0, A.PREVIEW_PORT, { port: "tortuga" });
+  u.assert(s1.previewPortMarket !== null, "previewPortMarket set");
+  u.assert(s1.previewPortMarket.goods.sugar !== undefined, "market has goods");
+});
 
 })();

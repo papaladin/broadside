@@ -1,18 +1,14 @@
 // @ts-check
 // engine_encounter.js – Encounter Setup & Events (Intercept, Events, Merchant Encounters)
 // Registers its reducer into window.E._reducers.
-// Depends on engine_battle.js for applyCrewLossToState and washAshore.
+// Depends on engine_core.js for A and buildEncounterSession, logic for combat helpers.
 
 (() => {
-  const { A, autoSave, buildEncounterSession } = window.E;
+  const { A, buildEncounterSession } = window.E;
   const { PORTS, FACTIONS, SURRENDER_CONSEQUENCE } = window.D;
   const D = window.D;
   const L = window.L;
   const G = window.G;
-
-  // ── Import shared helpers from engine_battle.js ─────────────────────
-  const applyCrewLossToState = window.E.applyCrewLossToState;
-  const washAshore = window.E.washAshore;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  HELPERS
@@ -20,61 +16,87 @@
 
   // Builds the battle sub‑object from an intercept session.
   // Used by INTERCEPT_FIGHT, INTERCEPT_FLEE (failure), and INTERCEPT_PARLEY (failure).
-  const buildBattleFromIntercept = (state, session, openingLog) => ({
-    round: 1,
-    log: [openingLog],
-    playerHull: state.ship.hull,
-    playerCrew: state.crew.roster.length,
-    initialPlayerCrew: state.crew.roster.length,
-    lostCrewNames: [],
-    enemyHull: session.enemy.hull,
-    enemyCrew: session.enemy.crew,
-    distance: window.L.initialDistanceFor(session.type),
-    subPhase: "naval",
-    // ── Convoy hull: 50% of player's max hull, for both escort and merchant defense ──
-    ...(session.type === "escort_defend" || session.type === "distressed_merchant_help"
-      ? { convoyHull: Math.floor(window.L.getShipStats(state).maxHull / 2) }
-      : {}
-    ),
-  });
+    const createBattleState = (state, session, options = {}) => {
+      const { subPhase = "naval", distance = window.L.initialDistanceFor(session.type), openingLog = `You engage the ${session.enemy.name}!` } = options;
+      const battle = {
+        round: 1,
+        log: [openingLog],
+        playerHull: state.ship.hull,
+        playerCrew: state.crew.roster.length,
+        initialPlayerCrew: state.crew.roster.length,
+        lostCrewNames: [],
+        enemyHull: session.enemy.hull,
+        enemyCrew: session.enemy.crew,
+        distance,
+        subPhase,
+        // Convoy hull for escort and merchant defense
+        ...(session.type === "escort_defend" || session.type === "distressed_merchant_help"
+          ? { convoyHull: Math.floor(window.L.getShipStats(state).maxHull / 2) }
+          : {}
+        ),
+      };
+      return battle;
+    };
 
+  // ── WASH ASHORE (generalized defeat handler) ──────────────────────────
+  const washAshore = (state, battleState = null, extraLog = []) => {
+    const returnPort = state.previousPort || state.currentPort;
+    const portName = D.PORTS[returnPort]?.name || "a nearby port";
 
-  // Builds a battle sub‑object starting directly in boarding phase.
-  // Used by RESOLVE_INSPECTION (resist seizure).
-  const buildBoardingBattleFromIntercept = (state, session, openingLog) => ({
-    round: 1,
-    log: [openingLog],
-    playerHull: state.ship.hull,
-    playerCrew: state.crew.roster.length,
-    initialPlayerCrew: state.crew.roster.length,
-    lostCrewNames: [],
-    enemyHull: session.enemy.hull,
-    enemyCrew: session.enemy.crew,
-    distance: "close",
-    subPhase: "boarding",
-  });
+    const session = state.encounterSession;
+    const isMissionFight = session && (
+      session.type === "mission_combat" ||
+      session.type === "escort_defend"
+    );
+    const missionFailed = isMissionFight && state.activeMission;
+
+    const defeatLog = session
+      ? L.logPick(D.DEFEAT_MESSAGES, state, session.enemy?.name || "unknown", portName)
+      : `The ship, crippled and adrift, washes ashore near ${portName}.`;
+
+    const infamyGain = session && (extraLog.length > 0 || session.type === "navy_patrol") ? 2 : 0;
+
+    const result = {
+      ...state,
+      encounterSession: null,
+      activeMission: missionFailed ? null : state.activeMission,
+      screen: "port",
+      currentPort: returnPort,
+      destination: null,
+      sailingDaysLeft: 0,
+      sailingDaysTotal: 0,
+      hold: {
+        ...state.hold,
+        items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
+      },
+      portMarket: G.generatePortMarket(returnPort, state),
+      missions: G.generateMissions(returnPort, state),
+      infamy: Math.min(999, (state.infamy ?? 0) + infamyGain),
+      log: [
+        ...state.log,
+        window.E.logEntry(state, defeatLog),
+        window.E.logEntry(state, "All cargo lost."),
+        ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
+        ...extraLog,
+      ],
+    };
+
+    const check = L.isUnrecoverable(result);
+    if (check.unrecoverable) {
+      return { ...result, screen: "gameover", gameOverReason: check.reason };
+    }
+    return result;
+  };
 
   const applyNavyPatrolSurrender = (state, encounterSession) => {
     const consequence = window.D.SURRENDER_CONSEQUENCE.navy_patrol;
     const activeMission = state.activeMission;
-    const items = state.hold?.items || {};
+    // Use the centralized contraband info (A8)
+    const contrabandInfo = L.getPatrolContrabandInfo(state, consequence.goldFinePct);
+    const { hasTobacco, hasSlaves, hasRumSmuggle, seizedValue, fine } = contrabandInfo;
 
-    // Calculate contraband value
-    const hasTobacco = (items.tobacco || 0) > 0;
-    const hasSlaves  = (items.slaves  || 0) > 0;
-    const hasRumSmuggle = activeMission?.type === "smuggle"
-      && activeMission?.requiredGood === "rum"
-      && (items.rum || 0) > 0;
-
-    let seizedValue = 0;
-    if (hasTobacco) seizedValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
-    if (hasSlaves)  seizedValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
-    if (hasRumSmuggle) seizedValue += (items.rum     || 0) * (window.D.RESOURCES.rum?.basePrice     || 30);
-
-    const fine = Math.round(seizedValue * consequence.goldFinePct / 25) * 25;
-
-    // Start with standard contraband removal (tobacco, slaves)
-    let newHoldItems = window.L.applyLoseContraband(items);
+    // Apply standard contraband removal (tobacco, slaves)
+    let newHoldItems = L.applyLoseContraband(state.hold?.items || {});
     if (hasRumSmuggle) newHoldItems.rum = 0;
 
     // Apply 50% cargo loss to non-contraband goods (exclude food/water for safety)
@@ -93,33 +115,21 @@
       crew: { ...state.crew, morale: Math.max(0, state.crew.morale - consequence.moralePenalty) },
       infamy: Math.min(999, (state.infamy ?? 0) + consequence.infamyGain),
       reputation: consequence.rep_loss
-        ? window.L.applyReputationImpact(state, { [encounterSession.enemy.faction]: -consequence.rep_loss })
+        ? L.applyReputationImpact(state, { [encounterSession.enemy.faction]: -consequence.rep_loss })
         : state.reputation,
-      screen: window.L.returnScreen(state),
+      screen: L.returnScreen(state),
     };
 
     // ── Build prose log ──────────────────────────────────────────────
     const logParts = [];
     logParts.push("You surrendered to the patrol");
 
-    if (fine > 0) {
-      logParts.push(`you paid a fine of ${fine}g`);
-    }
-    if (consequence.moralePenalty) {
-      logParts.push(`your crew morale took a hit (${consequence.moralePenalty} points)`);
-    }
-    if (consequence.infamyGain) {
-      logParts.push(`+${consequence.infamyGain} infamy`);
-    }
-    if (consequence.rep_loss) {
-      logParts.push(`your reputation with the ${window.D.FACTIONS[encounterSession.enemy.faction]?.label || encounterSession.enemy.faction} suffered (${consequence.rep_loss} points)`);
-    }
-    if (hasTobacco || hasSlaves || hasRumSmuggle) {
-      logParts.push("your illegal goods were confiscated");
-    }
-    if (consequence.loseCargoPercent) {
-      logParts.push(`${consequence.loseCargoPercent}% of your other cargo was seized`);
-    }
+    if (fine > 0) logParts.push(`you paid a fine of ${fine}g`);
+    if (consequence.moralePenalty) logParts.push(`your crew morale took a hit (${consequence.moralePenalty} points)`);
+    if (consequence.infamyGain) logParts.push(`+${consequence.infamyGain} infamy`);
+    if (consequence.rep_loss) logParts.push(`your reputation with the ${window.D.FACTIONS[encounterSession.enemy.faction]?.label || encounterSession.enemy.faction} suffered (${consequence.rep_loss} points)`);
+    if (hasTobacco || hasSlaves || hasRumSmuggle) logParts.push("your illegal goods were confiscated");
+    if (consequence.loseCargoPercent) logParts.push(`${consequence.loseCargoPercent}% of your other cargo was seized`);
 
     let logMessage = logParts.join(". ");
     logMessage = logMessage.replace(/(^|\.\s+)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
@@ -129,8 +139,6 @@
 
     return s;
   };
-
-  window.E.applyNavyPatrolSurrender = applyNavyPatrolSurrender;
 
   // ── Event handlers ──────────────────────────────────────────────────
 
@@ -211,6 +219,12 @@
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  EXPOSE SHARED HELPERS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  window.E.washAshore = washAshore;
+  window.E.applyNavyPatrolSurrender = applyNavyPatrolSurrender;
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REDUCER
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -229,28 +243,22 @@
         if (!session || session.phase !== "intercept") return state;
 
         // Build battle object using the shared helper
-        const battle = buildBattleFromIntercept(state, session, `You engage the ${session.enemy.name}!`);
+        const battle = createBattleState(state, session, { subPhase: "naval", distance: window.L.initialDistanceFor(session.type), openingLog: `You engage the ${session.enemy.name}!` });
 
         // Tutorial hunt opening shot
-        let modifiers = session.modifiers || [];
         if (state.activeMission?.tutorial && !state.activeMission?.requiredGood) {
           battle.log = ["The Rat fires a hasty shot, grazing your hull!", ...battle.log];
           battle.playerHull = Math.max(0, battle.playerHull - 1);
-          modifiers = [
-            ...modifiers,
-            { id: "tutorial_warmup", scope: "battle_start", effect: { playerHullDelta: -1 } }
-          ];
         }
 
         const newSession = {
           ...session,
           phase: "battle",
-          modifiers: modifiers,
           intercept: null,
           battle: battle,
           plunder: null,
-          aiDisposition: L.computeAIDisposition(state, session.enemy, session.type),
         };
+
         // Mark that the player refused inspection (relevant for surrender consequences)
         if (session.type === "navy_patrol") {
           newSession.inspectionRefused = true;
@@ -279,7 +287,7 @@
           return s;
         }
         // Failed flee → battle
-        const battle = buildBattleFromIntercept(state, ctx, "Escape failed! The enemy closes in.");
+        const battle = createBattleState(state, ctx, { subPhase: "naval", distance: window.L.initialDistanceFor(ctx.type), openingLog: "Escape failed! The enemy closes in." });
         const newSession = {
           ...ctx,
           phase: "battle",
@@ -311,7 +319,7 @@
           };
         }
         // Failed parley → battle
-        const battle = buildBattleFromIntercept(state, ctx, "Your parley failed. They attack!");
+        const battle = createBattleState(state, ctx, { subPhase: "naval", distance: window.L.initialDistanceFor(ctx.type), openingLog: "Your parley failed. They attack!" });
         const newSession = {
           ...ctx,
           phase: "battle",
@@ -371,57 +379,56 @@
 
         let s = { ...state, encounterSession: null };
 
-        // ── Apply consequences ──────────────────────────────────────────────
+        // ── Apply consequences (immutable) ──────────────────────────────────────────────
         const logParts = ["You surrendered."];
 
         if (consequence.goldFine) {
-          s.gold = Math.max(0, s.gold - consequence.goldFine);
+          s = { ...s, gold: Math.max(0, s.gold - consequence.goldFine) };
           logParts.push(`you paid a fine of ${consequence.goldFine}g`);
         }
         if (consequence.loseGoldPercent) {
           const lost = Math.round(state.gold * (consequence.loseGoldPercent / 100));
-          s.gold = Math.max(0, s.gold - lost);
+          s = { ...s, gold: Math.max(0, s.gold - lost) };
           logParts.push(`you lost ${lost}g (${consequence.loseGoldPercent}% of your gold)`);
         }
         if (consequence.moralePenalty) {
-          s.crew = { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) };
+          s = { ...s, crew: { ...s.crew, morale: Math.max(0, s.crew.morale - consequence.moralePenalty) } };
           logParts.push(`your crew morale took a hit (${consequence.moralePenalty} points)`);
         }
         if (consequence.loseDays) {
-          s.day += consequence.loseDays;
+          s = { ...s, day: s.day + consequence.loseDays };
           logParts.push(`you were imprisoned for ${consequence.loseDays} day${consequence.loseDays !== 1 ? "s" : ""}`);
         }
         if (consequence.rep_loss) {
           const portKey = state.destination ?? state.currentPort;
-          s.reputation = { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) };
+          s = { ...s, reputation: { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) } };
           logParts.push(`your reputation with the local faction suffered (${consequence.rep_loss} points)`);
         }
         if (consequence.loseCargoPercent) {
           const items = s.hold?.items || {};
-          s.hold = { ...s.hold, items: L.applyLoseCargoPercent(items, consequence.loseCargoPercent) };
+          s = { ...s, hold: { ...s.hold, items: L.applyLoseCargoPercent(items, consequence.loseCargoPercent) } };
           logParts.push(`${consequence.loseCargoPercent}% of your cargo was seized`);
         }
         if (consequence.loseContraband) {
           const items = s.hold?.items || {};
-          s.hold = { ...s.hold, items: L.applyLoseContraband(items) };
+          s = { ...s, hold: { ...s.hold, items: L.applyLoseContraband(items) } };
           // Also remove rum if it's a smuggle mission
           if (state.activeMission?.type === "smuggle" && state.activeMission?.requiredGood === "rum") {
-            s.hold.items.rum = 0;
+            s = { ...s, hold: { ...s.hold, items: { ...s.hold.items, rum: 0 } } };
           }
           logParts.push("all illegal goods were confiscated");
         }
         if (consequence.infamyGain) {
-          s.infamy = Math.min(999, (s.infamy ?? 0) + consequence.infamyGain);
+          s = { ...s, infamy: Math.min(999, (s.infamy ?? 0) + consequence.infamyGain) };
           logParts.push(`+${consequence.infamyGain} infamy`);
         }
 
         // ── Mission failure for escort/merchant defense ──────────────────
         if (ctx.type === "escort_defend" && state.activeMission?.type === "escort") {
           const mission = state.activeMission;
-          s.activeMission = null;
+          s = { ...s, activeMission: null };
           logParts.push("you abandoned the convoy – the escort mission has failed");
-          // Reputation penalty
-          s.reputation = L.applyReputationImpact(s, { [mission.faction]: -5 });
+          s = { ...s, reputation: L.applyReputationImpact(s, { [mission.faction]: -5 }) };
         } else if (ctx.type === "distressed_merchant_help") {
           logParts.push("you abandoned the merchant to their fate");
         }
@@ -431,26 +438,16 @@
         logMessage = logMessage.replace(/(^|\.\s+)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
         if (!logMessage.endsWith(".")) logMessage += ".";
 
-        s.log = [...state.log, window.E.logEntry(s, logMessage)];
+        s = { ...s, log: [...state.log, window.E.logEntry(s, logMessage)] };
 
-        s.screen = L.returnScreen(state);
+        s = { ...s, screen: L.returnScreen(state) };
         return s;
       }
 
       // --- PATROL INSPECTION ---
       case A.PATROL_INSPECT: {
-        const activeMission = state.activeMission;
-        const items = state.hold?.items || {};
-
-        const hasTobacco   = (items.tobacco || 0) > 0;
-        const hasSlaves    = (items.slaves  || 0) > 0;
-        // Rum is contraband ONLY during an active rum smuggling mission
-        const hasRumSmuggle = activeMission?.type === "smuggle"
-          && activeMission?.requiredGood === "rum"
-          && (items.rum || 0) > 0;
-        const hasContraband = hasTobacco || hasSlaves || hasRumSmuggle;
-
-        if (!hasContraband) {
+        const contrabandInfo = L.getPatrolContrabandInfo(state);
+        if (!contrabandInfo.hasContraband) {
           return {
             ...state,
             encounterSession: null,
@@ -469,25 +466,17 @@
           };
         }
 
-        // ── Calculate contraband value and fine ──
-        let seizedValue = 0;
-        if (hasTobacco)   seizedValue += (items.tobacco || 0) * (D.RESOURCES.tobacco?.basePrice || 90);
-        if (hasSlaves)    seizedValue += (items.slaves  || 0) * (D.RESOURCES.slaves?.basePrice  || 220);
-        if (hasRumSmuggle) seizedValue += (items.rum     || 0) * (D.RESOURCES.rum?.basePrice     || 30);
-
-        const fine = Math.round(seizedValue * (D.PATROL_FINE_RATE || 0.20) / 25) * 25;
-
         // ── Store inspection data on session and transition to "inspection_pending" phase ──
         const session = state.encounterSession;
         const newSession = {
           ...session,
           phase: "inspection_pending",
           inspectionContraband: {
-            hasTobacco,
-            hasSlaves,
-            hasRumSmuggle,
-            seizedValue,
-            fine,
+            hasTobacco: contrabandInfo.hasTobacco,
+            hasSlaves: contrabandInfo.hasSlaves,
+            hasRumSmuggle: contrabandInfo.hasRumSmuggle,
+            seizedValue: contrabandInfo.seizedValue,
+            fine: contrabandInfo.fine,
           },
         };
 
@@ -498,7 +487,6 @@
           log: [...state.log, "The patrol found contraband in your hold."],
         };
       }
-
 
       case A.RESOLVE_INSPECTION: {
         const session = state.encounterSession;
@@ -559,11 +547,7 @@
           }
 
           // ── Build boarding battle ──
-          const battle = buildBoardingBattleFromIntercept(
-            state,
-            session,
-            "The patrol seizes your ship! Fight them off!"
-          );
+          const battle = createBattleState(state, session, { subPhase: "boarding", distance: "close", openingLog: "The patrol seizes your ship! Fight them off!" });
 
           const newSession = {
             ...session,
@@ -583,8 +567,6 @@
 
         return state;
       }
-
-
 
       // ── EVENTS ──────────────────────────────────────────────
 
@@ -651,7 +633,7 @@
           const roster = state.crew?.roster || [];
           const actualLoss = Math.min(choice.outcome.crewLoss, roster.length);
           if (actualLoss > 0) {
-            const result = applyCrewLossToState(state, actualLoss);
+            const result = L.applyCrewLoss(state, actualLoss);
             newState.crew = { ...newState.crew, roster: result.state.crew.roster };
             const names = result.lostNames.join(", ");
             newState.log = [...newState.log, `Lost ${actualLoss} crew: ${names}.`];
@@ -787,7 +769,7 @@
       case A.ATTACK_PIRATE: {
         const merchantFaction = G.pickMerchantFaction(); // Pick the merchant's faction
         const pirateEnemy = G.generateEnemy("medium", state.fame, "pirate");
-        const context = L.buildEncounterContext(state, "distressed_merchant_help", pirateEnemy);
+        const context = L.buildEncounterContext(state, "distressed_merchant_help", pirateEnemy, { kind: "event", id: "distressed_merchant_help" });
         const encounterSession = buildEncounterSession(state, context);
         // ── Store merchant info for reward handling in DISMISS_BATTLE ──
         encounterSession.merchantFaction = merchantFaction;
@@ -807,7 +789,7 @@
         const lowerFame = lowerTier === 0 ? 0 : lowerTier * 50;
         const merchantEnemy = G.generateEnemy("low", lowerFame, faction);
         merchantEnemy.name = "Merchant Vessel";
-        const context = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy);
+        const context = L.buildEncounterContext(state, "distressed_merchant_plunder", merchantEnemy, { kind: "event", id: "distressed_merchant_plunder" });
         const encounterSession = buildEncounterSession(state, context);
         return L.addHeat(
           {
@@ -832,11 +814,9 @@
           const fame = state.fame || 0;
           const enemy = G.generateEnemy("medium", fame, ambushFaction, ambushFaction);
           enemy.name = "Wreck Ambushers";
-          const context = L.buildEncounterContext(state, "pirate_ambush", enemy);
+          const context = L.buildEncounterContext(state, "pirate_ambush", enemy, { kind: "event", id: "drifting_wreck" });
           // Preserve the wreck origin
           const session = window.E.buildEncounterSession(state, context);
-          // Override the source to preserve wreck origin
-          session.source = { kind: "event", id: "drifting_wreck" };
           return {
             ...state,
             activeEvent: null,

@@ -4,8 +4,6 @@
 
 ---
 
----
-
 ## 🌍 GAME WORLD
 
 ---
@@ -147,9 +145,11 @@ Both are **career‑wide stats** that unlock content and affect gameplay.
 |---|---|---|
 | **Hazard** | Storm, Doldrums | Hull damage, days lost, crew loss |
 | **Choice** | Distressed Merchant, Drifting Wreck, Marooned Sailors | Gold, crew, or combat depending on choice |
-| **Reward** | Treasure Map, Whale Sighting | Gold or morale boost |
+| **Reward** | Whale Sighting | Morale boost |
 | **Crew** | Mutiny, Deserters | Morale crisis, crew loss |
 | **Discovery** | Mysterious Chart, Wrecker's Map | Map fragments for hidden ports |
+
+**Storm now offers an alternative**: you can either brace for the storm (take direct damage) or seek shelter/detour (costs time, reduces damage). **Drifting Wreck** now has a low chance to be an ambush — searching is genuinely risky. **Marooned Sailors** now has a resource-based option (give supplies) that transfers actual gold/food/water.
 
 ---
 
@@ -163,8 +163,6 @@ Hidden ports are **not rendered on the map** until unlocked. Discover them via *
 | **Dry Tortugas** | Infamy ≥ 25 **AND** Pirate reputation ≥ 65 | |
 | **Las Aves** | Acquire `map_fragment_lasAves` (from *The Wrecker's Map* event, costs 5,000g) | |
 | **Libertalia** | Fame ≥ 200 **AND** `map_fragment_libertalia` (from *A Dying Sailor's Secret* event) | |
-
----
 
 ---
 
@@ -379,8 +377,6 @@ Hidden ports are **not rendered on the map** until unlocked. Discover them via *
 
 ---
 
----
-
 ## 📖 FULL GUIDE
 
 ---
@@ -396,7 +392,7 @@ Hidden ports are **not rendered on the map** until unlocked. Discover them via *
 | 0 | Dinghy | 30 | 5 | 2 | 6 | 200g | 0 | 5 | 20 | 0/0/0/0 |
 | 0 | Cutter | 60 | 20 | 6 | 12 | 1,000g | 0 | 8 | 80 | 1/0/1/0 |
 | 1 | Sloop | 100 | 40 | 10 | 11 | 4,000g | 20 | 10 | 200 | 1/1/1/0 |
-| 2 | Schooner | 110 | 55 | 8 | 11 | 20,000g | 50 | 12 | 240 | 1/1/1/1 |
+| 2 | Schooner | 110 | 55 | 8 | 11 | 20,000g | 50 | 12 | 240 | 1/0/1/1 |
 | 2 | Merchantman | 180 | 60 | 5 | 8 | 25,000g | 50 | 14 | 700 | 1/0/1/2 |
 | 2 | Brigantine | 150 | 80 | 15 | 10 | 40,000g | 50 | 14 | 448 | 1/1/1/1 |
 | 3 | Corvette | 180 | 90 | 18 | 11 | 130,000g | 100 | 16 | 500 | 1/1/1/1 |
@@ -467,8 +463,6 @@ Equipment can be **removed** to the locker (if `removable: true`) before selling
 
 ---
 
----
-
 ## Crew Management
 
 ---
@@ -500,8 +494,6 @@ Crew members accumulate **tags** over time, which affect gameplay and generate u
 
 - **Faction Loyalty**: Crew from a specific faction may become **upset** if you attack their homeland. Neglect them and they may **desert at port**.
 - **Biographies**: Each crew member has a **generated bio** reflecting their history (visible in Crew detail panel).
-
----
 
 ---
 
@@ -546,11 +538,9 @@ Crew members accumulate **tags** over time, which affect gameplay and generate u
 - **Patrol Risk**: Higher if carrying contraband (scaled by **infamy + heat**).
 - **Inspection**: Navy patrols can inspect your cargo.
   - **Hidden Compartment**: 50% chance to **avoid detection**.
-  - **Fine**: 50% of seized contraband value (PATROL_FINE_RATE).
+  - **Fine**: 20% of seized contraband value (PATROL_FINE_RATE).
   - **Slaves**: +1 **infamy** per unit purchased.
 - **Equipment Impact**: *Hidden Compartment* reduces detection chance.
-
----
 
 ---
 
@@ -610,8 +600,6 @@ Crew members accumulate **tags** over time, which affect gameplay and generate u
 
 ---
 
----
-
 ## Combat (B11 Rework)
 
 ---
@@ -626,8 +614,8 @@ Before every fight, you’ll see an **Intercept Screen** with options based on t
 | **Flee** | Attempt to escape | Speed check: `playerSpeed + roll(6)` vs `enemySpeed + roll(6)` | Forced into battle |
 | **Parley** | Talk your way out | Reputation check: `roll(100) <= min(80, rep + 20)` | Forced into battle |
 | **Bribe** | Pay gold to avoid combat | Enough gold, infamy < 50 | –Gold, –2 rep at current port |
-| **Surrender** | Avoid combat, lose resources | Always available | Varies by encounter (gold, cargo, morale, etc.) |
-| **Allow Inspection** | Navy patrols only | — | Contraband seized, fine = 50% of value |
+| **Surrender** | Avoid combat, lose resources | Always available | Varies by encounter (gold, cargo, days, etc.) |
+| **Allow Inspection** | Navy patrols only | — | Contraband seized, fine = 20% of value |
 
 ---
 
@@ -714,8 +702,6 @@ After a victory with plunder available:
 
 ---
 
----
-
 ## Controls & UI
 
 ---
@@ -754,8 +740,6 @@ After a victory with plunder available:
   - **Victory**: Gold/fame summary, **Plunder** button (if `canPlunder`), **Continue** button.
   - **Defeat**: Loss summary, **Return to Port** button.
   - **Fled**: Morale penalty note, **Continue Sailing** button.
-
----
 
 ---
 
@@ -812,8 +796,6 @@ After a victory with plunder available:
 - **Smuggling**: High profit but **risky**. *Hidden Compartment* helps with inspections.
 - **Spices & Silk**: Highest base values (**120g and 160g**) = biggest trade profits (but availability varies).
 - **Hold Management**: Use **Expanded Hold** to carry more cargo. Watch **speed penalties** at >50% load.
-
----
 
 ---
 

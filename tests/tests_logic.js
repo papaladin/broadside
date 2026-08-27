@@ -1561,20 +1561,16 @@ reg("L.TRADE.02", "getTradeOpportunity: returns best profitable trade", (u) => {
         rum: { buyFromPort: 30, sellToPort: 25, available: 15 },
       },
     },
-  });
-  // Mock generatePortMarket to return a market where rum is profitable
-  const origGenerate = window.G.generatePortMarket;
-  window.G.generatePortMarket = (portKey) => {
-    return {
+    previewPortMarket: {
       goods: {
         sugar: { sellToPort: 45 }, // -5 loss
         cloth: { sellToPort: 95 }, // -5 loss
-        rum: { sellToPort: 45 }, // +15 profit (50%)
+        rum: { sellToPort: 45 },   // +15 profit (50%)
       },
-    };
-  };
+    },
+  });
+  // Mock generatePortMarket is no longer needed; we set previewPortMarket.
   const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
-  window.G.generatePortMarket = origGenerate;
   u.assert(result !== null, "returns a trade opportunity");
   u.assertEqual(result.good, "rum", "best trade is rum");
   u.assertEqual(result.buyPrice, 30, "buy price 30");
@@ -1610,6 +1606,12 @@ reg("L.TRADE.03", "getTradeOpportunity: skips food and water", (u) => {
   u.assertEqual(result, null, "food and water skipped, no profit -> null");
 });
 
+reg("L.TRADE.04", "getTradeOpportunity returns null if no targetMarket provided", (u) => {
+  const state = makePortState("portRoyal", { portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } } });
+  // No previewPortMarket set
+  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+  u.assertEqual(result, null, "No market provided => null");
+});
 
 //  NPC AI – Signal Functions (L.AISIG.*)
 // ══════════════════════════════════════════════════════════════════════════
@@ -1707,6 +1709,47 @@ reg("L.AISELECT.01b", "selectWeightedAction: dominant score chosen with low rand
 reg("L.AISELECT.02", "selectWeightedAction: empty/all-zero scores returns null", (u) => {
   u.assertEqual(L.selectWeightedAction({}), null, "empty object returns null");
   u.assertEqual(L.selectWeightedAction({ broadside: 0, precision: 0 }), null, "all-zero scores returns null");
+});
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  RNG
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.RNG.01", "resolveNavalRound uses injected RNG deterministically", (u) => {
+  const state = makePortState();
+  const battle = { distance: "medium", playerHull: 100, playerCrew: 10, enemyHull: 100, enemyCrew: 10 };
+  const enemy = makeEnemy();
+  const fixedRng = { random: () => 0.5, int: (a,b) => Math.floor((a+b)/2), pick: (arr) => arr[0] };
+  const result1 = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy, fixedRng);
+  const result2 = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy, fixedRng);
+  u.assertEqual(JSON.stringify(result1), JSON.stringify(result2), "same RNG produces same result");
+});
+
+reg("L.DATA.01", "triggerRandomEvent does not mutate D.RANDOM_EVENTS", (u) => {
+  const before = JSON.parse(JSON.stringify(window.D.RANDOM_EVENTS));
+  const state = makeState({ fame: 100 });
+  const event = L.triggerRandomEvent(state);
+  u.assert(JSON.stringify(window.D.RANDOM_EVENTS) === JSON.stringify(before), "RANDOM_EVENTS unchanged");
+  if (event && Array.isArray(event.desc)) {
+    // Should never happen – desc should be resolved string in the returned copy.
+    u.assert(false, "Returned event should have string desc");
+  }
+});
+
+
+reg("L.CONTRA.01", "getPatrolContrabandInfo returns consistent results", (u) => {
+  const state = makePortState("portRoyal", {
+    hold: makeHold({ tobacco: 3, slaves: 1 }),
+    activeMission: { type: "smuggle", requiredGood: "rum", requiredQty: 5 },
+    hold: makeHold({ tobacco: 3, slaves: 1, rum: 10 }),
+  });
+  const info = L.getPatrolContrabandInfo(state);
+  u.assertEqual(info.hasContraband, true);
+  u.assertEqual(info.seizedValue, 3 * 90 + 1 * 220 + 10 * 30); // 270+220+300=790
+  u.assertEqual(info.fine, Math.round(790 * 0.20 / 25) * 25); // 160?
+  const info2 = L.getPatrolContrabandInfo(state, 0.40);
+  u.assertEqual(info2.fine, Math.round(790 * 0.40 / 25) * 25);
 });
 
 })();

@@ -1,7 +1,7 @@
 # React/JSX Module Specification
 
 **Broadside UI Components & Screens**
-*Last Updated: August 21, 2026*
+*Last Updated: August 27, 2026*
 
 ---
 
@@ -26,10 +26,10 @@
 
 - **No CSS files**: All styling is **inline** via theme tokens (`T`) and helper functions (`panelStyle()`).
 - **Single source of truth**: Theme tokens (`T`) define all colors, fonts, and sizing.
-- **Pure presentational**: Screens **do not contain game logic**—they only dispatch actions to `window.E`.
+- **Pure presentational**: Screens **do not contain game logic**—they only dispatch actions to `window.E`. They do **not** call `window.G` (generators) directly. All generator calls are made by the engine.
 - **Responsive**: All screens adapt to mobile/desktop via inline styles.
 - **Accessibility**: Minimum touch targets = `T.btnMinHeight` (44px).
-- **No direct `window.G` calls**: Generators are invoked **only by engine reducers**.
+- **No direct `window.G` calls**: This is a hard architectural rule. If a screen needs generated content, the engine must pre‑generate it and store it in state (e.g., `flavourLines` in the encounter session, `previewPortMarket` for trade tips).
 
 ---
 
@@ -128,6 +128,8 @@ T = {
 | **`TransferLayout`** | `leftTitle, leftContent, leftFooter, rightTitle, rightContent, rightFooter, style` | Two-column transfer layout (Market, Plunder). | `<TransferLayout leftTitle="Hold" rightTitle="Market" ... />` |
 | **`useFlashOnChange`** | `(value, options) -> className` | Hook that returns a CSS class that flashes green/red on value change. | `const flash = useFlashOnChange(state.gold, { direction: 'up' });` |
 | **`PortSilhouette`** | `portKey` | Renders a faction-specific port silhouette SVG. | `<PortSilhouette portKey="tortuga" />` |
+| **`PortCard`** | `portKey, state, label, distance, unreachableReason, isCurrent` | Displays port info. **Important**: It does **not** call `G.generatePortMarket`. It only uses `state.portMarket` for the current port and `L.getPortTradeProfile` for deterministic trade data. | `<PortCard portKey={targetPortKey} state={state} distance={4} />` |
+| **`PortModal`** | `targetPortKey, state, dispatch, onClose` | Modal that shows port details and trade tips. It **dispatches `PREVIEW_PORT`** to generate `state.previewPortMarket`, and uses that state for trade opportunity calculations. It does **not** call `G` directly. | `<PortModal targetPortKey={portKey} state={state} dispatch={dispatch} onClose={() => ...} />` |
 
 ### 2.4 Game-Specific Components
 
@@ -248,7 +250,7 @@ LOG_ICONS: {
 
 - **State Management**:
   - Uses `useReducer(E.reducer, E.initialState)`.
-  - **Auto-Save**: Triggers `E.autoSave(state)` on every state change.
+  - **Auto-Save**: Triggers `E.autoSave(state)` on every state change (via `beforeunload` and port entry events).
 - **UI Structure**:
   - Renders `<HUD />` (sticky top bar).
   - Renders the active screen via `<ScreenRouter />`.
@@ -285,7 +287,7 @@ LOG_ICONS: {
 | **Heat** | Set per-faction alert 0-10 | Adjusts faction alerts |
 | **Morale** | Set to 10, 50, 80, 100 | Adjusts morale |
 | **Crew** | Max crew, age +50/+100/+200 days | Fills crew or ages them |
-| **Misc** | Fill hold, full repair, unlock hidden ports, complete mission, start debug combat | Various utilities |
+| **Misc** | Fill hold, full repair, unlock hidden ports, complete mission, start debug combat, trigger random event | Various utilities |
 
 ### 5.5 Screen Router
 **Purpose**: Renders the active screen based on `state.screen`.
@@ -344,7 +346,7 @@ switch(state.screen) {
 
 ### screens_combat.jsx
 - `EventScreen` — Random event resolution (choices, outcomes)
-- `InterceptScreen` — Pre-battle options (fight, flee, parley, bribe, surrender, inspect)
+- `InterceptScreen` — Pre-battle options (fight, flee, parley, bribe, surrender, inspect) + combat flavour lines
 - `BattleScreen` — Full turn-based combat (naval + boarding) with DistanceIndicator and AdvantageBar
 - `PlunderScreen` — Transfer layout for loot selection
 
@@ -402,6 +404,8 @@ Each screen checks `L.shouldShowTutorial(state, screenName)` on mount. If true, 
   ```
 - **Functions**: `L.shouldShowTutorial(state, screen)`, `L.markTutorialSeen(screen, disableAll)`
 
+**Important**: When `tutorialMode === "full"` (Guided QM), `shouldShowTutorial` returns `false` for all screens. The QM system in `engine_onboarding.js` handles onboarding instead.
+
 ---
 
 ## 8. Dependencies & Rules
@@ -414,6 +418,8 @@ Each screen checks `L.shouldShowTutorial(state, screenName)` on mount. If true, 
 | `icons.jsx` | `window.D` | Engine, Generators |
 | `App.jsx` | `window.D`, `window.L`, `window.E`, `window.UI`, `window.S` | — |
 | `screens_*.jsx` | `window.D`, `window.L`, `window.E.A`, `window.UI`, `window.S` | `window.G` (generators) |
+
+**Rule Clarification**: Screens may **never** call `window.G`. If a screen needs generated content (e.g., combat flavour lines), the engine must pre‑generate it and store it in state (e.g., `encounterSession.intercept.flavourLines`). `PortModal` uses `PREVIEW_PORT` action to generate `state.previewPortMarket` for trade tips.
 
 ### 8.2 Style Rules
 
