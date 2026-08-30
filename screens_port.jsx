@@ -316,83 +316,145 @@ window.S = window.S || {};
             )}
           </Panel>
 
-          {/* Action buttons */}
-          <Panel>
-            <SectionTitle action={
-              <Tooltip text="Manage your game and access community links.">
-                <Btn v="ghost" onClick={() => setMenuOpen(true)}>Game Menu</Btn>
-              </Tooltip>
-            }>
-              ACTIONS
-            </SectionTitle>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-              {canNavigation && (
-              <div>
-                <Tooltip text={sailDisabled ? sailTooltip : "Open your chart and choose your next destination."}>
-                  <PulseBtn visible={canNavigation} pulseKey="navigation" onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={sailDisabled}>
-                    <IconMap size={12} color={T.text} /> World Map
-                  </PulseBtn>
-                </Tooltip>
-                  {sailDisabled && (
-                    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
-                      ⚠ {sailTooltip}
-                    </div>
-                  )}
-                </div>
-              )}
-              <Tooltip text="Review your standing with the factions of the Caribbean.">
-                <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>
-                  <IconBarChart size={12} color={T.text} /> Status
-                </Btn>
-              </Tooltip>
-              {canMarket && (
-                <Tooltip text="Buy, sell, and trade goods in the port market.">
-                  <PulseBtn visible={canMarket} pulseKey="market" onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}>
-                    <IconMarket size={12} color={T.text} /> Market
-                  </PulseBtn>
-                </Tooltip>
-              )}
-              {canJournal && (
-                <Tooltip text="Read the log of your voyages, battles, and discoveries.">
-                  <PulseBtn visible={canJournal} pulseKey="journal" onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}>
-                    <IconJournal size={12} color={T.text} /> Journal
-                  </PulseBtn>
-                </Tooltip>
-              )}
-            </div>
-            {/* ── Quick Action buttons ──────────────────────────────────────── */}
-            {!perk.servicesBlocked && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                {/* Quick Repair */}
-                {state.ship.hull < L.getShipStats(state).maxHull && (
-                  <Tooltip text="Patch up your hull before the next voyage.">
-                    <PulseBtn
-                      visible={canShipyard}
-                      pulseKey="repair"
-                      v="gold"
-                      onClick={() => dispatch({ type: A.REPAIR })}
-                      disabled={state.gold < repCost}
-                    >
-                      Quick Repair ({repCost}g)
-                    </PulseBtn>
-                  </Tooltip>
-                )}
+          {/* ── Action Buttons ────────────────────────────────────────── */}
+<Panel>
+  <SectionTitle action={
+    <Tooltip text="Manage your game and access community links.">
+      <Btn v="ghost" onClick={() => setMenuOpen(true)}>Game Menu</Btn>
+    </Tooltip>
+  }>
+    ACTIONS
+  </SectionTitle>
 
-                {/* Top Up Provisions */}
-                <Tooltip text={topUpTooltip}>
-                  <Btn
-                    sm
-                    v="gold"
-                    onClick={() => dispatch({ type: A.TOP_UP_PROVISIONS })}
-                    disabled={!canTopUp}
-                  >
-                    <IconFood size={12} color={T.gold} /> Top Up Provisions (10d, {cost}g)
-                  </Btn>
-                </Tooltip>
-              </div>
-            )}
-            <div style={{ marginTop: 8 }} />
-          </Panel>
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+    {/* World Map – always shown, disabled if blocked by onboarding or sailing conditions */}
+    <Tooltip text={!canNavigation ? "Complete your first delivery to unlock the map" : "Open your chart and choose your next destination."}>
+      <Btn
+        onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}
+        disabled={!canNavigation}
+      >
+        <IconMap size={12} color={T.text} /> World Map
+      </Btn>
+    </Tooltip>
+
+    {/* Status – always available */}
+    <Tooltip text="Review your standing with the factions of the Caribbean.">
+      <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "status" })}>
+        <IconBarChart size={12} color={T.text} /> Status
+      </Btn>
+    </Tooltip>
+
+    {/* Market – shown if port has market (all ports do), disabled during onboarding */}
+    <Tooltip text={!canMarket ? "Complete your first contract to access the market" : "Buy, sell, and trade goods in the port market."}>
+      <Btn
+        onClick={() => dispatch({ type: A.NAVIGATE, screen: "market" })}
+        disabled={!canMarket}
+      >
+        <IconMarket size={12} color={T.text} /> Market
+      </Btn>
+    </Tooltip>
+
+    {/* Journal – always shown, disabled during onboarding */}
+    <Tooltip text={!canJournal ? "Repair your ship to unlock the Journal" : "Read the log of your voyages, battles, and discoveries."}>
+      <Btn
+        onClick={() => dispatch({ type: A.NAVIGATE, screen: "journal" })}
+        disabled={!canJournal}
+      >
+        <IconJournal size={12} color={T.text} /> Journal
+      </Btn>
+    </Tooltip>
+  </div>
+
+  {/* ── Service Buttons (Shipyard, Crew) ────────────────────── */}
+  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+    {/* Shipyard – only rendered if the port has a shipyard */}
+    {port.services.includes("shipyard") && (
+      <Tooltip text={
+        perk.servicesBlocked ? "You are at war with this port – services are blocked" :
+        !canShipyard ? "Complete the tutorial hunt to unlock the Shipyard" :
+        "Repair, upgrade, or purchase a new vessel."
+      }>
+        <PulseBtn
+          visible={canShipyard}  // pulses only the first time it becomes available
+          onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}
+          disabled={!canShipyard || perk.servicesBlocked}
+        >
+          <IconAnchor size={12} color={T.text} /> Shipyard
+        </PulseBtn>
+      </Tooltip>
+    )}
+
+    {/* Crew – only rendered if the port has crew hiring */}
+    {port.services.includes("crew") && (
+      <Tooltip text={
+        perk.servicesBlocked ? "You are at war with this port – services are blocked" :
+        !canCrew ? "Deliver your first contract to unlock the Crew screen" :
+        "Hire new hands or boost morale with a round of drinks."
+      }>
+        <PulseBtn
+          visible={canCrew}
+          onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}
+          disabled={!canCrew || perk.servicesBlocked}
+        >
+          <IconCrew size={12} color={T.text} /> Crew
+        </PulseBtn>
+      </Tooltip>
+    )}
+  </div>
+
+  {/* ── Quick Actions (Repair, Top Up Provisions) ───────────── */}
+  {!perk.servicesBlocked && (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+      {/* Repair – only if shipyard exists and hull is damaged */}
+      {port.services.includes("shipyard") && state.ship.hull < L.getShipStats(state).maxHull && (
+        <Tooltip text={
+          state.gold < repCost ? `Not enough gold (need ${repCost}g)` :
+          "Patch up your hull before the next voyage."
+        }>
+          <Btn
+            v="gold"
+            onClick={() => dispatch({ type: A.REPAIR })}
+            disabled={state.gold < repCost}
+          >
+            Quick Repair ({repCost}g)
+          </Btn>
+        </Tooltip>
+      )}
+
+      {/* Top Up Provisions – only if crew exists */}
+      {state.crew.roster.length > 0 && (
+        (() => {
+          const crew = state.crew.roster.length;
+          const buyQty = Math.max(1, Math.ceil(crew));
+          const market = state.portMarket;
+          const foodPrice = market?.goods?.food?.buyFromPort || 3;
+          const waterPrice = market?.goods?.water?.buyFromPort || 2;
+          const cost = buyQty * (foodPrice + waterPrice);
+          const freeSpace = L.getHoldCapacity(state) - L.getHoldUsed(state.hold?.items || {});
+          const hasSpace = freeSpace >= buyQty * 2;
+          const hasGold = state.gold >= cost;
+
+          let tooltipText = "Buy 10 days of food and water for your crew.";
+          if (!hasGold) tooltipText = `Need ${cost - state.gold}g more.`;
+          else if (!hasSpace) tooltipText = `Need ${buyQty * 2 - freeSpace} more hold space.`;
+          else if (crew === 0) tooltipText = "No crew to provision.";
+
+          return (
+            <Tooltip text={tooltipText}>
+              <Btn
+                v="gold"
+                onClick={() => dispatch({ type: A.TOP_UP_PROVISIONS })}
+                disabled={!hasGold || !hasSpace}
+              >
+                <IconFood size={12} color={T.gold} /> Top Up Provisions (10d, {cost}g)
+              </Btn>
+            </Tooltip>
+          );
+        })()
+      )}
+    </div>
+  )}
+</Panel>
 
           {/* Mission board */}
           <Panel style={{ display: "flex", flexDirection: "column", flex: 1 }}>
