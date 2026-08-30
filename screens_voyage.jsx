@@ -317,202 +317,214 @@ window.S = window.S || {};
     );
   }
 
-  // ── SAILING SCREEN (responsive single‑column on narrow) ────────
-  function SailingScreen({ state, dispatch }) {
-    const from = PORTS[state.currentPort] ?? { x: 380, y: 230 };
-    const to = PORTS[state.destination] ?? { x: 380, y: 230 };
-    const progress = state.sailingDaysTotal > 0 ? 1 - (state.sailingDaysLeft / state.sailingDaysTotal) : 0;
-    const shipX = from.x + (to.x - from.x) * progress;
-    const shipY = from.y + (to.y - from.y) * progress;
-    const hdgDeg = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
-    const arrived = state.sailingDaysLeft <= 0;
-    const W = 760, H = 460;
-    const consumption = L.getProvisionConsumptionPerDay(state);
-    const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, consumption);
-    const loadPct = L.getHoldLoadPct(state.hold?.items, L.getHoldCapacity(state));
-    const speedMult = L.getHoldSpeedMultiplier(loadPct);
+// ── SAILING SCREEN (responsive single‑column on narrow) ────────
+function SailingScreen({ state, dispatch }) {
+  const from = PORTS[state.currentPort] ?? { x: 380, y: 230 };
+  const to = PORTS[state.destination] ?? { x: 380, y: 230 };
+  const progress = state.sailingDaysTotal > 0 ? 1 - (state.sailingDaysLeft / state.sailingDaysTotal) : 0;
+  const shipX = from.x + (to.x - from.x) * progress;
+  const shipY = from.y + (to.y - from.y) * progress;
+  const hdgDeg = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+  const arrived = state.sailingDaysLeft <= 0;
+  const W = 760, H = 460;
 
-    const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state, "sailing"));
+  // ── Provisioning ──────────────────────────────────────────────
+  const crew = state.crew.roster.length;
+  const avgConsumption = crew / 10; // average daily consumption per resource
+  const consumption = L.getProvisionConsumptionForDay(state);
+  const daysLeft = L.getDaysOfProvisions(state.hold?.items || {}, state); // ← FIXED: pass state
 
-    const reachableFromSea = L.getReachablePortsFromSea(state);
-    const canChangeCourse = reachableFromSea.length > 0;
+  const loadPct = L.getHoldLoadPct(state.hold?.items, L.getHoldCapacity(state));
+  const speedMult = L.getHoldSpeedMultiplier(loadPct);
 
-    // ── Sailing gates for Change Course button ──────────────────────
-    const isDinghy = state.ship.type === "dinghy";
-    const minCrew = L.getMinViableCrew(state.ship.type);
-    const isHullBlocked = state.ship.hull === 0;
-    const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
-    const sailDisabled = isHullBlocked || isCrewBlocked;
+  const [showTutorial, setShowTutorial] = React.useState(() => shouldShowTutorial(state, "sailing"));
 
-    let sailTooltip = "";
-    if (isHullBlocked) sailTooltip = "The ship is in too poor a state to change course now. Let it drift in its current direction.";
-    else if (isCrewBlocked) sailTooltip = "With no man to crew the ship, we can't alter course now.";
+  const reachableFromSea = L.getReachablePortsFromSea(state);
+  const canChangeCourse = reachableFromSea.length > 0;
 
-    const courseChangeDisabled = sailDisabled || !canChangeCourse;
-    let courseChangeTooltip = sailDisabled
-      ? sailTooltip
-      : !canChangeCourse
-        ? "No alternate port is reachable from your current position under present conditions."
-        : "Plot a new heading from your current position, if your ship can reach it.";
+  // ── Sailing gates for Change Course button ──────────────────────
+  const isDinghy = state.ship.type === "dinghy";
+  const minCrew = L.getMinViableCrew(state.ship.type);
+  const isHullBlocked = state.ship.hull === 0;
+  const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
+  const sailDisabled = isHullBlocked || isCrewBlocked;
 
-    const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 640);
-    React.useEffect(() => {
-      const handle = () => setIsNarrow(window.innerWidth < 640);
-      window.addEventListener("resize", handle);
-      return () => window.removeEventListener("resize", handle);
-    }, []);
+  let sailTooltip = "";
+  if (isHullBlocked) sailTooltip = "The ship is in too poor a state to change course now. Let it drift in its current direction.";
+  else if (isCrewBlocked) sailTooltip = "With no man to crew the ship, we can't alter course now.";
 
-    return (
-      <div style={{
-        padding: T.spacing.lg,
-        display: "flex",
-        gap: T.spacing.md,
-        flex: 1,
-        overflowY: "auto",
-        flexDirection: isNarrow ? "column" : "row",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-        minHeight: 0,
-      }}>
-        {showTutorial && (
-          <TutorialPopup
-            title="At Sea"
-            onDismiss={(disableAll) => {
-              markTutorialSeen("sailing", disableAll);
-              setShowTutorial(false);
-            }}
-          >
-            <p>Click <strong>Advance Day</strong> to sail toward your destination. Each day:</p>
-            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-              <li>Your crew consumes food and water</li>
-              <li>Crew wages are deducted</li>
-              <li>Random events may happen — storms, encounters, opportunities</li>
-            </ul>
-            <p>When you arrive, click <strong>Enter Port</strong> to dock.</p>
-          </TutorialPopup>
-        )}
+  const courseChangeDisabled = sailDisabled || !canChangeCourse;
+  let courseChangeTooltip = sailDisabled
+    ? sailTooltip
+    : !canChangeCourse
+      ? "No alternate port is reachable from your current position under present conditions."
+      : "Plot a new heading from your current position, if your ship can reach it.";
 
-        {/* Voyage map wrapped in Panel with hand‑drawn border */}
-        <Panel 
-          color={T.borderBr} 
-          style={{ 
-            flex: isNarrow ? "0 0 auto" : "2 1 0",
-            width: isNarrow ? "100%" : undefined,
-            minWidth: 0,
-            padding: 0,
-            overflow: "hidden",
-            aspectRatio: "760 / 460",
+  const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 640);
+  React.useEffect(() => {
+    const handle = () => setIsNarrow(window.innerWidth < 640);
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+
+  return (
+    <div style={{
+      padding: T.spacing.lg,
+      display: "flex",
+      gap: T.spacing.md,
+      flex: 1,
+      overflowY: "auto",
+      flexDirection: isNarrow ? "column" : "row",
+      maxWidth: "100%",
+      boxSizing: "border-box",
+      minHeight: 0,
+    }}>
+      {showTutorial && (
+        <TutorialPopup
+          title="At Sea"
+          onDismiss={(disableAll) => {
+            markTutorialSeen("sailing", disableAll);
+            setShowTutorial(false);
           }}
         >
-          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
-            <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
-            <rect width={W} height={H} fill="url(#sailWaves)" />
-            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={T.border} strokeWidth="1.5" strokeDasharray="8,6" />
-            <line x1={from.x} y1={from.y} x2={shipX} y2={shipY} stroke={T.blueBr} strokeWidth="1" opacity="0.3" />
-            <circle cx={from.x} cy={from.y} r={4} fill={T.textDim} />
-            <text x={from.x} y={from.y - 10} textAnchor="middle" fontSize="8" fill={T.textDim} fontFamily={T.font}>{PORTS[state.currentPort]?.name?.toUpperCase()}</text>
-            <circle cx={to.x} cy={to.y} r={7} fill="none" stroke={T.gold} strokeWidth="1.5" strokeDasharray="3,2" />
-            <circle cx={to.x} cy={to.y} r={3} fill={T.gold} />
-            <line x1={to.x} y1={to.y - 5} x2={to.x} y2={to.y - 22} stroke={T.gold} strokeWidth="1.5" />
-            <polygon points={`${to.x},${to.y-22} ${to.x+10},${to.y-18} ${to.x},${to.y-14}`} fill={T.gold} opacity="0.85" />
-            <text x={to.x} y={to.y + 16} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{PORTS[state.destination]?.name?.toUpperCase()}</text>
-            <g transform={`translate(${shipX},${shipY}) rotate(${hdgDeg})`}>
-              <ellipse cx={0} cy={0} rx={20} ry={20} fill={T.gold} opacity="0.06" />
-              <g transform="translate(-15, -15)">
-                <ShipSprite type={state.ship.type} size={30} />
-              </g>
-            </g>
-            <g transform="translate(724, 40)">
-              <circle cx={0} cy={0} r={22} fill={T.bgDeep} stroke={T.border} strokeWidth="1" />
-              {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{d}</text>)}
-              <g transform={`rotate(${state.wind.angle})`}><line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" /><polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} /></g>
-              <text x={0} y={32} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
-            </g>
-          </svg>
-        </Panel>
+          <p>Click <strong>Advance Day</strong> to sail toward your destination. Each day:</p>
+          <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+            <li>Your crew consumes food and water</li>
+            <li>Crew wages are deducted</li>
+            <li>Random events may happen — storms, encounters, opportunities</li>
+          </ul>
+          <p>When you arrive, click <strong>Enter Port</strong> to dock.</p>
+        </TutorialPopup>
+      )}
 
-        {/* Right column panels */}
-        <div style={{
-          flex: isNarrow ? "0 0 auto" : "1 1 240px",
-          minWidth: isNarrow ? 0 : 220,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}>
-          <div style={{ color: T.gold, fontSize: T.heading1FontSize, textAlign: "center" }}>
-            <IconSailboat size={18} color={T.gold} /> En route to <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span>
-          </div>
-          <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, textAlign: "center" }}>
-            {arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}
-          </div>
+      {/* Voyage map wrapped in Panel with hand‑drawn border */}
+      <Panel 
+        color={T.borderBr} 
+        style={{ 
+          flex: isNarrow ? "0 0 auto" : "2 1 0",
+          width: isNarrow ? "100%" : undefined,
+          minWidth: 0,
+          padding: 0,
+          overflow: "hidden",
+          aspectRatio: "760 / 460",
+        }}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block", background: T.bgDeep }}>
+          <defs><pattern id="sailWaves" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" stroke="#091520" strokeWidth="1" fill="none" /><path d="M0 26 Q15 20 30 26 Q45 32 60 26" stroke="#060e18" strokeWidth="0.5" fill="none" /></pattern></defs>
+          <rect width={W} height={H} fill="url(#sailWaves)" />
+          <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={T.border} strokeWidth="1.5" strokeDasharray="8,6" />
+          <line x1={from.x} y1={from.y} x2={shipX} y2={shipY} stroke={T.blueBr} strokeWidth="1" opacity="0.3" />
+          <circle cx={from.x} cy={from.y} r={4} fill={T.textDim} />
+          <text x={from.x} y={from.y - 10} textAnchor="middle" fontSize="8" fill={T.textDim} fontFamily={T.font}>{PORTS[state.currentPort]?.name?.toUpperCase()}</text>
+          <circle cx={to.x} cy={to.y} r={7} fill="none" stroke={T.gold} strokeWidth="1.5" strokeDasharray="3,2" />
+          <circle cx={to.x} cy={to.y} r={3} fill={T.gold} />
+          <line x1={to.x} y1={to.y - 5} x2={to.x} y2={to.y - 22} stroke={T.gold} strokeWidth="1.5" />
+          <polygon points={`${to.x},${to.y-22} ${to.x+10},${to.y-18} ${to.x},${to.y-14}`} fill={T.gold} opacity="0.85" />
+          <text x={to.x} y={to.y + 16} textAnchor="middle" fontSize="8" fill={T.gold} fontFamily={T.font}>{PORTS[state.destination]?.name?.toUpperCase()}</text>
+          <g transform={`translate(${shipX},${shipY}) rotate(${hdgDeg})`}>
+            <ellipse cx={0} cy={0} rx={20} ry={20} fill={T.gold} opacity="0.06" />
+            <g transform="translate(-15, -15)">
+              <ShipSprite type={state.ship.type} size={30} />
+            </g>
+          </g>
+          <g transform="translate(724, 40)">
+            <circle cx={0} cy={0} r={22} fill={T.bgDeep} stroke={T.border} strokeWidth="1" />
+            {[["N",0,-15],["E",15,4],["S",0,18],["W",-15,4]].map(([d,dx,dy]) => <text key={d} x={dx} y={dy} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{d}</text>)}
+            <g transform={`rotate(${state.wind.angle})`}><line x1={0} y1={10} x2={0} y2={-12} stroke={T.blueBr} strokeWidth="2" strokeLinecap="round" /><polygon points="0,-14 -3,-9 3,-9" fill={T.blueBr} /></g>
+            <text x={0} y={32} textAnchor="middle" fontSize="7" fill={T.textDim} fontFamily={T.font}>{state.wind.speed}KT</text>
+          </g>
+        </svg>
+      </Panel>
 
-          <Panel>
-            <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
-              <Tooltip text="Order the crew to sail one day further. Provisions will be consumed.">
-                <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}><IconPlay size={12} color={T.text} /> Advance Day</Btn>
+      {/* Right column panels */}
+      <div style={{
+        flex: isNarrow ? "0 0 auto" : "1 1 240px",
+        minWidth: isNarrow ? 0 : 220,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}>
+        <div style={{ color: T.gold, fontSize: T.heading1FontSize, textAlign: "center" }}>
+          <IconSailboat size={18} color={T.gold} /> En route to <span style={{ color: T.text, fontWeight: "bold" }}>{PORTS[state.destination]?.name}</span>
+        </div>
+        <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, textAlign: "center" }}>
+          {arrived ? "Arrived — ready to dock" : `${state.sailingDaysLeft} day${state.sailingDaysLeft !== 1 ? "s" : ""} remaining`}
+        </div>
+
+        <Panel>
+          <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
+            <Tooltip text="Order the crew to sail one day further. Provisions will be consumed.">
+              <Btn onClick={() => dispatch({ type: A.ADVANCE_DAY })} disabled={arrived}><IconPlay size={12} color={T.text} /> Advance Day</Btn>
+            </Tooltip>
+            <Tooltip text="Drop anchor and go ashore. Trade, rest, or recruit here.">
+              <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}><IconAnchor size={12} color={T.gold} /> Enter Port</Btn>
+            </Tooltip>
+            {!arrived && (
+            <div>
+              <Tooltip text={courseChangeTooltip}>
+                <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={courseChangeDisabled}>
+                  <IconCompass size={12} color={T.text} /> Change Course
+                </Btn>
               </Tooltip>
-              <Tooltip text="Drop anchor and go ashore. Trade, rest, or recruit here.">
-                <Btn v="gold" onClick={() => dispatch({ type: A.ENTER_PORT })} disabled={!arrived}><IconAnchor size={12} color={T.gold} /> Enter Port</Btn>
-              </Tooltip>
-              {!arrived && (
-              <div>
-                <Tooltip text={courseChangeTooltip}>
-                  <Btn onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })} disabled={courseChangeDisabled}>
-                    <IconCompass size={12} color={T.text} /> Change Course
-                  </Btn>
-                </Tooltip>
-                </div>
-              )}
-            </div>
-            {!arrived && !canChangeCourse && (
-              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
-                ⚠ {courseChangeTooltip}
               </div>
             )}
-            <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 8 }}>
-              Wind {state.wind.speed}kt at {state.wind.angle}°
-              {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
-              {speedMult > 1 && (
-                <span style={{ color: T.gold }}>
-                  {' '}— {speedMult >= 1.33 ? "very heavy load" : "heavy load"}
+          </div>
+          {!arrived && !canChangeCourse && (
+            <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+              ⚠ {courseChangeTooltip}
+            </div>
+          )}
+          <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginTop: 8 }}>
+            Wind {state.wind.speed}kt at {state.wind.angle}°
+            {state.activeMission ? ` · Mission: ${state.activeMission.name}` : ""}
+            {speedMult > 1 && (
+              <span style={{ color: T.gold }}>
+                {' '}— {speedMult >= 1.33 ? "very heavy load" : "heavy load"}
+              </span>
+            )}
+          </div>
+        </Panel>
+
+        <div>
+          <SectionTitle>PROVISIONS</SectionTitle>
+          <Panel style={{ padding: T.spacing.sm }}>
+            <div style={{ fontSize: T.metadataFontSize, color: T.text }}>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: (state.hold?.items?.food || 0) < Math.ceil(avgConsumption * 3) ? T.red : T.gold }}>
+                  <IconFood size={12} color={(state.hold?.items?.food || 0) < Math.ceil(avgConsumption * 3) ? T.red : T.gold} /> Food: {state.hold?.items?.food ?? 0}
                 </span>
-              )}
+                <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>
+                  ({Number.isFinite(daysLeft.food) ? daysLeft.food : "∞"} days)
+                </span>
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: (state.hold?.items?.water || 0) < Math.ceil(avgConsumption * 3) ? T.red : T.gold }}>
+                  <IconWater size={12} color={(state.hold?.items?.water || 0) < Math.ceil(avgConsumption * 3) ? T.red : T.gold} /> Water: {state.hold?.items?.water ?? 0}
+                </span>
+                <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>
+                  ({Number.isFinite(daysLeft.water) ? daysLeft.water : "∞"} days)
+                </span>
+              </div>
+              <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>
+                Crew consumes {avgConsumption.toFixed(1)} food + {avgConsumption.toFixed(1)} water / day on average
+                {crew > 0 && ` (today: ${consumption.food} + ${consumption.water})`}
+              </div>
             </div>
           </Panel>
+        </div>
 
-          <div>
-            <SectionTitle>PROVISIONS</SectionTitle>
-            <Panel style={{ padding: T.spacing.sm }}>
-              <div style={{ fontSize: T.metadataFontSize, color: T.text }}>
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ color: (state.hold?.items?.food || 0) < 3 * consumption.food ? T.red : T.gold }}>
-                    <IconFood size={12} color={(state.hold?.items?.food || 0) < 3 * consumption.food ? T.red : T.gold} /> Food: {state.hold?.items?.food ?? 0}
-                  </span>
-                  <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>({daysLeft.food} days)</span>
-                </div>
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ color: (state.hold?.items?.water || 0) < 3 * consumption.water ? T.red : T.gold }}>
-                    <IconWater size={12} color={(state.hold?.items?.water || 0) < 3 * consumption.water ? T.red : T.gold} /> Water: {state.hold?.items?.water ?? 0}
-                  </span>
-                  <span style={{ color: T.textDim, fontSize: 9, marginLeft: 8 }}>({daysLeft.water} days)</span>
-                </div>
-                <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>Crew consumes {consumption.food} food + {consumption.water} water / day</div>
-              </div>
-            </Panel>
-          </div>
-
-          <div style={{ flex: isNarrow ? "0 0 auto" : 1, display: "flex", flexDirection: "column", minHeight: isNarrow ? 120 : 0 }}>
-            <SectionTitle>CAPTAIN'S LOG</SectionTitle>
-            <Panel style={{ flex: 1, display: "flex", flexDirection: "column", padding: T.spacing.sm }}>
-              <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
-                <LogList entries={state.log} maxEntries={15} />
-              </div>
-            </Panel>
-          </div>
+        <div style={{ flex: isNarrow ? "0 0 auto" : 1, display: "flex", flexDirection: "column", minHeight: isNarrow ? 120 : 0 }}>
+          <SectionTitle>CAPTAIN'S LOG</SectionTitle>
+          <Panel style={{ flex: 1, display: "flex", flexDirection: "column", padding: T.spacing.sm }}>
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+              <LogList entries={state.log} maxEntries={15} />
+            </div>
+          </Panel>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   Object.assign(window.S, { MapScreen, SailingScreen });
 })();

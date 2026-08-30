@@ -30,7 +30,7 @@
     u.assertEqual(stats.maxHull, 30, "maxHull");
     u.assertEqual(stats.cannons, 2, "cannons");
     u.assertEqual(stats.speed, 6, "speed");
-    u.assertEqual(stats.holdCapacity, 20, "holdCapacity");
+    u.assertEqual(stats.holdCapacity, 30, "holdCapacity");
     u.assertEqual(stats.maxCrew, 5, "maxCrew");
   });
 
@@ -149,13 +149,17 @@
     u.assert(heavyDays >= days, "heavy hold takes at least as long");
   });
 
-  reg("L.HOLD.06", "getDaysOfProvisions: calculates remaining days correctly", (u) => {
-    const items = { food: 10, water: 5 };
-    const consumption = { food: 2, water: 1 };
-    const days = L.getDaysOfProvisions(items, consumption);
-    u.assertEqual(days.food, 5, "food days = 10/2 = 5");
-    u.assertEqual(days.water, 5, "water days = 5/1 = 5");
+ reg("L.HOLD.06", "getDaysOfProvisions: calculates remaining days correctly", (u) => {
+  const state = makeState({
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    day: 5,
   });
+  const items = { food: 10, water: 5 };
+  const days = L.getDaysOfProvisions(items, state);
+  // With 10 crew, consumption is 1/day, so food should last 10 days, water 5 days
+  u.assertEqual(days.food, 10, "food days = 10");
+  u.assertEqual(days.water, 5, "water days = 5");
+});
 
   reg("L.HOLD.07", "getHoldSpeedMultiplier: returns correct multipliers", (u) => {
     u.assertEqual(L.getHoldSpeedMultiplier(0.4), 1.00, "<0.5 -> 1.00");
@@ -420,26 +424,36 @@
   // L.PROVISIONS — consumption rates and starvation counters
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("L.PROV.01", "getProvisionConsumptionPerDay: 1 per 10 crew, rounded up", (u) => {
-    const state = makeState({ crew: { roster: fillRoster(10), max: 40, morale: 80 } });
-    const rates = L.getProvisionConsumptionPerDay(state);
-    u.assertEqual(rates.food, 1);
-    u.assertEqual(rates.water, 1);
-  });
+reg("L.PROV.01", "getProvisionConsumptionForDay: 1 per 10 crew, rounded up over time", (u) => {
+  const crew = 10;
+  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 1 });
+  const c = L.getProvisionConsumptionForDay(state);
+  u.assertEqual(c.food, 1, "day 1: 1");
+  u.assertEqual(c.water, 1);
+  state.day = 10;
+  const c2 = L.getProvisionConsumptionForDay(state);
+  u.assertEqual(c2.food, 1, "day 10: 1");
+  u.assertEqual(c2.water, 1);
+});
 
-  reg("L.PROV.02", "getProvisionConsumptionPerDay: 11 crew = 2 per day (ceil)", (u) => {
-    const state = makeState({ crew: { roster: fillRoster(11), max: 40, morale: 80 } });
-    const rates = L.getProvisionConsumptionPerDay(state);
-    u.assertEqual(rates.food, 2);
-    u.assertEqual(rates.water, 2);
-  });
+reg("L.PROV.02", "getProvisionConsumptionForDay: 11 crew pattern", (u) => {
+  const crew = 11;
+  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 5 });
+  const c = L.getProvisionConsumptionForDay(state);
+  // Day 5: floor(55/10)-floor(44/10) = 5-4 = 1
+  u.assertEqual(c.food, 1);
+  state.day = 10;
+  const c2 = L.getProvisionConsumptionForDay(state);
+  // Day 10: floor(110/10)-floor(99/10) = 11-9 = 2
+  u.assertEqual(c2.food, 2);
+});
 
-  reg("L.PROV.03", "getProvisionConsumptionPerDay: 0 crew = 0 per day", (u) => {
-    const state = makeState({ crew: { roster: [], max: 40, morale: 80 } });
-    const rates = L.getProvisionConsumptionPerDay(state);
-    u.assertEqual(rates.food, 0);
-    u.assertEqual(rates.water, 0);
-  });
+reg("L.PROV.03", "getProvisionConsumptionForDay: 0 crew = 0", (u) => {
+  const state = makeState({ crew: { roster: [], max: 40, morale: 80 }, day: 1 });
+  const c = L.getProvisionConsumptionForDay(state);
+  u.assertEqual(c.food, 0);
+  u.assertEqual(c.water, 0);
+});
 
   reg("L.PROV.04", "processStarvation: reduces crew and updates counters", (u) => {
     const state = makeState({ daysWithoutFood: 13, daysWithoutWater: 2 });
@@ -449,6 +463,27 @@
     u.assert(result.roster.length <= roster.length, "crew may be reduced");
     u.assert(result.warningLogs.length >= 0, "returns warning logs");
   });
+
+  reg("L.PROV.05", "1 crew: 0 consumption for first 9 days, 1 on day 10", (u) => {
+  const state = makeState({ crew: { roster: fillRoster(1), max: 5, morale: 80 }, day: 10 });
+  const consumption = L.getProvisionConsumptionForDay(state);
+  // On day 10: floor(10*1/10) - floor(9*1/10) = 1 - 0 = 1
+  u.assertEqual(consumption.food, 1);
+  u.assertEqual(consumption.water, 1);
+});
+
+reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = crew size", (u) => {
+  const crew = 5;
+  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 10 });
+  let total = 0;
+  for (let d = 1; d <= 10; d++) {
+    state.day = d;
+    const c = L.getProvisionConsumptionForDay(state);
+    total += c.food;
+  }
+  u.assertEqual(total, crew); // floor(10*5/10) = 5
+});
+
 
   // ══════════════════════════════════════════════════════════════════════════
   // L.EQUIPMENT — canInstallEquipment and getEquipmentEffect
@@ -1750,6 +1785,191 @@ reg("L.CONTRA.01", "getPatrolContrabandInfo returns consistent results", (u) => 
   u.assertEqual(info.fine, Math.round(790 * 0.20 / 25) * 25); // 160?
   const info2 = L.getPatrolContrabandInfo(state, 0.40);
   u.assertEqual(info2.fine, Math.round(790 * 0.40 / 25) * 25);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// L.ENCOUNTER_OPTIONS — Encounter context option matrices
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("L.ENC_OPT.01", "Navy patrol options: inspect, bribe, fight", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 60, tortuga: 60 },
+    hold: makeHold({ tobacco: 2 }),
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+  const options = context.options;
+  const ids = options.map(o => o.id);
+
+  // Verify the three expected options are present
+  u.assert(ids.includes("inspect"), "inspect option present");
+  u.assert(ids.includes("bribe"), "bribe option present");
+  u.assert(ids.includes("fight"), "fight option present");
+
+  // Verify they are available under these conditions
+  const inspect = options.find(o => o.id === "inspect");
+  u.assert(inspect.available, "inspect should be available");
+
+  const bribe = options.find(o => o.id === "bribe");
+  u.assert(bribe.available, "bribe should be available (infamy<25, rep>50, has contraband)");
+
+  const fight = options.find(o => o.id === "fight");
+  u.assert(fight.available, "fight should be available");
+
+  // Navy patrols should NOT offer flee, parley, or surrender
+  u.assert(!ids.includes("flee"), "flee not present");
+  u.assert(!ids.includes("parley"), "parley not present");
+  u.assert(!ids.includes("surrender"), "surrender not present");
+});
+  
+
+reg("L.ENC_OPT.02", "Random encounter options: fight, flee, parley, bribe, surrender", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 60 },
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Test", faction: "pirate", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "random", enemy);
+
+  const ids = context.options.map(o => o.id).sort();
+  u.assertEqual(ids.join(","), "bribe,fight,flee,parley,surrender", "options are all five");
+
+  // Flee should have speedCheck
+  const flee = context.options.find(o => o.id === "flee");
+  u.assert(flee.available === true, "flee available");
+  u.assert(flee.speedCheck !== undefined, "flee has speedCheck");
+});
+
+reg("L.ENC_OPT.03", "Hostile port options: fight, surrender only", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "havana",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 60 },
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Havana Guards", faction: "spanish", hull: 150, cannons: 15, crew: 40 };
+  const context = L.buildEncounterContext(state, "hostile_port_entry", enemy);
+
+  const ids = context.options.map(o => o.id);
+  // Check that fight and surrender are present
+  u.assert(ids.includes("fight"), "fight option present");
+  u.assert(ids.includes("surrender"), "surrender option present");
+  // Optionally check that no unexpected options are present (if design allows only these two)
+  // For flexibility, we just check that the expected ones exist.
+  // But to keep the test meaningful, we also ensure that the number of options is not more than 2?
+  // However, if the game adds more options later, this test would fail unnecessarily.
+  // So we only check the presence of the required ones.
+  // But the test name says "only" – so we'll keep the length check.
+  // If the actual implementation returns more, you'll need to decide if that's correct.
+  // For now, we assume the design is exactly these two.
+  u.assertEqual(ids.length, 2, "should have exactly 2 options: fight and surrender");
+});
+
+reg("L.ENC_OPT.04", "Merchant defense options: fight only", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "portRoyal",
+    gold: 500,
+    reputation: { portRoyal: 60 },
+    ship: makeShip("sloop"),
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+  });
+  const enemy = { name: "Pirate", faction: "pirate", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "distressed_merchant_help", enemy);
+
+  const ids = context.options.map(o => o.id);
+  u.assert(ids.includes("fight"), "fight present");
+  u.assertEqual(ids.length, 1, "only fight");
+});
+
+reg("L.ENC_OPT.05", "Merchant plunder options: fight only", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "portRoyal",
+    gold: 500,
+    reputation: { portRoyal: 60 },
+    ship: makeShip("sloop"),
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+  });
+  const enemy = { name: "Merchant", faction: "english", hull: 100, cannons: 5, crew: 10 };
+  const context = L.buildEncounterContext(state, "distressed_merchant_plunder", enemy);
+
+  const ids = context.options.map(o => o.id);
+  u.assert(ids.includes("fight"), "fight present");
+  u.assertEqual(ids.length, 1, "only fight");
+});
+
+reg("L.ENC_OPT.06", "Navy patrol: bribe disabled when infamy >= 25", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 30,
+    reputation: { portRoyal: 60 },
+    hold: makeHold({ tobacco: 2 }),
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+
+  const bribe = context.options.find(o => o.id === "bribe");
+  u.assert(bribe.available === false, "bribe disabled due to infamy");
+  u.assert(bribe.reason.includes("infamy") || bribe.reason.includes("reputation"), "reason mentions infamy/rep");
+});
+
+reg("L.ENC_OPT.07", "Navy patrol: bribe disabled when rep <= 50", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 50 },
+    hold: makeHold({ tobacco: 2 }),
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+
+  const bribe = context.options.find(o => o.id === "bribe");
+  u.assert(bribe.available === false, "bribe disabled due to rep <= 50");
+  u.assert(bribe.reason.includes("trust") || bribe.reason.includes("reputation"), "reason mentions trust/rep");
+});
+
+reg("L.ENC_OPT.08", "Navy patrol: bribe disabled when no contraband", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 60 },
+    hold: makeHold({ food: 5, water: 5 }), // no contraband
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
+  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
+
+  const bribe = context.options.find(o => o.id === "bribe");
+  u.assert(bribe.available === false, "bribe disabled due to no contraband");
+  u.assert(bribe.reason.includes("contraband"), "reason mentions contraband");
+});
+
+reg("L.ENC_OPT.09", "Random encounter: bribe cost set correctly", (u) => {
+  const state = makePortState("portRoyal", {
+    destination: "tortuga",
+    gold: 500,
+    infamy: 0,
+    reputation: { portRoyal: 60 },
+    ship: makeShip("sloop"),
+  });
+  const enemy = { name: "Test", faction: "pirate", hull: 100, cannons: 10, crew: 20, gold: 500 };
+  const context = L.buildEncounterContext(state, "random", enemy);
+
+  const bribe = context.options.find(o => o.id === "bribe");
+  u.assert(bribe.available === true, "bribe available");
+  u.assert(bribe.cost > 0, "bribe cost positive");
 });
 
 })();

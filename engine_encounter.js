@@ -822,7 +822,7 @@
             activeEvent: null,
             encounterSession: session,
             screen: "intercept",
-            log: [...state.log, window.E.logEntry(state, "The wreck was a trap! Ambushers spring from the shadows!")]
+            log: [...state.log, window.E.logEntry(state, "You search the wreck. Ambushers spring from the shadows!")]
           };
         }
 
@@ -843,7 +843,7 @@
           });
           newState.hold = { ...state.hold, items };
           newState.log = [...state.log,
-            window.E.logEntry(state, `You find salvageable cargo in the wreck! +${gold}g.`),
+            window.E.logEntry(state, `You search the wreck. Inside, you find salvageable cargo! +${gold}g.`),
             ...(skipped ? [window.E.logEntry(state, "Your hold is too full to take everything.")] : [])
           ];
           newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
@@ -852,7 +852,7 @@
 
         // ── EMPTY (12% chance) ──
         if (roll < 0.70) {
-          newState.log = [...state.log, window.E.logEntry(state, "The wreck is empty. Looters got here before you.")];
+          newState.log = [...state.log, window.E.logEntry(state, "You search the wreck, but find nothing of value.")];
           newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";
           return newState;
         }
@@ -869,12 +869,12 @@
         if (currentCount < maxCrew) {
           newState.crew = { ...state.crew, roster: [...state.crew.roster, member] };
           newState.log = [...state.log,
-            window.E.logEntry(state, `You find a survivor clinging to the wreckage. ${member.firstName} ${member.lastName}, battered but alive.`)
+            window.E.logEntry(state, `ou search the wreck and find a survivor clinging to the wreckage. ${member.firstName} ${member.lastName}, battered but alive.`)
           ];
         } else {
           newState.crew = { ...state.crew };
           newState.log = [...state.log,
-            window.E.logEntry(state, `You find a survivor clinging to the wreckage, but your ship is already at full capacity. ${member.firstName} ${member.lastName} is left with the wreck.`)
+            window.E.logEntry(state, `ou search the wreck and find a survivor clinging to the wreckage, but your ship is already at full capacity. ${member.firstName} ${member.lastName} is left with the wreck.`)
           ];
         }
         newState.screen = (state.destination && state.sailingDaysLeft > 0) ? "sailing" : "port";

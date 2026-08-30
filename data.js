@@ -297,7 +297,7 @@ window.D = (() => {
 const SHIPS = {
   // Tier 0
   dinghy: {
-    name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 20,
+    name: "Dinghy", maxHull: 30, maxCrew: 5, cannons: 2, speed: 6, cost: 200, requiredFame: 0, maxDays: 5, holdCapacity: 30,
     slots: { hull: 0, armament: 0, rigging: 0, special: 0 },
     desc: "A tiny boat. Barely seaworthy, but cheap."
   },
@@ -1066,7 +1066,7 @@ const SMUGGLE_GOODS_BY_TIER = {
     {
       label: "Pass By",
       outcome: {
-        log: "You leave them to their fate.",
+        log: "You leave the merchant to her fate. The crew is uneasy about it.",
         moralePenalty: 2
       }
     }

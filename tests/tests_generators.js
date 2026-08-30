@@ -3,7 +3,7 @@
 (function() {
   "use strict";
 
-  const { makeState, makeShip, makeHold, fillRoster, makePortState } = window.testHelpers;
+  const { makeState, makeShip, makeHold, fillRoster, makePortState,setRandomSequence, resetRandomStub,  } = window.testHelpers;
   const G = window.G;
   const L = window.L;
   const D = window.D;
@@ -210,7 +210,9 @@
   reg("G.CREW_BIO.02", "generateCrewBio: includes name", (u) => {
     const member = { firstName: "John", lastName: "Smith", faction: "english", role: "deckhand", daysAboard: 10, tags: [] };
     const state = makeState();
+    setRandomSequence([0.0]); // force first template
     const bio = G.generateCrewBio(member, state);
+    resetRandomStub();
     u.assert(bio.includes("John") || bio.includes("Smith"), "includes name");
   });
 

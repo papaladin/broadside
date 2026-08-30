@@ -5,10 +5,12 @@
 (function() {
   "use strict";
 
-  const { makeState, makeShip, fillRoster, dispatch } = window.testHelpers;
+const { makeState, makePortState, makeSailingState, makeShip, makeHold, makeMission,
+        makeEnemy, fillRoster, dispatch, makeCrewMember } = window.testHelpers;
   const L = window.L;
   const G = window.G;
   const D = window.D;
+  const A = window.E.A;
 
   // ── Detect fast-check global ──────────────────────────────────────────────
   let fc = null;
@@ -96,6 +98,250 @@
           }
         ),
         { numRuns: 20 }
+      );
+    });
+
+    // ── NEW: Combat resolver invariants ─────────────────────────────
+
+    reg("R.PROP.06", "resolveNavalRound: invariants hold for valid inputs", (u) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom("dinghy", "cutter", "sloop", "brigantine", "frigate"), // player ship
+          fc.constantFrom("far", "medium", "close"),                             // distance
+          fc.constantFrom("broadside", "precision", "close_distance", "open_distance", "grapple", "evade"), // player action
+          fc.constantFrom("broadside", "precision", "close_distance", "open_distance", "grapple", "evade"), // enemy action
+          fc.integer(10, 200),   // player hull
+          fc.integer(1, 50),     // player crew
+          fc.integer(10, 200),   // enemy hull
+          fc.integer(1, 50),     // enemy crew
+          (playerType, distance, playerAction, enemyAction, playerHull, playerCrew, enemyHull, enemyCrew) => {
+            const state = makePortState({
+              ship: makeShip(playerType),
+              crew: { roster: fillRoster(playerCrew), max: 40, morale: 80 },
+            });
+            const enemy = makeEnemy({ hull: enemyHull, maxHull: enemyHull, crew: enemyCrew });
+            const battle = {
+              distance,
+              playerHull,
+              playerCrew,
+              enemyHull,
+              enemyCrew,
+            };
+            const result = L.resolveNavalRound(state, playerAction, enemyAction, battle, enemy);
+            // Invariants
+            u.assert(result.playerHullDamage >= 0, "player hull damage non-negative");
+            u.assert(result.enemyHullDamage >= 0, "enemy hull damage non-negative");
+            u.assert(result.playerCrewLoss >= 0, "player crew loss non-negative");
+            u.assert(result.enemyCrewLoss >= 0, "enemy crew loss non-negative");
+            u.assert(["continue", "boarding_begins", "player_evaded", "enemy_evaded",
+                      "player_sunk", "player_captured", "enemy_sunk", "enemy_captured"].includes(result.outcome),
+                      "outcome is valid");
+            u.assert(result.newDistance === null || ["far", "medium", "close"].includes(result.newDistance),
+                      "newDistance is valid");
+            return true;
+          }
+        ),
+        { numRuns: 200 }
+      );
+    });
+
+    reg("R.PROP.07", "resolveBoardingRound: invariants hold for valid inputs", (u) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom("dinghy", "sloop", "frigate"), // player ship
+          fc.constantFrom("continue_fighting", "fall_back", "demand_surrender", "surrender"), // player action
+          fc.constantFrom("continue_fighting", "fall_back", "demand_surrender", "surrender"), // enemy action
+          fc.integer(1, 50),   // player crew
+          fc.integer(1, 50),   // enemy crew
+          fc.integer(50, 90),  // player morale
+          fc.constantFrom("low", "medium", "high"), // enemy risk
+          (playerType, playerAction, enemyAction, playerCrew, enemyCrew, playerMorale, risk) => {
+            const state = makePortState({
+              ship: makeShip(playerType),
+              crew: { roster: fillRoster(playerCrew), max: 40, morale: playerMorale },
+            });
+            const enemy = makeEnemy({ crew: enemyCrew, risk });
+            const battle = {
+              playerCrew,
+              enemyCrew,
+              subPhase: "boarding",
+              distance: "close",
+            };
+            // Only test if demand_surrender is legal (ratio >= 0.65) for the player
+            const ratio = L.getBoardingRatio(state, battle, enemy);
+            if (playerAction === "demand_surrender" && ratio < 0.65) {
+              // This combination is invalid; skip by returning true (not testing invalid case)
+              return true;
+            }
+            const result = L.resolveBoardingRound(state, playerAction, enemyAction, battle, enemy);
+            u.assert(result.playerCrewLoss >= 0, "player crew loss non-negative");
+            u.assert(result.enemyCrewLoss >= 0, "enemy crew loss non-negative");
+            u.assert(["continue", "returned_to_naval", "player_wipeout", "enemy_wipeout",
+                      "player_surrendered", "enemy_surrendered", "player_defeated_by_demand", "enemy_win_capture"].includes(result.outcome),
+                      "outcome is valid");
+            return true;
+          }
+        ),
+        { numRuns: 200 }
+      );
+    });
+
+    reg("R.PROP.08", "getBoardingRatio: ratio stays in [0,1]", (u) => {
+      fc.assert(
+        fc.property(
+          fc.integer(0, 50),   // player crew
+          fc.integer(0, 50),   // enemy crew
+          fc.integer(50, 90),  // player morale
+          fc.constantFrom("low", "medium", "high"), // enemy risk
+          (playerCrew, enemyCrew, playerMorale, risk) => {
+            const state = makePortState({
+              crew: { roster: fillRoster(playerCrew), max: 40, morale: playerMorale },
+            });
+            const enemy = makeEnemy({ crew: enemyCrew, risk });
+            const battle = { playerCrew, enemyCrew };
+            const ratio = L.getBoardingRatio(state, battle, enemy);
+            u.assert(ratio >= 0 && ratio <= 1, "ratio in [0,1]");
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    // ── NEW: Cargo / hold invariants ────────────────────────────────
+
+    reg("R.PROP.09", "applyLoseContraband: removes only illegal goods", (u) => {
+      fc.assert(
+        fc.property(
+          fc.array(fc.integer(0, 100), { minLength: 14, maxLength: 14 }),
+          (quantities) => {
+            const keys = ["food", "water", "rum", "sugar", "timber", "cloth", "spices", "silk",
+                          "coffee", "cocoa", "weapons", "tobacco", "silver", "slaves"];
+            const items = {};
+            keys.forEach((k, i) => items[k] = quantities[i]);
+            const result = L.applyLoseContraband(items);
+            u.assert(result.tobacco === 0, "tobacco removed");
+            u.assert(result.slaves === 0, "slaves removed");
+            u.assert(result.food === items.food, "food preserved");
+            u.assert(result.water === items.water, "water preserved");
+            u.assert(result.rum === items.rum, "rum preserved");
+            u.assert(result.sugar === items.sugar, "sugar preserved");
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    reg("R.PROP.10", "hold load stays within bounds after trade", (u) => {
+      fc.assert(
+        fc.property(
+          fc.integer(0, 500),   // current used
+          fc.integer(0, 200),   // capacity
+          fc.integer(0, 100),   // buy qty
+          (used, capacity, buyQty) => {
+            const holdItems = { sugar: used, food: 0, water: 0 };
+            const state = makePortState({
+              ship: makeShip("sloop"),
+              hold: { items: holdItems },
+              portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 100 } } },
+            });
+            // Simulate a buy
+            const s1 = dispatch(state, A.CONFIRM_TRADE, { buys: { sugar: buyQty }, sells: {} });
+            const newUsed = L.getHoldUsed(s1.hold.items);
+            u.assert(newUsed <= L.getHoldCapacity(s1), "hold not exceeded after buy");
+            u.assert(s1.gold >= 0, "gold non-negative");
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    // ── NEW: Reputation/heat bounds ────────────────────────────────
+
+    reg("R.PROP.11", "applyReputationImpact: rep stays in [0,100]", (u) => {
+      fc.assert(
+        fc.property(
+          fc.integer(0, 100),   // current rep
+          fc.integer(-20, 20),  // delta
+          (rep, delta) => {
+            const state = makePortState({ reputation: { portRoyal: rep } });
+            const impact = { english: delta }; // will apply to all english ports
+            const s1 = L.applyReputationImpact(state, impact);
+            const resultRep = s1.reputation[state.currentPort];
+            u.assert(resultRep >= 0 && resultRep <= 100, "rep in [0,100]");
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    reg("R.PROP.12", "addHeat: heat stays in [0,10]", (u) => {
+      fc.assert(
+        fc.property(
+          fc.integer(0, 10),   // current heat
+          fc.integer(0, 5),    // addition
+          (current, add) => {
+            const state = makePortState({ factionAlerts: { english: current } });
+            const s1 = L.addHeat(state, "english", add);
+            const resultHeat = s1.factionAlerts.english;
+            u.assert(resultHeat >= 0 && resultHeat <= 10, "heat in [0,10]");
+            return true;
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    // ── NEW: Navigation invariants ─────────────────────────────────
+
+    reg("R.PROP.13", "travelDays: returns finite non-negative for valid ports", (u) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom("portRoyal", "tortuga", "havana", "kingston"),
+          fc.constantFrom("portRoyal", "tortuga", "havana", "kingston"),
+          (from, to) => {
+            const state = makePortState({
+              ship: makeShip("sloop"),
+              crew: { roster: [], morale: 80, max: 40 },
+              wind: { angle: 0, speed: 10 },
+            });
+            const days = L.travelDays(from, to, state);
+            u.assert(Number.isFinite(days), "days is finite");
+            u.assert(days >= 0, "days non-negative");
+            return true;
+          }
+        ),
+        { numRuns: 50 }
+      );
+    });
+
+    reg("R.PROP.14", "canReach: a valid port is reachable if travelDays <= maxDays", (u) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom("portRoyal", "tortuga", "havana", "kingston"),
+          fc.constantFrom("portRoyal", "tortuga", "havana", "kingston"),
+          (from, to) => {
+            if (from === to) return true;
+            const state = makePortState({
+              currentPort: from,
+              ship: makeShip("sloop"),
+              crew: { roster: [], morale: 80, max: 40 },
+              wind: { angle: 0, speed: 10 },
+            });
+            const days = L.travelDays(from, to, state);
+            const maxDays = D.SHIPS.sloop.maxDays;
+            if (days <= maxDays) {
+              u.assert(L.canReach(state, to) === true, "should be reachable");
+            } else {
+              u.assert(L.canReach(state, to) === false, "should be unreachable");
+            }
+            return true;
+          }
+        ),
+        { numRuns: 50 }
       );
     });
   } else {
@@ -229,4 +475,5 @@
       }
     });
   });
+
 })();

@@ -201,15 +201,49 @@ window.L = window.L || {};
     if (loadPct < 0.75) return 1.11;
     return 1.33;
   };
-  const getProvisionConsumptionPerDay = (state) => {
-    const crewCount = state.crew?.roster?.length ?? 0;
-    const rate = Math.ceil(crewCount / 10);
-    return { food: rate, water: rate };
+  const getProvisionConsumptionForDay = (state) => {
+    const crew = state.crew?.roster?.length || 0;
+    const day = state.day || 1;
+    const food = Math.floor(day * crew / 10) - Math.floor((day - 1) * crew / 10);
+    return { food, water: food };
   };
-  const getDaysOfProvisions = (holdItems, consumptionPerDay) => ({
-    food: consumptionPerDay.food > 0 ? Math.floor((holdItems.food || 0) / consumptionPerDay.food) : Infinity,
-    water: consumptionPerDay.water > 0 ? Math.floor((holdItems.water || 0) / consumptionPerDay.water) : Infinity,
-  });
+
+  const getDaysOfProvisions = (holdItems, state) => {
+    const crew = state.crew?.roster?.length || 0;
+    if (crew === 0) return { food: Infinity, water: Infinity };
+
+    const foodStock = holdItems.food || 0;
+    const waterStock = holdItems.water || 0;
+    const day = state.day || 1;
+
+    const computeDays = (stock) => {
+      if (stock <= 0) return 0;
+      let d = 0;
+      let currentDay = day;
+      let remaining = stock;
+      // Cap at 10000 to avoid infinite loops
+      while (remaining > 0 && d < 10000) {
+        const consumed = Math.floor(currentDay * crew / 10) - Math.floor((currentDay - 1) * crew / 10);
+        if (consumed === 0) {
+          // No consumption on this day – advance a day and continue
+          currentDay++;
+          d++;
+          continue;
+        }
+        if (consumed > remaining) break;
+        remaining -= consumed;
+        d++;
+        currentDay++;
+      }
+      return d;
+    };
+
+    return {
+      food: computeDays(foodStock),
+      water: computeDays(waterStock)
+    };
+  };
+
   const applyLoseCargoPercent = (holdItems, percent) => {
     const factor = 1 - (percent / 100);
     const result = {};
@@ -354,7 +388,7 @@ window.L = window.L || {};
     getHoldUsed,
     getHoldLoadPct,
     getHoldSpeedMultiplier,
-    getProvisionConsumptionPerDay,
+    getProvisionConsumptionForDay,
     getDaysOfProvisions,
     applyLoseCargoPercent,
     applyLoseContraband,

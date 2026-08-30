@@ -9,7 +9,7 @@ window.S = window.S || {};
   const { 
     T, panelStyle, Bar, Pill, Btn, PulseBtn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
     IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette, IconCoins, IconAttention, IconSailboat,
-    SubPanel
+    SubPanel,IconFood,IconWater,
   } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
@@ -68,6 +68,25 @@ window.S = window.S || {};
       return worstFaction ? { faction: worstFaction, delta: worstDelta } : null;
     };
 
+    // ── Top Up Provisions logic ─────────────────────────────────────────
+    const crew = state.crew.roster.length;
+    const buyQty = Math.max(1, Math.ceil(crew));
+    const market = state.portMarket;
+    let foodPrice = 3, waterPrice = 2;
+    if (market?.goods?.food) foodPrice = market.goods.food.buyFromPort;
+    if (market?.goods?.water) waterPrice = market.goods.water.buyFromPort;
+    const cost = buyQty * (foodPrice + waterPrice);
+    const freeSpace = L.getHoldCapacity(state) - L.getHoldUsed(state.hold?.items || {});
+    const hasSpace = freeSpace >= buyQty * 2;
+    const hasGold = state.gold >= cost;
+    const canTopUp = crew > 0 && hasGold && hasSpace;
+
+    let topUpTooltip = "";
+    if (crew === 0) topUpTooltip = "No crew to provision.";
+    else if (!hasGold) topUpTooltip = `Need ${cost - state.gold}g more.`;
+    else if (!hasSpace) topUpTooltip = `Need ${buyQty * 2 - freeSpace} more hold space.`;
+    else topUpTooltip = `Buy ${buyQty} food and ${buyQty} water (10 days for ${crew} crew).`;
+
     // ── Helper to render the mission details box (used by both active and listed missions) ──
     const renderMissionDetailsBox = (mission) => {
       const res = mission.requiredGood ? window.D.RESOURCES[mission.requiredGood] : null;
@@ -114,7 +133,7 @@ window.S = window.S || {};
                 )}
                 {mission.type === "trade" && (
                   <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
-                    Est. cost: ~{res?.basePrice * mission.requiredQty}g · Payment on delivery: {mission.gold}g · Est. profit: ~{mission.gold - res?.basePrice * mission.requiredQty}g
+                    You will receive the mission reward + the market value of {mission.requiredQty} {res?.unit} of {res?.name} at {PORTS[mission.targetPort]?.name}.
                   </div>
                 )}
                 {mission.type === "smuggle" && (
@@ -192,7 +211,7 @@ window.S = window.S || {};
               )}
               {mission.type === "trade" && (
                 <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
-                  Est. cost: ~{res?.basePrice * mission.requiredQty}g · Payment on delivery: {mission.gold}g · Est. profit: ~{mission.gold - res?.basePrice * mission.requiredQty}g
+                    You will receive the mission reward + the market value of {mission.requiredQty} {res?.unit} of {res?.name} at {PORTS[mission.targetPort]?.name}.
                 </div>
               )}
               {mission.type === "smuggle" && (
@@ -341,28 +360,36 @@ window.S = window.S || {};
                 </Tooltip>
               )}
             </div>
+            {/* ── Quick Action buttons ──────────────────────────────────────── */}
             {!perk.servicesBlocked && (
-              <>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                  <Tooltip text="Repair, upgrade, or purchase a new vessel.">
-                    <PulseBtn visible={canShipyard} pulseKey="shipyard" onClick={() => dispatch({ type: A.NAVIGATE, screen: "shipyard" })}>
-                      <IconAnchor size={12} color={T.text} /> Shipyard
-                    </PulseBtn>
-                  </Tooltip>
-                  <Tooltip text="Hire new hands or boost morale with a round of drinks.">
-                    <PulseBtn visible={canCrew} pulseKey="crew" onClick={() => dispatch({ type: A.NAVIGATE, screen: "crew" })}>
-                      <IconCrew size={12} color={T.text} /> Crew
-                    </PulseBtn>
-                  </Tooltip>
-                </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                {/* Quick Repair */}
                 {state.ship.hull < L.getShipStats(state).maxHull && (
                   <Tooltip text="Patch up your hull before the next voyage.">
-                    <PulseBtn visible={canShipyard} pulseKey="repair" v="gold" onClick={() => dispatch({ type: A.REPAIR })} disabled={state.gold < repCost}>
+                    <PulseBtn
+                      visible={canShipyard}
+                      pulseKey="repair"
+                      v="gold"
+                      onClick={() => dispatch({ type: A.REPAIR })}
+                      disabled={state.gold < repCost}
+                    >
                       Quick Repair ({repCost}g)
                     </PulseBtn>
                   </Tooltip>
                 )}
-              </>
+
+                {/* Top Up Provisions */}
+                <Tooltip text={topUpTooltip}>
+                  <Btn
+                    sm
+                    v="gold"
+                    onClick={() => dispatch({ type: A.TOP_UP_PROVISIONS })}
+                    disabled={!canTopUp}
+                  >
+                    <IconFood size={12} color={T.gold} /> Top Up Provisions (10d, {cost}g)
+                  </Btn>
+                </Tooltip>
+              </div>
             )}
             <div style={{ marginTop: 8 }} />
           </Panel>

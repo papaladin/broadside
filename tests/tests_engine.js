@@ -725,54 +725,67 @@
     u.assertEqual(battle.subPhase, "naval", "still in naval phase");
   });
 
-  reg("E.CMB.NAVAL.02", "BATTLE_ACTION: boarding_begins flips subPhase to boarding", (u) => {
-    const s0 = makeBattleState({
-      distance: "close",
-      subPhase: "naval",
-      enemyHull: 100,
-    });
-    const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "grapple" });
-    if (s1.encounterSession.battle.subPhase === "boarding") {
-      u.assert(s1.encounterSession.battle.subPhase === "boarding", "subPhase flipped to boarding");
-      u.assertEqual(s1.encounterSession.battle.distance, "close", "distance remains close");
-    } else {
-      u.assert(true, "Grapple did not result in boarding (maybe sunk or continue)");
-    }
+reg("E.CMB.NAVAL.02", "BATTLE_ACTION: boarding_begins flips subPhase to boarding when both grapple", (u) => {
+  const s0 = makeBattleState({
+    distance: "close",
+    subPhase: "naval",
+    enemyHull: 100,
+    enemyCrew: 10,
   });
 
-  reg("E.CMB.NAVAL.03", "BATTLE_ACTION: enemy_captured sets canPlunder true, enemy_sunk false", (u) => {
-    setRandomSequence([0.9]);
-    const sSunk = makeBattleState({
-      enemyHull: 1,
-      enemyCrew: 10,
-      distance: "medium",
-      subPhase: "naval",
-    });
-    const s1 = dispatch(sSunk, A.BATTLE_ACTION, { action: "broadside" });
-    resetRandomStub();
-    const battle1 = s1.encounterSession?.battle;
-    if (battle1 && battle1.phase === "victory") {
-      u.assert(!battle1.canPlunder, "sunk -> canPlunder false");
-    } else {
-      u.assert(true, "No victory in this round (damage not lethal)");
-    }
+  // Force enemy to grapple
+  const originalGetNPC = L.getNPCNavalAction;
+  L.getNPCNavalAction = () => "grapple";
 
-    setRandomSequence([0.5]);
-    const sCap = makeBattleState({
-      enemyHull: 100,
-      enemyCrew: 1,
-      distance: "close",
-      subPhase: "naval",
-    });
-    const s2 = dispatch(sCap, A.BATTLE_ACTION, { action: "grapple" });
-    resetRandomStub();
-    const battle2 = s2.encounterSession?.battle;
-    if (battle2 && battle2.phase === "victory") {
-      u.assert(battle2.canPlunder === true, "capture -> canPlunder true");
-    } else {
-      u.assert(true, "Grapple did not result in victory (maybe continue)");
-    }
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "grapple" });
+  
+  // Restore original
+  L.getNPCNavalAction = originalGetNPC;
+
+  const battle = s1.encounterSession.battle;
+  u.assertEqual(battle.subPhase, "boarding", "subPhase flipped to boarding");
+  u.assertEqual(battle.distance, "close", "distance remains close");
+  u.assert(battle.phase === "player_turn", "battle is ongoing");
+});
+
+reg("E.CMB.NAVAL.03a", "BATTLE_ACTION: enemy_sunk results in phase victory, canPlunder false", (u) => {
+  const s0 = makeBattleState({
+    enemyHull: 1,
+    enemyCrew: 10,
+    distance: "medium",
+    subPhase: "naval",
   });
+  // Force maximum damage (player broadside roll = 1.0)
+  setRandomSequence([0.99]); // broadside damage multiplier ~1.2
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+  resetRandomStub();
+
+  const battle = s1.encounterSession?.battle;
+  u.assert(battle !== null, "battle exists");
+  u.assertEqual(battle.phase, "victory", "phase is victory");
+  u.assert(battle.canPlunder === false, "canPlunder is false for sunk");
+  u.assertEqual(s1.screen, "battle", "screen stays on battle");
+});
+
+reg("E.CMB.NAVAL.03b", "BATTLE_ACTION: enemy_captured results in phase victory, canPlunder true", (u) => {
+  const s0 = makeBattleState({
+    enemyHull: 100,
+    enemyCrew: 1,
+    distance: "close",
+    subPhase: "naval",
+  });
+  // Force broadside to deal enough crew damage (crew loss formula: dmg*0.4/3; with cannons 10, ~1.3 avg, but maybeCrewLoss can return 0)
+  // Use a specific RNG sequence: first random for damage (0.5), second for maybeCrewLoss (0.99 -> returns floor(amount))
+  setRandomSequence([0.5, 0.99]); // damage roll, crew loss roll
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+  resetRandomStub();
+
+  const battle = s1.encounterSession?.battle;
+  u.assert(battle !== null, "battle exists");
+  u.assertEqual(battle.phase, "victory", "phase is victory");
+  u.assert(battle.canPlunder === true, "canPlunder is true for capture");
+  u.assertEqual(s1.screen, "battle", "screen stays on battle");
+});
 
   reg("E.CMB.BOARD.01", "BATTLE_ACTION boarding: fall_back returns to naval with distance close", (u) => {
     const s0 = makeBattleState({
@@ -1163,6 +1176,82 @@ reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatr
     u.assert(victoryMessage !== undefined, "Victory message appears in battle log");
     u.assertEqual(s1.screen, "battle", "screen stays on battle");
   });
+
+
+
+
+  reg("E.CMB.OUTCOME.01", "BATTLE_ACTION: player_evaded clears encounterSession and returns to sailing/port", (u) => {
+  const s0 = makeBattleState({
+    distance: "far",
+    subPhase: "naval",
+    enemyHull: 100,
+    enemyCrew: 10,
+  });
+  // Force enemy to broadside (not oppose)
+  const originalGetNPC = L.getNPCNavalAction;
+  L.getNPCNavalAction = () => "broadside";
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "evade" });
+  L.getNPCNavalAction = originalGetNPC;
+
+  u.assert(s1.encounterSession === null, "encounter session cleared");
+  u.assert(s1.screen === "sailing" || s1.screen === "port", "returns to sailing or port");
+  u.assert(s1.log.some(l => l.includes("evaded")), "log mentions evasion");
+});
+
+reg("E.CMB.OUTCOME.02", "BATTLE_ACTION: enemy_evaded clears encounterSession", (u) => {
+  const s0 = makeBattleState({
+    distance: "far",
+    subPhase: "naval",
+    enemyHull: 100,
+    enemyCrew: 10,
+  });
+  const originalGetNPC = L.getNPCNavalAction;
+  L.getNPCNavalAction = () => "evade";
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "broadside" });
+  L.getNPCNavalAction = originalGetNPC;
+
+  u.assert(s1.encounterSession === null, "encounter session cleared");
+  u.assert(s1.log.some(l => l.includes("evaded")), "log mentions enemy evasion");
+});
+
+reg("E.CMB.OUTCOME.03", "BATTLE_ACTION boarding: player_wipeout leads to defeat phase", (u) => {
+  const s0 = makeBattleState({
+    subPhase: "boarding",
+    distance: "close",
+    playerHull: 100,
+    playerCrew: 1,
+    enemyHull: 100,
+    enemyCrew: 10,
+  });
+  // No RNG needed? The resolver uses rng for maybeCrewLoss? Actually boarding losses are deterministic? In resolveBoardingRound, playerLoss = ceil(playerCrew * 0.15 * (1-ratio)), no randomness. So we just dispatch.
+  const originalGetNPC = L.getNPCBoardingAction;
+  L.getNPCBoardingAction = () => "continue_fighting";
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "continue_fighting" });
+  L.getNPCBoardingAction = originalGetNPC;
+
+  const battle = s1.encounterSession?.battle;
+  u.assert(battle.phase === "defeat", "phase is defeat");
+});
+
+
+reg("E.CMB.OUTCOME.04", "BATTLE_ACTION boarding: enemy_surrendered leads to victory with plunder", (u) => {
+  const s0 = makeBattleState({
+    subPhase: "boarding",
+    distance: "close",
+    playerHull: 100,
+    playerCrew: 20,
+    enemyHull: 100,
+    enemyCrew: 5,
+  });
+  const originalGetNPC = L.getNPCBoardingAction;
+  L.getNPCBoardingAction = () => "surrender";
+  const s1 = dispatch(s0, A.BATTLE_ACTION, { action: "continue_fighting" });
+  L.getNPCBoardingAction = originalGetNPC;
+
+  const battle = s1.encounterSession?.battle;
+  u.assertEqual(battle.phase, "victory", "phase is victory");
+  u.assert(battle.canPlunder === true, "canPlunder is true");
+});
 
   // ── NEW: CONVOY / MERCHANT PROTECTED OBJECTIVE TESTS ──────────────
 
@@ -1844,6 +1933,114 @@ reg("E.PREVIEW.01", "PREVIEW_PORT sets previewPortMarket", (u) => {
   const s1 = dispatch(s0, A.PREVIEW_PORT, { port: "tortuga" });
   u.assert(s1.previewPortMarket !== null, "previewPortMarket set");
   u.assert(s1.previewPortMarket.goods.sugar !== undefined, "market has goods");
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// E.TRADE.REWARD — Trade/Smuggle mission completion now pays goods value
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("E.MISS.10", "COMPLETE_MISSION trade: pays mission.gold + goods sale value", (u) => {
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 150,
+    fame: 1,
+    requiredGood: "spices",
+    requiredQty: 3,
+  });
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ spices: 3, food: 5, water: 5 }),
+    portMarket: {
+      goods: {
+        spices: { sellToPort: 100 }, // known sell price
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 150; goods value = 3 * 100 = 300; total = 450
+  u.assertEqual(s1.gold, 500 + 150 + 300, "gold should be original + mission reward + goods value");
+  u.assertEqual(s1.hold.items.spices, 0, "spices removed from hold");
+  u.assert(s1.activeMission === null, "mission cleared");
+  u.assert(s1.log.some(l => l.includes("for the goods")), "log mentions goods value");
+});
+
+reg("E.MISS.11", "COMPLETE_MISSION smuggle: pays mission.gold + goods sale value", (u) => {
+  const mission = makeMission({
+    type: "smuggle",
+    targetPort: "portRoyal",
+    gold: 200,
+    fame: 1,
+    infamyGain: 1,
+    requiredGood: "rum",
+    requiredQty: 5,
+  });
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    hold: makeHold({ rum: 5, food: 5, water: 5 }),
+    portMarket: {
+      goods: {
+        rum: { sellToPort: 30 }, // known sell price
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 200; goods value = 5 * 30 = 150; total = 350
+  u.assertEqual(s1.gold, 1000 + 200 + 150, "gold should be original + mission reward + goods value");
+  u.assertEqual(s1.hold.items.rum, 0, "rum removed from hold");
+  u.assertEqual(s1.infamy, 1, "infamy gained from smuggle mission");
+});
+
+reg("E.MISS.12", "COMPLETE_MISSION trade: falls back to mission.gold when sellPrice is zero", (u) => {
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 150,
+    fame: 1,
+    requiredGood: "spices",
+    requiredQty: 3,
+  });
+  // Market with no sell price for spices (or missing)
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ spices: 3 }),
+    portMarket: {
+      goods: {
+        // no spices entry => sellPrice = 0
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // goods value = 0; total = 150
+  u.assertEqual(s1.gold, 500 + 150, "gold should be original + mission reward only");
+});
+
+reg("E.MISS.13", "COMPLETE_MISSION trade: log includes goods value note", (u) => {
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 100,
+    fame: 0,
+    requiredGood: "sugar",
+    requiredQty: 2,
+  });
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ sugar: 2 }),
+    portMarket: {
+      goods: {
+        sugar: { sellToPort: 50 },
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  const rewardLog = s1.log.find(l => l.includes("Completed:"));
+  u.assert(rewardLog.includes("for the goods"), "log should mention goods value");
+  u.assert(rewardLog.includes("+"), "log includes plus sign");
 });
 
 })();

@@ -125,6 +125,17 @@ window.L = window.L || {};
   };
 
   const processStarvation = (state, prov, currentRoster) => {
+   
+    // ── If there's no crew, skip everything ──────────────────────────
+    if (!currentRoster || currentRoster.length === 0) {
+      return {
+        daysWithoutFood: state.daysWithoutFood ?? 0,
+        daysWithoutWater: state.daysWithoutWater ?? 0,
+        warningLogs: [],
+        deathLog: null,
+        roster: [],
+      };
+    }
     const roster = currentRoster || [];
     const daysWithoutFood = state.daysWithoutFood ?? 0;
     const daysWithoutWater = state.daysWithoutWater ?? 0;

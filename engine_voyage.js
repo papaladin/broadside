@@ -25,7 +25,7 @@
   });
 
   const advanceProvisions = (state) => {
-    const consumption = L.getProvisionConsumptionPerDay(state);
+    const consumption = L.getProvisionConsumptionForDay(state); // changed from getProvisionConsumptionPerDay
     const items = state.hold?.items || {};
     const newFood = Math.max(0, (items.food || 0) - consumption.food);
     const newWater = Math.max(0, (items.water || 0) - consumption.water);
@@ -217,17 +217,32 @@
           });
         }
 
-        // ── Build new log (must be done before starvation to use it there) ──
+        // ── Build new log (skip warnings if no crew) ──────────────
         const newLog = [...state.log];
-        if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
-        if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
+        const hasCrew = state.crew.roster.length > 0;
+        if (hasCrew) {
+          if (prov.foodJustRanOut) newLog.push("⚠ The food stores are empty. The crew grows hungry.");
+          if (prov.waterJustRanOut) newLog.push("⚠ The water barrels are dry. The crew suffers.");
+        }
 
-        // ── Starvation tracking ──────────────────────────────────────
-        const starvation = L.processStarvation(state, prov, newCrew.roster);
-        newCrew = { ...newCrew, roster: starvation.roster };
-        newLog.push(...starvation.warningLogs);
-        if (starvation.deathLog) {
-          newLog.push(window.E.logEntry(state, starvation.deathLog));
+        // ── Starvation tracking (only if crew exists) ──────────────
+        let starvationResult;
+        if (hasCrew) {
+          starvationResult = L.processStarvation(state, prov, newCrew.roster);
+          newCrew = { ...newCrew, roster: starvationResult.roster };
+          newLog.push(...starvationResult.warningLogs);
+          if (starvationResult.deathLog) {
+            newLog.push(window.E.logEntry(state, starvationResult.deathLog));
+          }
+        } else {
+          // No crew → no starvation effects, reset counters
+          starvationResult = {
+            daysWithoutFood: 0,
+            daysWithoutWater: 0,
+            warningLogs: [],
+            deathLog: null,
+            roster: newCrew.roster, // unchanged (empty)
+          };
         }
 
         // ── Route progression ──────────────────────────────────────
@@ -256,8 +271,8 @@
           factionAlerts: newAlerts,
           log: newLog,
           route: newRoute,
-          daysWithoutFood: starvation.daysWithoutFood,
-          daysWithoutWater: starvation.daysWithoutWater,
+          daysWithoutFood: starvationResult.daysWithoutFood,
+          daysWithoutWater: starvationResult.daysWithoutWater,
         };
 
         const isOnboarding = state.onboarding?.enabled && !state.onboarding?.completed;

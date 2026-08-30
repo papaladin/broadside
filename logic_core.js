@@ -71,7 +71,7 @@ window.L = window.L || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const getShipStats = (state) => {
-    const base = SHIPS[state.ship.type];
+    const base = SHIPS[state.ship.type] || SHIPS.dinghy; // fall back to the dinghy's base stats so the game does not crash. This is a safety net.
     const stats = { ...base };
     let hullPct = 0;
     let holdPct = 0;
@@ -161,23 +161,43 @@ window.L = window.L || {};
     if (!text) return null;
     const t = text;
 
-    if (t.includes("Arrived at"))      return "arrival";
-    if (t.includes("Setting sail") || t.includes("Changing course"))   return "sailing";
-    if (t.includes("left the crew") || t.includes("has left") || t.includes("Hired")) return "crew";
-    if (t.includes("upset") || t.includes("disturbed"))       return "warning";
-    if (t.includes("settled down"))   return "crew";
-    if (t.includes("mutineer") || t.includes("Mutiny"))       return "combat";
-    if (t.includes("Victory") || t.includes("Defeated"))      return "combat";
-    if (t.includes("Escaped") || t.includes("fled"))          return "combat";
-    if (t.includes("Bought") || t.includes("Sold") || t.includes("trade") || t.includes("repaired")) return "trade";
-    if (t.includes("Completed:") || t.includes("mission"))    return "mission";
+    // ── Arrival / sailing ──────────────────────────────────────────
+    if (t.includes("Arrived at") || t.includes("Dropped anchor")) return "arrival";
+    if (t.includes("Setting sail") || t.includes("Changing course") || t.includes("sets sail")) return "sailing";
+
+    // ── Crew ───────────────────────────────────────────────────────
+    if (t.includes("left the crew") || t.includes("has left") || 
+        t.includes("Hired") || t.includes("deserted") || t.includes("join your crew")) return "crew";
+
+    // ── Warnings (upset, heat, patrol, provisions) ──────────────
+    if (t.includes("upset") || t.includes("disturbed") || 
+        t.includes("heat") || t.includes("alert") || t.includes("patrol") ||
+        t.includes("stores are empty") || t.includes("barrels are dry")) return "warning";
+
+    // ── Combat ─────────────────────────────────────────────────────
+    if (t.includes("mutineer") || t.includes("Mutiny") ||
+        t.includes("Victory") || t.includes("Defeated") ||
+        t.includes("Escaped") || t.includes("fled") ||
+        t.includes("Plundered") || t.includes("plunder")) return "combat";
+
+    // ── Trade ─────────────────────────────────────────────────────
+    if (t.includes("Bought") || t.includes("Sold") || t.includes("trade") || 
+        t.includes("repaired") || t.includes("Top up") || t.includes("provisions")) return "trade";
+
+    // ── Mission ────────────────────────────────────────────────────
+    if (t.includes("Completed:") || t.includes("mission") || t.includes("Accepted")) return "mission";
+
+    // ── Discovery ──────────────────────────────────────────────────
     if (t.includes("New port discovered") || t.includes("chart")) return "discovery";
+
+    // ── Infamy ────────────────────────────────────────────────────
     if (t.includes("infamy") || t.includes("wanted") || t.includes("Wanted")) return "infamy";
-    if (t.includes("heat") || t.includes("alert") || t.includes("patrol")) return "warning";
-    if (t.includes("Plundered") || t.includes("plunder"))    return "combat";
-    if (t.includes("survivor") || t.includes("rescue"))      return "crew";
-    if (t.includes("stores are empty") || t.includes("barrels are dry")) return "warning";
-    if (t.includes("morale") || t.includes("drinks"))        return "crew";
+
+    // ── Crew (secondary) ──────────────────────────────────────────
+    if (t.includes("survivor") || t.includes("rescue") || 
+        t.includes("settled down") || t.includes("morale") || t.includes("drinks") ||
+        t.includes("has died") || t.includes("claims a crew member")) return "crew";
+
     return null;
   };
 
@@ -198,15 +218,22 @@ window.L = window.L || {};
     }
   };
 
- const logPick = (pool, state, ...args) => {
-  // If the last argument is an RNG object, use it; otherwise use defaultRng.
-  const maybeRng = args[args.length - 1];
-  const rng = (maybeRng && typeof maybeRng.random === 'function') ? maybeRng : defaultRng;
-  const fn = pool[rng.int(0, pool.length - 1)];
-  // Remove the rng from args before calling fn
-  const finalArgs = (maybeRng && typeof maybeRng.random === 'function') ? args.slice(0, -1) : args;
-  return fn(...finalArgs, state);
-};
+  const logPick = (pool, state, ...args) => {
+      // Allow an optional RNG object to be passed as the last argument.
+      // If the last argument is an object with random()/int()/pick(), use it as RNG
+      // and remove it before calling the template function.
+      let rng = defaultRng;
+      if (args.length > 0 && typeof args[args.length - 1] === 'object' &&
+          args[args.length - 1] !== null &&
+          typeof args[args.length - 1].random === 'function' &&
+          typeof args[args.length - 1].int === 'function' &&
+          typeof args[args.length - 1].pick === 'function') {
+          rng = args[args.length - 1];
+          args = args.slice(0, -1);
+      }
+      const fn = pool[rng.int(0, pool.length - 1)];
+      return fn(...args, state);
+    };
 
   const returnScreen = (state) =>
     state.destination && state.sailingDaysLeft > 0 ? "sailing" : "port";

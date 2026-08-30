@@ -57,8 +57,13 @@
   // ── Gold ──────────────────────────────────────────────────────
   let finalGold, bonusNote;
   if (mission.type === "trade" || mission.type === "smuggle") {
-    finalGold = mission.gold;
-    bonusNote = "";
+    const good = mission.requiredGood;
+    const qty = mission.requiredQty;
+    // Use the sell price at the current port (the destination)
+    const sellPrice = state.portMarket?.goods?.[good]?.sellToPort || 0;
+    const goodsValue = sellPrice * qty;
+    finalGold = mission.gold + goodsValue;
+    bonusNote = ` (+${goodsValue}g for the goods)`;
   } else {
     const baseGold = mission.gold;
     finalGold = Math.floor(baseGold * perk.missionMult);
@@ -641,6 +646,38 @@ case A.PREVIEW_PORT: {
           log: [...state.log, `Bought drinks for the crew: -${cost}g. Morale +5.`]
         };
       }
+
+      // TOP UP PROVISONS (quick button for food and water purchase)
+      case A.TOP_UP_PROVISIONS: {
+        const market = state.portMarket;
+        if (!market) return state;
+
+        const crew = state.crew.roster.length;
+        if (crew === 0) return state;
+
+        const buyQty = Math.max(1, Math.ceil(crew));
+
+        const foodPrice = market.goods.food?.buyFromPort || 3;
+        const waterPrice = market.goods.water?.buyFromPort || 2;
+        const cost = buyQty * (foodPrice + waterPrice);
+
+        const freeSpace = L.getHoldCapacity(state) - L.getHoldUsed(state.hold?.items || {});
+        if (state.gold < cost) return state;
+        if (freeSpace < buyQty * 2) return state;
+
+        const newItems = { ...state.hold.items };
+        newItems.food = (newItems.food || 0) + buyQty;
+        newItems.water = (newItems.water || 0) + buyQty;
+
+        return {
+          ...state,
+          gold: state.gold - cost,
+          hold: { ...state.hold, items: newItems },
+          log: [...state.log, window.E.logEntry(state, `Topped up provisions: +${buyQty} food, +${buyQty} water for ${cost}g.`)],
+        };
+      }
+
+
 
       // --- MISSIONS ---
       case A.REFRESH_MISSIONS: {

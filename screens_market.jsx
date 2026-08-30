@@ -90,6 +90,9 @@ window.S = window.S || {};
       return total;
     })();
 
+    // ── NEW: check if the pending trade is affordable ──
+    const canAffordTrade = state.gold + goldDelta >= 0;
+
     const hasPending = Object.values(buyPending).some(v => (v || 0) > 0) || Object.values(sellPending).some(v => (v || 0) > 0);
 
     const confirmTrade = () => {
@@ -306,10 +309,14 @@ window.S = window.S || {};
             )}
           </div>
 
-          {/* Reset / Confirm */}
+          {/* Reset / Confirm (top) */}
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             <Btn sm v="ghost" onClick={() => { setBuyPending({}); setSellPending({}); }} disabled={!hasPending}>Reset</Btn>
-            <Btn sm v="gold" onClick={confirmTrade} disabled={!hasPending}>Confirm Trade</Btn>
+            <Tooltip text={!canAffordTrade ? "You cannot afford this trade" : "Confirm your buy/sell orders"}>
+              <Btn sm v="gold" onClick={confirmTrade} disabled={!hasPending || !canAffordTrade}>
+                Confirm Trade
+              </Btn>
+            </Tooltip>
           </div>
         </Panel>
 
@@ -390,14 +397,32 @@ window.S = window.S || {};
         />
 
         {/* ── Bottom confirm panel ───────────────────────────────── */}
-        <Panel style={{ marginTop: 10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize:13 }}>
-            {goldDelta >= 0 ? "+" : ""}{goldDelta}g
-          </span>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn sm v="ghost" onClick={() => { setBuyPending({}); setSellPending({}); }} disabled={!hasPending}>Reset</Btn>
-            <Btn sm v="gold" onClick={confirmTrade} disabled={!hasPending}>Confirm Trade</Btn>
+        <Panel style={{ marginTop: 10 }}>
+          {/* Row 1: Gold delta (left) and Buttons (right) */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ color: goldDelta >= 0 ? T.greenBr : T.redBr, fontSize: 13 }}>
+              {goldDelta >= 0 ? "+" : ""}{goldDelta}g
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn sm v="ghost" onClick={() => { setBuyPending({}); setSellPending({}); }} disabled={!hasPending}>
+                Reset
+              </Btn>
+              <Tooltip text={!canAffordTrade ? "You cannot afford this trade" : "Confirm your buy/sell orders"}>
+                <Btn sm v="gold" onClick={confirmTrade} disabled={!hasPending || !canAffordTrade}>
+                  Confirm Trade
+                </Btn>
+              </Tooltip>
+            </div>
           </div>
+
+          {/* Row 2: Warning message (below buttons, right-aligned, with spacing) */}
+          {!canAffordTrade && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+              <span style={{ color: T.redBr, fontSize: T.captionFontSize }}>
+                Not enough gold – you need {Math.abs(goldDelta - state.gold)}g more.
+              </span>
+            </div>
+          )}
         </Panel>
       </div>
     );
