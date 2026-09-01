@@ -42,6 +42,30 @@ window.D = (() => {
     }
   };
 
+  const BIRTH_TRAITS = {
+    english: {
+      crewLossMult: 0.80,           // 20% less combat crew loss
+    },
+    spanish: {
+      crewCost: 40,                 // 40g per crew member
+      crewLock: 'spanish',          // Only Spanish crew
+      crewPortLock: true,           // Only at Spanish ports
+    },
+    french: {
+      provisionMult: 0.75,          // ~50% food/water consumption
+      maxDaysBonus: 1,              // +1 day effective reach
+    },
+    dutch: {
+      tradeSellMult: 0.95,          // Sell at 95% of port price
+      tradeBuyMult: 1.05,           // Buy at 105% of port price
+    },
+    pirate: {
+      fleeEvadeBonus: 0.10,         // +10 percentage points
+      bribeGateRemoved: true,       // No Infamy gate for Bribe
+      contrabandAvoidBonus: 0.10,   // +10 percentage points
+    },
+  };
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  PORTS: All ports in the Caribbean.
   //  x, y: Coordinates for the map (0-760, 0-460).
@@ -283,6 +307,110 @@ window.D = (() => {
     },
   },
  
+};
+
+  const PORT_SPECIALTIES = {
+    dutch: {
+      id: 'bank',
+      label: 'BANK',
+      icon: '💰',  // or use an Icon component reference
+      description: 'Loans available to captains with sufficient Dutch standing.',
+      access: { reputation: 30 },   // Minimum to access
+    },
+    french: {
+      id: 'embassy',
+      label: 'DIPLOMATIC EMBASSY',
+      icon: '🏛️',
+      description: 'Spend gold to improve reputation with other factions.',
+      access: { reputation: 50 },
+    },
+    spanish: {
+      id: 'inquisitor',
+      label: 'INQUISITOR OFFICE',
+      icon: '⚖️',
+      description: 'Spend gold to reduce Infamy by 1 point per use.',
+      access: { reputation: 50 },
+    },
+    pirate: {
+      id: 'black_market',
+      label: 'BLACK MARKET',
+      icon: '🏴',
+      description: 'Exclusive source of smuggling missions.',
+      access: {},                   // Always available at Pirate ports
+    },
+    english: {
+      id: 'naval_yard',
+      label: 'BRITISH MILITARY NAVAL YARD',
+      icon: '⚓',
+      description: 'Special shipyard services for trusted captains.',
+      access: { reputation: 50 },   // For equipment removal
+    },
+  };
+
+const SERVICE_THRESHOLDS = {
+  // ── Spanish Inquisitor ──────────────────────────────────────────
+  inquisitor: {
+    repRequired: 50,
+    infamyReduction: 1,
+    pricing: [
+      { infamyMin: 0,   infamyMax: 19,  cost: 250 },
+      { infamyMin: 20,  infamyMax: 39,  cost: 400 },
+      { infamyMin: 40,  infamyMax: 59,  cost: 600 },
+      { infamyMin: 60,  infamyMax: 79,  cost: 850 },
+      { infamyMin: 80,  infamyMax: 99,  cost: 1150 },
+      { infamyMin: 100, infamyMax: Infinity, cost: 1500 },
+    ],
+  },
+
+  // ── French Embassy ─────────────────────────────────────────────
+  embassy: {
+    repRequired: 50,
+    repGain: 5,
+    pricing: [
+      { repMin: 0,   repMax: 19,  cost: 500 },
+      { repMin: 20,  repMax: 39,  cost: 1000 },
+      { repMin: 40,  repMax: 59,  cost: 1750 },
+      { repMin: 60,  repMax: 79,  cost: 3000 },
+      { repMin: 80,  repMax: 94,  cost: 5000 },
+      { repMin: 95,  repMax: 100, cost: 8000 },
+    ],
+  },
+
+  // ── Dutch Bank ──────────────────────────────────────────────────
+  bank: {
+    repRequired: 30,
+    maturityDays: 30,
+    minLoan: 10000,
+    // Reputation → lending percentage
+    trustByReputation: [
+      { repMin: 30,  repMax: 39,  pct: 0.25 },
+      { repMin: 40,  repMax: 49,  pct: 0.35 },
+      { repMin: 50,  repMax: 59,  pct: 0.50 },
+      { repMin: 60,  repMax: 69,  pct: 0.65 },
+      { repMin: 70,  repMax: 79,  pct: 0.75 },
+      { repMin: 80,  repMax: 89,  pct: 0.90 },
+      { repMin: 90,  repMax: 100, pct: 1.00 },
+    ],
+    // Interest rate by reputation (interpolated between points)
+    interestByReputation: [
+      { rep: 30, rate: 0.10 },
+      { rep: 50, rate: 0.08 },
+      { rep: 70, rate: 0.06 },
+      { rep: 90, rate: 0.05 },
+    ],
+  },
+
+  // ── British Naval Yard ──────────────────────────────────────────
+  navalYard: {
+    repRequiredForRemoval: 50,
+    fameRequiredForEarlyAccess: 80,
+    // Early access: equipment Fame requirement reduced by 20%
+    // Ships: Fame requirement reduced by 10 flat points
+    earlyAccessModifiers: {
+      equipmentFameReduction: 0.80,   // 20% reduction
+      shipFameReduction: 10,          // 10 flat points
+    },
+  },
 };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -955,12 +1083,12 @@ const TRADE_GOODS_BY_TIER = {
 };
 
 const SMUGGLE_GOODS_BY_TIER = {
-  0: ["rum"],
-  1: ["rum", "tobacco"],
-  2: ["rum", "tobacco"],
-  3: ["rum", "tobacco", "slaves"],
-  4: ["rum", "tobacco", "slaves"],
-  5: ["rum", "tobacco", "slaves"],
+  0: ["rum", "weapons"], 
+  1: ["rum", "weapons", "tobacco"],
+  2: ["rum", "weapons", "tobacco"],
+  3: ["rum", "weapons", "tobacco", "slaves"],
+  4: ["rum", "weapons", "tobacco", "slaves"],
+  5: ["rum", "weapons", "tobacco", "slaves"],
 };
 
 
@@ -1540,7 +1668,10 @@ const SURRENDER_CONSEQUENCE = {
   // Expose all constants globally
   return {
     FACTIONS,
+    BIRTH_TRAITS,
     PORTS,
+    PORT_SPECIALTIES,
+    SERVICE_THRESHOLDS,
     SHIPS,
     SHIP_VISUALS,
     EQUIPMENT,

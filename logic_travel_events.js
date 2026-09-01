@@ -24,6 +24,26 @@ window.L = window.L || {};
     };
   };
 
+  const findNearestPortOfFaction = (state, faction, originPos) => {
+    let bestPort = null;
+    let bestDistSq = Infinity;
+    const ports = window.D.PORTS;
+    for (const [key, port] of Object.entries(ports)) {
+      // Skip hidden ports that haven't been discovered
+      if (port.hidden && !(state.discoveredPorts || []).includes(key)) continue;
+      if (port.faction !== faction) continue;
+      const dx = port.x - originPos.x;
+      const dy = port.y - originPos.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestPort = key;
+      }
+    }
+    return bestPort;
+  };
+
+
   // Private: travel days between two coordinate points
   const travelDaysBetween = (posA, posB, state) => {
     const dx = posB.x - posA.x;
@@ -217,6 +237,7 @@ window.L = window.L || {};
   Object.assign(window.L, {
     // Travel
     getSeaPosition,
+    findNearestPortOfFaction,
     travelDaysBetween,
     travelDays,
     travelDaysFromPosition,

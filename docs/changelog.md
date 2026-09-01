@@ -1,3 +1,7 @@
+### 2026-09-01
+- **Captain faction** now has an impact on the game. Pirate will be more cunning, French are natural explorers, English have great naval discipline, etc.. Each faction will correspond to a different player playstyle.
+-**Port identity** : Each faction now has a specificity for its own ports. Dutch will get banks where the player can get loans depending on their fame and reputation, Spanish port will get inquisitorial offices where you can repent for your sins and reduce infamy... for a donation to the Church. Smuggling missions are now exclusive to pirate ports.
+
 ### 2026-08-26
 - **Random event** have improved and deepened choices. You can now reroute to evade a storm, risk an ambush when searching wrecks, and try to bribe your way out of navy patrol inspections.
 - **Escort defense** was updated so that during Escort mission and when defending attacked ships, even if the escort is sunk and you loose the reward or quest, you can continue the battle to sink or catpure the attacker and still make some profit.

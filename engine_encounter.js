@@ -42,66 +42,101 @@
 
   // ── WASH ASHORE (generalized defeat handler) ──────────────────────────
   const washAshore = (state, battleState = null, extraLog = []) => {
-    const returnPort = state.previousPort || state.currentPort;
+    // ── Determine the return port (with Spanish redirection) ──────────────
+    let returnPort = state.previousPort || state.currentPort;
+
+    // ── Spanish soft‑lock rescue: redirect to nearest Spanish port ──────
+    // Condition: Spanish captain, not in a dinghy, and crew below minimum to sail
+    if (state.faction === 'spanish' && state.ship.type !== 'dinghy') {
+        const minCrew = L.getMinViableCrew(state.ship.type);
+        const currentPortFaction = D.PORTS[state.currentPort]?.faction;
+
+        // Only redirect if we're below minimum crew AND not already at a Spanish port
+        if (state.crew.roster.length < minCrew && currentPortFaction !== 'spanish') {
+            // Determine origin position (where the player was when defeated)
+            let originPos;
+            if (state.route && state.route.totalDays > 0) {
+                // At sea: use interpolated position
+                originPos = L.getSeaPosition(state.route);
+            } else if (state.currentPort && D.PORTS[state.currentPort]) {
+                originPos = D.PORTS[state.currentPort];
+            } else if (state.previousPort && D.PORTS[state.previousPort]) {
+                originPos = D.PORTS[state.previousPort];
+            } else {
+                originPos = { x: 0, y: 0 }; // fallback
+            }
+
+            const nearestSpanish = L.findNearestPortOfFaction(state, 'spanish', originPos);
+            if (nearestSpanish && nearestSpanish !== returnPort) {
+                const newPortName = D.PORTS[nearestSpanish]?.name || nearestSpanish;
+                returnPort = nearestSpanish;
+                // Add a log line explaining the redirection
+                extraLog.push(
+                    window.E.logEntry(state, `The currents carried you to ${newPortName}, where you can recruit Spanish sailors.`)
+                );
+            }
+        }
+    }
+
+    // ── Now compute portName from the final returnPort ──────────────────
     const portName = D.PORTS[returnPort]?.name || "a nearby port";
 
     const session = state.encounterSession;
     const isMissionFight = session && (
-      session.type === "mission_combat" ||
-      session.type === "escort_defend"
+        session.type === "mission_combat" ||
+        session.type === "escort_defend"
     );
     const missionFailed = isMissionFight && state.activeMission;
 
     const defeatLog = session
-      ? L.logPick(D.DEFEAT_MESSAGES, state, session.enemy?.name || "unknown", portName)
-      : `The ship, crippled and adrift, washes ashore near ${portName}.`;
+        ? L.logPick(D.DEFEAT_MESSAGES, state, session.enemy?.name || "unknown", portName)
+        : `The ship, crippled and adrift, washes ashore near ${portName}.`;
 
     const infamyGain = session && (extraLog.length > 0 || session.type === "navy_patrol") ? 2 : 0;
 
     const result = {
-      ...state,
-      encounterSession: null,
-      activeMission: missionFailed ? null : state.activeMission,
-      screen: "port",
-      currentPort: returnPort,
-      destination: null,
-      sailingDaysLeft: 0,
-      sailingDaysTotal: 0,
-      hold: {
-        ...state.hold,
-        items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
-      },
-      portMarket: G.generatePortMarket(returnPort, state),
-      missions: G.generateMissions(returnPort, state),
-      infamy: Math.min(999, (state.infamy ?? 0) + infamyGain),
-      log: [
-        ...state.log,
-        window.E.logEntry(state, defeatLog),
-        window.E.logEntry(state, "All cargo lost."),
-        ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
-        ...extraLog,
-      ],
+        ...state,
+        encounterSession: null,
+        activeMission: missionFailed ? null : state.activeMission,
+        screen: "port",
+        currentPort: returnPort,
+        destination: null,
+        sailingDaysLeft: 0,
+        sailingDaysTotal: 0,
+        hold: {
+            ...state.hold,
+            items: Object.fromEntries(Object.keys(state.hold?.items || {}).map(k => [k, 0])),
+        },
+        portMarket: G.generatePortMarket(returnPort, state),
+        missions: G.generateMissions(returnPort, state),
+        infamy: Math.min(999, (state.infamy ?? 0) + infamyGain),
+        log: [
+            ...state.log,
+            window.E.logEntry(state, defeatLog),
+            window.E.logEntry(state, "All cargo lost."),
+            ...(missionFailed ? [window.E.logEntry(state, "The mission has failed.")] : []),
+            ...extraLog,
+        ],
     };
 
     const check = L.isUnrecoverable(result);
     if (check.unrecoverable) {
-      return { ...result, screen: "gameover", gameOverReason: check.reason };
+        return { ...result, screen: "gameover", gameOverReason: check.reason };
     }
     return result;
-  };
+};
 
   const applyNavyPatrolSurrender = (state, encounterSession) => {
     const consequence = window.D.SURRENDER_CONSEQUENCE.navy_patrol;
     const activeMission = state.activeMission;
-    // Use the centralized contraband info (A8)
     const contrabandInfo = L.getPatrolContrabandInfo(state, consequence.goldFinePct);
-    const { hasTobacco, hasSlaves, hasRumSmuggle, seizedValue, fine } = contrabandInfo;
+    const { hasTobacco, hasSlaves, smuggledGood, seizedValue, fine } = contrabandInfo;
 
-    // Apply standard contraband removal (tobacco, slaves)
     let newHoldItems = L.applyLoseContraband(state.hold?.items || {});
-    if (hasRumSmuggle) newHoldItems.rum = 0;
+    if (smuggledGood) {
+      newHoldItems[smuggledGood] = 0;
+    }
 
-    // Apply 50% cargo loss to non-contraband goods (exclude food/water for safety)
     if (consequence.loseCargoPercent) {
       for (const key in newHoldItems) {
         if (key === "food" || key === "water" || key === "rum" || key === "tobacco" || key === "slaves") continue;
@@ -122,7 +157,6 @@
       screen: L.returnScreen(state),
     };
 
-    // ── Build prose log ──────────────────────────────────────────────
     const logParts = [];
     logParts.push("You surrendered to the patrol");
 
@@ -130,7 +164,7 @@
     if (consequence.moralePenalty) logParts.push(`your crew morale took a hit (${consequence.moralePenalty} points)`);
     if (consequence.infamyGain) logParts.push(`+${consequence.infamyGain} infamy`);
     if (consequence.rep_loss) logParts.push(`your reputation with the ${window.D.FACTIONS[encounterSession.enemy.faction]?.label || encounterSession.enemy.faction} suffered (${consequence.rep_loss} points)`);
-    if (hasTobacco || hasSlaves || hasRumSmuggle) logParts.push("your illegal goods were confiscated");
+    if (hasTobacco || hasSlaves || smuggledGood) logParts.push("your illegal goods were confiscated");
     if (consequence.loseCargoPercent) logParts.push(`${consequence.loseCargoPercent}% of your other cargo was seized`);
 
     let logMessage = logParts.join(". ");
@@ -279,7 +313,11 @@
         const fleeOpt = ctx.intercept?.options?.find(o => o.id === "flee");
         if (!fleeOpt) return state;
         const { player, enemy } = fleeOpt.speedCheck;
-        const playerRoll = player + L.roll(6);
+        // +1 dice bonus for Pirate-born captains (data-driven)
+        const pirateFleeBonus = (state.faction === 'pirate') 
+          ? (L.getBirthTrait(state, 'fleeEvadeBonus') ? 1 : 0)
+          : 0;
+        const playerRoll = player + L.roll(6) + pirateFleeBonus;
         const enemyRoll  = enemy  + L.roll(6);
         if (playerRoll >= enemyRoll) {
           let s = { ...state, encounterSession: null, screen: L.returnScreen(state), log: [...state.log, "You pulled clear, the enemy couldn't keep up."] };
@@ -458,7 +496,9 @@
           };
         }
 
-        const avoidChance = L.getEquipmentEffect(state, "contrabandAvoidChance") || 0;
+        const pirateContrabandBonus = L.getBirthTrait(state, 'contrabandAvoidBonus') || 0;
+        let avoidChance = L.getEquipmentEffect(state, "contrabandAvoidChance") || 0;
+        avoidChance += pirateContrabandBonus;
         if (avoidChance > 0 && Math.random() < avoidChance) {
           return {
             ...state,
@@ -476,7 +516,7 @@
           inspectionContraband: {
             hasTobacco: contrabandInfo.hasTobacco,
             hasSlaves: contrabandInfo.hasSlaves,
-            hasRumSmuggle: contrabandInfo.hasRumSmuggle,
+            smuggledGood: contrabandInfo.smuggledGood,
             seizedValue: contrabandInfo.seizedValue,
             fine: contrabandInfo.fine,
           },
@@ -501,8 +541,8 @@
         if (choice === "handOver") {
           // ── Hand it over: standard penalties ──
           let newHoldItems = L.applyLoseContraband(state.hold?.items || {});
-          if (contraband.hasRumSmuggle) {
-            newHoldItems.rum = 0;
+          if (contraband.smuggledGood) {
+            newHoldItems[contraband.smuggledGood] = 0;
           }
 
           let newRep = { ...state.reputation };

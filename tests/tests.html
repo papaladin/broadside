@@ -69,7 +69,7 @@
 </head>
 <body>
   <h1>⚓ Broadside — Test Suite</h1>
-  <div class="subtitle">Unit tests (logic), reducer tests (engine), smoke tests (UI), scenarios, voyage orchestration. No browser storage or RNG side effects leak between tests.</div>
+  <div class="subtitle">Unit tests (logic), reducer tests (engine), smoke tests (UI), voyage orchestration. No browser storage or RNG side effects leak between tests.</div>
 
   <div class="summary">
     <div><div class="stat-label">Total</div><div class="stat-value" id="total">—</div></div>
@@ -85,7 +85,6 @@
     <button data-filter="E">Engine</button>
     <button data-filter="U">UI</button>
     <button data-filter="R">Robustness</button>
-    <button data-filter="SCENARIO">Scenarios</button>
     <button data-filter="V">Voyage</button>
     <button onclick="location.reload()">↻ Re-run</button>
     <button id="copy-btn">📋 Copy failures</button>
@@ -144,7 +143,6 @@
   <script src="tests_logic.js"></script>
   <script src="tests_generators.js"></script>
   <script src="tests_engine.js"></script>
-  <script src="tests_scenarios.js"></script>
   <script src="tests_voyage.js"></script>
   <script src="tests_ui.js"></script>
   <script src="tests_robustness.js"></script>
@@ -206,7 +204,6 @@
       "L": "Logic Tests (pure functions)",
       "G": "Generator Tests",
       "E": "Engine Tests (reducers)",
-      "SCENARIO": "Scenario Tests (flows)",
       "V": "Voyage Orchestration Tests",
       "U": "UI Tests (namespace + smoke renders)",
       "R": "Robustness & Property Tests",

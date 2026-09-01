@@ -201,11 +201,21 @@ window.L = window.L || {};
     if (loadPct < 0.75) return 1.11;
     return 1.33;
   };
+
+  // ── Shared consumption calculation ─────────────────────────────────────────
+  const getConsumptionForDay = (crew, day, mult = 1.0) => {
+    const scaledCrew = crew * mult;
+    const prev = Math.floor((day - 1) * scaledCrew / 10);
+    const curr = Math.floor(day * scaledCrew / 10);
+    return curr - prev;
+  };
+
   const getProvisionConsumptionForDay = (state) => {
     const crew = state.crew?.roster?.length || 0;
     const day = state.day || 1;
-    const food = Math.floor(day * crew / 10) - Math.floor((day - 1) * crew / 10);
-    return { food, water: food };
+    const mult = (state?.faction === 'french') ? 0.75 : 1.0;
+    const consumption = getConsumptionForDay(crew, day, mult);
+    return { food: consumption, water: consumption };
   };
 
   const getDaysOfProvisions = (holdItems, state) => {
@@ -215,17 +225,16 @@ window.L = window.L || {};
     const foodStock = holdItems.food || 0;
     const waterStock = holdItems.water || 0;
     const day = state.day || 1;
+    const mult = (state?.faction === 'french') ? 0.75 : 1.0;
 
     const computeDays = (stock) => {
       if (stock <= 0) return 0;
       let d = 0;
       let currentDay = day;
       let remaining = stock;
-      // Cap at 10000 to avoid infinite loops
       while (remaining > 0 && d < 10000) {
-        const consumed = Math.floor(currentDay * crew / 10) - Math.floor((currentDay - 1) * crew / 10);
+        const consumed = getConsumptionForDay(crew, currentDay, mult);
         if (consumed === 0) {
-          // No consumption on this day – advance a day and continue
           currentDay++;
           d++;
           continue;

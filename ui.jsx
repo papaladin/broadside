@@ -175,9 +175,12 @@ window.__pulsedButtons = window.__pulsedButtons || {};
 
 const PulseBtn = ({ visible, children, pulseKey, ...btnProps }) => {
   const [pulse, setPulse] = React.useState(false);
+  const hasPulsed = React.useRef(false);
+
   React.useEffect(() => {
-    if (visible && pulseKey && !window.__pulsedButtons[pulseKey]) {
-      window.__pulsedButtons[pulseKey] = true;
+    // Only pulse if visible, key is provided, and we haven't pulsed before
+    if (visible && pulseKey && !hasPulsed.current) {
+      hasPulsed.current = true;
       setPulse(true);
       const t = setTimeout(() => setPulse(false), 1500);
       return () => clearTimeout(t);

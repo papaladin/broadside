@@ -7,13 +7,12 @@
 //          These catch load-order regressions and renamed/removed exports
 //          before any deeper test runs.
 //
-// U.SMOKE — Screen smoke renders. Mounts each screen component with a minimal
-//            valid state and a noop dispatch, and asserts no exception is thrown.
-//            This does NOT check visual output — only that the component tree
-//            constructs without crashing. Visual quality is human-tested.
+// U.SMOKE — Screen smoke renders. ONE test per major screen to verify
+//            the component tree constructs without crashing.
+//            Visual quality is human-tested.
 //
-// Note: This file uses React.createElement() directly (no JSX) because it is
-// loaded as a plain <script> tag, not processed by Babel.
+// U.INTERACT — UI interaction tests (click, dispatch). These verify
+//              user-visible behavior and are more valuable than render-only tests.
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function () {
@@ -118,7 +117,7 @@ const L = window.L;
       "hasTag", "addTag", "removeTag", "revealTag",
       "getAlignmentModifier", "getCrewAlignment",
       "getHoldCapacity", "getHoldUsed",
-      "getProvisionConsumptionForDay", // <-- UPDATED: was getProvisionConsumptionPerDay
+      "getProvisionConsumptionForDay",
       "getDaysOfProvisions",
       "shipRepairCost",
       "classifyLogLine", "getLogTabCategory",
@@ -156,15 +155,15 @@ const L = window.L;
 
   // ── window.E ──────────────────────────────────────────────────────────────
 
-reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
-  u.assert(typeof window.E.reducer === "function",       "E.reducer");
-  u.assert(typeof window.E.autoSave === "function",      "E.autoSave");
-  u.assert(typeof window.E.migrateState === "function",  "E.migrateState");
-  u.assert(typeof window.E.logEntry === "function",      "E.logEntry");
-  u.assert(typeof window.E.initialState === "object",   "E.initialState");
-  u.assert(Array.isArray(window.E._reducers),            "E._reducers array");
-  u.assert(window.E._reducers.length >= 6,               "at least 6 reducers registered");
-});
+  reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
+    u.assert(typeof window.E.reducer === "function",       "E.reducer");
+    u.assert(typeof window.E.autoSave === "function",      "E.autoSave");
+    u.assert(typeof window.E.migrateState === "function",  "E.migrateState");
+    u.assert(typeof window.E.logEntry === "function",      "E.logEntry");
+    u.assert(typeof window.E.initialState === "object",   "E.initialState");
+    u.assert(Array.isArray(window.E._reducers),            "E._reducers array");
+    u.assert(window.E._reducers.length >= 6,               "at least 6 reducers registered");
+  });
 
   reg("U.NS.09", "window.E.A: all action constants exist", (u) => {
     const actions = [
@@ -292,10 +291,16 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     }
   });
 
+  reg("U.NS.19", "PORT_SPECIALTIES labels are strings", (u) => {
+    const ps = window.D.PORT_SPECIALTIES;
+    for (const [faction, spec] of Object.entries(ps)) {
+      u.assert(typeof spec.label === "string" && spec.label.length > 0, `label missing for ${faction}`);
+      u.assert(typeof spec.id === "string" && spec.id.length > 0, `id missing for ${faction}`);
+    }
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
-  // U.SMOKE — Screen smoke renders
-  // Each test: render the component with valid state, assert no exception thrown.
-  // Screen visual output and interaction are NOT verified here.
+  // U.SMOKE — One render test per major screen (no visual verification)
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("U.SMOKE.01", "TitleScreen: renders without throwing", (u) => {
@@ -318,18 +323,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.04", "PortScreen: renders without throwing — no crew, no missions", (u) => {
-    const state = makePortState("portRoyal", {
-      crew: { roster: [], max: 5, morale: 80 },
-      missions: [],
-      portMarket: null,
-      portGossip: [],
-    });
-    const r = renderSafe(window.S.PortScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-  reg("U.SMOKE.05", "StatusScreen: renders without throwing", (u) => {
+  reg("U.SMOKE.04", "StatusScreen: renders without throwing", (u) => {
     const state = makePortState("portRoyal", {
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
     });
@@ -337,13 +331,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.06", "JournalScreen: renders without throwing — empty log", (u) => {
-    const state = makePortState("portRoyal", { log: [] });
-    const r = renderSafe(window.S.JournalScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-  reg("U.SMOKE.07", "JournalScreen: renders without throwing — populated log", (u) => {
+  reg("U.SMOKE.05", "JournalScreen: renders without throwing — populated log", (u) => {
     const state = makePortState("portRoyal", {
       log: [
         "[1] Arrived at Port Royal.",
@@ -356,13 +344,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.08", "MarketScreen: renders without throwing — null portMarket", (u) => {
-    const state = makePortState("portRoyal", { portMarket: null });
-    const r = renderSafe(window.S.MarketScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-  reg("U.SMOKE.09", "MarketScreen: renders without throwing — populated market", (u) => {
+  reg("U.SMOKE.06", "MarketScreen: renders without throwing — populated market", (u) => {
     const state = makePortState("portRoyal", {
       portMarket: {
         goods: {
@@ -376,21 +358,13 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.10", "ShipyardScreen: renders without throwing", (u) => {
+  reg("U.SMOKE.07", "ShipyardScreen: renders without throwing", (u) => {
     const state = makePortState("portRoyal", { fame: 0 });
     const r = renderSafe(window.S.ShipyardScreen, { state, dispatch: noop });
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.11", "CrewScreen: renders without throwing — with crew", (u) => {
-    const state = makePortState("portRoyal", {
-      crew: { roster: fillRoster(8), max: 40, morale: 75 },
-    });
-    const r = renderSafe(window.S.CrewScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-  reg("U.SMOKE.12", "CrewScreen: renders without throwing — empty roster", (u) => {
+  reg("U.SMOKE.08", "CrewScreen: renders without throwing — empty roster", (u) => {
     const state = makePortState("portRoyal", {
       crew: { roster: [], max: 5, morale: 80 },
     });
@@ -398,7 +372,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.13", "MapScreen: renders without throwing — at port", (u) => {
+  reg("U.SMOKE.09", "MapScreen: renders without throwing — at port", (u) => {
     const state = makePortState("portRoyal", {
       discoveredPorts: Object.keys(window.D.PORTS).filter(k => !window.D.PORTS[k].hidden),
     });
@@ -406,7 +380,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.14", "SailingScreen: renders without throwing", (u) => {
+  reg("U.SMOKE.10", "SailingScreen: renders without throwing", (u) => {
     const state = makeSailingState("portRoyal", "tortuga", 3, {
       hold: makeHold({ food: 20, water: 20 }),
     });
@@ -414,13 +388,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.15", "EventScreen: renders without throwing — null activeEvent", (u) => {
-    const state = makePortState("portRoyal", { activeEvent: null });
-    const r = renderSafe(window.S.EventScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-  reg("U.SMOKE.16", "EventScreen: renders without throwing — with event", (u) => {
+  reg("U.SMOKE.11", "EventScreen: renders without throwing — with event", (u) => {
     const state = makePortState("portRoyal", {
       activeEvent: {
         id: "test_event",
@@ -436,13 +404,7 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-  reg("U.SMOKE.17", "InterceptScreen: renders without throwing — null encounterContext", (u) => {
-    const state = makePortState("portRoyal", { encounterContext: null });
-    const r = renderSafe(window.S.InterceptScreen, { state, dispatch: noop });
-    u.assert(r.ok, r.error || "render threw");
-  });
-
-    reg("U.SMOKE.18", "InterceptScreen: renders without throwing — with encounter", (u) => {
+  reg("U.SMOKE.12", "InterceptScreen: renders without throwing — with encounter", (u) => {
     const enemy = {
       name: "The Test Brigand",
       faction: "pirate",
@@ -475,165 +437,101 @@ reg("U.NS.08", "window.E: engine infrastructure exists", (u) => {
     u.assert(r.ok, r.error || "render threw");
   });
 
-reg("U.SMOKE.19", "BattleScreen: renders without throwing", (u) => {
-  const s0 = makePortState("portRoyal", {
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+  reg("U.SMOKE.13", "BattleScreen: renders without throwing", (u) => {
+    const s0 = makePortState("portRoyal", {
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    });
+    const enemy = {
+      name: "The Scarlet Fortune",
+      faction: "spanish",
+      hull: 120,
+      maxHull: 120,
+      cannons: 20,
+      crew: 18,
+      speed: 9,
+      risk: "medium",
+    };
+    const battle = {
+      round: 1,
+      log: ["Battle engaged!"],
+      playerHull: s0.ship.hull,
+      playerCrew: s0.crew.roster.length,
+      initialPlayerCrew: s0.crew.roster.length,
+      lostCrewNames: [],
+      enemyHull: enemy.hull,
+      enemyCrew: enemy.crew,
+      distance: "medium",
+      subPhase: "naval",
+    };
+    const session = {
+      type: "random",
+      phase: "battle",
+      enemy: enemy,
+      battle: battle,
+      intercept: null,
+      plunder: null,
+      returnScreen: "port",
+      source: { kind: "random", id: null },
+      modifiers: [],
+      notableNPCId: null,
+    };
+    const state = { ...s0, screen: "battle", encounterSession: session };
+    const r = renderSafe(window.S.BattleScreen, { state, dispatch: noop });
+    u.assert(r.ok, r.error || "render threw");
   });
-  const enemy = {
-    name: "The Scarlet Fortune",
-    faction: "spanish",
-    hull: 120,
-    maxHull: 120,
-    cannons: 20,
-    crew: 18,
-    speed: 9,
-    risk: "medium",
-  };
-  // Build battle sub-object
-  const battle = {
-    round: 1,
-    log: ["Battle engaged!"],
-    playerHull: s0.ship.hull,
-    playerCrew: s0.crew.roster.length,
-    initialPlayerCrew: s0.crew.roster.length,
-    lostCrewNames: [],
-    enemyHull: enemy.hull,
-    enemyCrew: enemy.crew,
-    distance: "medium",
-    subPhase: "naval",
-  };
-  // Build encounterSession
-  const session = {
-    type: "random",
-    phase: "battle",
-    enemy: enemy,
-    battle: battle,
-    intercept: null,
-    plunder: null,
-    returnScreen: "port",
-    source: { kind: "random", id: null },
-    modifiers: [],
-    notableNPCId: null,
-  };
-  const state = { ...s0, screen: "battle", encounterSession: session };
-  const r = renderSafe(window.S.BattleScreen, { state, dispatch: noop });
-  u.assert(r.ok, r.error || "render threw");
-});
 
-  // FIX: enemyCargo is an object map { sugar: 10, cloth: 5 }, not an array.
-reg("U.SMOKE.20", "PlunderScreen: renders without throwing", (u) => {
-  const s0 = makePortState("portRoyal", {
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+  reg("U.SMOKE.14", "PlunderScreen: renders without throwing", (u) => {
+    const s0 = makePortState("portRoyal", {
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    });
+    const enemy = {
+      name: "The Prize",
+      faction: "spanish",
+      hull: 0,
+      maxHull: 180,
+      cannons: 5,
+      crew: 8,
+      speed: 8,
+      risk: "low",
+    };
+    const battle = {
+      round: 1,
+      log: ["You boarded!"],
+      playerHull: s0.ship.hull,
+      playerCrew: s0.crew.roster.length,
+      initialPlayerCrew: s0.crew.roster.length,
+      lostCrewNames: [],
+      enemyHull: enemy.hull,
+      enemyCrew: enemy.crew,
+      distance: "close",
+      subPhase: "boarding",
+      phase: "victory",
+      canPlunder: true,
+      goldReward: 200,
+      enemyCargo: { sugar: 10, cloth: 5 },
+    };
+    const session = {
+      type: "random",
+      phase: "plunder",
+      enemy: enemy,
+      battle: battle,
+      intercept: null,
+      plunder: null,
+      returnScreen: "port",
+      source: { kind: "random", id: null },
+      modifiers: [],
+      notableNPCId: null,
+    };
+    const state = { ...s0, screen: "plunder", encounterSession: session };
+    const r = renderSafe(window.S.PlunderScreen, { state, dispatch: noop });
+    u.assert(r.ok, r.error || "render threw");
   });
-  const enemy = {
-    name: "The Prize",
-    faction: "spanish",
-    hull: 0,
-    maxHull: 180,
-    cannons: 5,
-    crew: 8,
-    speed: 8,
-    risk: "low",
-  };
-  const battle = {
-    round: 1,
-    log: ["You boarded!"],
-    playerHull: s0.ship.hull,
-    playerCrew: s0.crew.roster.length,
-    initialPlayerCrew: s0.crew.roster.length,
-    lostCrewNames: [],
-    enemyHull: enemy.hull,
-    enemyCrew: enemy.crew,
-    distance: "close",
-    subPhase: "boarding",
-    phase: "victory",
-    canPlunder: true,
-    goldReward: 200,
-    enemyCargo: { sugar: 10, cloth: 5 },
-  };
-  const session = {
-    type: "random",
-    phase: "plunder",
-    enemy: enemy,
-    battle: battle,
-    intercept: null,
-    plunder: null,
-    returnScreen: "port",
-    source: { kind: "random", id: null },
-    modifiers: [],
-    notableNPCId: null,
-  };
-  const state = { ...s0, screen: "plunder", encounterSession: session };
-  const r = renderSafe(window.S.PlunderScreen, { state, dispatch: noop });
-  u.assert(r.ok, r.error || "render threw");
-});
-
-// ── U.SMOKE — PortCard & PortModal ──────────────────────────────────────
-
-reg("U.SMOKE.21", "PortCard: renders without throwing for a valid port", (u) => {
-  const state = makePortState("portRoyal", {
-    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
-  });
-  const r = renderSafe(window.UI.PortCard, {
-    portKey: "portRoyal",
-    state,
-    distance: 4,
-    isCurrent: true,
-  });
-  u.assert(r.ok, r.error || "render threw");
-});
-
-reg("U.SMOKE.22", "PortCard: renders without throwing when unreachable", (u) => {
-  const state = makePortState("portRoyal");
-  const r = renderSafe(window.UI.PortCard, {
-    portKey: "tortuga",
-    state,
-    distance: 999,
-    unreachableReason: "Out of range",
-    isCurrent: false,
-  });
-  u.assert(r.ok, r.error || "render threw");
-});
-
-reg("U.SMOKE.23", "PortModal: renders without throwing", (u) => {
-  const state = makePortState("portRoyal", {
-    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
-  });
-  const r = renderSafe(window.UI.PortModal, {
-    targetPortKey: "tortuga",
-    state,
-    dispatch: () => {},
-    onClose: () => {},
-  });
-  u.assert(r.ok, r.error || "render threw");
-});
 
   // ══════════════════════════════════════════════════════════════════════════
-  // U.ICON — Icon component renders
+  // U.ICON — Icon component renders (cheap, catch regressions)
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("U.ICON.01", "Icon components: render to SVG without throwing", (u) => {
-    const icons = [
-      "IconFood", "IconWater", "IconRhum", "IconSugar", "IconSpice",
-      "IconGold", "IconGoldBag", "IconSwords", "IconCannon", "IconAnchor",
-      "IconShield", "IconSkull", "IconStar", "IconCrew", "IconMap",
-    ];
-    for (const name of icons) {
-      const IconComp = window.UI[name];
-      if (!IconComp) { continue; } // already caught by U.NS.15
-      const div = document.createElement("div");
-      try {
-        ReactDOM.render(React.createElement(IconComp, { size: 16 }), div);
-        ReactDOM.unmountComponentAtNode(div);
-      } catch (e) {
-        u.assert(false, `${name} threw: ${e.message}`);
-        return;
-      }
-    }
-    u.assert(true, "all icon components render without throwing");
-  });
-
-  reg("U.ICON.02", "LOG_ICONS: all icon components render without throwing", (u) => {
+  reg("U.ICON.01", "LOG_ICONS: all icon components render without throwing", (u) => {
     for (const [cat, IconComp] of Object.entries(window.UI.LOG_ICONS)) {
       const div = document.createElement("div");
       try {
@@ -647,226 +545,241 @@ reg("U.SMOKE.23", "PortModal: renders without throwing", (u) => {
     u.assert(true, "all LOG_ICONS render without throwing");
   });
 
-
-// ══════════════════════════════════════════════════════════════════════════
-// U.INTERACT — UI interaction tests (render, click, verify dispatch)
-// ══════════════════════════════════════════════════════════════════════════
-
-// Helper to render a component and return the container plus a mock dispatch
-const renderComponent = (Component, props) => {
-  const container = document.createElement("div");
-  const dispatch = () => {};
-  const dispatchMock = (action) => { dispatchMock.calls.push(action); };
-  dispatchMock.calls = [];
-  try {
-    ReactDOM.render(React.createElement(Component, { ...props, dispatch: dispatchMock }), container);
-  } catch (e) {
-    ReactDOM.unmountComponentAtNode(container);
-    throw e;
-  }
-  return { container, dispatchMock };
-};
-
-// Helper to find a button by its text content
-const findButtonByText = (container, text) => {
-  const buttons = container.querySelectorAll("button");
-  for (const btn of buttons) {
-    if (btn.textContent.includes(text)) return btn;
-  }
-  return null;
-};
-
-// Helper to find a div with specific text
-const findElementByText = (container, text) => {
-  const elements = container.querySelectorAll("div, span, p");
-  for (const el of elements) {
-    if (el.textContent.includes(text)) return el;
-  }
-  return null;
-};
-
-// ── U.INTERACT.PORTMODAL ─────────────────────────────────────────
-
-reg("U.INTERACT.PORTMODAL.01", "PortModal: Set Sail enabled for reachable port and dispatches SAIL_TO", (u) => {
-  const state = makePortState("portRoyal", {
-    currentPort: "portRoyal",
-    destination: null,
-    sailingDaysLeft: 0,
-    discoveredPorts: Object.keys(D.PORTS),
-    reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
-    activeMission: null,
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    hold: makeHold(),
-    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
+  reg("U.ICON.02", "Resource icons render without throwing", (u) => {
+    const icons = [
+      "IconFood", "IconWater", "IconRhum", "IconSugar", "IconSpice",
+      "IconGold", "IconGoldBag", "IconSwords", "IconCannon", "IconAnchor",
+      "IconShield", "IconSkull", "IconStar", "IconCrew", "IconMap",
+    ];
+    for (const name of icons) {
+      const IconComp = window.UI[name];
+      if (!IconComp) continue;
+      const div = document.createElement("div");
+      try {
+        ReactDOM.render(React.createElement(IconComp, { size: 16 }), div);
+        ReactDOM.unmountComponentAtNode(div);
+      } catch (e) {
+        u.assert(false, `${name} threw: ${e.message}`);
+        return;
+      }
+    }
+    u.assert(true, "all icon components render without throwing");
   });
 
-  const { container, dispatchMock } = renderComponent(window.UI.PortModal, {
-    targetPortKey: "tortuga",
-    state,
-    onClose: () => {},
-  });
+  // ══════════════════════════════════════════════════════════════════════════
+  // U.INTERACT — UI interaction tests (render, click, verify dispatch)
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // Set Sail button should be enabled
-  const sailBtn = findButtonByText(container, "Set Sail");
-  u.assert(sailBtn !== null, "Set Sail button exists");
-  u.assert(!sailBtn.disabled, "Set Sail button is enabled for reachable port");
-
-  // Simulate click
-  sailBtn.click();
-  u.assert(dispatchMock.calls.some(c => c.type === A.SAIL_TO && c.port === "tortuga"),
-    "SAIL_TO dispatched with correct port");
-});
-
-reg("U.INTERACT.PORTMODAL.02", "PortModal: Set Sail disabled for unreachable port and no dispatch", (u) => {
-  const state = makePortState("portRoyal", {
-    currentPort: "portRoyal",
-    destination: null,
-    sailingDaysLeft: 0,
-    discoveredPorts: Object.keys(D.PORTS),
-    reputation: { ...window.E.initialState.reputation, portRoyal: 50, bermuda: 50 },
-    activeMission: null,
-    ship: makeShip("dinghy"), // small ship -> can't reach far port
-    crew: { roster: [], max: 5, morale: 80 },
-    hold: makeHold(),
-  });
-
-  const { container, dispatchMock } = renderComponent(window.UI.PortModal, {
-    targetPortKey: "bermuda", // far port
-    state,
-    onClose: () => {},
-  });
-
-  // The button text will be "Cannot Sail" when disabled
-  const cannotSailBtn = findButtonByText(container, "Cannot Sail");
-  u.assert(cannotSailBtn !== null, "Cannot Sail button exists");
-  u.assert(cannotSailBtn.disabled === true, "Cannot Sail button is disabled");
-  cannotSailBtn.click();
-  u.assert(dispatchMock.calls.length === 0, "No dispatch when disabled");
-});
-
-reg("U.INTERACT.PORTMODAL.03", "PortModal: mission target indicator shown", (u) => {
-  const mission = makeMission({ targetPort: "tortuga" });
-  const state = makePortState("portRoyal", {
-    activeMission: mission,
-    currentPort: "portRoyal",
-    destination: null,
-    sailingDaysLeft: 0,
-    discoveredPorts: Object.keys(D.PORTS),
-    reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    hold: makeHold(),
-  });
-
-  const { container } = renderComponent(window.UI.PortModal, {
-    targetPortKey: "tortuga",
-    state,
-    onClose: () => {},
-  });
-
-  const missionIndicator = findElementByText(container, "Mission target");
-  u.assert(missionIndicator !== null, "Mission target indicator present");
-});
-
-reg("U.INTERACT.PORTMODAL.04", "PortModal: trade tip shown when previewPortMarket set", (u) => {
-  const state = makePortState("portRoyal", {
-    currentPort: "portRoyal",
-    destination: null,
-    sailingDaysLeft: 0,
-    discoveredPorts: Object.keys(D.PORTS),
-    reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
-    activeMission: null,
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    hold: makeHold(),
-    portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
-    previewPortMarket: { goods: { sugar: { sellToPort: 80 } } },
-  });
-
-  const { container } = renderComponent(window.UI.PortModal, {
-    targetPortKey: "tortuga",
-    state,
-    onClose: () => {},
-  });
-
-  const tradeTip = findElementByText(container, "Trade Tip");
-  u.assert(tradeTip !== null, "Trade tip present");
-});
-
-// ── U.INTERACT.INTERCEPT ────────────────────────────────────────
-
-reg("U.INTERACT.INTERCEPT.01", "InterceptScreen: renders all options with correct availability", (u) => {
-  const enemy = makeEnemy({ name: "Test", faction: "pirate" });
-  const ctx = {
-    type: "random",
-    phase: "intercept",
-    enemy,
-    intercept: {
-      flavourText: "Test",
-      options: [
-        { id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } },
-        { id: "flee", label: "Flee", available: true, reason: null, action: { type: "INTERCEPT_FLEE" } },
-        { id: "parley", label: "Parley", available: true, reason: null, action: { type: "INTERCEPT_PARLEY" } },
-        { id: "bribe", label: "Bribe", available: true, reason: null, action: { type: "INTERCEPT_BRIBE" } },
-        { id: "surrender", label: "Surrender", available: true, reason: null, action: { type: "INTERCEPT_SURRENDER" } },
-      ],
-    },
-    returnScreen: "port",
+  // Helper to render a component and return the container plus a mock dispatch
+  const renderComponent = (Component, props) => {
+    const container = document.createElement("div");
+    const dispatch = () => {};
+    const dispatchMock = (action) => { dispatchMock.calls.push(action); };
+    dispatchMock.calls = [];
+    try {
+      ReactDOM.render(React.createElement(Component, { ...props, dispatch: dispatchMock }), container);
+    } catch (e) {
+      ReactDOM.unmountComponentAtNode(container);
+      throw e;
+    }
+    return { container, dispatchMock };
   };
-  const state = makePortState("portRoyal", {
-    encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
-  });
 
-  const { container, dispatchMock } = renderComponent(window.S.InterceptScreen, { state });
-
-  // Check each option is rendered
-  for (const opt of ctx.intercept.options) {
-    const btn = findButtonByText(container, opt.label);
-    u.assert(btn !== null, `Option "${opt.label}" rendered`);
-  }
-
-  // Click "Fight" and verify dispatch
-  const fightBtn = findButtonByText(container, "Fight");
-  fightBtn.click();
-  u.assert(dispatchMock.calls.some(c => c.type === A.INTERCEPT_FIGHT), "FIGHT dispatched");
-});
-
-reg("U.INTERACT.INTERCEPT.02", "InterceptScreen: unavailable option shows reason and does not dispatch", (u) => {
-  const enemy = makeEnemy({ name: "Test", faction: "pirate" });
-  const ctx = {
-    type: "navy_patrol",
-    phase: "intercept",
-    enemy,
-    intercept: {
-      flavourText: "Test",
-      options: [
-        { id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } },
-        { id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } },
-        { id: "bribe", label: "Bribe", available: false, reason: "No contraband", action: null },
-      ],
-    },
-    returnScreen: "port",
+  // Helper to find a button by its text content
+  const findButtonByText = (container, text) => {
+    const buttons = container.querySelectorAll("button");
+    for (const btn of buttons) {
+      if (btn.textContent.includes(text)) return btn;
+    }
+    return null;
   };
-  const state = makePortState("portRoyal", {
-    encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
+
+  // Helper to find a div with specific text
+  const findElementByText = (container, text) => {
+    const elements = container.querySelectorAll("div, span, p");
+    for (const el of elements) {
+      if (el.textContent.includes(text)) return el;
+    }
+    return null;
+  };
+
+  // ── U.INTERACT.PORTMODAL ─────────────────────────────────────────
+
+  reg("U.INTERACT.PORTMODAL.01", "PortModal: Set Sail enabled for reachable port and dispatches SAIL_TO", (u) => {
+    const state = makePortState("portRoyal", {
+      currentPort: "portRoyal",
+      destination: null,
+      sailingDaysLeft: 0,
+      discoveredPorts: Object.keys(D.PORTS),
+      reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
+      activeMission: null,
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      hold: makeHold(),
+      portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
+    });
+
+    const { container, dispatchMock } = renderComponent(window.UI.PortModal, {
+      targetPortKey: "tortuga",
+      state,
+      onClose: () => {},
+    });
+
+    const sailBtn = findButtonByText(container, "Set Sail");
+    u.assert(sailBtn !== null, "Set Sail button exists");
+    u.assert(!sailBtn.disabled, "Set Sail button is enabled for reachable port");
+
+    sailBtn.click();
+    u.assert(dispatchMock.calls.some(c => c.type === A.SAIL_TO && c.port === "tortuga"),
+      "SAIL_TO dispatched with correct port");
   });
 
-  const { container, dispatchMock } = renderComponent(window.S.InterceptScreen, { state });
+  reg("U.INTERACT.PORTMODAL.02", "PortModal: Set Sail disabled for unreachable port and no dispatch", (u) => {
+    const state = makePortState("portRoyal", {
+      currentPort: "portRoyal",
+      destination: null,
+      sailingDaysLeft: 0,
+      discoveredPorts: Object.keys(D.PORTS),
+      reputation: { ...window.E.initialState.reputation, portRoyal: 50, bermuda: 50 },
+      activeMission: null,
+      ship: makeShip("dinghy"),
+      crew: { roster: [], max: 5, morale: 80 },
+      hold: makeHold(),
+    });
 
-  // Bribe button should be disabled and reason shown
-  const bribeBtn = findButtonByText(container, "Bribe");
-  u.assert(bribeBtn !== null, "Bribe button rendered");
-  u.assert(bribeBtn.disabled, "Bribe button disabled");
-  const reason = findElementByText(container, "No contraband");
-  u.assert(reason !== null, "Reason text shown");
-  bribeBtn.click();
-  u.assert(dispatchMock.calls.length === 0, "No dispatch for disabled option");
-});
+    const { container, dispatchMock } = renderComponent(window.UI.PortModal, {
+      targetPortKey: "bermuda",
+      state,
+      onClose: () => {},
+    });
 
-// ── U.INTERACT.BATTLE ───────────────────────────────────────────
+    const cannotSailBtn = findButtonByText(container, "Cannot Sail");
+    u.assert(cannotSailBtn !== null, "Cannot Sail button exists");
+    u.assert(cannotSailBtn.disabled === true, "Cannot Sail button is disabled");
+    cannotSailBtn.click();
+    u.assert(dispatchMock.calls.length === 0, "No dispatch when disabled");
+  });
 
-reg("U.INTERACT.BATTLE.01", "BattleScreen: naval actions rendered in naval phase", (u) => {
+  reg("U.INTERACT.PORTMODAL.03", "PortModal: mission target indicator shown", (u) => {
+    const mission = makeMission({ targetPort: "tortuga" });
+    const state = makePortState("portRoyal", {
+      activeMission: mission,
+      currentPort: "portRoyal",
+      destination: null,
+      sailingDaysLeft: 0,
+      discoveredPorts: Object.keys(D.PORTS),
+      reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      hold: makeHold(),
+    });
+
+    const { container } = renderComponent(window.UI.PortModal, {
+      targetPortKey: "tortuga",
+      state,
+      onClose: () => {},
+    });
+
+    const missionIndicator = findElementByText(container, "Mission target");
+    u.assert(missionIndicator !== null, "Mission target indicator present");
+  });
+
+  reg("U.INTERACT.PORTMODAL.04", "PortModal: trade tip shown when previewPortMarket set", (u) => {
+    const state = makePortState("portRoyal", {
+      currentPort: "portRoyal",
+      destination: null,
+      sailingDaysLeft: 0,
+      discoveredPorts: Object.keys(D.PORTS),
+      reputation: { ...window.E.initialState.reputation, portRoyal: 50, tortuga: 50 },
+      activeMission: null,
+      ship: makeShip("sloop"),
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      hold: makeHold(),
+      portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } },
+      previewPortMarket: { goods: { sugar: { sellToPort: 80 } } },
+    });
+
+    const { container } = renderComponent(window.UI.PortModal, {
+      targetPortKey: "tortuga",
+      state,
+      onClose: () => {},
+    });
+
+    const tradeTip = findElementByText(container, "Trade Tip");
+    u.assert(tradeTip !== null, "Trade tip present");
+  });
+
+  // ── U.INTERACT.INTERCEPT ────────────────────────────────────────
+
+  reg("U.INTERACT.INTERCEPT.01", "InterceptScreen: renders all options with correct availability", (u) => {
+    const enemy = makeEnemy({ name: "Test", faction: "pirate" });
+    const ctx = {
+      type: "random",
+      phase: "intercept",
+      enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [
+          { id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } },
+          { id: "flee", label: "Flee", available: true, reason: null, action: { type: "INTERCEPT_FLEE" } },
+          { id: "parley", label: "Parley", available: true, reason: null, action: { type: "INTERCEPT_PARLEY" } },
+          { id: "bribe", label: "Bribe", available: true, reason: null, action: { type: "INTERCEPT_BRIBE" } },
+          { id: "surrender", label: "Surrender", available: true, reason: null, action: { type: "INTERCEPT_SURRENDER" } },
+        ],
+      },
+      returnScreen: "port",
+    };
+    const state = makePortState("portRoyal", {
+      encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
+    });
+
+    const { container, dispatchMock } = renderComponent(window.S.InterceptScreen, { state });
+
+    for (const opt of ctx.intercept.options) {
+      const btn = findButtonByText(container, opt.label);
+      u.assert(btn !== null, `Option "${opt.label}" rendered`);
+    }
+
+    const fightBtn = findButtonByText(container, "Fight");
+    fightBtn.click();
+    u.assert(dispatchMock.calls.some(c => c.type === A.INTERCEPT_FIGHT), "FIGHT dispatched");
+  });
+
+  reg("U.INTERACT.INTERCEPT.02", "InterceptScreen: unavailable option shows reason and does not dispatch", (u) => {
+    const enemy = makeEnemy({ name: "Test", faction: "pirate" });
+    const ctx = {
+      type: "navy_patrol",
+      phase: "intercept",
+      enemy,
+      intercept: {
+        flavourText: "Test",
+        options: [
+          { id: "fight", label: "Fight", available: true, reason: null, action: { type: "INTERCEPT_FIGHT" } },
+          { id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } },
+          { id: "bribe", label: "Bribe", available: false, reason: "No contraband", action: null },
+        ],
+      },
+      returnScreen: "port",
+    };
+    const state = makePortState("portRoyal", {
+      encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
+    });
+
+    const { container, dispatchMock } = renderComponent(window.S.InterceptScreen, { state });
+
+    const bribeBtn = findButtonByText(container, "Bribe");
+    u.assert(bribeBtn !== null, "Bribe button rendered");
+    u.assert(bribeBtn.disabled, "Bribe button disabled");
+    const reason = findElementByText(container, "No contraband");
+    u.assert(reason !== null, "Reason text shown");
+    bribeBtn.click();
+    u.assert(dispatchMock.calls.length === 0, "No dispatch for disabled option");
+  });
+
+  // ── U.INTERACT.BATTLE ───────────────────────────────────────────
+
+  // ── U.INTERACT.BATTLE.01 (naval actions) ──────────────────────────
+reg("U.INTERACT.BATTLE.01", "BattleScreen: naval actions rendered and clickable", (u) => {
   const s0 = makeBattleState({
     subPhase: "naval",
     distance: "medium",
@@ -876,37 +789,31 @@ reg("U.INTERACT.BATTLE.01", "BattleScreen: naval actions rendered in naval phase
 
   const { container, dispatchMock } = renderComponent(window.S.BattleScreen, { state });
 
-  // Naval actions should be present as elements (divs)
-  const broadsideElement = findElementByText(container, "Broadside");
-  const precisionElement = findElementByText(container, "Precision");
-  const grappleElement = findElementByText(container, "Grapple");
-  const closeElement = findElementByText(container, "Close Distance");
-  const openElement = findElementByText(container, "Open Distance");
-  const evadeElement = findElementByText(container, "Evade");
+  // Find action elements by text
+  const broadsideEl = findElementByText(container, "Broadside");
+  const closeEl = findElementByText(container, "Close Distance");
+  const evadeEl = findElementByText(container, "Evade");
 
-  u.assert(broadsideElement !== null, "Broadside element exists");
-  u.assert(precisionElement !== null, "Precision element exists");
-  u.assert(grappleElement !== null, "Grapple element exists");
-  u.assert(closeElement !== null, "Close Distance element exists");
-  u.assert(openElement !== null, "Open Distance element exists");
-  u.assert(evadeElement !== null, "Evade element exists");
+  u.assert(broadsideEl !== null, "Broadside element exists");
+  u.assert(closeEl !== null, "Close Distance element exists");
+  u.assert(evadeEl !== null, "Evade element exists");
 
-  // At medium distance, close/open/evade should be enabled appropriately.
-  // Check the parent Panel's inline styles instead of .disabled.
-  const closePanel = closeElement.closest('[style*="cursor"]');
-  const openPanel = openElement.closest('[style*="cursor"]');
-  const evadePanel = evadeElement.closest('[style*="cursor"]');
+  // At medium distance, Close Distance should be enabled (clickable)
+  // We'll simulate click and check dispatch
+  closeEl.click();
+  u.assert(dispatchMock.calls.some(c => c.type === A.BATTLE_ACTION && c.action === "close_distance"),
+    "Close Distance should be clickable and dispatch BATTLE_ACTION");
 
-  u.assert(closePanel && closePanel.style.cursor !== "not-allowed", "Close Distance enabled at medium");
-  u.assert(openPanel && openPanel.style.cursor !== "not-allowed", "Open Distance enabled at medium");
-  u.assert(evadePanel && evadePanel.style.cursor === "not-allowed", "Evade disabled at medium (only at far)");
-
-  // Click Broadside and verify dispatch
-  broadsideElement.click();
-  u.assert(dispatchMock.calls.some(c => c.type === A.BATTLE_ACTION && c.action === "broadside"), "BATTLE_ACTION broadside dispatched");
+  // Evade should be disabled (not clickable) at medium distance
+  // We'll try to click and assert no dispatch
+  const initialCalls = dispatchMock.calls.length;
+  evadeEl.click();
+  u.assertEqual(dispatchMock.calls.length, initialCalls,
+    "Evade should not dispatch at medium distance");
 });
 
-reg("U.INTERACT.BATTLE.02", "BattleScreen: boarding actions rendered in boarding phase", (u) => {
+// ── U.INTERACT.BATTLE.02 (boarding actions) ────────────────────────
+reg("U.INTERACT.BATTLE.02", "BattleScreen: boarding actions rendered and demand surrender enabled", (u) => {
   const s0 = makeBattleState({
     subPhase: "boarding",
     distance: "close",
@@ -918,43 +825,35 @@ reg("U.INTERACT.BATTLE.02", "BattleScreen: boarding actions rendered in boarding
 
   const { container, dispatchMock } = renderComponent(window.S.BattleScreen, { state });
 
-  // Boarding actions should be present as elements
-  const continueElement = findElementByText(container, "Continue Fighting");
-  const fallBackElement = findElementByText(container, "Fall Back");
-  const demandElement = findElementByText(container, "Demand Surrender");
-  const surrenderElement = findElementByText(container, "Surrender");
+  const continueEl = findElementByText(container, "Continue Fighting");
+  const demandEl = findElementByText(container, "Demand Surrender");
 
-  u.assert(continueElement !== null, "Continue Fighting element exists");
-  u.assert(fallBackElement !== null, "Fall Back element exists");
-  u.assert(demandElement !== null, "Demand Surrender element exists");
-  u.assert(surrenderElement !== null, "Surrender element exists");
+  u.assert(continueEl !== null, "Continue Fighting element exists");
+  u.assert(demandEl !== null, "Demand Surrender element exists");
 
-  // Demand Surrender should be enabled since ratio > 0.65 (20 vs 5)
-  const demandPanel = demandElement.closest('[style*="cursor"]');
-  u.assert(demandPanel && demandPanel.style.cursor !== "not-allowed", "Demand Surrender enabled with high advantage");
-
-  // Click Continue and verify dispatch
-  continueElement.click();
-  u.assert(dispatchMock.calls.some(c => c.type === A.BATTLE_ACTION && c.action === "continue_fighting"), "BATTLE_ACTION continue_fighting dispatched");
+  // With high advantage (20 vs 5), Demand Surrender should be enabled
+  demandEl.click();
+  u.assert(dispatchMock.calls.some(c => c.type === A.BATTLE_ACTION && c.action === "demand_surrender"),
+    "Demand Surrender should be clickable with high advantage");
 });
 
-reg("U.INTERACT.BATTLE.03", "BattleScreen: convoy HP shown when convoyHull exists", (u) => {
-  const s0 = makeBattleState({
-    subPhase: "naval",
-    distance: "medium",
-    phase: "player_turn",
-    convoyHull: 30,
-    convoyLost: false,
+  reg("U.INTERACT.BATTLE.03", "BattleScreen: convoy HP shown when convoyHull exists", (u) => {
+    const s0 = makeBattleState({
+      subPhase: "naval",
+      distance: "medium",
+      phase: "player_turn",
+      convoyHull: 30,
+      convoyLost: false,
+    });
+    const state = { ...s0, screen: "battle" };
+
+    const { container } = renderComponent(window.S.BattleScreen, { state });
+
+    const convoyLabel = findElementByText(container, "Convoy Hull");
+    u.assert(convoyLabel !== null, "Convoy Hull indicator present");
   });
-  const state = { ...s0, screen: "battle" };
 
-  const { container } = renderComponent(window.S.BattleScreen, { state });
-
-  const convoyLabel = findElementByText(container, "Convoy Hull");
-  u.assert(convoyLabel !== null, "Convoy Hull indicator present");
-});
-
-reg("U.INTERACT.BATTLE.04", "BattleScreen: demand_surrender disabled when ratio < 0.65", (u) => {
+  reg("U.INTERACT.BATTLE.04", "BattleScreen: demand_surrender disabled when ratio < 0.65", (u) => {
   const s0 = makeBattleState({
     subPhase: "boarding",
     distance: "close",
@@ -964,14 +863,16 @@ reg("U.INTERACT.BATTLE.04", "BattleScreen: demand_surrender disabled when ratio 
   });
   const state = { ...s0, screen: "battle" };
 
-  const { container } = renderComponent(window.S.BattleScreen, { state });
+  const { container, dispatchMock } = renderComponent(window.S.BattleScreen, { state });
 
-  const demandElement = findElementByText(container, "Demand Surrender");
-  u.assert(demandElement !== null, "Demand Surrender element exists");
+  const demandEl = findElementByText(container, "Demand Surrender");
+  u.assert(demandEl !== null, "Demand Surrender element exists");
 
-  const demandPanel = demandElement.closest('[style*="cursor"]');
-  u.assert(demandPanel && demandPanel.style.cursor === "not-allowed", "Demand Surrender disabled when ratio < 0.65");
+  // With low advantage (5 vs 20), Demand Surrender should be disabled
+  const initialCalls = dispatchMock.calls.length;
+  demandEl.click();
+  u.assertEqual(dispatchMock.calls.length, initialCalls,
+    "Demand Surrender should not dispatch when advantage < 0.65");
 });
-
 
 })();

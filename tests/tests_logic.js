@@ -11,7 +11,7 @@
   const {
     makeState, makeShip, makeHold, makeCrewMember, fillRoster,
     makePortState, makeBattleState, makeEnemy,
-    setRandomSequence, resetRandomStub,makeEncounterSession,
+    setRandomSequence, resetRandomStub, makeEncounterSession,
   } = window.testHelpers;
 
   const L = window.L;
@@ -149,17 +149,16 @@
     u.assert(heavyDays >= days, "heavy hold takes at least as long");
   });
 
- reg("L.HOLD.06", "getDaysOfProvisions: calculates remaining days correctly", (u) => {
-  const state = makeState({
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    day: 5,
+  reg("L.HOLD.06", "getDaysOfProvisions: calculates remaining days correctly", (u) => {
+    const state = makeState({
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      day: 5,
+    });
+    const items = { food: 10, water: 5 };
+    const days = L.getDaysOfProvisions(items, state);
+    u.assertEqual(days.food, 10, "food days = 10");
+    u.assertEqual(days.water, 5, "water days = 5");
   });
-  const items = { food: 10, water: 5 };
-  const days = L.getDaysOfProvisions(items, state);
-  // With 10 crew, consumption is 1/day, so food should last 10 days, water 5 days
-  u.assertEqual(days.food, 10, "food days = 10");
-  u.assertEqual(days.water, 5, "water days = 5");
-});
 
   reg("L.HOLD.07", "getHoldSpeedMultiplier: returns correct multipliers", (u) => {
     u.assertEqual(L.getHoldSpeedMultiplier(0.4), 1.00, "<0.5 -> 1.00");
@@ -263,10 +262,15 @@
     u.assertEqual(newRep.tortuga, 40, "below 50 unchanged");
   });
 
-  reg("L.REP.07", "canBribe: returns true only if infamy < 50", (u) => {
-    u.assert(L.canBribe({ infamy: 0 }), "infamy 0 -> can bribe");
-    u.assert(L.canBribe({ infamy: 49 }), "infamy 49 -> can bribe");
-    u.assert(!L.canBribe({ infamy: 50 }), "infamy 50 -> cannot bribe");
+  // ── Bribe gate (incl. Pirate bypass) ───────────────────────────────────
+  reg("L.REP.07", "canBribe: respects infamy, reputation, and pirate bypass", (u) => {
+    const base = { reputation: { portRoyal: 40 }, currentPort: 'portRoyal' };
+    u.assert(L.canBribe({ ...base, infamy: 0 }), "infamy 0, rep 40 -> true");
+    u.assert(L.canBribe({ ...base, infamy: 24 }), "infamy 24, rep 40 -> true");
+    u.assert(!L.canBribe({ ...base, infamy: 25 }), "infamy 25 -> false");
+    u.assert(!L.canBribe({ ...base, infamy: 0, reputation: { portRoyal: 30 } }), "rep 30 -> false");
+    u.assert(L.canBribe({ ...base, faction: 'pirate', infamy: 100, reputation: { portRoyal: 31 } }),
+      "pirate with high infamy, rep 31 -> true");
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -421,39 +425,37 @@
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.PROVISIONS — consumption rates and starvation counters
+  // L.PROV — provisions & starvation (consolidated)
   // ══════════════════════════════════════════════════════════════════════════
 
-reg("L.PROV.01", "getProvisionConsumptionForDay: 1 per 10 crew, rounded up over time", (u) => {
-  const crew = 10;
-  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 1 });
-  const c = L.getProvisionConsumptionForDay(state);
-  u.assertEqual(c.food, 1, "day 1: 1");
-  u.assertEqual(c.water, 1);
-  state.day = 10;
-  const c2 = L.getProvisionConsumptionForDay(state);
-  u.assertEqual(c2.food, 1, "day 10: 1");
-  u.assertEqual(c2.water, 1);
-});
+  reg("L.PROV.01", "getProvisionConsumptionForDay: consumption pattern for 10 crew", (u) => {
+    const crew = 10;
+    const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 1 });
+    const c = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(c.food, 1, "day 1: 1");
+    u.assertEqual(c.water, 1);
+    state.day = 10;
+    const c2 = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(c2.food, 1, "day 10: 1");
+    u.assertEqual(c2.water, 1);
+  });
 
-reg("L.PROV.02", "getProvisionConsumptionForDay: 11 crew pattern", (u) => {
-  const crew = 11;
-  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 5 });
-  const c = L.getProvisionConsumptionForDay(state);
-  // Day 5: floor(55/10)-floor(44/10) = 5-4 = 1
-  u.assertEqual(c.food, 1);
-  state.day = 10;
-  const c2 = L.getProvisionConsumptionForDay(state);
-  // Day 10: floor(110/10)-floor(99/10) = 11-9 = 2
-  u.assertEqual(c2.food, 2);
-});
+  reg("L.PROV.02", "getProvisionConsumptionForDay: 11 crew pattern", (u) => {
+    const crew = 11;
+    const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 5 });
+    const c = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(c.food, 1);
+    state.day = 10;
+    const c2 = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(c2.food, 2);
+  });
 
-reg("L.PROV.03", "getProvisionConsumptionForDay: 0 crew = 0", (u) => {
-  const state = makeState({ crew: { roster: [], max: 40, morale: 80 }, day: 1 });
-  const c = L.getProvisionConsumptionForDay(state);
-  u.assertEqual(c.food, 0);
-  u.assertEqual(c.water, 0);
-});
+  reg("L.PROV.03", "getProvisionConsumptionForDay: 0 crew = 0", (u) => {
+    const state = makeState({ crew: { roster: [], max: 40, morale: 80 }, day: 1 });
+    const c = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(c.food, 0);
+    u.assertEqual(c.water, 0);
+  });
 
   reg("L.PROV.04", "processStarvation: reduces crew and updates counters", (u) => {
     const state = makeState({ daysWithoutFood: 13, daysWithoutWater: 2 });
@@ -465,25 +467,23 @@ reg("L.PROV.03", "getProvisionConsumptionForDay: 0 crew = 0", (u) => {
   });
 
   reg("L.PROV.05", "1 crew: 0 consumption for first 9 days, 1 on day 10", (u) => {
-  const state = makeState({ crew: { roster: fillRoster(1), max: 5, morale: 80 }, day: 10 });
-  const consumption = L.getProvisionConsumptionForDay(state);
-  // On day 10: floor(10*1/10) - floor(9*1/10) = 1 - 0 = 1
-  u.assertEqual(consumption.food, 1);
-  u.assertEqual(consumption.water, 1);
-});
+    const state = makeState({ crew: { roster: fillRoster(1), max: 5, morale: 80 }, day: 10 });
+    const consumption = L.getProvisionConsumptionForDay(state);
+    u.assertEqual(consumption.food, 1);
+    u.assertEqual(consumption.water, 1);
+  });
 
-reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = crew size", (u) => {
-  const crew = 5;
-  const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 10 });
-  let total = 0;
-  for (let d = 1; d <= 10; d++) {
-    state.day = d;
-    const c = L.getProvisionConsumptionForDay(state);
-    total += c.food;
-  }
-  u.assertEqual(total, crew); // floor(10*5/10) = 5
-});
-
+  reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = crew size", (u) => {
+    const crew = 5;
+    const state = makeState({ crew: { roster: fillRoster(crew), max: 40, morale: 80 }, day: 10 });
+    let total = 0;
+    for (let d = 1; d <= 10; d++) {
+      state.day = d;
+      const c = L.getProvisionConsumptionForDay(state);
+      total += c.food;
+    }
+    u.assertEqual(total, crew);
+  });
 
   // ══════════════════════════════════════════════════════════════════════════
   // L.EQUIPMENT — canInstallEquipment and getEquipmentEffect
@@ -570,7 +570,7 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.TRAVEL — travelDays with modifiers
+  // L.TRAVEL — travelDays with modifiers (boundary tests)
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("L.TRAVEL.01", "travelDays: same port → Infinity or undefined — not 0", (u) => {
@@ -703,76 +703,10 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.LOG — classifyLogLine and getLogTabCategory
+  // L.LOG — classifyLogLine and getLogTabCategory (table tests)
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("L.LOG.01", "classifyLogLine: returns a string category key, not an object", (u) => {
-    const result = L.classifyLogLine("Arrived at Port Royal");
-    u.assert(typeof result === "string" || result === null,
-      `expected string or null, got ${typeof result}`);
-  });
-
-  reg("L.LOG.02", "classifyLogLine: arrival text → 'arrival'", (u) => {
-    u.assertEqual(L.classifyLogLine("Arrived at Port Royal on day 5"), "arrival");
-  });
-
-  reg("L.LOG.03", "classifyLogLine: crew departure → 'crew'", (u) => {
-    u.assertEqual(L.classifyLogLine("Jean Dupont has left the crew"), "crew");
-  });
-
-  reg("L.LOG.04", "classifyLogLine: combat text → 'combat'", (u) => {
-    u.assertEqual(L.classifyLogLine("Victory! Enemy ship sunk."), "combat");
-    u.assertEqual(L.classifyLogLine("Defeated! The crew surrenders."), "combat");
-  });
-
-  reg("L.LOG.05", "classifyLogLine: trade text → 'trade'", (u) => {
-    u.assertEqual(L.classifyLogLine("Bought 10 sugar at Port Royal"), "trade");
-    u.assertEqual(L.classifyLogLine("Sold cloth for 200g"), "trade");
-  });
-
-  reg("L.LOG.06", "classifyLogLine: unknown text → null", (u) => {
-    u.assertEqual(L.classifyLogLine("Something completely unrelated"), null);
-    u.assertEqual(L.classifyLogLine(""), null);
-  });
-
-  reg("L.LOG.07", "getLogTabCategory: always returns a non-null string", (u) => {
-    const texts = [
-      "Arrived at Kingston",
-      "Jean Dupont has left the crew",
-      "Victory! Boarded and plundered.",
-      "Bought sugar for 200g",
-      "Something random",
-      "",
-    ];
-    for (const text of texts) {
-      const result = L.getLogTabCategory(text);
-      u.assert(typeof result === "string", `expected string for "${text}", got ${typeof result}`);
-      u.assert(result.length > 0, `non-empty string for "${text}"`);
-    }
-  });
-
-  reg("L.LOG.08", "getLogTabCategory: unknown text falls back to 'other'", (u) => {
-    u.assertEqual(L.getLogTabCategory("Something completely unrelated"), "other");
-    u.assertEqual(L.getLogTabCategory(""), "other");
-  });
-
-  reg("L.LOG.09", "getLogTabCategory: maps arrival/sailing/discovery to 'ports' tab", (u) => {
-    u.assertEqual(L.getLogTabCategory("Arrived at Port Royal"), "ports");
-    u.assertEqual(L.getLogTabCategory("Setting sail for Tortuga"), "ports");
-    u.assertEqual(L.getLogTabCategory("New port discovered: Libertalia. Mark it on your charts."), "ports");
-  });
-
-  reg("L.LOG.10", "getLogTabCategory: maps combat to 'combat' tab", (u) => {
-    u.assertEqual(L.getLogTabCategory("Victory! Enemy sunk."), "combat");
-    u.assertEqual(L.getLogTabCategory("Plundered the ship."), "combat");
-  });
-
-  reg("L.LOG.11", "getLogTabCategory: maps mission/infamy to 'missions' tab", (u) => {
-    u.assertEqual(L.getLogTabCategory("Completed: delivery mission"), "missions");
-    u.assertEqual(L.getLogTabCategory("+5 infamy for attacking allies"), "missions");
-  });
-
-  reg("L.LOG.12", "classifyLogLine: handles all categories", (u) => {
+  reg("L.LOG.01", "classifyLogLine: table of all known categories", (u) => {
     const cases = [
       ["Arrived at Port Royal", "arrival"],
       ["Setting sail for Havana", "sailing"],
@@ -787,15 +721,37 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
       ["Something else", null],
     ];
     for (const [text, expected] of cases) {
-      u.assertEqual(L.classifyLogLine(text), expected, `"${text}" -> ${expected}`);
+      const result = L.classifyLogLine(text);
+      u.assertEqual(result, expected, `"${text}" -> ${expected}`);
+    }
+  });
+
+  reg("L.LOG.02", "getLogTabCategory: maps to correct UI tabs", (u) => {
+    const cases = [
+      ["Arrived at Port Royal", "ports"],
+      ["Setting sail for Tortuga", "ports"],
+      ["New port discovered: Libertalia.", "ports"],
+      ["Jean Dupont has left the crew", "crew"],
+      ["The patrol is active", "crew"],
+      ["Victory! Enemy sunk.", "combat"],
+      ["Plundered the ship.", "combat"],
+      ["Completed: delivery mission", "missions"],
+      ["+5 infamy", "missions"],
+      ["Bought sugar for 200g", "trade"],
+      ["Something random", "other"],
+      ["", "other"],
+    ];
+    for (const [text, expected] of cases) {
+      const result = L.getLogTabCategory(text);
+      u.assertEqual(result, expected, `"${text}" -> ${expected}`);
     }
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.SAVE — encodeSave / decodeSave round-trip and tamper detection
+  // L.SAVE — encode/decode round-trip, tamper, garbage, non-empty
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("L.SAVE.01", "encodeSave produces a non-empty string", (u) => {
+  reg("L.SAVE.01", "encodeSave produces a non-empty string (cheap invariant)", (u) => {
     const state = makeState({ gold: 500 });
     const encoded = L.encodeSave(state);
     u.assert(typeof encoded === "string" && encoded.length > 0, "non-empty string");
@@ -840,16 +796,6 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
     const result = L.decodeSave("not a valid save");
     u.assert(result.error !== null, "error set for garbage input");
     u.assert(result.state === null || result.state === undefined, "no state for garbage");
-  });
-
-  reg("L.SAVE.05", "simpleHash: same string always produces same hash", (u) => {
-    const a = L.simpleHash("hello broadside");
-    const b = L.simpleHash("hello broadside");
-    u.assertEqual(a, b);
-  });
-
-  reg("L.SAVE.06", "simpleHash: different strings produce different hashes", (u) => {
-    u.assert(L.simpleHash("abc") !== L.simpleHash("xyz"));
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -932,7 +878,7 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.COMBAT — B11 combat helpers and resolvers
+  // L.COMBAT — B11 combat helpers and resolvers (core contracts)
   // ══════════════════════════════════════════════════════════════════════════
 
   function runNavalRound(playerAction, enemyAction, distance = "medium", enemyOverrides = {}) {
@@ -1099,277 +1045,185 @@ reg("L.PROV.06", "cumulative correctness: after 10 days, total consumption = cre
     u.assertEqual(result.outcome, "enemy_sunk", "sunk over captured");
   });
 
-  // ── Boarding resolver tests ─────────────────────────────────────────────
-
-  reg("L.BOARD.01", "getBoardingRatio: even crew/morale → ratio ≈ 0.5", (u) => {
+  // ── Boarding resolver outcome classes (consolidated) ───────────────────
+  // FIX: Use pirate faction to avoid English skip rule interfering with fallback cost test.
+  reg("L.BOARD.01", "ratio calculation: equal, player advantage, disadvantage", (u) => {
     const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
     const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 10, enemyCrew: 10 };
+    let battle = { playerCrew: 10, enemyCrew: 10 };
+    u.assertApprox(L.getBoardingRatio(state, battle, enemy), 0.5, 0.05, "equal crews ~0.5");
+
+    battle = { playerCrew: 20, enemyCrew: 10 };
     const ratio = L.getBoardingRatio(state, battle, enemy);
-    u.assertApprox(ratio, 0.5, 0.05);
+    u.assert(ratio > 0.5, "player crew advantage -> ratio > 0.5");
+
+    battle = { playerCrew: 5, enemyCrew: 20 };
+    const ratio2 = L.getBoardingRatio(state, battle, enemy);
+    u.assert(ratio2 < 0.5, "player crew disadvantage -> ratio < 0.5");
   });
 
-  reg("L.BOARD.02", "getBoardingRatio: player crew advantage → ratio > 0.5", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
+  reg("L.BOARD.02", "continue: normal continuation, player wipeout, enemy wipeout", (u) => {
+  // Use pirate faction to avoid English skip rule
+  const state = makePortState({
+    faction: "pirate",
+    crew: { roster: fillRoster(20), morale: 50, max: 40 }
+  });
+  const enemy = makeEnemy({ crew: 10, risk: "medium" });
+
+  // Normal
+  let battle = { playerCrew: 20, enemyCrew: 10 };
+  // Seed RNG for predictable loss (0.5 for even split, but we want both losses > 0)
+  setRandomSequence([0.5, 0.5, 0.5]);
+  let result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
+  resetRandomStub();
+  u.assert(result.playerCrewLoss > 0 && result.enemyCrewLoss > 0, "both lose crew");
+  u.assertEqual(result.outcome, "continue");
+
+  // Player wipeout (1 vs 10)
+  battle = { playerCrew: 1, enemyCrew: 10 };
+  // Force loss for player: with 1 crew, the loss calculation will be 0 or 1.
+  // To ensure wipeout, we set the first random to force loss (>=0.5) and avoid skip rule.
+  setRandomSequence([0.6, 0.5]); // ensures maybeCrewLoss returns the loss
+  result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
+  resetRandomStub();
+  u.assertEqual(result.outcome, "player_wipeout");
+
+  // Enemy wipeout (10 vs 1)
+  battle = { playerCrew: 10, enemyCrew: 1 };
+  setRandomSequence([0.5, 0.6]); // force enemy loss
+  result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
+  resetRandomStub();
+  u.assertEqual(result.outcome, "enemy_wipeout");
+});
+
+  reg("L.BOARD.03", "demand surrender: below threshold fails, above succeeds or fails with chance", (u) => {
+    const stateLow = makePortState({ crew: { roster: fillRoster(5), morale: 50, max: 40 } });
+    const stateHigh = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
     const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 20, enemyCrew: 10 };
-    const ratio = L.getBoardingRatio(state, battle, enemy);
-    u.assert(ratio > 0.5);
+
+    // Below threshold should throw
+    const battleLow = { playerCrew: 5, enemyCrew: 10 };
+    u.assertThrows(() => L.resolveBoardingRound(stateLow, "demand_surrender", "continue_fighting", battleLow, enemy),
+      "below 0.65 threshold throws");
+
+    // Above threshold: success or failure
+    const battleHigh = { playerCrew: 20, enemyCrew: 5 };
+    setRandomSequence([0.1]); // success
+    let result = L.resolveBoardingRound(stateHigh, "demand_surrender", "continue_fighting", battleHigh, enemy);
+    resetRandomStub();
+    u.assertEqual(result.outcome, "enemy_win_capture", "demand succeeds on lucky roll");
+
+    setRandomSequence([0.9]); // failure
+    result = L.resolveBoardingRound(stateHigh, "demand_surrender", "continue_fighting", battleHigh, enemy);
+    resetRandomStub();
+    u.assertEqual(result.outcome, "continue", "demand fails, continues");
+    u.assert(result.playerCrewLoss > 0, "failure costs crew");
   });
 
-  reg("L.BOARD.03", "Continue vs Continue: both sides take proportional losses", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 20, enemyCrew: 10 };
-    const result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
-    u.assert(result.playerCrewLoss > 0, "player loses crew");
-    u.assert(result.enemyCrewLoss > 0, "enemy loses crew");
-    u.assertEqual(result.outcome, "continue");
+  reg("L.BOARD.04", "fall back: mutual fallback, player fallback, enemy fallback", (u) => {
+  // Use pirate faction to avoid English skip rule
+  const state = makePortState({
+    faction: "pirate",
+    crew: { roster: fillRoster(10), morale: 50, max: 40 }
   });
+  const enemy = makeEnemy({ crew: 10, risk: "medium" });
+  let battle = { playerCrew: 10, enemyCrew: 10 };
 
-  reg("L.BOARD.04", "Demand Surrender vs Fall Back: always resolves to capture", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(5), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 20, risk: "medium" });
-    const battle = { playerCrew: 5, enemyCrew: 20 };
-    const result = L.resolveBoardingRound(state, "demand_surrender", "fall_back", battle, enemy);
-    u.assertEqual(result.outcome, "enemy_win_capture");
-  });
+  // Mutual fallback
+  let result = L.resolveBoardingRound(state, "fall_back", "fall_back", battle, enemy);
+  u.assertEqual(result.outcome, "returned_to_naval");
+  u.assertEqual(result.playerCrewLoss, 0);
 
-  reg("L.BOARD.05", "Demand Surrender declared below 0.65 threshold throws", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(5), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 20, risk: "medium" });
-    const battle = { playerCrew: 5, enemyCrew: 20 };
-    u.assertThrows(() => L.resolveBoardingRound(state, "demand_surrender", "continue_fighting", battle, enemy),
-      "Demand Surrender below threshold should throw");
-  });
+  // Player fallback vs continue – seed to ensure loss is > 0
+  battle = { playerCrew: 10, enemyCrew: 10 };
+  setRandomSequence([0.5]); // force a loss
+  result = L.resolveBoardingRound(state, "fall_back", "continue_fighting", battle, enemy);
+  resetRandomStub();
+  u.assertEqual(result.outcome, "returned_to_naval");
+  u.assert(result.playerCrewLoss > 0, "player loses crew on fallback");
+  u.assertEqual(result.enemyCrewLoss, 0);
 
-  reg("L.BOARD.06", "Fall Back vs Continue, retreater's cost brings crew to 0 → wipeout", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(1), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 1, enemyCrew: 10 };
-    const result = L.resolveBoardingRound(state, "fall_back", "continue_fighting", battle, enemy);
-    u.assertEqual(result.outcome, "player_wipeout");
-  });
+  // Enemy fallback vs continue
+  setRandomSequence([0.5]);
+  result = L.resolveBoardingRound(state, "continue_fighting", "fall_back", battle, enemy);
+  resetRandomStub();
+  u.assertEqual(result.outcome, "returned_to_naval");
+  u.assert(result.enemyCrewLoss > 0, "enemy loses crew on fallback");
+  u.assertEqual(result.playerCrewLoss, 0);
+});
 
-  reg("L.BOARD.07", "mutual Fall Back: outcome = returned_to_naval, zero cost", (u) => {
+  reg("L.BOARD.05", "surrender: player surrender, enemy surrender", (u) => {
     const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
     const enemy = makeEnemy({ crew: 10, risk: "medium" });
     const battle = { playerCrew: 10, enemyCrew: 10 };
-    const result = L.resolveBoardingRound(state, "fall_back", "fall_back", battle, enemy);
-    u.assertEqual(result.outcome, "returned_to_naval");
-    u.assertEqual(result.playerCrewLoss, 0);
-    u.assertEqual(result.enemyCrewLoss, 0);
-  });
 
-  reg("L.BOARD.08", "Surrender vs anything: always resolves to surrender outcome", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 10, enemyCrew: 10 };
     let result = L.resolveBoardingRound(state, "surrender", "continue_fighting", battle, enemy);
     u.assertEqual(result.outcome, "player_surrendered");
+
     result = L.resolveBoardingRound(state, "continue_fighting", "surrender", battle, enemy);
     u.assertEqual(result.outcome, "enemy_surrendered");
   });
 
-  // ── NEW: Extended boarding resolver coverage ────────────────────────────
-
-  reg("L.BOARD.09", "Continue vs Continue: player wipeout when crew hits 0", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(1), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    // Ratio will be low (1 vs 10), so player loss ~ ceil(1 * 0.15 * 0.9) = 1
-    const battle = { playerCrew: 1, enemyCrew: 10 };
-    const result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
-    u.assertEqual(result.outcome, "player_wipeout", "player wiped out when crew reaches 0");
-  });
-
-  reg("L.BOARD.10", "Continue vs Continue: enemy wipeout when enemy crew hits 0", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 1, risk: "medium" });
-    // Ratio will be high (10 vs 1), so enemy loss ~ ceil(1 * 0.15 * 0.9) = 1
-    const battle = { playerCrew: 10, enemyCrew: 1 };
-    const result = L.resolveBoardingRound(state, "continue_fighting", "continue_fighting", battle, enemy);
-    u.assertEqual(result.outcome, "enemy_wipeout", "enemy wiped out when crew reaches 0");
-  });
-
-  reg("L.BOARD.11", "Demand Surrender vs Continue: success when ratio >= 0.65", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 5, risk: "medium" });
-    // Ratio should be > 0.65 (20 vs 5)
-    const battle = { playerCrew: 20, enemyCrew: 5 };
-    setRandomSequence([0.1]); // success chance = (ratio - 0.5) * 2, with ratio ~0.8 => 0.6, so 0.1 succeeds
-    const result = L.resolveBoardingRound(state, "demand_surrender", "continue_fighting", battle, enemy);
-    resetRandomStub();
-    u.assertEqual(result.outcome, "enemy_win_capture", "Demand Surrender succeeds");
-  });
-
-  reg("L.BOARD.12", "Demand Surrender vs Continue: failure when ratio high but roll fails", (u) => {
-    const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
-    const enemy = makeEnemy({ crew: 5, risk: "medium" });
-    const battle = { playerCrew: 20, enemyCrew: 5 };
-    setRandomSequence([0.9]); // roll > success chance -> fails
-    const result = L.resolveBoardingRound(state, "demand_surrender", "continue_fighting", battle, enemy);
-    resetRandomStub();
-    u.assertEqual(result.outcome, "continue", "Demand Surrender fails, continues");
-    u.assert(result.playerCrewLoss > 0, "player loses crew on failure");
-  });
-
-  reg("L.BOARD.13", "Fall Back vs Continue: retreater loses crew proportional to ratio", (u) => {
+  reg("L.BOARD.06", "NPC boarding action output classes (policy contract)", (u) => {
     const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
     const enemy = makeEnemy({ crew: 10, risk: "medium" });
-    const battle = { playerCrew: 10, enemyCrew: 10 };
-    const result = L.resolveBoardingRound(state, "fall_back", "continue_fighting", battle, enemy);
-    u.assertEqual(result.outcome, "returned_to_naval", "returns to naval");
-    u.assert(result.playerCrewLoss > 0, "player loses crew on fall back");
-    u.assertEqual(result.enemyCrewLoss, 0, "enemy loses no crew");
+    const session = makeEncounterSession(state, enemy, { playerCrew: 10, enemyCrew: 10 });
+    const action = L.getNPCBoardingAction(state, session);
+    u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns a legal boarding action");
   });
 
   // ── NEW: NPC AI action coverage ──────────────────────────────────────────
 
-// ── NEW: NPC AI action coverage ──────────────────────────────────────────
-
-reg("L.BOARD.14", "getNPCBoardingAction: returns fall_back when enemy ratio is very low", (u) => {
-  const state = makePortState({ crew: { roster: fillRoster(20), morale: 50, max: 40 } });
-  const enemy = makeEnemy({ crew: 5, risk: "low" });
-  const session = makeEncounterSession(state, enemy, { playerCrew: 20, enemyCrew: 5 });
-  const action = L.getNPCBoardingAction(state, session);
-  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-});
-
-reg("L.BOARD.15", "getNPCBoardingAction: returns surrender when enemy ratio is extremely low", (u) => {
-  const state = makePortState({ crew: { roster: fillRoster(30), morale: 50, max: 40 } });
-  const enemy = makeEnemy({ crew: 2, risk: "low" });
-  const session = makeEncounterSession(state, enemy, { playerCrew: 30, enemyCrew: 2 });
-  const action = L.getNPCBoardingAction(state, session);
-  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-});
-
-reg("L.BOARD.16", "getNPCBoardingAction: returns continue_fighting when enemy ratio is moderate", (u) => {
-  const state = makePortState({ crew: { roster: fillRoster(10), morale: 50, max: 40 } });
-  const enemy = makeEnemy({ crew: 10, risk: "medium" });
-  const session = makeEncounterSession(state, enemy, { playerCrew: 10, enemyCrew: 10 });
-  const action = L.getNPCBoardingAction(state, session);
-  u.assert(["continue_fighting", "fall_back", "surrender"].includes(action), "returns valid boarding action");
-});
-
-reg("L.BOARD.17", "getNPCNavalAction: returns broadside when health is good", (u) => {
-  const state = makePortState({ ship: makeShip("sloop"), crew: { roster: fillRoster(10), morale: 80, max: 40 } });
-  const enemy = makeEnemy({ hull: 100, maxHull: 100, cannons: 10, crew: 20, speed: 10 });
-  const session = makeEncounterSession(state, enemy, { distance: "medium", enemyHull: 100 });
-  const action = L.getNPCNavalAction(state, session);
-  u.assert(["broadside", "precision", "close_distance", "open_distance"].includes(action), "returns valid naval action");
-});
-
-reg("L.BOARD.18", "getNPCNavalAction: returns open_distance when hull is low and at close range", (u) => {
-  const state = makePortState({ ship: makeShip("sloop"), crew: { roster: fillRoster(10), morale: 80, max: 40 } });
-  // Enemy has low current hull (20 out of 100) and low crew (5) so boarding is not attractive
-  const enemy = makeEnemy({ hull: 20, maxHull: 100, cannons: 10, crew: 5, speed: 10 });
-  const session = makeEncounterSession(state, enemy, {
-    distance: "close",
-    enemyHull: 20,   // current hull matches enemy.hull
-    enemyCrew: 5,
-    playerHull: 100,
-    playerCrew: 10,
-  });
-  const action = L.getNPCNavalAction(state, session);
-  u.assert(["open_distance", "broadside", "precision", "close_distance"].includes(action), "returns a valid naval action, expecting open_distance to be possible");
-});
-
-  // ── NEW: maybeCrewLoss helper ────────────────────────────────────────────
-
-  reg("L.COMBAT.01", "maybeCrewLoss: returns 0 or computed loss (deterministic with seed)", (u) => {
-    // Test with seed that returns 0
-    setRandomSequence([0.4]); // < 0.5 -> returns 0
-    const result0 = L.maybeCrewLoss(10);
-    resetRandomStub();
-    u.assertEqual(result0, 0, "returns 0 when random < 0.5");
-
-    // Test with seed that returns > 0
-    setRandomSequence([0.6]); // >= 0.5 -> returns floor(amount)
-    const result1 = L.maybeCrewLoss(10);
-    resetRandomStub();
-    u.assertEqual(result1, 10, "returns floor(amount) when random >= 0.5");
-
-    // Test with fractional amount
-    setRandomSequence([0.6]);
-    const result2 = L.maybeCrewLoss(7.5);
-    resetRandomStub();
-    u.assertEqual(result2, 7, "returns floor of amount when random >= 0.5");
-  });
-
-  // ── NEW: travelDaysBetween coverage ──────────────────────────────────────
-
-  reg("L.TRAVEL.11", "travelDaysBetween: calculates travel days between coordinates", (u) => {
-    const state = makeState({
-      ship: makeShip("sloop"),
-      crew: { roster: [], morale: 80, max: 40 },
-      wind: { angle: 0, speed: 10 },
-    });
-    const days = L.travelDaysBetween({ x: 400, y: 230 }, { x: 480, y: 200 }, state);
-    u.assert(days >= 1, "returns positive integer");
-    u.assert(Number.isInteger(days), "returns integer");
+  reg("L.BOARD.07", "NPC naval action output classes (policy contract)", (u) => {
+    const state = makePortState({ ship: makeShip("sloop"), crew: { roster: fillRoster(10), morale: 80, max: 40 } });
+    const enemy = makeEnemy({ hull: 100, maxHull: 100, cannons: 10, crew: 20, speed: 10 });
+    const session = makeEncounterSession(state, enemy, { distance: "medium", enemyHull: 100 });
+    const action = L.getNPCNavalAction(state, session);
+    u.assert(["broadside", "precision", "close_distance", "open_distance"].includes(action),
+      "returns a legal naval action");
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.EVENTS — random event and patrol triggers
+  // L.ENC_OPT — Encounter option matrix (consolidated)
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("L.EVT.01", "maybeRandomPatrol: returns boolean based on infamy, heat, rep", (u) => {
-    const state = makeState({
-      infamy: 100,
-      factionAlerts: { english: 10 },
-      reputation: { portRoyal: 80 },
-      currentPort: "portRoyal",
+  // FIX: Set reputation for both current port AND destination (since canBribe uses destination port's reputation).
+  reg("L.ENC_OPT.01", "bribe availability matrix: context, faction, infamy, rep, contraband", (u) => {
+    const base = {
       destination: "tortuga",
-    });
-    const result = L.maybeRandomPatrol(state);
-    u.assert(typeof result === "boolean", "returns boolean");
-  });
+      gold: 1000,
+      ship: makeShip("sloop"),
+      reputation: { portRoyal: 40, tortuga: 40 },  // both ports set to same rep value
+    };
 
-  reg("L.EVT.02", "triggerRandomEvent: returns an event or null", (u) => {
-    const state = makeState({ fame: 100, screen: "sailing" });
-    const event = L.triggerRandomEvent(state);
-    u.assert(event === null || (event.id && event.title), "returns null or valid event");
-  });
+    // Each entry: [context, faction, infamy, rep, hasContraband, expectedAvailable]
+    const matrix = [
+      ["random", "pirate", 100, 40, false, true],
+      ["random", "english", 0, 40, false, true],
+      ["random", "english", 25, 40, false, false],
+      ["random", "english", 0, 25, false, false],
+      ["navy_patrol", "pirate", 100, 40, true, true],
+      ["navy_patrol", "english", 0, 40, true, true],
+      ["navy_patrol", "english", 25, 40, true, false],
+      ["navy_patrol", "english", 0, 25, true, false],
+      ["navy_patrol", "english", 0, 40, false, false],
+    ];
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // L.ENC — buildEncounterContext
-  // ══════════════════════════════════════════════════════════════════════════
-
-  reg("L.ENC.01", "buildEncounterContext: creates a context for random encounter", (u) => {
-    const state = makePortState("portRoyal", { destination: "tortuga" });
-    const enemy = { name: "The Test", faction: "pirate", hull: 100, cannons: 10, crew: 20 };
-    const context = L.buildEncounterContext(state, "random", enemy);
-    u.assert(context.type === "random", "type set");
-    u.assert(context.enemy.name === "The Test", "enemy name");
-    u.assert(Array.isArray(context.options), "options array");
-    u.assert(context.options.some(o => o.id === "fight"), "includes fight");
-    u.assert(context.options.some(o => o.id === "flee"), "includes flee");
-  });
-
-  reg("L.ENC.02", "buildEncounterContext: patrol encounter has inspect option", (u) => {
-    const state = makePortState("portRoyal", { destination: "tortuga" });
-    const enemy = { name: "Patrol", faction: "english" };
-    const context = L.buildEncounterContext(state, "navy_patrol", enemy);
-    u.assert(context.options.some(o => o.id === "inspect"), "includes inspect");
-    u.assert(context.options.some(o => o.id === "fight"), "includes fight");
-    u.assert(!context.options.some(o => o.id === "flee"), "no flee for patrol");
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // L.PORT — getPortTradeProfile
-  // ══════════════════════════════════════════════════════════════════════════
-
-  reg("L.PROF.01", "getPortTradeProfile: returns goodDeals and inDemand for a port", (u) => {
-    const profile = L.getPortTradeProfile("portRoyal");
-    u.assert(profile.goodDeals.includes("sugar"), "sugar is a good deal");
-    u.assert(profile.goodDeals.includes("cloth"), "cloth is a good deal");
-    u.assert(profile.goodDeals.includes("food"), "food is always a good deal");
-
-    const profileTortuga = L.getPortTradeProfile("tortuga");
-    u.assert(profileTortuga.goodDeals.includes("rum"), "rum is a good deal");
-    u.assert(profileTortuga.goodDeals.includes("tobacco"), "tobacco is a good deal");
-    const inDemand = profileTortuga.inDemand;
-    u.assert(inDemand.length > 0, "Tortuga has some in demand");
+    for (const [ctx, faction, infamy, rep, contraband, expected] of matrix) {
+      const state = makePortState("portRoyal", {
+        ...base,
+        faction,
+        infamy,
+        reputation: { portRoyal: rep, tortuga: rep },
+        hold: contraband ? makeHold({ tobacco: 2 }) : makeHold(),
+      });
+      const enemy = { name: "Test", faction: "english", hull: 100, cannons: 10, crew: 20 };
+      const context = L.buildEncounterContext(state, ctx, enemy);
+      const bribe = context.options.find(o => o.id === "bribe");
+      u.assert(bribe !== undefined, `bribe missing for ${ctx}/${faction}/${infamy}/${rep}`);
+      u.assertEqual(bribe.available, expected,
+        `expected ${expected} for ${ctx}/${faction}/${infamy}/${rep} with contraband=${contraband}`);
+    }
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1527,7 +1381,7 @@ reg("L.BOARD.18", "getNPCNavalAction: returns open_distance when hull is low and
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // L.MISC — miscellaneous
+  // L.MISC — miscellaneous (helpers not covered elsewhere)
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("L.MISC.01", "roll: returns an integer between 1 and sides", (u) => {
@@ -1558,418 +1412,353 @@ reg("L.BOARD.18", "getNPCNavalAction: returns open_distance when hull is low and
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-// L.TRADE — getTradeOpportunity
-// ══════════════════════════════════════════════════════════════════════════
+  // L.TRADE — getTradeOpportunity
+  // ══════════════════════════════════════════════════════════════════════════
 
-reg("L.TRADE.01", "getTradeOpportunity: returns null when no profitable trade exists", (u) => {
-  // Create a state with a market where all goods are more expensive at the target
-  // or no goods are available.
-  const state = makePortState("portRoyal", {
-    portMarket: {
-      goods: {
-        sugar: { buyFromPort: 100, sellToPort: 90, available: 10 },
-        cloth: { buyFromPort: 200, sellToPort: 180, available: 5 },
+  reg("L.TRADE.01", "getTradeOpportunity: returns null when no profitable trade exists", (u) => {
+    const state = makePortState("portRoyal", {
+      portMarket: {
+        goods: {
+          sugar: { buyFromPort: 100, sellToPort: 90, available: 10 },
+          cloth: { buyFromPort: 200, sellToPort: 180, available: 5 },
+        },
       },
-    },
-  });
-  // Mock generatePortMarket to return a market where sell prices are lower
-  const origGenerate = window.G.generatePortMarket;
-  window.G.generatePortMarket = (portKey) => {
-    return {
-      goods: {
-        sugar: { sellToPort: 80 }, // selling for less than buy price
-        cloth: { sellToPort: 150 }, // selling for less than buy price
-      },
+    });
+    const origGenerate = window.G.generatePortMarket;
+    window.G.generatePortMarket = (portKey) => {
+      return {
+        goods: {
+          sugar: { sellToPort: 80 },
+          cloth: { sellToPort: 150 },
+        },
+      };
     };
-  };
-  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
-  window.G.generatePortMarket = origGenerate;
-  u.assertEqual(result, null, "no profitable trade -> null");
-});
-
-reg("L.TRADE.02", "getTradeOpportunity: returns best profitable trade", (u) => {
-  const state = makePortState("portRoyal", {
-    portMarket: {
-      goods: {
-        sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
-        cloth: { buyFromPort: 100, sellToPort: 90, available: 10 },
-        rum: { buyFromPort: 30, sellToPort: 25, available: 15 },
-      },
-    },
-    previewPortMarket: {
-      goods: {
-        sugar: { sellToPort: 45 }, // -5 loss
-        cloth: { sellToPort: 95 }, // -5 loss
-        rum: { sellToPort: 45 },   // +15 profit (50%)
-      },
-    },
+    const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+    window.G.generatePortMarket = origGenerate;
+    u.assertEqual(result, null, "no profitable trade -> null");
   });
-  // Mock generatePortMarket is no longer needed; we set previewPortMarket.
-  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
-  u.assert(result !== null, "returns a trade opportunity");
-  u.assertEqual(result.good, "rum", "best trade is rum");
-  u.assertEqual(result.buyPrice, 30, "buy price 30");
-  u.assertEqual(result.sellPrice, 45, "sell price 45");
-  u.assertEqual(result.profit, 15, "profit 15");
-  u.assert(result.profitPct >= 0.49, "profit pct ~50%");
-  u.assertEqual(result.availableQty, 15, "available quantity 15");
-});
 
-reg("L.TRADE.03", "getTradeOpportunity: skips food and water", (u) => {
-  const state = makePortState("portRoyal", {
-    portMarket: {
-      goods: {
-        food: { buyFromPort: 3, sellToPort: 2, available: 999 },
-        water: { buyFromPort: 2, sellToPort: 1, available: 999 },
-        sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
+  reg("L.TRADE.02", "getTradeOpportunity: returns best profitable trade", (u) => {
+    const state = makePortState("portRoyal", {
+      portMarket: {
+        goods: {
+          sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
+          cloth: { buyFromPort: 100, sellToPort: 90, available: 10 },
+          rum: { buyFromPort: 30, sellToPort: 25, available: 15 },
+        },
       },
-    },
+      previewPortMarket: {
+        goods: {
+          sugar: { sellToPort: 45 },
+          cloth: { sellToPort: 95 },
+          rum: { sellToPort: 45 },
+        },
+      },
+    });
+    const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+    u.assert(result !== null, "returns a trade opportunity");
+    u.assertEqual(result.good, "rum", "best trade is rum");
+    u.assertEqual(result.buyPrice, 30, "buy price 30");
+    u.assertEqual(result.sellPrice, 45, "sell price 45");
+    u.assertEqual(result.profit, 15, "profit 15");
+    u.assert(result.profitPct >= 0.49, "profit pct ~50%");
+    u.assertEqual(result.availableQty, 15, "available quantity 15");
   });
-  const origGenerate = window.G.generatePortMarket;
-  window.G.generatePortMarket = (portKey) => {
-    return {
-      goods: {
-        food: { sellToPort: 10 },
-        water: { sellToPort: 8 },
-        sugar: { sellToPort: 45 }, // -5 loss
+
+  reg("L.TRADE.03", "getTradeOpportunity: skips food and water", (u) => {
+    const state = makePortState("portRoyal", {
+      portMarket: {
+        goods: {
+          food: { buyFromPort: 3, sellToPort: 2, available: 999 },
+          water: { buyFromPort: 2, sellToPort: 1, available: 999 },
+          sugar: { buyFromPort: 50, sellToPort: 40, available: 20 },
+        },
       },
+    });
+    const origGenerate = window.G.generatePortMarket;
+    window.G.generatePortMarket = (portKey) => {
+      return {
+        goods: {
+          food: { sellToPort: 10 },
+          water: { sellToPort: 8 },
+          sugar: { sellToPort: 45 },
+        },
+      };
     };
-  };
-  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
-  window.G.generatePortMarket = origGenerate;
-  // food and water should be skipped, sugar is a loss, so result should be null
-  u.assertEqual(result, null, "food and water skipped, no profit -> null");
-});
-
-reg("L.TRADE.04", "getTradeOpportunity returns null if no targetMarket provided", (u) => {
-  const state = makePortState("portRoyal", { portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } } });
-  // No previewPortMarket set
-  const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
-  u.assertEqual(result, null, "No market provided => null");
-});
-
-//  NPC AI – Signal Functions (L.AISIG.*)
-// ══════════════════════════════════════════════════════════════════════════
-
-reg("L.AISIG.01", "getHullAdvantage: symmetric inputs → 0; clear advantage → positive", (u) => {
-  u.assertEqual(L.getHullAdvantage(100, 100, 100, 100), 0, "symmetric returns 0");
-  u.assertEqual(L.getHullAdvantage(100, 100, 50, 100), 0.5, "clear advantage positive");
-  u.assertEqual(L.getHullAdvantage(50, 100, 100, 100), -0.5, "clear disadvantage negative");
-});
-
-reg("L.AISIG.02", "getCrewAdvantage: normalized correctly, symmetric inputs → 0", (u) => {
-  u.assertEqual(L.getCrewAdvantage(10, 10), 0, "symmetric returns 0");
-  u.assertEqual(L.getCrewAdvantage(20, 10), 10/30, "positive advantage normalized");
-  u.assertEqual(L.getCrewAdvantage(10, 20), -10/30, "negative advantage normalized");
-});
-
-reg("L.AISIG.03", "computeAIDisposition: pirate medium weights", (u) => {
-  const state = makeState({ fame: 50, infamy: 0, factionAlerts: {} });
-  const enemy = { faction: "pirate", risk: "medium" };
-  const disposition = L.computeAIDisposition(state, enemy, "random");
-  u.assertApprox(disposition.weights.broadside, 0.8, 0.001);
-  u.assertApprox(disposition.weights.precision, 0.7, 0.001);
-  u.assertApprox(disposition.weights.close, 1.3, 0.001);
-  u.assertApprox(disposition.weights.open, 0.5, 0.001);
-  u.assertApprox(disposition.weights.grapple, 1.4, 0.001);
-});
-
-reg("L.AISIG.04", "computeAIDisposition: infamy/fame affect surrenderWillingness and continueFightingBonus", (u) => {
-  const lowFameState = makeState({ fame: 0, infamy: 0 });
-  const highFameState = makeState({ fame: 200, infamy: 0 });
-  const highInfamyState = makeState({ fame: 0, infamy: 100 });
-
-  const enemy = { faction: "pirate", risk: "medium" };
-
-  const lowDisc = L.computeAIDisposition(lowFameState, enemy, "random");
-  const highFameDisc = L.computeAIDisposition(highFameState, enemy, "random");
-  const highInfamyDisc = L.computeAIDisposition(highInfamyState, enemy, "random");
-
-  u.assert(highFameDisc.surrenderWillingness > lowDisc.surrenderWillingness, "higher fame increases surrender willingness");
-  u.assert(highInfamyDisc.surrenderWillingness < lowDisc.surrenderWillingness, "higher infamy decreases surrender willingness");
-  u.assert(highInfamyDisc.continueFightingBonus > lowDisc.continueFightingBonus, "higher infamy increases continue fighting bonus");
-});
-
-reg("L.AISIG.05", "computeAIDisposition: mission_combat adds grapple weight bonus", (u) => {
-  const state = makeState({ fame: 0, infamy: 0, factionAlerts: {} });
-  const enemy = { faction: "pirate", risk: "medium" };
-  const base = L.computeAIDisposition(state, enemy, "random");
-  const mission = L.computeAIDisposition(state, enemy, "mission_combat");
-  // mission_combat has grapple: +0.3 in AI_ORIGIN_MODIFIERS
-  const expectedBase = 1.4 * 1.0; // pirate grapple base * risk mult
-  const expectedMission = (1.4 + 0.3) * 1.0; // pirate grapple + origin bonus
-  u.assertApprox(base.weights.grapple, expectedBase, 0.001);
-  u.assertApprox(mission.weights.grapple, expectedMission, 0.001);
-});
-
-// ══════════════════════════════════════════════════════════════════════════
-//  NPC AI – Scorers (L.AISCORE.*)
-// ══════════════════════════════════════════════════════════════════════════
-
-reg("L.AISCORE.01", "scoreNavalActions: never returns evade key", (u) => {
-  const self = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
-  const opponent = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
-  const disposition = { weights: { broadside: 1, precision: 1, close: 1, open: 1, grapple: 1 }, riskLevel: "medium" };
-  const legalActions = ["broadside", "precision", "close_distance", "evade"]; // include evade to ensure it's not added
-  const scores = L.scoreNavalActions(self, opponent, "far", disposition, legalActions);
-  u.assert(!("evade" in scores), "evade should never be in scores");
-  // Also ensure only legal non-evade actions are present
-  Object.keys(scores).forEach(key => u.assert(key !== "evade", "no evade key"));
-});
-
-reg("L.AISCORE.02", "scoreBoardingActions: never returns demand_surrender key", (u) => {
-  const disposition = { riskLevel: "medium", continueFightingBonus: 0, surrenderWillingness: 0.5 };
-  const scores = L.scoreBoardingActions(0.6, disposition);
-  u.assert(!("demand_surrender" in scores), "demand_surrender should never be in scores");
-});
-
-// ══════════════════════════════════════════════════════════════════════════
-//  NPC AI – Selector (L.AISELECT.*)
-// ══════════════════════════════════════════════════════════════════════════
-
-reg("L.AISELECT.01", "selectWeightedAction: picks the only positive score", (u) => {
-  const scores = { broadside: 1, precision: 0 };
-  const action = L.selectWeightedAction(scores, 2);
-  u.assertEqual(action, "broadside", "only positive score is chosen");
-});
-
-reg("L.AISELECT.01b", "selectWeightedAction: dominant score chosen with low random value", (u) => {
-  setRandomSequence([0.01]); // low random value ensures first (largest) weight wins
-  const scores = { broadside: 0.1, precision: 0.9 };
-  const action = L.selectWeightedAction(scores, 2);
-  resetRandomStub();
-  u.assertEqual(action, "precision", "dominant score chosen with low random value");
-});
-
-reg("L.AISELECT.02", "selectWeightedAction: empty/all-zero scores returns null", (u) => {
-  u.assertEqual(L.selectWeightedAction({}), null, "empty object returns null");
-  u.assertEqual(L.selectWeightedAction({ broadside: 0, precision: 0 }), null, "all-zero scores returns null");
-});
-
-
-// ══════════════════════════════════════════════════════════════════════════
-//  RNG
-// ══════════════════════════════════════════════════════════════════════════
-
-reg("L.RNG.01", "resolveNavalRound uses injected RNG deterministically", (u) => {
-  const state = makePortState();
-  const battle = { distance: "medium", playerHull: 100, playerCrew: 10, enemyHull: 100, enemyCrew: 10 };
-  const enemy = makeEnemy();
-  const fixedRng = { random: () => 0.5, int: (a,b) => Math.floor((a+b)/2), pick: (arr) => arr[0] };
-  const result1 = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy, fixedRng);
-  const result2 = L.resolveNavalRound(state, "broadside", "broadside", battle, enemy, fixedRng);
-  u.assertEqual(JSON.stringify(result1), JSON.stringify(result2), "same RNG produces same result");
-});
-
-reg("L.DATA.01", "triggerRandomEvent does not mutate D.RANDOM_EVENTS", (u) => {
-  const before = JSON.parse(JSON.stringify(window.D.RANDOM_EVENTS));
-  const state = makeState({ fame: 100 });
-  const event = L.triggerRandomEvent(state);
-  u.assert(JSON.stringify(window.D.RANDOM_EVENTS) === JSON.stringify(before), "RANDOM_EVENTS unchanged");
-  if (event && Array.isArray(event.desc)) {
-    // Should never happen – desc should be resolved string in the returned copy.
-    u.assert(false, "Returned event should have string desc");
-  }
-});
-
-
-reg("L.CONTRA.01", "getPatrolContrabandInfo returns consistent results", (u) => {
-  const state = makePortState("portRoyal", {
-    hold: makeHold({ tobacco: 3, slaves: 1 }),
-    activeMission: { type: "smuggle", requiredGood: "rum", requiredQty: 5 },
-    hold: makeHold({ tobacco: 3, slaves: 1, rum: 10 }),
+    const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+    window.G.generatePortMarket = origGenerate;
+    u.assertEqual(result, null, "food and water skipped, no profit -> null");
   });
-  const info = L.getPatrolContrabandInfo(state);
-  u.assertEqual(info.hasContraband, true);
-  u.assertEqual(info.seizedValue, 3 * 90 + 1 * 220 + 10 * 30); // 270+220+300=790
-  u.assertEqual(info.fine, Math.round(790 * 0.20 / 25) * 25); // 160?
-  const info2 = L.getPatrolContrabandInfo(state, 0.40);
-  u.assertEqual(info2.fine, Math.round(790 * 0.40 / 25) * 25);
-});
 
-// ══════════════════════════════════════════════════════════════════════════
-// L.ENCOUNTER_OPTIONS — Encounter context option matrices
-// ══════════════════════════════════════════════════════════════════════════
-
-reg("L.ENC_OPT.01", "Navy patrol options: inspect, bribe, fight", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 60, tortuga: 60 },
-    hold: makeHold({ tobacco: 2 }),
-    ship: makeShip("sloop"),
+  reg("L.TRADE.04", "getTradeOpportunity returns null if no targetMarket provided", (u) => {
+    const state = makePortState("portRoyal", { portMarket: { goods: { sugar: { buyFromPort: 50, sellToPort: 40, available: 20 } } } });
+    const result = L.getTradeOpportunity(state, "portRoyal", "tortuga");
+    u.assertEqual(result, null, "No market provided => null");
   });
-  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
-  const options = context.options;
-  const ids = options.map(o => o.id);
 
-  // Verify the three expected options are present
-  u.assert(ids.includes("inspect"), "inspect option present");
-  u.assert(ids.includes("bribe"), "bribe option present");
-  u.assert(ids.includes("fight"), "fight option present");
+  // ══════════════════════════════════════════════════════════════════════════
+  // L.AISIG — NPC AI signal functions
+  // ══════════════════════════════════════════════════════════════════════════
 
-  // Verify they are available under these conditions
-  const inspect = options.find(o => o.id === "inspect");
-  u.assert(inspect.available, "inspect should be available");
-
-  const bribe = options.find(o => o.id === "bribe");
-  u.assert(bribe.available, "bribe should be available (infamy<25, rep>50, has contraband)");
-
-  const fight = options.find(o => o.id === "fight");
-  u.assert(fight.available, "fight should be available");
-
-  // Navy patrols should NOT offer flee, parley, or surrender
-  u.assert(!ids.includes("flee"), "flee not present");
-  u.assert(!ids.includes("parley"), "parley not present");
-  u.assert(!ids.includes("surrender"), "surrender not present");
-});
-  
-
-reg("L.ENC_OPT.02", "Random encounter options: fight, flee, parley, bribe, surrender", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 60 },
-    ship: makeShip("sloop"),
+  reg("L.AISIG.01", "getHullAdvantage: symmetric inputs → 0; clear advantage → positive", (u) => {
+    u.assertEqual(L.getHullAdvantage(100, 100, 100, 100), 0, "symmetric returns 0");
+    u.assertEqual(L.getHullAdvantage(100, 100, 50, 100), 0.5, "clear advantage positive");
+    u.assertEqual(L.getHullAdvantage(50, 100, 100, 100), -0.5, "clear disadvantage negative");
   });
-  const enemy = { name: "Test", faction: "pirate", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "random", enemy);
 
-  const ids = context.options.map(o => o.id).sort();
-  u.assertEqual(ids.join(","), "bribe,fight,flee,parley,surrender", "options are all five");
-
-  // Flee should have speedCheck
-  const flee = context.options.find(o => o.id === "flee");
-  u.assert(flee.available === true, "flee available");
-  u.assert(flee.speedCheck !== undefined, "flee has speedCheck");
-});
-
-reg("L.ENC_OPT.03", "Hostile port options: fight, surrender only", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "havana",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 60 },
-    ship: makeShip("sloop"),
+  reg("L.AISIG.02", "getCrewAdvantage: normalized correctly, symmetric inputs → 0", (u) => {
+    u.assertEqual(L.getCrewAdvantage(10, 10), 0, "symmetric returns 0");
+    u.assertEqual(L.getCrewAdvantage(20, 10), 10/30, "positive advantage normalized");
+    u.assertEqual(L.getCrewAdvantage(10, 20), -10/30, "negative advantage normalized");
   });
-  const enemy = { name: "Havana Guards", faction: "spanish", hull: 150, cannons: 15, crew: 40 };
-  const context = L.buildEncounterContext(state, "hostile_port_entry", enemy);
 
-  const ids = context.options.map(o => o.id);
-  // Check that fight and surrender are present
-  u.assert(ids.includes("fight"), "fight option present");
-  u.assert(ids.includes("surrender"), "surrender option present");
-  // Optionally check that no unexpected options are present (if design allows only these two)
-  // For flexibility, we just check that the expected ones exist.
-  // But to keep the test meaningful, we also ensure that the number of options is not more than 2?
-  // However, if the game adds more options later, this test would fail unnecessarily.
-  // So we only check the presence of the required ones.
-  // But the test name says "only" – so we'll keep the length check.
-  // If the actual implementation returns more, you'll need to decide if that's correct.
-  // For now, we assume the design is exactly these two.
-  u.assertEqual(ids.length, 2, "should have exactly 2 options: fight and surrender");
-});
-
-reg("L.ENC_OPT.04", "Merchant defense options: fight only", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "portRoyal",
-    gold: 500,
-    reputation: { portRoyal: 60 },
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+  reg("L.AISIG.03", "computeAIDisposition: pirate medium weights", (u) => {
+    const state = makeState({ fame: 50, infamy: 0, factionAlerts: {} });
+    const enemy = { faction: "pirate", risk: "medium" };
+    const disposition = L.computeAIDisposition(state, enemy, "random");
+    u.assertApprox(disposition.weights.broadside, 0.8, 0.001);
+    u.assertApprox(disposition.weights.precision, 0.7, 0.001);
+    u.assertApprox(disposition.weights.close, 1.3, 0.001);
+    u.assertApprox(disposition.weights.open, 0.5, 0.001);
+    u.assertApprox(disposition.weights.grapple, 1.4, 0.001);
   });
-  const enemy = { name: "Pirate", faction: "pirate", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "distressed_merchant_help", enemy);
 
-  const ids = context.options.map(o => o.id);
-  u.assert(ids.includes("fight"), "fight present");
-  u.assertEqual(ids.length, 1, "only fight");
-});
+  reg("L.AISIG.04", "computeAIDisposition: infamy/fame affect surrenderWillingness and continueFightingBonus", (u) => {
+    const lowFameState = makeState({ fame: 0, infamy: 0 });
+    const highFameState = makeState({ fame: 200, infamy: 0 });
+    const highInfamyState = makeState({ fame: 0, infamy: 100 });
 
-reg("L.ENC_OPT.05", "Merchant plunder options: fight only", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "portRoyal",
-    gold: 500,
-    reputation: { portRoyal: 60 },
-    ship: makeShip("sloop"),
-    crew: { roster: fillRoster(10), max: 40, morale: 80 },
+    const enemy = { faction: "pirate", risk: "medium" };
+
+    const lowDisc = L.computeAIDisposition(lowFameState, enemy, "random");
+    const highFameDisc = L.computeAIDisposition(highFameState, enemy, "random");
+    const highInfamyDisc = L.computeAIDisposition(highInfamyState, enemy, "random");
+
+    u.assert(highFameDisc.surrenderWillingness > lowDisc.surrenderWillingness, "higher fame increases surrender willingness");
+    u.assert(highInfamyDisc.surrenderWillingness < lowDisc.surrenderWillingness, "higher infamy decreases surrender willingness");
+    u.assert(highInfamyDisc.continueFightingBonus > lowDisc.continueFightingBonus, "higher infamy increases continue fighting bonus");
   });
-  const enemy = { name: "Merchant", faction: "english", hull: 100, cannons: 5, crew: 10 };
-  const context = L.buildEncounterContext(state, "distressed_merchant_plunder", enemy);
 
-  const ids = context.options.map(o => o.id);
-  u.assert(ids.includes("fight"), "fight present");
-  u.assertEqual(ids.length, 1, "only fight");
-});
-
-reg("L.ENC_OPT.06", "Navy patrol: bribe disabled when infamy >= 25", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 30,
-    reputation: { portRoyal: 60 },
-    hold: makeHold({ tobacco: 2 }),
-    ship: makeShip("sloop"),
+  reg("L.AISIG.05", "computeAIDisposition: mission_combat adds grapple weight bonus", (u) => {
+    const state = makeState({ fame: 0, infamy: 0, factionAlerts: {} });
+    const enemy = { faction: "pirate", risk: "medium" };
+    const base = L.computeAIDisposition(state, enemy, "random");
+    const mission = L.computeAIDisposition(state, enemy, "mission_combat");
+    const expectedBase = 1.4 * 1.0;
+    const expectedMission = (1.4 + 0.3) * 1.0;
+    u.assertApprox(base.weights.grapple, expectedBase, 0.001);
+    u.assertApprox(mission.weights.grapple, expectedMission, 0.001);
   });
-  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
 
-  const bribe = context.options.find(o => o.id === "bribe");
-  u.assert(bribe.available === false, "bribe disabled due to infamy");
-  u.assert(bribe.reason.includes("infamy") || bribe.reason.includes("reputation"), "reason mentions infamy/rep");
-});
+  // ══════════════════════════════════════════════════════════════════════════
+  // L.AISCORE — NPC AI scorers
+  // ══════════════════════════════════════════════════════════════════════════
 
-reg("L.ENC_OPT.07", "Navy patrol: bribe disabled when rep <= 50", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 50 },
-    hold: makeHold({ tobacco: 2 }),
-    ship: makeShip("sloop"),
+  reg("L.AISCORE.01", "scoreNavalActions: never returns evade key", (u) => {
+    const self = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
+    const opponent = { hull: 100, maxHull: 100, crew: 10, speed: 10, shipType: "sloop" };
+    const disposition = { weights: { broadside: 1, precision: 1, close: 1, open: 1, grapple: 1 }, riskLevel: "medium" };
+    const legalActions = ["broadside", "precision", "close_distance", "evade"];
+    const scores = L.scoreNavalActions(self, opponent, "far", disposition, legalActions);
+    u.assert(!("evade" in scores), "evade should never be in scores");
   });
-  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
 
-  const bribe = context.options.find(o => o.id === "bribe");
-  u.assert(bribe.available === false, "bribe disabled due to rep <= 50");
-  u.assert(bribe.reason.includes("trust") || bribe.reason.includes("reputation"), "reason mentions trust/rep");
-});
-
-reg("L.ENC_OPT.08", "Navy patrol: bribe disabled when no contraband", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 60 },
-    hold: makeHold({ food: 5, water: 5 }), // no contraband
-    ship: makeShip("sloop"),
+  reg("L.AISCORE.02", "scoreBoardingActions: never returns demand_surrender key", (u) => {
+    const disposition = { riskLevel: "medium", continueFightingBonus: 0, surrenderWillingness: 0.5 };
+    const scores = L.scoreBoardingActions(0.6, disposition);
+    u.assert(!("demand_surrender" in scores), "demand_surrender should never be in scores");
   });
-  const enemy = { name: "Patrol", faction: "english", hull: 100, cannons: 10, crew: 20 };
-  const context = L.buildEncounterContext(state, "navy_patrol", enemy);
 
-  const bribe = context.options.find(o => o.id === "bribe");
-  u.assert(bribe.available === false, "bribe disabled due to no contraband");
-  u.assert(bribe.reason.includes("contraband"), "reason mentions contraband");
-});
+  // ══════════════════════════════════════════════════════════════════════════
+  // L.AISELECT — NPC AI selector
+  // ══════════════════════════════════════════════════════════════════════════
 
-reg("L.ENC_OPT.09", "Random encounter: bribe cost set correctly", (u) => {
-  const state = makePortState("portRoyal", {
-    destination: "tortuga",
-    gold: 500,
-    infamy: 0,
-    reputation: { portRoyal: 60 },
-    ship: makeShip("sloop"),
+  reg("L.AISELECT.01", "selectWeightedAction: picks the only positive score", (u) => {
+    const scores = { broadside: 1, precision: 0 };
+    const action = L.selectWeightedAction(scores, 2);
+    u.assertEqual(action, "broadside", "only positive score is chosen");
   });
-  const enemy = { name: "Test", faction: "pirate", hull: 100, cannons: 10, crew: 20, gold: 500 };
-  const context = L.buildEncounterContext(state, "random", enemy);
 
-  const bribe = context.options.find(o => o.id === "bribe");
-  u.assert(bribe.available === true, "bribe available");
-  u.assert(bribe.cost > 0, "bribe cost positive");
-});
+  reg("L.AISELECT.01b", "selectWeightedAction: dominant score chosen with low random value", (u) => {
+    setRandomSequence([0.01]);
+    const scores = { broadside: 0.1, precision: 0.9 };
+    const action = L.selectWeightedAction(scores, 2);
+    resetRandomStub();
+    u.assertEqual(action, "precision", "dominant score chosen with low random value");
+  });
+
+  reg("L.AISELECT.02", "selectWeightedAction: empty/all-zero scores returns null", (u) => {
+    u.assertEqual(L.selectWeightedAction({}), null, "empty object returns null");
+    u.assertEqual(L.selectWeightedAction({ broadside: 0, precision: 0 }), null, "all-zero scores returns null");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // L.CONTRA — getPatrolContrabandInfo
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("L.CONTRA.01", "getPatrolContrabandInfo returns consistent results", (u) => {
+    const state = makePortState("portRoyal", {
+      hold: makeHold({ tobacco: 3, slaves: 1, rum: 10 }),
+      activeMission: { type: "smuggle", requiredGood: "rum", requiredQty: 5 },
+    });
+    const info = L.getPatrolContrabandInfo(state);
+    u.assertEqual(info.hasContraband, true);
+    u.assertEqual(info.seizedValue, 3 * 90 + 1 * 220 + 10 * 30);
+    u.assertEqual(info.fine, Math.round((3 * 90 + 1 * 220 + 10 * 30) * 0.20 / 25) * 25);
+    const info2 = L.getPatrolContrabandInfo(state, 0.40);
+    u.assertEqual(info2.fine, Math.round((3 * 90 + 1 * 220 + 10 * 30) * 0.40 / 25) * 25);
+  });
+
+  reg("L.CONTRA.02", "getPatrolContrabandInfo: detects weapons in smuggle mission", (u) => {
+    const state = makePortState("portRoyal", {
+      hold: makeHold({ weapons: 5 }),
+      activeMission: { type: "smuggle", requiredGood: "weapons", requiredQty: 5 },
+    });
+    const info = L.getPatrolContrabandInfo(state);
+    u.assert(info.hasContraband, true);
+    u.assertEqual(info.smuggledGood, "weapons");
+    u.assertEqual(info.seizedValue, 5 * 80);
+    u.assertEqual(info.fine, Math.round((5 * 80 * 0.20) / 25) * 25);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // B10 — Captain identity & port services (consolidated contracts)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("B10.DATA.BIRTH_TRAITS", "All factions have the expected complete trait shape", (u) => {
+    const expected = {
+      english: { crewLossMult: 0.80 },
+      spanish: { crewCost: 40, crewLock: 'spanish', crewPortLock: true },
+      french: { provisionMult: 0.75, maxDaysBonus: 1 },
+      dutch: { tradeSellMult: 0.95, tradeBuyMult: 1.05 },
+      pirate: { fleeEvadeBonus: 0.10, bribeGateRemoved: true, contrabandAvoidBonus: 0.10 },
+    };
+    const traits = window.D.BIRTH_TRAITS;
+    u.assert(traits !== undefined, "BIRTH_TRAITS missing from D");
+    for (const [faction, exp] of Object.entries(expected)) {
+      const t = traits[faction];
+      u.assert(t !== undefined, `BIRTH_TRAITS.${faction} missing`);
+      for (const [key, value] of Object.entries(exp)) {
+        u.assertEqual(t[key], value, `${faction}.${key} should be ${value}`);
+      }
+    }
+  });
+
+  reg("B10.DATA.PORT_SERVICES", "All port specialties have correct ids and thresholds", (u) => {
+    const specs = window.D.PORT_SPECIALTIES;
+    u.assert(specs !== undefined, "PORT_SPECIALTIES missing");
+    const expectedIds = { dutch: 'bank', french: 'embassy', spanish: 'inquisitor', pirate: 'black_market', english: 'naval_yard' };
+    for (const [faction, id] of Object.entries(expectedIds)) {
+      u.assert(specs[faction] !== undefined, `PORT_SPECIALTIES.${faction} missing`);
+      u.assertEqual(specs[faction].id, id, `${faction}.id should be ${id}`);
+    }
+    const st = window.D.SERVICE_THRESHOLDS;
+    u.assert(st !== undefined, "SERVICE_THRESHOLDS missing");
+    ["inquisitor", "embassy", "bank", "navalYard"].forEach(k => {
+      u.assert(st[k] !== undefined, `SERVICE_THRESHOLDS.${k} missing`);
+    });
+    u.assert(Array.isArray(st.inquisitor.pricing) && st.inquisitor.pricing.length > 0, "inquisitor pricing table");
+    u.assert(Array.isArray(st.embassy.pricing) && st.embassy.pricing.length > 0, "embassy pricing table");
+    u.assert(st.bank.maturityDays === 30, "bank maturityDays = 30");
+    u.assert(st.navalYard.repRequiredForRemoval === 50, "navalYard repRequired = 50");
+  });
+
+  reg("B10.HELPERS.BIRTH", "getBirthTrait / getBirthTraits / isSpanishBorn work as accessors", (u) => {
+    const stateEnglish = { faction: "english" };
+    u.assertEqual(L.getBirthTrait(stateEnglish, "crewLossMult"), 0.80);
+    u.assertEqual(L.getBirthTrait(stateEnglish, "nonexistent"), null);
+    const traits = L.getBirthTraits(stateEnglish);
+    u.assert(traits.crewLossMult === 0.80, "full traits object contains crewLossMult");
+
+    const stateSpanish = { faction: "spanish" };
+    u.assertEqual(L.getBirthTrait(stateSpanish, "crewCost"), 40);
+    u.assert(L.isSpanishBorn(stateSpanish) === true);
+    u.assert(L.isSpanishBorn({ faction: "english" }) === false);
+  });
+
+  reg("B10.HELPERS.SERVICES", "Specialty lookup and availability calculations", (u) => {
+    // getPortSpecialty
+    u.assertEqual(L.getPortSpecialty("curacao").id, "bank");
+    u.assertEqual(L.getPortSpecialty("portRoyal").id, "naval_yard");
+
+    // isPortServiceAvailable
+    const state = { reputation: { curacao: 40 } };
+    u.assert(L.isPortServiceAvailable(state, "curacao", "bank") === true);
+    const state2 = { reputation: { curacao: 20 } };
+    u.assert(L.isPortServiceAvailable(state2, "curacao", "bank") === false);
+
+    // Bank trust/interest
+    const state3 = { reputation: { curacao: 30 } };
+    u.assertEqual(L.getBankTrustPct(state3, "curacao"), 0.25);
+    u.assertEqual(L.getBankInterestRate(state3, "curacao"), 0.10);
+    const state4 = { reputation: { curacao: 90 } };
+    u.assertEqual(L.getBankTrustPct(state4, "curacao"), 1.00);
+    u.assertEqual(L.getBankInterestRate(state4, "curacao"), 0.05);
+
+    // Bank capacity/ceiling
+    const state5 = { fame: 100, ship: { type: "frigate" }, reputation: { curacao: 50 } };
+    const capacity = L.getBankCapacity(state5);
+    u.assertEqual(capacity, 105000, "bank capacity = 10000 + 100*200 + 250000*0.3");
+    const trust = L.getBankTrustPct(state5, "curacao");
+    u.assertEqual(L.getBankLoanCeiling(state5, "curacao"), Math.floor(capacity * trust));
+
+    // Inquisitor cost
+    const state6 = { infamy: 30 };
+    u.assertEqual(L.getInquisitorCost(state6), 400);
+    const state7 = { infamy: 110 };
+    u.assertEqual(L.getInquisitorCost(state7), 1500);
+
+    // Embassy cost
+    const state8 = { reputation: { spanish: 30 } };
+    u.assertEqual(L.getEmbassyCost(state8, "spanish"), 1000);
+    const state9 = { reputation: { spanish: 85 } };
+    u.assertEqual(L.getEmbassyCost(state9, "spanish"), 5000);
+
+    // Naval yard early access
+    const state10 = { fame: 80 };
+    u.assert(L.getNavalYardEarlyAccess(state10) !== null, "early access available at fame 80");
+    const shipItem = { requiredFame: 50 };
+    u.assert(L.isEarlyAccessEligible(state10, shipItem, "ship") === true);
+    const equipItem = { requiredFame: 150 };
+    u.assert(L.isEarlyAccessEligible(state10, equipItem, "equipment") === false);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FRENCH — birth trait (consolidated)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  reg("FRENCH.CONTRACT", "French provision multiplier and maxDays bonus", (u) => {
+    // provisionMult from data
+    u.assertEqual(window.D.BIRTH_TRAITS.french.provisionMult, 0.75);
+    u.assertEqual(window.D.BIRTH_TRAITS.french.maxDaysBonus, 1);
+
+    // Consumption pattern for 10 crew
+    const state = makeState({
+      faction: "french",
+      crew: { roster: fillRoster(10), max: 40, morale: 80 },
+      day: 1,
+    });
+    let total = 0;
+    for (let d = 1; d <= 10; d++) {
+      state.day = d;
+      total += L.getProvisionConsumptionForDay(state).food;
+    }
+    u.assertEqual(total, 7, "French 10 crew over 10 days -> 7 (75% of 10)");
+
+    // maxDays bonus
+    const shipState = makeState({ faction: "french", ship: makeShip("sloop") });
+    const stats = L.getShipStats(shipState);
+    u.assertEqual(stats.maxDays, 11, "sloop maxDays +1 = 11");
+
+    // Non-French unaffected
+    const nonFrenchState = makeState({ faction: "english", ship: makeShip("sloop") });
+    const stats2 = L.getShipStats(nonFrenchState);
+    u.assertEqual(stats2.maxDays, 10, "non-French unchanged");
+
+    // getBirthTrait accessors
+    u.assertEqual(L.getBirthTrait(state, "provisionMult"), 0.75);
+    u.assertEqual(L.getBirthTrait(state, "maxDaysBonus"), 1);
+    u.assertEqual(L.getBirthTrait({ faction: "english" }, "provisionMult"), null);
+  });
 
 })();

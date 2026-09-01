@@ -587,7 +587,19 @@ case A.PREVIEW_PORT: {
       case A.HIRE_CREW: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
-        const cost = action.count * 50;
+        // ── Spanish birth location restriction ──────────────────────────
+        const isSpanishBorn = state.faction === 'spanish';
+        const isSpanishPort = window.D.PORTS[state.currentPort]?.faction === 'spanish';
+        if (isSpanishBorn && !isSpanishPort) {
+          return {
+            ...state,
+            log: [...state.log, window.E.logEntry(state, "You can only recruit crew at Spanish ports.")]
+          };
+        }
+        // ── Cost ──────────────────────────────────────────────────────────
+        const baseCost = isSpanishBorn ? 40 : 50;
+        const cost = action.count * baseCost;
+        // ── Capacity check ────────────────────────────────────────────────
         if (state.crew.roster.length >= state.crew.max || state.gold < cost) return { ...state };
         const portFaction = PORTS[state.currentPort]?.faction || "pirate";
         const newMembers = G.generateRoster(action.count, portFaction);
@@ -598,8 +610,6 @@ case A.PREVIEW_PORT: {
           log: [...state.log, window.E.logEntry(state, `Hired ${action.count} crew for ${cost}g.`)]
         };
         // Inject tutorial hunt into the board (but do NOT auto-accept)
-        // Note: firstCrewHired is now set by the onboarding middleware AFTER this reducer runs,
-        // so we check the post-hire condition directly (roster grew this turn).
         const huntData = D.TUTORIAL_HUNT;
         if (
           huntData &&

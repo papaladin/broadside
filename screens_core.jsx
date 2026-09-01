@@ -6,7 +6,7 @@ window.S = window.S || {};
   const { PORTS, FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES, QM_DIALOGUE } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
+  const { T, Panel, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, ScreenHeader, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip,
     IconAnchor,IconPlay,IconContinue,IconFileTransfer,IconDice,IconSailboat, IconJournal,IconFloppy,  } = window.UI;
 
   // ── TITLE SCREEN (moved from screens_port.jsx) ───────────────────
@@ -204,11 +204,11 @@ function TitleScreen({ dispatch }) {
 }
 
   // ── NEW GAME SCREEN (moved from screens_port.jsx) ────────────────
- function NewGameScreen({ dispatch }) {
+function NewGameScreen({ dispatch }) {
   const { FACTIONS, STARTS, CREW_FIRST_NAMES, CREW_LAST_NAMES } = window.D;
   const L = window.L;
   const A = window.E.A;
-  const { T, panelStyle, Btn } = window.UI;
+  const { T, panelStyle, Btn, IconDice, IconSailboat, IconAnchor, IconStar } = window.UI;
 
   const [captainName, setCaptainName] = useState(() => {
     const first = CREW_FIRST_NAMES?.english || ["William"];
@@ -216,7 +216,7 @@ function TitleScreen({ dispatch }) {
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     return `${pick(first)} ${pick(last)}`;
   });
-  const [selectedFaction, setSelectedFaction] = useState(null);
+  const [selectedFaction, setSelectedFaction] = useState("english");
   const [tutorialMode, setTutorialMode] = useState("full");
 
   const handleRandomName = () => {
@@ -240,15 +240,52 @@ function TitleScreen({ dispatch }) {
 
   const backstory = selectedFaction ? STARTS.factionBackstory?.[selectedFaction] : null;
   const startPort = selectedFaction ? (window.D.PORTS[STARTS.factionPorts?.[selectedFaction]]?.name || "") : "";
+  const factionColor = selectedFaction ? FACTIONS[selectedFaction]?.color : T.gold;
+
+  const getTraitDescription = (faction) => {
+    const traits = {
+      english: {
+        label: "Naval Discipline",
+        desc: "Your crew suffers 20% fewer casualties in combat.",
+        beginnerNote: "Balanced and forgiving – perfect for beginners.",
+      },
+      spanish: {
+        label: "Loyal Crew",
+        desc: "You command only loyal Spanish sailors. Recruit them cheaper, but only at Spanish ports.",
+        beginnerNote: null,
+      },
+      french: {
+        label: "Natural Explorer",
+        desc: "Your crew consumes 25% less food and water, and your ships can sail further than anyone else's.",
+        beginnerNote: null,
+      },
+      dutch: {
+        label: "Shrewd Merchant",
+        desc: "You buy cheaper and sell for more than other captains. Trade is your trade.",
+        beginnerNote: null,
+      },
+      pirate: {
+        label: "Master of Evasion",
+        desc: "You are better at evading patrols, hiding contraband, and bribing your way out of trouble.",
+        beginnerNote: null,
+      },
+    };
+    return traits[faction] || traits.english;
+  };
+
+  const trait = getTraitDescription(selectedFaction);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* ── Hero section (blue gradient + wave) ──────────────── */}
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: T.panelAlt }}>
+      {/* ── Hero section ──────────────────────────────────────────────── */}
       <div style={{
-        height: "25vh", minHeight: 220,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "flex-end",
-        padding: `0 ${T.spacing.xl}px`,
+        height: "28vh",
+        minHeight: 200,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        padding: `0 ${T.spacing.xl}px 50px ${T.spacing.xl}px`,
         background: `linear-gradient(180deg, ${T.bg} 0%, #1c3450 100%)`,
         position: "relative",
         overflow: "hidden",
@@ -262,7 +299,9 @@ function TitleScreen({ dispatch }) {
           marginBottom: 4,
           textShadow: `0 0 30px ${T.goldDim}`,
           lineHeight: 1.1,
-          display: "flex", alignItems: "center", gap: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
         }}>
           <IconAnchor size={32} color={T.gold} />
           Broadside
@@ -272,12 +311,12 @@ function TitleScreen({ dispatch }) {
           color: T.textDim,
           fontSize: T.metadataFontSize,
           letterSpacing: "0.15em",
-          marginBottom: 40,
+          marginBottom: 10,
         }}>
           CARIBBEAN · 1695
         </div>
 
-        {/* Wave SVG */}
+        {/* Wave SVG – pushed down by padding */}
         <svg
           viewBox="0 0 1440 120"
           preserveAspectRatio="none"
@@ -287,7 +326,7 @@ function TitleScreen({ dispatch }) {
             left: 0,
             width: "100%",
             height: "auto",
-            maxHeight: "120px",
+            maxHeight: "80px",
             animation: "waveFloat 4s ease-in-out infinite alternate",
           }}
           xmlns="http://www.w3.org/2000/svg"
@@ -299,96 +338,202 @@ function TitleScreen({ dispatch }) {
         </svg>
       </div>
 
-      {/* ── Form section (brown background) ──────────────────── */}
+      {/* ── TWO‑COLUMN FORM ────────────────────────────────────────────── */}
       <div style={{
         flex: 1,
-        background: T.panelAlt,
-        display: "flex", flexDirection: "column", alignItems: "center",
-        padding: `${T.spacing.xl}px ${T.spacing.xl}px 40px`,
+        display: "flex",
+        justifyContent: "center",
+        padding: `${T.spacing.xl}px ${T.spacing.lg}px 40px`,
+        width: "100%",
       }}>
-        <div style={{ width: 380, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: T.spacing.lg }}>
-          {/* Captain Name */}
-          <div>
-            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Captain's Name</div>
-            <div style={{ display: "flex", gap: T.spacing.sm }}>
-              <input type="text" value={captainName} onChange={e => setCaptainName(e.target.value)}
-                style={{ flex: 1, padding: "10px 12px", background: T.panel, border: `1px solid ${T.border}`, color: T.text, fontSize: 15, fontFamily: T.font, borderRadius: 2, outline: "none" }} />
-              <Btn sm v="ghost" onClick={handleRandomName}><IconDice size={12} color={T.gold} /> Random</Btn>
-            </div>
-          </div>
-
-          {/* Faction Selection */}
-          <div>
-            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Choose your allegiance</div>
-            <div style={{ display: "flex", gap: T.spacing.sm }}>
-              {Object.entries(FACTIONS).map(([key, fac]) => (
-                <div key={key} onClick={() => setSelectedFaction(key)}
-                  style={{ flex: 1, padding: "10px 6px", textAlign: "center", cursor: "pointer",
-                    background: selectedFaction === key ? (fac.color + "20") : T.panel,
-                    border: `2px solid ${selectedFaction === key ? fac.color : T.border}`,
-                    borderRadius: 2, transition: "border-color 0.15s" }}>
-                  <div style={{ color: fac.color, fontSize: T.captionFontSize, fontWeight: "bold", letterSpacing: "0.05em" }}>{fac.label.substring(0,3).toUpperCase()}</div>
-                  <div style={{ color: T.textDim, fontSize: 8 }}>{fac.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Backstory */}
-          {backstory && (
-            <div style={panelStyle({ background: T.bgDeep, borderColor: T.borderFaint })}>
-              <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: "0 0 6px" }}>
-                You arrived in <strong>{startPort}</strong> with {backstory.hook}.
-              </p>
-              <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: 0, fontStyle: "italic" }}>
-                {backstory.flavour}
-              </p>
-              <p style={{ color: T.textFaint, fontSize: T.captionFontSize, marginTop: 8 }}>
-                Your adventure begins in <strong>{startPort}</strong>.
-              </p>
-            </div>
-          )}
-
-          {/* Tutorial choice */}
-          <div>
-            <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-              Tutorial style
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
-              {[
-                { value: "full",  label: "Guided (Quartermaster)", desc: "A crewmate guides you step by step." },
-                { value: "light", label: "Hints only",             desc: "Help popups on your first visit to each screen." },
-                { value: "none",  label: "None",                   desc: "No guidance – you're on your own." },
-              ].map(opt => (
-                <label key={opt.value}
+        <div style={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: T.spacing.xl,
+          maxWidth: 1100,
+          width: "100%",
+          alignItems: "flex-start",
+        }}>
+          {/* ─── LEFT COLUMN: Inputs ────────────────────────────────────── */}
+          <div style={{
+            flex: "1 1 280px",
+            maxWidth: 480,
+            display: "flex",
+            flexDirection: "column",
+            gap: T.spacing.lg,
+          }}>
+            {/* Captain Name */}
+            <div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                Captain's Name
+              </div>
+              <div style={{ display: "flex", gap: T.spacing.sm }}>
+                <input
+                  type="text"
+                  value={captainName}
+                  onChange={e => setCaptainName(e.target.value)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-                    padding: "6px 8px", borderRadius: 3,
-                    background: tutorialMode === opt.value ? T.panelAlt : T.panel,
-                    border: `2px solid ${tutorialMode === opt.value ? T.gold : T.border}`,
-                    transition: "border-color 0.15s",
-                  }}>
-                  <input
-                    type="radio"
-                    name="tutorialMode"
-                    value={opt.value}
-                    checked={tutorialMode === opt.value}
-                    onChange={() => setTutorialMode(opt.value)}
-                    style={{ accentColor: T.gold }}
-                  />
-                  <div>
-                    <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{opt.label}</div>
-                    <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
+                    flex: 1,
+                    padding: "10px 12px",
+                    background: T.panel,
+                    border: `1px solid ${T.border}`,
+                    color: T.text,
+                    fontSize: 15,
+                    fontFamily: T.font,
+                    borderRadius: 2,
+                    outline: "none",
+                  }}
+                />
+                <Btn sm v="ghost" onClick={handleRandomName}>
+                  <IconDice size={12} color={T.gold} /> Random
+                </Btn>
+              </div>
+            </div>
+
+            {/* Faction Selection */}
+            <div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                Choose your allegiance
+              </div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+                gap: T.spacing.sm,
+              }}>
+                {Object.entries(FACTIONS).map(([key, fac]) => (
+                  <div
+                    key={key}
+                    onClick={() => setSelectedFaction(key)}
+                    style={{
+                      padding: "8px 4px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      background: selectedFaction === key ? (fac.color + "30") : T.panel,
+                      border: `2px solid ${selectedFaction === key ? fac.color : T.border}`,
+                      borderRadius: 2,
+                      transition: "border-color 0.15s, background 0.15s",
+                    }}
+                  >
+                    <div style={{ color: fac.color, fontSize: T.metadataFontSize, fontWeight: "bold", letterSpacing: "0.05em" }}>
+                      {fac.label.substring(0, 3).toUpperCase()}
+                    </div>
+                    <div style={{ color: T.textDim, fontSize: 8 }}>{fac.label}</div>
                   </div>
-                </label>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Tutorial Style */}
+            <div>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                Tutorial style
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.sm }}>
+                {[
+                  { value: "full",  label: "Guided (Quartermaster)", desc: "A crewmate guides you step by step." },
+                  { value: "light", label: "Hints only",             desc: "Help popups on your first visit to each screen." },
+                  { value: "none",  label: "None",                   desc: "No guidance – you're on your own." },
+                ].map(opt => (
+                  <label
+                    key={opt.value}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                      padding: "6px 8px", borderRadius: 3,
+                      background: tutorialMode === opt.value ? T.panelAlt : T.panel,
+                      border: `2px solid ${tutorialMode === opt.value ? T.gold : T.border}`,
+                      transition: "border-color 0.15s",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="tutorialMode"
+                      value={opt.value}
+                      checked={tutorialMode === opt.value}
+                      onChange={() => setTutorialMode(opt.value)}
+                      style={{ accentColor: T.gold }}
+                    />
+                    <div>
+                      <div style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{opt.label}</div>
+                      <div style={{ color: T.textDim, fontSize: 9 }}>{opt.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Set Sail */}
-          <Btn v="gold" onClick={handleSetSail} disabled={!captainName.trim() || !selectedFaction} style={{ fontSize: 16, padding: "14px" }}>
-            <IconSailboat size={16} color={T.gold} /> Set Sail
-          </Btn>
+          {/* ─── RIGHT COLUMN: Narrative & Action ────────────────────── */}
+          <div style={{
+            flex: "1 1 280px",
+            maxWidth: 480,
+            display: "flex",
+            flexDirection: "column",
+            gap: T.spacing.lg,
+            alignSelf: "flex-start",
+          }}>
+            {/* Faction Perk Panel */}
+            <Panel variant="gold" style={{ background: T.panelAlt }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <IconStar size={18} color={factionColor} />
+                <span style={{
+                  color: factionColor,
+                  fontSize: T.heading3FontSize,
+                  fontWeight: "bold",
+                  letterSpacing: "0.04em",
+                }}>
+                  {trait.label}
+                </span>
+              </div>
+
+              <div style={{
+                color: T.text,
+                fontSize: T.narrativeFontSize,
+                lineHeight: 1.5,
+                marginBottom: trait.beginnerNote ? 6 : 0,
+              }}>
+                {trait.desc}
+              </div>
+
+              {trait.beginnerNote && (
+                <div style={{
+                  color: T.greenBr,
+                  fontSize: T.captionFontSize,
+                  fontStyle: "italic",
+                }}>
+                  {trait.beginnerNote}
+                </div>
+              )}
+            </Panel>
+
+            {/* Backstory Panel */}
+            {backstory && (
+              <div style={panelStyle({ background: T.bgDeep, borderColor: T.borderFaint })}>
+                <p style={{ color: T.text, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: "0 0 6px" }}>
+                  You arrived in <strong>{startPort}</strong> with {backstory.hook}.
+                </p>
+                <p style={{ color: T.textDim, fontSize: T.narrativeFontSize, lineHeight: T.narrativeLineHeight, margin: 0, fontStyle: "italic" }}>
+                  {backstory.flavour}
+                </p>
+              </div>
+            )}
+
+            {/* Set Sail Button – no marginTop: auto, natural flow */}
+            <Btn
+              v="gold"
+              onClick={handleSetSail}
+              disabled={!captainName.trim() || !selectedFaction}
+              style={{
+                fontSize: 18,
+                padding: "14px 20px",
+                width: "100%",
+                textAlign: "center",
+                letterSpacing: "0.1em",
+              }}
+            >
+              <IconSailboat size={18} color={T.gold} /> Set Sail
+            </Btn>
+          </div>
         </div>
       </div>
     </div>

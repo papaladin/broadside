@@ -169,10 +169,56 @@ window.S = window.S || {};
           {/* ── HIRE PANEL ────────────────────────────────── */}
           <Panel>
             <SectionTitle>HIRE</SectionTitle>
-            <p style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, lineHeight: 1.5 }}>50g per sailor. Your {SHIPS[state.ship.type].name} holds {state.crew.max}.</p>
+
+            {/* Spanish birth info */}
+            {state.faction === 'spanish' && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ color: T.gold, fontSize: T.captionFontSize }}>
+                  ⚓ Spanish crew: <strong>40g</strong> (normally 50g)
+                </div>
+                <div style={{ color: T.textDim, fontSize: T.captionFontSize }}>
+                  You can only recruit at <strong>Spanish ports</strong>.
+                </div>
+                {window.D.PORTS[state.currentPort]?.faction !== 'spanish' && (
+                  <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                    ⚠ You are at a non-Spanish port — hire is unavailable.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 10, lineHeight: 1.5 }}>
+              {state.faction === 'spanish' ? `40g per Spanish sailor.` : `50g per sailor.`}
+              Your {SHIPS[state.ship.type].name} holds {state.crew.max}.
+            </p>
+
             <div style={{ display: "flex", gap: T.spacing.sm, flexWrap: "wrap" }}>
-              {[1, 5, 10].map(n => <Btn key={n} v="green" onClick={() => dispatch({ type: A.HIRE_CREW, count: n })} disabled={open < n || state.gold < n * 50}>+{n} ({n * 50}g)</Btn>)}
+              {[1, 5, 10].map(n => {
+                const isSpanishBlocked = state.faction === 'spanish' &&
+                  window.D.PORTS[state.currentPort]?.faction !== 'spanish';
+                const costPer = state.faction === 'spanish' ? 40 : 50;
+                const totalCost = n * costPer;
+                const disabled = open < n || state.gold < totalCost || isSpanishBlocked;
+
+                let tooltip = "";
+                if (isSpanishBlocked) tooltip = "Spanish captains can only hire at Spanish ports.";
+                else if (open < n) tooltip = "Not enough berths.";
+                else if (state.gold < totalCost) tooltip = `Need ${totalCost - state.gold}g more.`;
+
+                return (
+                  <Tooltip key={n} text={tooltip}>
+                    <Btn
+                      v="green"
+                      onClick={() => dispatch({ type: A.HIRE_CREW, count: n })}
+                      disabled={disabled}
+                    >
+                      +{n} ({totalCost}g)
+                    </Btn>
+                  </Tooltip>
+                );
+              })}
             </div>
+
             {open === 0 && <EmptyState message="Ship is at full capacity." />}
           </Panel>
 

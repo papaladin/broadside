@@ -203,6 +203,36 @@
     ].forEach(k => test(`D.${k} exists (data_text.js)`, () =>
       assert(k in window.D, `D.${k} missing — check data_text.js loaded after data.js`)));
 
+    // ── B10.1 Data structures ────────────────────────────────────────────
+    test("BIRTH_TRAITS exists and has all factions", () => {
+      const bt = window.D.BIRTH_TRAITS;
+      assert(bt !== undefined, "BIRTH_TRAITS missing");
+      ["english","spanish","french","dutch","pirate"].forEach(f => {
+        assert(f in bt, `BIRTH_TRAITS.${f} missing`);
+      });
+    });
+
+    test("BIRTH_TRAITS.english.crewLossMult = 0.80", () => {
+      assert(window.D.BIRTH_TRAITS.english.crewLossMult === 0.80,
+        "BIRTH_TRAITS.english.crewLossMult should be 0.80");
+    });
+
+    test("PORT_SPECIALTIES exists and has all factions", () => {
+      const ps = window.D.PORT_SPECIALTIES;
+      assert(ps !== undefined, "PORT_SPECIALTIES missing");
+      ["english","spanish","french","dutch","pirate"].forEach(f => {
+        assert(f in ps, `PORT_SPECIALTIES.${f} missing`);
+      });
+    });
+
+    test("SERVICE_THRESHOLDS exists and has required sections", () => {
+      const st = window.D.SERVICE_THRESHOLDS;
+      assert(st !== undefined, "SERVICE_THRESHOLDS missing");
+      ["inquisitor","embassy","bank","navalYard"].forEach(k => {
+        assert(k in st, `SERVICE_THRESHOLDS.${k} missing`);
+      });
+    });
+
     // ── 3. STARTS shape ───────────────────────────────────────────────────
     group("3. STARTS data shape (faction-keyed, not array)");
     test("D.STARTS is an object, not an array", () =>
@@ -312,7 +342,7 @@
       "reputationLabel","getFameInfo","getRepPerk",
       "hasTag","addTag","removeTag","revealTag",
       "getAlignmentModifier","getHoldCapacity","getHoldUsed",
-      "getProvisionConsumptionPerDay","shipRepairCost",
+      "getProvisionConsumptionForDay","shipRepairCost",
       "classifyLogLine","getLogTabCategory",
       "buildEncounterContext","getTradeOpportunity",
       "isFeatureUnlocked","applyReputationImpact",
@@ -328,6 +358,10 @@
       "selectWeightedAction",
       "getNPCNavalAction",
       "getNPCBoardingAction",
+      // ── B10.2 English helpers ──
+      "applyCrewLossMultipliers",
+      "computeNavalLoss",
+      "computeBoardingLoss",
     ].forEach(fn => test(`L.${fn} is a function`, () =>
       assert(typeof window.L[fn] === "function", `L.${fn} missing or not a function`)));
 
@@ -350,8 +384,8 @@
     test("E.logEntry is a function",         () => assert(typeof window.E.logEntry        === "function"));
     test("E.initialState is an object",      () => assert(window.E.initialState && typeof window.E.initialState === "object"));
     test("E._reducers is an array",          () => assert(Array.isArray(window.E._reducers)));
-  test("E.applyNavyPatrolSurrender is a function", () => assert(typeof window.E.applyNavyPatrolSurrender === "function"));
-  test("E.buildEncounterSession is a function", () => assert(typeof window.E.buildEncounterSession === "function"));
+    test("E.applyNavyPatrolSurrender is a function", () => assert(typeof window.E.applyNavyPatrolSurrender === "function"));
+    test("E.buildEncounterSession is a function", () => assert(typeof window.E.buildEncounterSession === "function"));
 
     test("E._reducers has the expected count (9 reducers registered)", () => {
       const count = window.E._reducers.length;
@@ -665,6 +699,85 @@
       assert(Array.isArray(lines), "should return an array");
       assert(lines.length > 0, "should have at least one line");
       lines.forEach(line => assert(typeof line === "string" && line.length > 0, "each line should be a non-empty string"));
+    });
+
+    // ── 14. B10.2 — English Birth Identity ────────────────────────────────
+    group("14. B10.2 — English Birth Identity");
+
+    test("applyCrewLossMultipliers: English 10 → 8", () => {
+      const state = { faction: "english" };
+      const result = window.L.applyCrewLossMultipliers(state, 10);
+      assert(result === 8, `expected 8, got ${result}`);
+    });
+
+    test("applyCrewLossMultipliers: Pirate 10 → 10 (no multiplier)", () => {
+      const state = { faction: "pirate" };
+      const result = window.L.applyCrewLossMultipliers(state, 10);
+      assert(result === 10, `expected 10, got ${result}`);
+    });
+
+    test("computeNavalLoss: English 10 → 8 (floor)", () => {
+      const state = { faction: "english" };
+      const result = window.L.computeNavalLoss(state, 10);
+      assert(result === 8, `expected 8, got ${result}`);
+    });
+
+    test("computeNavalLoss: Pirate 10 → 10 (no multiplier)", () => {
+      const state = { faction: "pirate" };
+      const result = window.L.computeNavalLoss(state, 10);
+      assert(result === 10, `expected 10, got ${result}`);
+    });
+
+    test("computeNavalLoss: English 1.5 → 1 (floor)", () => {
+      const state = { faction: "english" };
+      const result = window.L.computeNavalLoss(state, 1.5);
+      assert(result === 1, `expected 1, got ${result}`);
+    });
+
+    test("computeBoardingLoss: exists and returns 0 or 1 for small crew", () => {
+      const state = { faction: "english" };
+      const result = window.L.computeBoardingLoss(state, 10, 0.5);
+      // rawLoss = 10 * 0.15 * 0.5 = 0.75, English -> 0.6, ceil = 1, skip can make it 0
+      assert(result === 0 || result === 1, `expected 0 or 1, got ${result}`);
+    });
+
+    test("computeBoardingLoss: Pirate 10, 0.5 → 1 (no multiplier)", () => {
+      const state = { faction: "pirate" };
+      const result = window.L.computeBoardingLoss(state, 10, 0.5);
+      // rawLoss = 0.75, ceil = 1, no skip rule for pirate
+      assert(result === 1, `expected 1, got ${result}`);
+    });
+
+    test("computeBoardingLoss: English 20, 0.5 → 1 or 2", () => {
+      const state = { faction: "english" };
+      const result = window.L.computeBoardingLoss(state, 20, 0.5);
+      // rawLoss = 20 * 0.15 * 0.5 = 1.5, English -> 1.2, ceil = 2, skip doesn't apply (loss !== 1)
+      assert(result === 2, `expected 2, got ${result}`);
+    });
+
+    test("computeBoardingLoss: Pirate 20, 0.5 → 2 (no multiplier)", () => {
+      const state = { faction: "pirate" };
+      const result = window.L.computeBoardingLoss(state, 20, 0.5);
+      // rawLoss = 1.5, ceil = 2
+      assert(result === 2, `expected 2, got ${result}`);
+    });
+
+    test("getBirthTrait returns 0.80 for english crewLossMult", () => {
+      const state = { faction: "english" };
+      const result = window.L.getBirthTrait(state, "crewLossMult");
+      assert(result === 0.80, `expected 0.80, got ${result}`);
+    });
+
+    test("getBirthTrait returns null for pirate crewLossMult", () => {
+      const state = { faction: "pirate" };
+      const result = window.L.getBirthTrait(state, "crewLossMult");
+      assert(result === null, `expected null, got ${result}`);
+    });
+
+    test("getBirthTrait returns null for non-existent trait", () => {
+      const state = { faction: "english" };
+      const result = window.L.getBirthTrait(state, "nonexistent");
+      assert(result === null, `expected null, got ${result}`);
     });
 
     render();

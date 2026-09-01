@@ -385,10 +385,18 @@ const generatePortMarket = (portKey, state) => {
       ? res.basePrice
       : Math.round(res.basePrice * availMult * factionMod * (1 + res.variance * (Math.random() * 2 - 1)));
 
-    const buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
-    const sellToPort  = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
+    let buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.10);
+    let sellToPort  = isFixed ? res.basePrice : Math.round(marketPrice * 0.90);
+    // ── Dutch birth trait: better trade margins ──────────────
+    const isDutch = state?.faction === 'dutch';
+    if (isDutch) {
+      // Dutch: buy at 1.05× (instead of 1.10×), sell at 0.95× (instead of 0.90×)
+      // This narrows the spread from 20% to 10%
+      buyFromPort = isFixed ? res.basePrice : Math.round(marketPrice * 1.05);
+      sellToPort = isFixed ? res.basePrice : Math.round(marketPrice * 0.95);
+    }
 
-    // ── Roll availability separately (unchanged) ─────────────────────────────
+    // ── Roll availability separately  ─────────────────────────────
     const chance = tierChance[tier] ?? 0;
     let available = 0;
     if (chance > 0 && Math.random() <= chance) {
@@ -772,6 +780,10 @@ const findPortWithInDemandGood = (state, currentPort) => {
  // ── Smuggle mission generator ────────────────────────────────
 // UPDATED: uses findPortForGoodInDemand to pick a target port where the contraband good is scarce.
 const generateSmuggleMission = (portKey, state, risk) => {
+  // ── Safety: only generate at Pirate ports ──
+  const port = window.D.PORTS[portKey];
+  if (!port || port.faction !== 'pirate') return null;
+
   const tier = window.L.getFameInfo(state.fame ?? 0).tier;
   const infamy = state.infamy ?? 0;
 
@@ -874,7 +886,7 @@ const generateSmuggleMission = (portKey, state, risk) => {
       escort:  3,
       patrol:  isPirate ? 0 : 2,
       combat:  2,
-      smuggle: 1,
+      smuggle: isPirate ? 3 : 0,
       trade:   isPirate ? 0 : 3,
       assault: 1,
     };

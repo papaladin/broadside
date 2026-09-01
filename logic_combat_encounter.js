@@ -180,8 +180,8 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // Shared contest helper
-  const resolveSpeedContest = (actorSpeed, opposerSpeed, rng = defaultRng) => {
-    const chance = 0.5 + (actorSpeed - opposerSpeed) * 0.03;
+  const resolveSpeedContest = (actorSpeed, opposerSpeed, rng = defaultRng, bonus = 0) => {
+    const chance = 0.5 + (actorSpeed - opposerSpeed) * 0.03 + bonus;
     const clamped = Math.max(0.15, Math.min(0.85, chance));
     return rng.random() < clamped;
   };
@@ -222,6 +222,32 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     enemyCargo: {},
   });
 
+  // ── Core: apply player's own crew loss multipliers (English birth + Surgeon) ──
+  // Returns the raw multiplied value. No rounding, no skip rule.
+  const applyCrewLossMultipliers = (state, rawLoss) => {
+    const englishMult = window.L.getBirthTrait(state, 'crewLossMult') ?? 1.0;
+    const surgeonMult = window.L.getEquipmentEffect(state, 'crewLossMult') ?? 1.0;
+    return rawLoss * englishMult * surgeonMult;
+  };
+
+  // ── Naval: floor after multipliers ──
+  // Used when the player takes crew damage from enemy attacks in naval combat.
+  const computeNavalLoss = (state, rawLoss) => {
+    return Math.floor(applyCrewLossMultipliers(state, rawLoss));
+  };
+
+  // ── Boarding: ceil after multipliers + 20% skip rule for English ──
+  // Used when the player loses crew during boarding (continue, fall back, demand fail).
+  const computeBoardingLoss = (state, playerCrew, ratio) => {
+    const rawLoss = playerCrew * 0.15 * (1 - ratio);
+    let loss = Math.ceil(applyCrewLossMultipliers(state, rawLoss));
+    // 20% skip rule for English captains when loss would be exactly 1
+    if (state.faction === 'english' && loss === 1 && Math.random() < 0.20) {
+      loss = 0;
+    }
+    return loss;
+  };
+
   // ── NEW: applyCrewLoss moved from engine_battle.js ───────────────
   const applyCrewLoss = (state, crewLoss, rng = defaultRng) => {
     if (crewLoss <= 0) return { state, lostNames: [], lostCount: 0 };
@@ -237,21 +263,24 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     };
   };
 
-  // ── NEW: getPatrolContrabandInfo ───────────────────────────────────
+  // ── getPatrolContrabandInfo ───────────────────────────────────
   const getPatrolContrabandInfo = (state, fineRate = window.D.PATROL_FINE_RATE || 0.20) => {
     const items = state.hold?.items || {};
     const activeMission = state.activeMission;
 
     const hasTobacco = (items.tobacco || 0) > 0;
     const hasSlaves  = (items.slaves  || 0) > 0;
-    const hasRumSmuggle = activeMission?.type === "smuggle"
-      && activeMission?.requiredGood === "rum"
-      && (items.rum || 0) > 0;
+    
+    // Generic smuggled good detection
+    const smuggledGood = activeMission?.type === "smuggle" ? activeMission.requiredGood : null;
+    const hasSmuggledGood = smuggledGood && (items[smuggledGood] || 0) > 0;
 
     let seizedValue = 0;
     if (hasTobacco) seizedValue += (items.tobacco || 0) * (window.D.RESOURCES.tobacco?.basePrice || 90);
     if (hasSlaves)  seizedValue += (items.slaves  || 0) * (window.D.RESOURCES.slaves?.basePrice  || 220);
-    if (hasRumSmuggle) seizedValue += (items.rum     || 0) * (window.D.RESOURCES.rum?.basePrice     || 30);
+    if (hasSmuggledGood) {
+      seizedValue += (items[smuggledGood] || 0) * (window.D.RESOURCES[smuggledGood]?.basePrice || 0);
+    }
 
     const fine = Math.round(seizedValue * fineRate / 25) * 25;
 
@@ -259,7 +288,7 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
       hasContraband: seizedValue > 0,
       hasTobacco,
       hasSlaves,
-      hasRumSmuggle,
+      smuggledGood,
       seizedValue,
       fine,
     };
@@ -325,7 +354,8 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
       if (!opposed) {
         return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
-      const succeeds = resolveSpeedContest(playerSpeed, enemySpeed, rng);
+      const FleeBonus = L.getBirthTrait(state, 'fleeEvadeBonus') || 0;
+      const succeeds = resolveSpeedContest(playerSpeed, enemySpeed, rng, FleeBonus);
       if (succeeds) {
         return { outcome: "player_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
@@ -337,7 +367,7 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
       if (!opposed) {
         return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
-      const succeeds = resolveSpeedContest(enemySpeed, playerSpeed, rng);
+      const succeeds = resolveSpeedContest(enemySpeed, playerSpeed, rng, 0);
       if (succeeds) {
         return { outcome: "enemy_evaded", playerHullDamage: 0, enemyHullDamage: 0, playerCrewLoss: 0, enemyCrewLoss: 0, newDistance: null, distanceChangeWinner: null, playerHit: false, npcHit: false, playerGrappleSuccess: false, npcGrappleSuccess: false, fled: true, log: [], convoyDamage: 0 };
       }
@@ -360,15 +390,16 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
       enemyHullDamage += result.hullDamage;
       enemyCrewLoss += result.crewLoss;
     }
+    // ── Enemy action (broadside/precision) damages player ──
     if (enemyAction === "broadside") {
       const result = calcBroadside(enemy.cannons, distance, false);
       playerHullDamage += result.hullDamage;
-      playerCrewLoss += result.crewLoss;
+      playerCrewLoss += computeNavalLoss(state, result.crewLoss);
     } else if (enemyAction === "precision") {
       const result = calcPrecision(enemy.cannons, distance, false);
       enemyHit = result.hit;
       playerHullDamage += result.hullDamage;
-      playerCrewLoss += result.crewLoss;
+      playerCrewLoss += computeNavalLoss(state, result.crewLoss);
     }
 
     // Step 3: Hull/Crew check
@@ -475,105 +506,120 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     return total === 0 ? 0.5 : playerEffective / total;
   };
 
-  const resolveBoardingRound = (state, playerAction, enemyAction, battle, enemy, rng = defaultRng) => {
-    if (playerAction === "surrender" || enemyAction === "surrender") {
-      const whoSurrendered = playerAction === "surrender" ? "player" : "enemy";
-      return { outcome: `${whoSurrendered}_surrendered`, playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+const resolveBoardingRound = (state, playerAction, enemyAction, battle, enemy, rng = defaultRng) => {
+  // ── Surrender handling ──────────────────────────────────────────────
+  if (playerAction === "surrender" || enemyAction === "surrender") {
+    const whoSurrendered = playerAction === "surrender" ? "player" : "enemy";
+    return { outcome: `${whoSurrendered}_surrendered`, playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+  }
+
+  if (playerAction === "demand_surrender" && enemyAction === "fall_back") {
+    return { outcome: "enemy_win_capture", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+  }
+
+  if (enemyAction === "demand_surrender" && playerAction === "fall_back") {
+    return { outcome: "player_defeated_by_demand", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+  }
+
+  const ratio = getBoardingRatio(state, battle, enemy);
+
+  // ── Player demands surrender ─────────────────────────────────────────
+  if (playerAction === "demand_surrender") {
+    if (ratio < 0.65) {
+      throw new Error("Demand Surrender declared below threshold – UI should have blocked this");
     }
-    if (playerAction === "demand_surrender" && enemyAction === "fall_back") {
+    const successChance = (ratio - 0.5) * 2;
+    if (rng.random() < successChance) {
       return { outcome: "enemy_win_capture", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
     }
-    if (enemyAction === "demand_surrender" && playerAction === "fall_back") {
+    // Failure: player loses crew
+    const cost = computeBoardingLoss(state, battle.playerCrew, ratio);
+    const newPlayerCrew = Math.max(0, battle.playerCrew - cost);
+    if (newPlayerCrew === 0) {
+      return { outcome: "player_wipeout", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
+    }
+    const newRatio = getBoardingRatio(
+      { ...state, crew: { ...state.crew, roster: [] } },
+      { ...battle, playerCrew: newPlayerCrew },
+      enemy
+    );
+    return { outcome: "continue", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio, log: [] };
+  }
+
+  // ── Enemy demands surrender ──────────────────────────────────────────
+  if (enemyAction === "demand_surrender") {
+    const enemyRatio = 1 - ratio;
+    if (enemyRatio < 0.65) {
+      throw new Error("Enemy Demand Surrender below threshold – AI should not have chosen this");
+    }
+    const successChance = (enemyRatio - 0.5) * 2;
+    if (rng.random() < successChance) {
       return { outcome: "player_defeated_by_demand", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
     }
-
-    const ratio = getBoardingRatio(state, battle, enemy);
-
-    if (playerAction === "demand_surrender") {
-      if (ratio < 0.65) {
-        throw new Error("Demand Surrender declared below threshold – UI should have blocked this");
-      }
-      const successChance = (ratio - 0.5) * 2;
-      if (rng.random() < successChance) {
-        return { outcome: "enemy_win_capture", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
-      }
-      const cost = Math.ceil(battle.playerCrew * 0.15 * (1 - ratio));
-      const newPlayerCrew = Math.max(0, battle.playerCrew - cost);
-      if (newPlayerCrew === 0) {
-        return { outcome: "player_wipeout", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
-      }
-      const newRatio = getBoardingRatio(
-        { ...state, crew: { ...state.crew, roster: [] } },
-        { ...battle, playerCrew: newPlayerCrew },
-        enemy
-      );
-      return { outcome: "continue", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio, log: [] };
-    }
-
-    if (enemyAction === "demand_surrender") {
-      const enemyRatio = 1 - ratio;
-      if (enemyRatio < 0.65) {
-        throw new Error("Enemy Demand Surrender below threshold – AI should not have chosen this");
-      }
-      const successChance = (enemyRatio - 0.5) * 2;
-      if (rng.random() < successChance) {
-        return { outcome: "player_defeated_by_demand", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
-      }
-      const cost = Math.ceil(battle.enemyCrew * 0.15 * ratio);
-      const newEnemyCrew = Math.max(0, battle.enemyCrew - cost);
-      if (newEnemyCrew === 0) {
-        return { outcome: "enemy_wipeout", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
-      }
-      const newRatio = getBoardingRatio(
-        state,
-        { ...battle, enemyCrew: newEnemyCrew },
-        enemy
-      );
-      return { outcome: "continue", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio, log: [] };
-    }
-
-    const bothFallBack = playerAction === "fall_back" && enemyAction === "fall_back";
-    if (bothFallBack) {
-      return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
-    }
-    if (playerAction === "fall_back") {
-      const cost = Math.ceil(battle.playerCrew * 0.15 * (1 - ratio));
-      const newPlayerCrew = Math.max(0, battle.playerCrew - cost);
-      const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
-      if (newPlayerCrew === 0 && isSmallShip && battle.playerCrew === 0) {
-        return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
-      }
-      if (newPlayerCrew === 0) {
-        return { outcome: "player_wipeout", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
-      }
-      return { outcome: "returned_to_naval", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
-    }
-    if (enemyAction === "fall_back") {
-      const cost = Math.ceil(battle.enemyCrew * 0.15 * ratio);
-      const newEnemyCrew = Math.max(0, battle.enemyCrew - cost);
-      if (newEnemyCrew === 0) {
-        return { outcome: "enemy_wipeout", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
-      }
-      return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
-    }
-
-    const playerLoss = Math.ceil(battle.playerCrew * 0.15 * (1 - ratio));
-    const enemyLoss = Math.ceil(battle.enemyCrew * 0.15 * ratio);
-    const newPlayerCrew = Math.max(0, battle.playerCrew - playerLoss);
-    const newEnemyCrew = Math.max(0, battle.enemyCrew - enemyLoss);
-    const playerWiped = newPlayerCrew === 0;
-    const enemyWiped = newEnemyCrew === 0;
-    if (playerWiped || enemyWiped) {
-      const outcome = playerWiped ? "player_wipeout" : "enemy_wipeout";
-      return { outcome, playerCrewLoss: playerLoss, enemyCrewLoss: enemyLoss, newRatio: null, log: [] };
+    // Enemy fails: enemy loses crew (no English modifier)
+    const cost = Math.ceil(battle.enemyCrew * 0.15 * ratio);
+    const newEnemyCrew = Math.max(0, battle.enemyCrew - cost);
+    if (newEnemyCrew === 0) {
+      return { outcome: "enemy_wipeout", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
     }
     const newRatio = getBoardingRatio(
       state,
-      { ...battle, playerCrew: newPlayerCrew, enemyCrew: newEnemyCrew },
+      { ...battle, enemyCrew: newEnemyCrew },
       enemy
     );
-    return { outcome: "continue", playerCrewLoss: playerLoss, enemyCrewLoss: enemyLoss, newRatio, log: [] };
-  };
+    return { outcome: "continue", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio, log: [] };
+  }
+
+  // ── Both fall back ────────────────────────────────────────────────────
+  const bothFallBack = playerAction === "fall_back" && enemyAction === "fall_back";
+  if (bothFallBack) {
+    return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+  }
+
+  // ── Player falls back ─────────────────────────────────────────────────
+  if (playerAction === "fall_back") {
+    const cost = computeBoardingLoss(state, battle.playerCrew, ratio);
+    const newPlayerCrew = Math.max(0, battle.playerCrew - cost);
+    const isSmallShip = state.ship.type === "dinghy" || state.ship.type === "cutter";
+    if (newPlayerCrew === 0 && isSmallShip && battle.playerCrew === 0) {
+      return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: 0, newRatio: null, log: [] };
+    }
+    if (newPlayerCrew === 0) {
+      return { outcome: "player_wipeout", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
+    }
+    return { outcome: "returned_to_naval", playerCrewLoss: cost, enemyCrewLoss: 0, newRatio: null, log: [] };
+  }
+
+  // ── Enemy falls back ──────────────────────────────────────────────────
+  if (enemyAction === "fall_back") {
+    const cost = Math.ceil(battle.enemyCrew * 0.15 * ratio);
+    const newEnemyCrew = Math.max(0, battle.enemyCrew - cost);
+    if (newEnemyCrew === 0) {
+      return { outcome: "enemy_wipeout", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
+    }
+    return { outcome: "returned_to_naval", playerCrewLoss: 0, enemyCrewLoss: cost, newRatio: null, log: [] };
+  }
+
+  // ── Both continue fighting ───────────────────────────────────────────
+  const playerLoss = computeBoardingLoss(state, battle.playerCrew, ratio);
+  const enemyLoss = Math.ceil(battle.enemyCrew * 0.15 * ratio);
+  const newPlayerCrew = Math.max(0, battle.playerCrew - playerLoss);
+  const newEnemyCrew = Math.max(0, battle.enemyCrew - enemyLoss);
+  const playerWiped = newPlayerCrew === 0;
+  const enemyWiped = newEnemyCrew === 0;
+
+  if (playerWiped || enemyWiped) {
+    const outcome = playerWiped ? "player_wipeout" : "enemy_wipeout";
+    return { outcome, playerCrewLoss: playerLoss, enemyCrewLoss: enemyLoss, newRatio: null, log: [] };
+  }
+
+  const newRatio = getBoardingRatio(
+    state,
+    { ...battle, playerCrew: newPlayerCrew, enemyCrew: newEnemyCrew },
+    enemy
+  );
+  return { outcome: "continue", playerCrewLoss: playerLoss, enemyCrewLoss: enemyLoss, newRatio, log: [] };
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  ENCOUNTER CONTEXT BUILDER
@@ -625,12 +671,11 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     const canAffordBribe = gold >= (patrolInfo?.fine ?? 0); // Use fine as base cost? Actually original used contrabandValue*0.5
     // For generic, bribeCost was previously based on enemy gold; we'll keep for non-patrol.
     const bribeCost = type === "navy_patrol" ? patrolInfo.fine : Math.round(((enemy.gold ?? (enemy.cannons * 10 + enemy.crew * 5)) || 500) * 0.4);
-    const bribeInfamyBlocked = !window.L.canBribe(state);
-    const canBribeResult = !bribeBlocked && canAffordBribe && !bribeInfamyBlocked;
+    const canBribeResult = !bribeBlocked && canAffordBribe && L.canBribe(state);
     const bribeReason = bribeBlocked
       ? "They cannot be bought"
-      : bribeInfamyBlocked
-        ? "Your reputation for bribery has preceded you"
+      : !L.canBribe(state)
+        ? "You don't meet the requirements to bribe"
         : !canAffordBribe
           ? `Need ${bribeCost}g (you have ${gold}g)`
           : null;
@@ -747,18 +792,15 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
       const hasContraband = patrolInfo.hasContraband;
       const bribeCostForPatrol = Math.round(patrolInfo.seizedValue * 0.50 / 25) * 25; // Original formula
       const canAfford = state.gold >= bribeCostForPatrol;
-      const infamyOk = (state.infamy ?? 0) < 25;
-      const repOk = (state.reputation[state.destination ?? state.currentPort] ?? 0) > 50;
+      const canBribeGeneral = L.canBribe(state);
 
       let bribeAvailable = false;
       let bribeDisabledReason = null;
 
       if (!hasContraband) {
         bribeDisabledReason = "You have no contraband – no need to bribe";
-      } else if (!infamyOk) {
-        bribeDisabledReason = "Your reputation for bribery has preceded you";
-      } else if (!repOk) {
-        bribeDisabledReason = "They don't trust you enough to take a bribe";
+      } else if (!canBribeGeneral) {
+        bribeDisabledReason = "You don't meet the requirements to bribe (infamy < 25, rep > 50)";
       } else if (!canAfford) {
         bribeDisabledReason = `Need ${bribeCostForPatrol}g (you have ${state.gold}g)`;
       } else {
@@ -924,7 +966,7 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     getSpeedDifferential,
     scoreNavalActions,
     scoreBoardingActions,
-    selectWeightedAction, 
+    selectWeightedAction,
     // New wrappers (will replace stubs later)
     getNPCNavalAction,
     getNPCBoardingAction,
@@ -937,6 +979,9 @@ const getNPCBoardingAction = (state, encounterSession, rng = defaultRng) => {
     resolveSpeedContest,
     stepDistance,
     initialDistanceFor,
+    applyCrewLossMultipliers,
+    computeNavalLoss,
+    computeBoardingLoss,
     // Encounter
     buildEncounterContext,
     getActionPreview,

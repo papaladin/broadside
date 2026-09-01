@@ -58,7 +58,23 @@ window.L = window.L || {};
     return { allowed: true, reason: null };
   };
 
-  const canBribe = (state) => (state.infamy ?? 0) < 50;
+  // logic_core.js
+  const canBribe = (state) => {
+    const isPirate = state.faction === 'pirate';
+    const bribeGateRemoved = isPirate && (L.getBirthTrait(state, 'bribeGateRemoved') || false);
+    
+    const portKey = state.destination ?? state.currentPort;
+    const rep = state.reputation[portKey] ?? 0;
+
+    // Reputation gate: applies to EVERYONE (lowered to 30)
+    if (rep <= 30) return false;
+
+    // Infamy gate: Pirates bypass it entirely
+    if (bribeGateRemoved) return true;
+
+    // Non-Pirates: infamy must be < 25
+    return (state.infamy ?? 0) < 25;
+  };
 
   const getEffectiveMorale = (state) => {
     const shipStats = L.getShipStats(state);
@@ -71,7 +87,7 @@ window.L = window.L || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const getShipStats = (state) => {
-    const base = SHIPS[state.ship.type] || SHIPS.dinghy; // fall back to the dinghy's base stats so the game does not crash. This is a safety net.
+    const base = SHIPS[state.ship.type] || SHIPS.dinghy;
     const stats = { ...base };
     let hullPct = 0;
     let holdPct = 0;
@@ -96,6 +112,13 @@ window.L = window.L || {};
     stats.speed = Math.max(1, stats.speed);
     stats.maxDays = Math.max(1, stats.maxDays);
     stats.moraleBonus = 0;
+
+    // ── French birth trait: +1 maxDays ──────────────────────────────
+    if (state?.faction === 'french') {
+      const bonus = window.D.BIRTH_TRAITS?.french?.maxDaysBonus ?? 0;
+      stats.maxDays = Math.max(1, stats.maxDays + bonus);
+    }
+
     return stats;
   };
 
@@ -421,6 +444,149 @@ window.L = window.L || {};
     };
   };
 
+
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  FACTION SPECIFICITIES (birth & port)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // ── Birth traits ──────────────────────────────────────────────────
+
+  const getBirthTrait = (state, traitKey) => {
+  if (!state.faction) return null;
+  const traits = window.D.BIRTH_TRAITS[state.faction];
+  if (!traits) return null;
+  return traitKey in traits ? traits[traitKey] : null;
+};
+
+  const getBirthTraits = (state) => {
+    if (!state.faction) return null;
+    return window.D.BIRTH_TRAITS[state.faction] || null;
+  };
+
+  const isSpanishBorn = (state) => state.faction === 'spanish';
+
+  // ── Port specialties ─────────────────────────────────────────────
+
+  const getPortSpecialty = (portKey) => {
+    const port = window.D.PORTS[portKey];
+    if (!port) return null;
+    return window.D.PORT_SPECIALTIES[port.faction] || null;
+  };
+
+  const getPortSpecialtyById = (portKey, specialtyId) => {
+    const specialty = getPortSpecialty(portKey);
+    return specialty && specialty.id === specialtyId ? specialty : null;
+  };
+
+  const isPortServiceAvailable = (state, portKey, serviceId) => {
+    const specialty = getPortSpecialty(portKey);
+    if (!specialty || specialty.id !== serviceId) return false;
+
+    const access = specialty.access || {};
+    if (access.reputation) {
+      const rep = state.reputation[portKey] || 0;
+      if (rep < access.reputation) return false;
+    }
+    return true;
+  };
+
+  // ── Bank helpers ──────────────────────────────────────────────────
+
+  const getBankTrustPct = (state, portKey) => {
+    const rep = state.reputation[portKey] || 0;
+    const thresholds = window.D.SERVICE_THRESHOLDS.bank.trustByReputation;
+    for (const tier of thresholds) {
+      if (rep >= tier.repMin && rep <= tier.repMax) {
+        return tier.pct;
+      }
+    }
+    return 0;
+  };
+
+  const getBankInterestRate = (state, portKey) => {
+    const rep = state.reputation[portKey] || 0;
+    const points = window.D.SERVICE_THRESHOLDS.bank.interestByReputation;
+    // Simple stepwise interpolation — if rep >= point.rep, use that point's rate
+    let rate = 0.10;
+    for (const p of points) {
+      if (rep >= p.rep) rate = p.rate;
+    }
+    return rate;
+  };
+
+  const getBankCapacity = (state) => {
+    // Player capacity: Fame + ship value
+    const fame = state.fame || 0;
+    const shipStats = window.L.getShipStats(state);
+    const shipValue = window.D.SHIPS[state.ship.type]?.cost || 0;
+    const fameComponent = fame * 200;           // Fame 200 → 40,000g
+    const shipComponent = Math.floor(shipValue * 0.30); // 30% of ship value
+    const baseCapacity = 10000;
+    return baseCapacity + fameComponent + shipComponent;
+  };
+
+  const getBankLoanCeiling = (state, portKey) => {
+    const capacity = getBankCapacity(state);
+    const trustPct = getBankTrustPct(state, portKey);
+    return Math.floor(capacity * trustPct);
+  };
+
+  // ── Inquisitor helpers ────────────────────────────────────────────
+
+  const getInquisitorCost = (state) => {
+    const infamy = state.infamy || 0;
+    const pricing = window.D.SERVICE_THRESHOLDS.inquisitor.pricing;
+    for (const tier of pricing) {
+      if (infamy >= tier.infamyMin && infamy <= tier.infamyMax) {
+        return tier.cost;
+      }
+    }
+    return 1500; // fallback
+  };
+
+  // ── Embassy helpers ──────────────────────────────────────────────
+
+  const getEmbassyCost = (state, targetFaction) => {
+    const targetRep = state.reputation[targetFaction] || 0;
+    const pricing = window.D.SERVICE_THRESHOLDS.embassy.pricing;
+    for (const tier of pricing) {
+      if (targetRep >= tier.repMin && targetRep <= tier.repMax) {
+        return tier.cost;
+      }
+    }
+    return 8000; // fallback
+  };
+
+  // ── Naval Yard helpers ────────────────────────────────────────────
+
+  const getNavalYardEarlyAccess = (state) => {
+    const fame = state.fame || 0;
+    const thresholds = window.D.SERVICE_THRESHOLDS.navalYard;
+    if (fame < thresholds.fameRequiredForEarlyAccess) return null;
+
+    const modifiers = thresholds.earlyAccessModifiers;
+    // Return the thresholds for checking individual ships/equipment
+    return {
+      equipmentFameThreshold: (baseFame) => Math.floor(baseFame * modifiers.equipmentFameReduction),
+      shipFameThreshold: (baseFame) => Math.max(0, baseFame - modifiers.shipFameReduction),
+    };
+  };
+
+  const isEarlyAccessEligible = (state, item, itemType) => {
+    const access = getNavalYardEarlyAccess(state);
+    if (!access) return false;
+
+    const requiredFame = item.requiredFame || 0;
+    const adjusted = itemType === 'ship'
+      ? access.shipFameThreshold(requiredFame)
+      : access.equipmentFameThreshold(requiredFame);
+
+    return state.fame >= adjusted;
+  };
+
+
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  EXPOSE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -460,5 +626,22 @@ window.L = window.L || {};
     getCaptainTag,
     getCareerHighlights,
     isUnrecoverable,
+
+    // Faction player and port identity
+      getBirthTrait,
+      getBirthTraits,
+      isSpanishBorn,
+      getPortSpecialty,
+      getPortSpecialtyById,
+      isPortServiceAvailable,
+      getBankTrustPct,
+      getBankInterestRate,
+      getBankCapacity,
+      getBankLoanCeiling,
+      getInquisitorCost,
+      getEmbassyCost,
+      getNavalYardEarlyAccess,
+      isEarlyAccessEligible,
+
   });
 })();

@@ -492,16 +492,16 @@ locked and must be implemented as written.
 **Likely impacted files:** `data.js`, relevant `logic_*.js`,
 `engine_*.js`, `data_text.js`.
 
--   [ ] Define all five birth-faction modifiers in centralized data.
--   [ ] Define all five port-specialty identifiers and labels.
--   [ ] Define service reputation/Fame thresholds centrally.
--   [ ] Define tuning constants centrally.
--   [ ] Reuse existing helper functions where they are already
+-   [X] Define all five birth-faction modifiers in centralized data.
+-   [X] Define all five port-specialty identifiers and labels.
+-   [X] Define service reputation/Fame thresholds centrally.
+-   [X] Define tuning constants centrally.
+-   [X] Reuse existing helper functions where they are already
     authoritative.
--   [ ] Do not duplicate faction conditions in JSX.
--   [ ] Keep derived availability out of persistent state.
--   [ ] Preserve `birthFaction` separately from active political
-    affiliation.
+-   [X] Do not duplicate faction conditions in JSX.
+-   [X] Keep derived availability out of persistent state.
+-   [0] Preserve `birthFaction` separately from active political
+    affiliation. --> rejected, we used faction. any "current political affiliation" through leter of marque or else will be a new field, if it ever becomes necessary.
 
 **Definition of done:** faction/service values have one authoritative
 source and changing a tuning value does not require unrelated UI edits.
@@ -512,13 +512,13 @@ source and changing a tuning value does not require unrelated UI edits.
 
 **Likely impacted files:** combat logic, faction data, combat tests.
 
--   [ ] Apply a 0.80 English crew-loss multiplier after normal casualty
+-   [X] Apply a 0.80 English crew-loss multiplier after normal casualty
     calculation and before final rounding/clamping.
--   [ ] Cover naval and boarding crew-loss paths.
--   [ ] Preserve existing minimum-loss/death rules.
--   [ ] Stack English and Surgeon multiplicatively.
--   [ ] Do not add damage or combat-speed penalties.
--   [ ] Add deterministic tests for normal combat, boarding,
+-   [X] Cover naval and boarding crew-loss paths.
+-   [X] Preserve existing minimum-loss/death rules.
+-   [X] Stack English and Surgeon multiplicatively.
+-   [X] Do not add damage or combat-speed penalties.
+-   [X] Add deterministic tests for normal combat, boarding,
     minimum-crew cases and English + Surgeon.
 
 **Definition of done:** identical combat inputs produce the intended 20%
@@ -531,13 +531,13 @@ reduction for English-born captains.
 **Likely impacted files:** `data.js`, crew logic, port engine, crew
 screen, crew-generation code, tests.
 
--   [ ] Enforce both Spanish-only recruitment and Spanish-port-only recruitment
+-   [X] Enforce both Spanish-only recruitment and Spanish-port-only recruitment
     from immutable birth identity.
--   [ ] Set Spanish recruitment price to 40g.
--   [ ] Keep existing crew unchanged.
--   [ ] Preserve the restriction after political-affiliation changes.
--   [ ] Explain the restriction in the Crew UI.
--   [ ] Reuse existing crew-nationality representation.
+-   [X] Set Spanish recruitment price to 40g.
+-   [X] Keep existing crew unchanged.
+-   [0] Preserve the restriction after political-affiliation changes. --> not aplicable (yet).
+-   [X] Explain the restriction in the Crew UI.
+-   [X] Reuse existing crew-nationality representation.
 
 **Definition of done:** Spanish-born captains can hire Spanish crew at
 40g and cannot hire non-Spanish crew.
@@ -549,16 +549,16 @@ screen, crew-generation code, tests.
 **Likely impacted files:** `data.js`, provision logic,
 travel/reachability logic, voyage UI if required, tests.
 
--   [ ] Apply the French provision modifier through the authoritative
+-   [X] Apply the French provision modifier through the authoritative
     provision calculation.
--   [ ] Preserve integer inventory quantities.
--   [ ] Target approximately 50% normal food/water consumption using the
-    existing rounding convention.
--   [ ] Add +1 day to effective maximum reach.
--   [ ] Apply the reach modifier consistently to every authoritative
+-   [X] Preserve integer inventory quantities.
+-   [X] Target approximately 25% normal food/water consumption using the
+    existing rounding convention. (done to 25%,not 50, that was the initial intent.)
+-   [X] Add +1 day to effective maximum reach.
+-   [X] Apply the reach modifier consistently to every authoritative
     reachability check.
--   [ ] Preserve the normal hull-based remote-port restriction.
--   [ ] Test exact provision and reach boundaries.
+-   [X] Preserve the normal hull-based remote-port restriction.
+-   [X] Test exact provision and reach boundaries.
 
 **Definition of done:** French captains consume less provision and can
 reach destinations exactly one day beyond the normal effective limit.
@@ -570,12 +570,12 @@ reach destinations exactly one day beyond the normal effective limit.
 **Likely impacted files:** market logic, `engine_port.js`, market
 screen, tests.
 
--   [ ] Set Dutch sell price to 0.95× relevant port price.
--   [ ] Set Dutch buy price to 1.05× relevant port price.
--   [ ] Integrate through the existing market-price calculation.
--   [ ] Define composition with existing B8 port-level modifiers.
--   [ ] Ensure mission cargo and free trade are not modified twice.
--   [ ] Test Dutch and non-Dutch transactions at multiple port
+-   [X] Set Dutch sell price to 0.95× relevant port price.
+-   [X] Set Dutch buy price to 1.05× relevant port price.
+-   [X] Integrate through the existing market-price calculation.
+-   [X] Define composition with existing B8 port-level modifiers.
+-   [X] Ensure mission cargo and free trade are not modified twice.
+-   [X] Test Dutch and non-Dutch transactions at multiple port
     modifiers.
 
 **Definition of done:** Dutch captains receive the narrower spread
@@ -588,15 +588,15 @@ exactly once.
 **Likely impacted files:** encounter/inspection logic, mission
 generation, port/mission engine, data, tests.
 
--   [ ] Add +10 percentage points to flee/evade success.
--   [ ] Remove the normal Infamy-based Bribe availability restriction for
+-   [X] Add +10 percentage points to flee/evade success.
+-   [X] Remove the normal Infamy-based Bribe availability restriction for
     Pirate-born captains while preserving any separate reputation/context
     requirement and all normal cost/outcome rules.
--   [ ] Add +10 percentage points to contraband avoidance using the
+-   [X] Add +10 percentage points to contraband avoidance using the
     existing inspection mechanism.
--   [ ] Ensure the bonus applies only to contraband inspection.
--   [ ] Gate smuggling mission acquisition on Pirate port faction.
--   [ ] Preserve ordinary illegal-goods market behavior at non-Pirate
+-   [X] Ensure the bonus applies only to contraband inspection.
+-   [X] Gate smuggling mission acquisition on Pirate port faction. Modification : we add to add weapons as a smuggling goods for all tier mission so that 0 fame player had solitions within starter islands.
+-   [X] Preserve ordinary illegal-goods market behavior at non-Pirate
     ports.
 -   [ ] Add deterministic tests for each rule.
 
@@ -685,13 +685,13 @@ than low Infamy.
 screen, tests.
 
 -   [ ] Add Black Market specialty to Pirate ports.
--   [ ] Restrict smuggling mission generation to Pirate ports.
--   [ ] Apply the restriction to first generation, refreshes and
+-   [X] Restrict smuggling mission generation to Pirate ports.
+-   [X] Apply the restriction to first generation, refreshes and
     alternate mission-generation paths.
--   [ ] Prevent stale data from creating a new smuggling mission at a
+-   [X] Prevent stale data from creating a new smuggling mission at a
     non-Pirate port.
--   [ ] Preserve accepted smuggling missions after departure.
--   [ ] Do not change ordinary illegal-goods markets.
+-   [X] Preserve accepted smuggling missions after departure.
+-   [X] Do not change ordinary illegal-goods markets.
 
 **Definition of done:** Pirate ports are the exclusive source of
 smuggling missions.
