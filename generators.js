@@ -548,9 +548,10 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
     const positiveDelta = impacts[type]?.[risk] ?? impacts[type]?.any ?? 2;
     impact[commissioningFaction] = positiveDelta;
 
-    if (type === "patrol" || type === "combat") {
-      const enemy = opposingFaction(commissioningFaction);
-      impact[enemy] = -(positiveDelta - 1);
+    // For types that involve fighting an enemy, apply negative reputation
+    if (["patrol", "combat", "escort"].includes(type) && defendingFaction) {
+      // same penalty as patrol/combat
+      impact[defendingFaction] = -(positiveDelta - 1);
     }
     if (type === "assault" && defendingFaction) {
       impact[commissioningFaction] = impacts.assault.any;
@@ -624,7 +625,7 @@ const generateEnemy = (risk = "medium", fame, faction, enemyFactionOverride = nu
   eligible = eligible.filter(k => !window.D.PORTS[k].hidden || (state.discoveredPorts || []).includes(k));
 
   // NEW: Early-game restriction : limit target ports for fame < 10
-  if ((state.fame ?? 0) < 10) {
+  if ((state.fame ?? 0) < 15) {
     const starterPorts = [
       "havana", "nassau", "santiagoDeCuba", "portDePaix", "tortuga",
       "santoDomingo", "petitGoave", "portRoyal", "kingston"
@@ -912,6 +913,7 @@ const generateSmuggleMission = (portKey, state, risk) => {
     const missionFaction = type === "smuggle" ? "pirate" : faction;
     const risk = pickMissionRisk(type, state.fame ?? 0);
 
+    // ── Trade / Smuggle (handled by separate generators) ──
     if (type === "trade") {
       return G.generateTradeMission(portKey, state, missionFaction, risk);
     }
@@ -919,25 +921,40 @@ const generateSmuggleMission = (portKey, state, risk) => {
       return G.generateSmuggleMission(portKey, state, risk);
     }
 
-    // escort, patrol, combat, assault
+    // ── Escort / Patrol / Combat / Assault ──────────────────
     const targetPort = pickTargetPort(portKey, type, state, missionFaction);
-    const enemy = (type === "combat" || type === "assault" || type === "escort" || type === "patrol")
-      ? (type === "assault"
-          ? generateEnemyForAssault(targetPort, state.fame ?? 0)
-          : generateEnemy(risk, state.fame ?? 0, missionFaction))
-      : null;
+    let enemy = null;
+    let defendingFaction = null;
+
+    if (type === "assault") {
+      enemy = generateEnemyForAssault(targetPort, state.fame ?? 0);
+      defendingFaction = targetPort ? window.D.PORTS[targetPort]?.faction : null;
+    } else if (["escort", "patrol", "combat"].includes(type)) {
+      // Generate the enemy once and remember its faction
+      enemy = generateEnemy(risk, state.fame ?? 0, missionFaction);
+      defendingFaction = enemy ? enemy.faction : null;
+    }
+
     const gold = generateGold(type, risk, state.fame ?? 0);
     const fame = type === "assault" ? 3 : risk === "high" ? 2 : 1;
     const infamyGain = type === "assault" ? (risk === "high" ? 3 : 2) : 0;
-    const defendingFaction = (type === "assault" && targetPort)
-      ? window.D.PORTS[targetPort]?.faction : null;
+
+    // Pass the correct defendingFaction (enemy faction) to rep impact
     const repImpact = generateRepImpact(type, missionFaction, risk, defendingFaction);
     const { name, desc } = generateMissionText(type, missionFaction, targetPort, risk, enemy);
 
     return {
-      type, name, description: desc, faction: missionFaction,
+      type,
+      name,
+      description: desc,
+      faction: missionFaction,
       targetPort: targetPort || null,
-      risk, gold, fame, infamyGain, repImpact, enemy,
+      risk,
+      gold,
+      fame,
+      infamyGain,
+      repImpact,
+      enemy,
       ...(type === "patrol" ? { enemyDefeated: false } : {}),
     };
   };

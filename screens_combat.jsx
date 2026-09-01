@@ -665,8 +665,21 @@ const InterceptScreen = ({ state, dispatch }) => {
                   <Bar value={battle.playerHull} max={SHIPS[state.ship.type].maxHull} color={playerPct >= 0.6 ? T.greenBr : playerPct >= 0.3 ? T.gold : T.redBr} h={10} />
                   {battle.convoyHull !== undefined && (
                     <>
-                      <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>Convoy Hull: {battle.convoyHull} / 50</div>
-                      <Bar value={battle.convoyHull} max={50} color={battle.convoyHull / 50 >= 0.6 ? T.greenBr : battle.convoyHull / 50 >= 0.3 ? T.gold : T.redBr} h={8} />
+                      <div style={{ color: T.textDim, fontSize: 9, marginTop: 6 }}>
+                        Convoy Hull: {battle.convoyHull} / {battle.convoyMaxHull ?? 50}
+                      </div>
+                      <Bar
+                        value={battle.convoyHull}
+                        max={battle.convoyMaxHull ?? 50}
+                        color={
+                          battle.convoyHull / (battle.convoyMaxHull ?? 50) >= 0.6
+                            ? T.greenBr
+                            : battle.convoyHull / (battle.convoyMaxHull ?? 50) >= 0.3
+                            ? T.gold
+                            : T.redBr
+                        }
+                        h={8}
+                      />
                     </>
                   )}
                   <div style={{ color: T.textDim, fontSize: 9, marginTop: 4 }}>{state.crew.roster.length} crew · {L.getShipStats(state).cannons} cannons</div>

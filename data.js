@@ -310,7 +310,7 @@ const SHIPS = {
 
   // Tier 1
   sloop: {
-    name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 11, cost: 4000, requiredFame: 20, maxDays: 10, holdCapacity: 200,
+    name: "Sloop", maxHull: 100, maxCrew: 40, cannons: 10, speed: 11, cost: 4000, requiredFame: 10, maxDays: 10, holdCapacity: 200,
     slots: { hull: 1, armament: 1, rigging: 1, special: 0 },
     desc: "Fast and maneuverable. Ideal for hit-and-run tactics."
   },
@@ -874,7 +874,7 @@ const MISSION_GOLD_RANGES = {
 const MISSION_ENEMY_RANGES = {
   hull:    { 0:[10,20],  1:[20,45],  2:[40,75],  3:[65,110], 4:[95,155],  5:[135,210] },
   cannons: { 0:[1,2],    1:[2,6],    2:[5,10],   3:[8,16],   4:[13,22],   5:[18,30] },
-  crew:    { 0:[1,4],    1:[6,18],   2:[15,35],  3:[25,55],  4:[40,80],   5:[60,110] },
+  crew:    { 0:[1,4],    1:[4,18],   2:[15,35],  3:[25,55],  4:[40,80],   5:[60,110] },
 };
 
 // Plunder balance tuning

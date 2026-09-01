@@ -31,7 +31,9 @@
         subPhase,
         // Convoy hull for escort and merchant defense
         ...(session.type === "escort_defend" || session.type === "distressed_merchant_help"
-          ? { convoyHull: Math.floor(window.L.getShipStats(state).maxHull / 2) }
+          ? { convoyHull: Math.floor(window.L.getShipStats(state).maxHull / 2), 
+            convoyMaxHull: Math.floor(window.L.getShipStats(state).maxHull / 2),
+             }
           : {}
         ),
       };
