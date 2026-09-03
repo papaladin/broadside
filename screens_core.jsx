@@ -18,6 +18,9 @@ function TitleScreen({ dispatch }) {
   // Changelog popup state
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelogContent, setChangelogContent] = useState(null);
+  // New Game confirmation popup state
+  const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
+
   const handleShowChangelog = () => {
     setShowChangelog(true);
     if (!changelogContent) {
@@ -35,6 +38,19 @@ function TitleScreen({ dispatch }) {
     reader.onload = () => dispatch({ type: A.IMPORT_SAVE, fileContent: reader.result });
     reader.readAsText(file);
     e.target.value = "";
+  };
+
+  const handleNewGameClick = () => {
+    if (hasSave) {
+      setShowNewGameConfirm(true);
+    } else {
+      dispatch({ type: A.NAVIGATE, screen: "newgame" });
+    }
+  };
+
+  const handleConfirmNewGame = () => {
+    setShowNewGameConfirm(false);
+    dispatch({ type: A.NAVIGATE, screen: "newgame" });
   };
 
   return (
@@ -109,7 +125,7 @@ function TitleScreen({ dispatch }) {
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: T.spacing.md, width: 280 }}>
           <Tooltip text="Begin a new adventure. Choose your captain and ship.">
-            <Btn v="gold" style={{ width: "100%" }} onClick={() => dispatch({ type: A.NAVIGATE, screen: "newgame" })}>
+            <Btn v="gold" style={{ width: "100%" }} onClick={handleNewGameClick}>
               <IconPlay size={12} color={T.gold} /> New Game
             </Btn>
           </Tooltip>
@@ -195,6 +211,38 @@ function TitleScreen({ dispatch }) {
             </NarrativePanel>
             <div style={{ marginTop: 12, textAlign: "right" }}>
               <Btn sm v="gold" onClick={() => setShowChangelog(false)}>Close</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── New Game Confirmation popup ──────────────────────── */}
+      {showNewGameConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setShowNewGameConfirm(false)}>
+          <div style={{
+            background: T.panel,
+            border: `1px solid ${T.gold}`,
+            borderRadius: 2,
+            padding: T.spacing.lg,
+            width: 420,
+            maxWidth: "95vw",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ color: T.gold, fontSize: T.heading2FontSize, fontWeight: "bold", marginBottom: 16 }}>
+              Start New Game?
+            </div>
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, marginBottom: 12 }}>
+              Your current browser‑stored save will be lost. If you want to keep it, use the <strong>Export Save</strong> button in the menu.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn v="red" onClick={handleConfirmNewGame}>Yes, start a new game</Btn>
+              <Btn onClick={() => setShowNewGameConfirm(false)}>Cancel</Btn>
             </div>
           </div>
         </div>

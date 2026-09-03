@@ -2,82 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#07111e">
   <title>Broadside – Caribbean 1695</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #07111e; }
-    #root { min-height: 100vh; display: flex; flex-direction: column; }
+    body {
+      background: #07111e;
+      height: 100%;
+      overflow: hidden;
+    }
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+      height: 100%;
+      box-sizing: border-box;
+    }
+    @supports not (padding: env(safe-area-inset-top)) {
+      #root {
+        padding: 0;
+      }
+    }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #07111e; }
     ::-webkit-scrollbar-thumb { background: #1c3450; border-radius: 2px; }
-  
+
     /* QM popup slide-in animation */
-  @keyframes qmSlideIn {
-    from { transform: translateX(-50%) translateY(100%); opacity: 0; }
-    to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
-    
-  }
-  /* Button unlock pulse animation */
-  .btn-pulse {
-    animation: btnPulse 0.5s ease-in-out 3;
-  }
-  @keyframes btnPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 170, 110, 0.6); }
-    50% { box-shadow: 0 0 12px 6px rgba(201, 170, 110, 0.6); }
-  }
-  
+    @keyframes qmSlideIn {
+      from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+      to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+    }
+
+    /* Button unlock pulse animation */
+    .btn-pulse {
+      animation: btnPulse 0.5s ease-in-out 3;
+    }
+    @keyframes btnPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(201, 170, 110, 0.6); }
+      50% { box-shadow: 0 0 12px 6px rgba(201, 170, 110, 0.6); }
+    }
+
     /* UI juice keyframes */
-     /* UI juice keyframes */
-  @keyframes flashGreen {
-    0%   {
-      color: #7ab868;
-      text-shadow: 0 0 18px #7ab868, 0 0 36px #7ab868, 0 0 8px #fff;
+    @keyframes flashGreen {
+      0%   {
+        color: #7ab868;
+        text-shadow: 0 0 18px #7ab868, 0 0 36px #7ab868, 0 0 8px #fff;
+      }
+      100% {
+        color: inherit;
+        text-shadow: none;
+      }
     }
-    100% {
-      color: inherit;
-      text-shadow: none;
+    @keyframes flashRed {
+      0%   {
+        color: #d06a58;
+        text-shadow: 0 0 18px #d06a58, 0 0 36px #d06a58, 0 0 8px #fff;
+      }
+      100% {
+        color: inherit;
+        text-shadow: none;
+      }
     }
-  }
-  @keyframes flashRed {
-    0%   {
-      color: #d06a58;
-      text-shadow: 0 0 18px #d06a58, 0 0 36px #d06a58, 0 0 8px #fff;
+    @keyframes flashGold {
+      0%   { color: #dfc080; text-shadow: 0 0 18px #dfc080; }
+      100% { color: inherit; text-shadow: none; }
     }
-    100% {
-      color: inherit;
-      text-shadow: none;
+    @keyframes flashBlue {
+      0%   { color: #6a9aba; text-shadow: 0 0 18px #6a9aba; }
+      100% { color: inherit; text-shadow: none; }
     }
-  }
-  @keyframes flashGold {
-    0%   { color: #dfc080; text-shadow: 0 0 18px #dfc080; }
-    100% { color: inherit; text-shadow: none; }
-  }
-  @keyframes flashBlue {
-    0%   { color: #6a9aba; text-shadow: 0 0 18px #6a9aba; }
-    100% { color: inherit; text-shadow: none; }
-  }
-  @keyframes flashPurple {
-    0%   { color: #9a6aaa; text-shadow: 0 0 18px #9a6aaa; }
-    100% { color: inherit; text-shadow: none; }
-  }
-  @keyframes pulseBar {
-    0%   { filter: brightness(1.8); }
-    100% { filter: brightness(1);   }
-  }
-  .flash-green,
-  .flash-red,
-  .flash-gold,
-  .flash-blue,
-  .flash-purple {
-    display: inline-block;
-  }
-  .flash-green  { animation: flashGreen 0.8s ease-out; }
-  .flash-red    { animation: flashRed   0.8s ease-out; }
-  .flash-gold   { animation: flashGold  0.8s ease-out; }
-  .flash-blue   { animation: flashBlue  0.8s ease-out; }
-  .flash-purple { animation: flashPurple 0.8s ease-out; }
-  .bar-pulse    { animation: pulseBar   0.5s ease-out; }
+    @keyframes flashPurple {
+      0%   { color: #9a6aaa; text-shadow: 0 0 18px #9a6aaa; }
+      100% { color: inherit; text-shadow: none; }
+    }
+    @keyframes pulseBar {
+      0%   { filter: brightness(1.8); }
+      100% { filter: brightness(1);   }
+    }
+    .flash-green,
+    .flash-red,
+    .flash-gold,
+    .flash-blue,
+    .flash-purple {
+      display: inline-block;
+    }
+    .flash-green  { animation: flashGreen 0.8s ease-out; }
+    .flash-red    { animation: flashRed   0.8s ease-out; }
+    .flash-gold   { animation: flashGold  0.8s ease-out; }
+    .flash-blue   { animation: flashBlue  0.8s ease-out; }
+    .flash-purple { animation: flashPurple 0.8s ease-out; }
+    .bar-pulse    { animation: pulseBar   0.5s ease-out; }
 
 /* Combat action buttons – hover glow & click pulse */
 .combat-btn {
@@ -156,7 +182,7 @@
 <script type="text/babel" data-presets="react" src="logic_economy_crew.js"></script>
 <script type="text/babel" data-presets="react" src="logic_travel_events.js"></script>
 <script type="text/babel" data-presets="react" src="logic_combat_encounter.js"></script>
-<script type="text/babel" data-presets="react"  src="storage.js"></script>         
+<script type="text/babel" data-presets="react"  src="storage.js"></script>
 <script type="text/babel" data-presets="react" src="generators.js"></script>
 <script type="text/babel" data-presets="react" src="engine_core.js"></script>
 <script type="text/babel" data-presets="react" src="engine_port.js"></script>
@@ -168,7 +194,7 @@
 <script type="text/babel" data-presets="react" src="engine_career.js"></script>
 <script type="text/babel" data-presets="react" src="engine_scripted.js"></script>
 <script type="text/babel" data-presets="react" src="ui.jsx"></script>
-<script type="text/babel" data-presets="react" src="icons.jsx"></script> 
+<script type="text/babel" data-presets="react" src="icons.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_core.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_status.jsx"></script>
@@ -179,5 +205,15 @@
 <script type="text/babel" data-presets="react" src="screens_combat.jsx"></script>
 <script type="text/babel" data-presets="react" src="screens_menu.jsx"></script>
 <script type="text/babel" data-presets="react" src="App.jsx"></script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker registration failed: ', err));
+    });
+  }
+</script>
 </body>
 </html>

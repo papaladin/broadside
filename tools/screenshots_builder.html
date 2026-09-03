@@ -27,6 +27,7 @@
   .export-btn:hover { background: #2a1a08; }
   .scene { overflow: hidden; position: relative; }
   .scene *, .scene { font-family: Georgia, 'Times New Roman', serif; }
+  .pwa-anchor-glow { filter: drop-shadow(0 0 10px rgba(201,170,110,.95)) drop-shadow(0 0 24px rgba(201,170,110,.55)); }
   .loading { text-align: center; padding: 80px; color: #b0a48c; font-style: italic; }
 </style>
 </head>
@@ -44,6 +45,7 @@
   <a href="#sceneF">Crew</a>
   <a href="#sceneG">Event</a>
   <a href="#sceneH">itch.io Assets</a>
+  <a href="#sceneI">PWA Assets</a>
 </nav>
 
 <script>
@@ -70,26 +72,25 @@
 <div id="scenes-root"><div class="loading">Loading game UI…</div></div>
 
 <script>
-function exportScene(id, fn) {
+function exportScene(id, fn, scale = 2) {
   const el = document.getElementById(id);
   if (!el) return;
 
-  // Wait for all images inside this element to be complete
   const imgs = el.querySelectorAll('img');
   const wait = Promise.all(Array.from(imgs).map(img => {
     if (img.complete) return Promise.resolve();
     return new Promise(resolve => {
       img.onload = resolve;
-      img.onerror = resolve; // don't block on error
+      img.onerror = resolve;
     });
   }));
 
   wait.then(() => {
     html2canvas(el, {
       backgroundColor: null,
-      scale: 2,
+      scale: scale,
       useCORS: true,
-      allowTaint: false,   // safer for toDataURL
+      allowTaint: false,
     }).then(c => {
       const a = document.createElement("a");
       a.download = fn;
@@ -103,7 +104,7 @@ function exportScene(id, fn) {
 <script type="text/babel" data-presets="react">
 function waitReady(cb, attempt) {
   attempt = attempt || 0;
-  const ready = window.UI && window.UI.T && window.UI.Btn && window.UI.LogList
+  const ready = window.UI && window.UI.T && window.UI.Panel && window.UI.LogList
              && window.D && window.D.FACTIONS && window.D.SHIP_VISUALS
              && window.L && window.L.classifyLogLine;
   if (ready) cb();
@@ -115,7 +116,7 @@ function waitReady(cb, attempt) {
 waitReady(() => {
   const UI = window.UI;
   const T = UI.T;
-  const { panelStyle, Btn, Bar, Pill, SectionTitle,
+  const { panelStyle, Panel, Bar, Pill, SectionTitle,
           LogList, FactionPill, RepPill, NarrativePanel, NarrativeLine,
           ShipSideSprite } = UI;
   const Icon = (n) => UI[n] || (() => null);
@@ -239,7 +240,7 @@ waitReady(() => {
     );
   };
 
-  // ── SCENE C: Naval Combat (update for distance indicator) ──
+  // ── SCENE C: Naval Combat ─────────────────────────────────────
   const SceneC = ({ size, sid }) => {
     const sz = size;
     const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
@@ -247,28 +248,54 @@ waitReady(() => {
     const isNarrow = sz.w < 700;
     const spriteW = isNarrow ? (sz.w < 400 ? 110 : 180) : 240;
     const spriteH = isNarrow ? (sz.w < 400 ? 75 : 120) : 160;
+
+    // The real combat screen uses Panel for the ship cards, log, and
+    // clickable action cards. Keep the screenshot builder on those same
+    // primitives so the rough/double-stroke visual language is preserved.
+    const navalColors = {
+      broadside: T.redBr,
+      precision: T.yellow,
+      grapple: T.blueBr,
+      evade: T.greenBr,
+      open_distance: T.greenBr,
+      close_distance: T.greenBr,
+    };
+
+    const renderAction = (b) => (
+      <Panel
+        key={b.a}
+        color={b.c}
+        style={{
+          background: T.panelAlt,
+          padding: p / 2,
+          minHeight: sz.w < 480 ? 58 : 72,
+          cursor: "pointer",
+        }}
+      >
+        <div style={{color:T.text,fontSize:fs,fontWeight:"bold",marginBottom:2,
+          display:"flex",alignItems:"center",gap:4}}>
+          {b.icon} {b.lbl}
+        </div>
+        {sz.w >= 500 && <div style={{color:T.textDim,fontSize:fs-2}}>{b.desc}</div>}
+        {b.info && sz.w >= 500 && <div style={{color:T.textFaint,fontSize:9,marginTop:2}}>{b.info}</div>}
+      </Panel>
+    );
+
     return (
       <SceneBox id={sid} w={sz.w} h={sz.h}>
         <div style={{padding:p, height:"100%", display:"flex", flexDirection:"column", gap:p/2}}>
           <div style={{textAlign:"center", color:T.redBr, fontSize:fs+3,
-            fontWeight:"bold", letterSpacing:"0.1em",
-            display:"flex", alignItems:"center", justifyContent:"center", gap:6}}>
+            fontWeight:"bold", letterSpacing:"0.1em", display:"flex",
+            alignItems:"center", justifyContent:"center", gap:6}}>
             <IconSwords size={fs+4} color={T.redBr} />
             NAVAL BATTLE — ROUND 4
           </div>
-          {/* Distance Indicator */}
-          <div style={{textAlign:"center", color:T.textDim, fontSize:fs-1,
-            padding:4, background:T.bgDeep, borderRadius:3, marginBottom:2}}>
-            Distance: <span style={{color:T.gold, fontWeight:"bold"}}>CLOSE</span>
-          </div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 26px 1fr",
-            gap:4, alignItems:"stretch"}}>
-            {/* Player ship — schooner, pirate, war pennants */}
-            <div style={panelStyle({borderColor:T.blueBr, padding:8})}>
-              <div style={{background:T.bgDeep, borderRadius:3,
-                border:`1px solid ${T.borderFaint}`, padding:4, marginBottom:6,
-                display:"flex", justifyContent:"center", alignItems:"center",
-                minHeight: spriteH + 8}}>
+
+          <div style={{display:"grid", gridTemplateColumns:"1fr 26px 1fr", gap:4, alignItems:"stretch"}}>
+            <Panel color={T.blueBr} style={{padding:8}}>
+              <div style={{background:T.bgDeep, borderRadius:3, border:`1px solid ${T.borderFaint}`,
+                padding:4, marginBottom:6, display:"flex", justifyContent:"center", alignItems:"center",
+                minHeight:spriteH+8}}>
                 <ShipSideSprite type="schooner" faction="pirate" equipment={["war_pennants"]}
                   width={spriteW} height={spriteH} facing="right" />
               </div>
@@ -276,14 +303,12 @@ waitReady(() => {
               <div style={{color:T.textDim, fontSize:fs-2, marginBottom:4}}>Hull: 98 / 150</div>
               <Bar value={98} max={150} color={T.greenBr} h={10} />
               <div style={{color:T.textDim, fontSize:fs-2, marginTop:4}}>12 crew · 15 cannons</div>
-            </div>
-            <div style={{textAlign:"center", color:T.redBr, fontSize:22}}>⚡</div>
-            {/* Enemy ship — frigate, Spanish */}
-            <div style={panelStyle({borderColor:T.red, padding:8})}>
-              <div style={{background:T.bgDeep, borderRadius:3,
-                border:`1px solid ${T.borderFaint}`, padding:4, marginBottom:6,
-                display:"flex", justifyContent:"center", alignItems:"center",
-                minHeight: spriteH + 8}}>
+            </Panel>
+            <div style={{textAlign:"center", color:T.redBr, fontSize:22, alignSelf:"center"}}>⚡</div>
+            <Panel color={T.redBr} style={{padding:8}}>
+              <div style={{background:T.bgDeep, borderRadius:3, border:`1px solid ${T.borderFaint}`,
+                padding:4, marginBottom:6, display:"flex", justifyContent:"center", alignItems:"center",
+                minHeight:spriteH+8}}>
                 <ShipSideSprite type="frigate" faction="spanish" width={spriteW} height={spriteH} facing="left" />
               </div>
               <div style={{color:T.redBr, fontSize:fs, fontWeight:"bold"}}>The Scarlet Fortune</div>
@@ -291,111 +316,108 @@ waitReady(() => {
               <Bar value={42} max={120} color={T.redBr} h={10} />
               <div style={{color:T.textDim, fontSize:fs-2, marginTop:4}}>18 crew · 20 cannons</div>
               <div style={{marginTop:5}}><FactionPill faction="spanish" /></div>
-            </div>
+            </Panel>
           </div>
-          {sz.h > 300 && (
-            <div style={{...panelStyle({background:T.bgDeep, padding:p-4}),
-              fontSize:fs-1, maxHeight:sz.h*0.18, overflow:"hidden"}}>
-              <div style={{color:T.text, marginBottom:3, lineHeight:1.5}}>
-                Round 4: Your broadside tears into the enemy hull. -18 damage.
-                The enemy answers with precision fire. -12 damage.
-              </div>
-              <div style={{color:T.redBr, lineHeight:1.5}}>Lost 1 crew: François Bonnet.</div>
-            </div>
-          )}
-          <div style={{display:"grid",
-            gridTemplateColumns: sz.w < 480 ? "1fr 1fr" : "repeat(4, 1fr)",
-            gap:8}}>
-            {[
-              { lbl:"Broadside", desc:"Full cannon volley", icon:<IconCannon size={14} color={T.redBr}/>, c:T.redBr },
-              { lbl:"Precision", desc:"Aimed shot",        icon:<IconTarget size={14} color={T.yellow}/>, c:T.yellow },
-              { lbl:"Grapple",   desc:"Board them",         icon:<IconGrapple size={14} color={T.blueBr}/>, c:T.blueBr },
-              { lbl:"Evade",     desc:"Flee battle",        icon:<IconWind size={14} color={T.greenBr}/>, c:T.greenBr },
-            ].map((b, i) => (
-              <div key={i} style={panelStyle({background:T.panelAlt, padding:p/2})}>
-                <div style={{color:T.text, fontSize:fs, fontWeight:"bold",
-                  marginBottom:2, display:"flex", alignItems:"center", gap:4}}>
-                  {b.icon} {b.lbl}
+
+          {/* Current game distance indicator: text + three-stage position. */}
+          <Panel style={{padding:"8px 12px", display:"flex", alignItems:"center", justifyContent:"center", gap:16}}>
+            <span style={{color:T.textDim,fontSize:fs-1}}>Distance: <span style={{color:T.gold,fontWeight:"bold",fontSize:fs+1}}>CLOSE</span></span>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              {[['far',false,true],['medium',false,true],['close',true,false]].map(([d,active,past],i)=>(
+                <div key={d} style={{display:"flex",alignItems:"center"}}>
+                  <div style={{width:12,height:12,borderRadius:"50%",background:active?T.gold:past?T.goldDim:T.textFaint,
+                    border:active?`2px solid ${T.gold}`:"none",boxShadow:active?`0 0 8px ${T.gold}55`:"none"}} />
+                  {i<2&&<div style={{width:16,height:2,background:past?T.goldDim:T.textFaint,opacity:past?.6:.3,margin:"0 2px"}} />}
                 </div>
-                {sz.w >= 500 && (
-                  <div style={{color:T.textDim, fontSize:fs-2}}>{b.desc}</div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+            {sz.w>=500&&<span style={{color:T.textFaint,fontSize:fs-2,fontStyle:"italic"}}>Point-blank – boarding range</span>}
+          </Panel>
+
+          <Panel style={{background:T.bgDeep,padding:p-4,fontSize:fs-1,maxHeight:sz.h*0.18,overflow:"hidden"}}>
+            <div style={{color:T.text,marginBottom:3,lineHeight:1.5}}>
+              Round 4: Your broadside tears into the enemy hull. -18 damage. The enemy answers with precision fire. -12 damage.
+            </div>
+            <div style={{color:T.redBr,lineHeight:1.5}}>Lost 1 crew: François Bonnet.</div>
+          </Panel>
+
+          <div style={{color:T.textDim,fontSize:fs-1,marginBottom:0}}>CHOOSE YOUR ACTION:</div>
+
+          {/* The current game separates naval attacks from distance/escape actions. */}
+          <div style={{display:"grid",gridTemplateColumns:sz.w<480?"1fr 1fr 1fr":"repeat(3, 1fr)",gap:8}}>
+            {[
+              {a:"broadside",lbl:"Broadside",desc:"Full cannon volley",icon:<IconCannon size={14} color={T.redBr}/>,c:navalColors.broadside,info:"Hull: 9–13 · Crew: 1–2"},
+              {a:"precision",lbl:"Precision",desc:"Aimed shot",icon:<IconTarget size={14} color={T.yellow}/>,c:navalColors.precision,info:"Hull: 11–16 · Hit: 80%"},
+              {a:"grapple",lbl:"Grapple",desc:"Board the enemy",icon:<IconGrapple size={14} color={T.blueBr}/>,c:navalColors.grapple,info:"Requires Close distance"},
+            ].map(renderAction)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:sz.w<480?"1fr 1fr":"repeat(3, 1fr)",gap:8}}>
+            {[
+              {a:"evade",lbl:"Evade",desc:"Flee if faster",icon:<IconWind size={14} color={T.greenBr}/>,c:navalColors.evade,info:"Requires Far distance"},
+              {a:"open_distance",lbl:"Open Distance",desc:"Move further away",icon:<IconWind size={14} color={T.greenBr}/>,c:navalColors.open_distance,info:"Requires Medium or Close"},
+              {a:"close_distance",lbl:"Close Distance",desc:"Move closer",icon:<IconGrapple size={14} color={T.greenBr}/>,c:navalColors.close_distance,info:"Requires Far or Medium"},
+            ].map(renderAction)}
           </div>
         </div>
       </SceneBox>
     );
   };
 
-  // ── SCENE D: Boarding Combat (new) ─────────────────────────
+  // ── SCENE D: Boarding Combat ─────────────────────────────────
   const SceneD = ({ size, sid }) => {
     const sz = size;
     const p = sz.w >= 1000 ? 14 : sz.w >= 500 ? 10 : 6;
     const fs = sz.w >= 1000 ? 13 : sz.w >= 500 ? 11 : 9;
-    const spriteW = sz.w >= 1000 ? 200 : sz.w >= 500 ? 150 : 100;
-    const spriteH = sz.w >= 1000 ? 140 : sz.w >= 500 ? 100 : 70;
-    const ratio = 0.68; // player advantage 68%
+    const ratio = 0.68;
+    const boardingColors = {
+      continue_fighting:T.greenBr,
+      fall_back:T.goldDim,
+      demand_surrender:T.blueBr,
+      surrender:T.redBr,
+    };
+
     return (
       <SceneBox id={sid} w={sz.w} h={sz.h}>
-        <div style={{padding:p, height:"100%", display:"flex", flexDirection:"column", gap:p/2}}>
-          <div style={{textAlign:"center", color:T.blueBr, fontSize:fs+3,
-            fontWeight:"bold", letterSpacing:"0.1em",
-            display:"flex", alignItems:"center", justifyContent:"center", gap:6}}>
-            <IconSwords size={fs+4} color={T.blueBr} />
-            BOARDING ACTION — ROUND 3
+        <div style={{padding:p,height:"100%",display:"flex",flexDirection:"column",gap:p/2}}>
+          <div style={{textAlign:"center",color:T.blueBr,fontSize:fs+3,fontWeight:"bold",
+            letterSpacing:"0.1em",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            <IconSwords size={fs+4} color={T.blueBr} /> BOARDING ACTION — ROUND 3
           </div>
 
-          {/* Advantage Bar */}
-          <div style={{background:T.bgDeep, borderRadius:3, padding:6, border:`1px solid ${T.borderFaint}`}}>
-            <div style={{position:"relative", height:20, borderRadius:2, overflow:"hidden"}}>
-              <div style={{position:"absolute", left:0, top:0, bottom:0, width:ratio*100+"%", background:T.greenBr}} />
-              <div style={{position:"absolute", right:0, top:0, bottom:0, width:(1-ratio)*100+"%", background:T.redBr}} />
-              <div style={{position:"absolute", left:0, right:0, top:0, bottom:0, display:"flex", justifyContent:"center", alignItems:"center", fontSize:fs, fontWeight:"bold", color:"#000", textShadow:"0 0 4px rgba(255,255,255,0.4)"}}>
-                {Math.round(ratio*100)}% vs {Math.round((1-ratio)*100)}%
+          {/* Same conceptual advantage bar as the real boarding screen, with no ships/anchor. */}
+          <Panel style={{padding:8}}>
+            <div style={{position:"relative",height:24,borderRadius:2,overflow:"hidden",background:T.bgDeep}}>
+              <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${ratio*100}%`,background:T.greenBr}}>
+                <span style={{display:"flex",height:"100%",alignItems:"center",justifyContent:"center",color:"#000",fontWeight:"bold",fontSize:fs}}>{Math.round(ratio*100)}%</span>
+              </div>
+              <div style={{position:"absolute",right:0,top:0,bottom:0,width:`${(1-ratio)*100}%`,background:T.redBr}}>
+                <span style={{display:"flex",height:"100%",alignItems:"center",justifyContent:"center",color:"#000",fontWeight:"bold",fontSize:fs}}>{Math.round((1-ratio)*100)}%</span>
               </div>
             </div>
-            <div style={{display:"flex", justifyContent:"space-between", fontSize:fs-2, marginTop:4}}>
-              <span style={{color:T.greenBr}}>Your crew: 18 (effective 22)</span>
-              <span style={{color:T.redBr}}>Enemy crew: 10 (effective 13)</span>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:fs-2}}>
+              <div style={{color:T.greenBr}}><span style={{color:T.text}}>Your crew: 18</span><span style={{color:T.textDim,marginLeft:8}}>Morale: 82%</span><span style={{color:T.textDim,marginLeft:8}}>Effective: 22</span></div>
+              <div style={{color:T.redBr,textAlign:"right"}}><span style={{color:T.text}}>Enemy crew: 10</span><span style={{color:T.textDim,marginLeft:8}}>Morale: 65%</span><span style={{color:T.textDim,marginLeft:8}}>Effective: 13</span></div>
             </div>
-          </div>
+          </Panel>
 
-          {/* Two ship sprites at close range */}
-          <div style={{display:"grid", gridTemplateColumns:"1fr 20px 1fr", gap:4, alignItems:"center"}}>
-            <div style={{display:"flex", justifyContent:"flex-end", alignItems:"center"}}>
-              <ShipSideSprite type="schooner" faction="pirate" equipment={["war_pennants"]}
-                width={spriteW} height={spriteH} facing="right" />
-            </div>
-            <div style={{textAlign:"center", color:T.blueBr, fontSize:22}}>⚓</div>
-            <div style={{display:"flex", justifyContent:"flex-start", alignItems:"center"}}>
-              <ShipSideSprite type="frigate" faction="spanish" width={spriteW} height={spriteH} facing="left" />
-            </div>
-          </div>
+          <Panel style={{background:T.bgDeep,padding:p-4,fontSize:fs-1,maxHeight:sz.h*0.28,overflow:"hidden",flex:1}}>
+            <div style={{color:T.text,marginBottom:3,lineHeight:1.5}}>Your crew cuts down 4 enemy sailors. 2 of your own fall.</div>
+            <div style={{color:T.greenBr,lineHeight:1.5}}>Enemy is wavering — you may press the attack.</div>
+          </Panel>
 
-          {/* Boarding log */}
-          <div style={{...panelStyle({background:T.bgDeep, padding:p-4}),
-            fontSize:fs-1, maxHeight:sz.h*0.18, overflow:"hidden"}}>
-            <div style={{color:T.text, marginBottom:3}}>
-              Your crew cuts down 4 enemy sailors. 2 of your own fall.
-            </div>
-            <div style={{color:T.greenBr}}>Enemy is wavering — you may press the attack.</div>
-          </div>
-
-          {/* Boarding actions */}
-          <div style={{display:"grid",
-            gridTemplateColumns: sz.w < 480 ? "1fr 1fr" : "repeat(4, 1fr)",
-            gap:8}}>
+          <div style={{color:T.textDim,fontSize:fs-1,marginBottom:0}}>BOARDING ACTIONS — 68% advantage</div>
+          <div style={{display:"grid",gridTemplateColumns:sz.w<480?"1fr 1fr":"repeat(4,1fr)",gap:8}}>
             {[
-              { lbl:"Continue", desc:"Press the attack", c:T.greenBr },
-              { lbl:"Fall Back", desc:"Costs crew", c:T.goldDim },
-              { lbl:"Demand", desc:"Force surrender", c:T.blueBr },
-              { lbl:"Surrender", desc:"Yield", c:T.redBr },
-            ].map((b, i) => (
-              <div key={i} style={panelStyle({background:T.panelAlt, padding:p/2, borderColor:b.c})}>
-                <div style={{color:T.text, fontSize:fs, fontWeight:"bold", marginBottom:2}}>{b.lbl}</div>
-                {sz.w >= 500 && <div style={{color:T.textDim, fontSize:fs-2}}>{b.desc}</div>}
-              </div>
+              {a:"continue_fighting",lbl:"Continue Fighting",desc:"Press the attack",c:boardingColors.continue_fighting,info:"You lose: 2 crew · Enemy loses: 4 crew"},
+              {a:"fall_back",lbl:"Fall Back",desc:"Return to naval combat",c:boardingColors.fall_back,info:"You lose: 1 crew"},
+              {a:"demand_surrender",lbl:"Demand Surrender",desc:"Force them to yield",c:boardingColors.demand_surrender,info:"Requires 65%+ advantage"},
+              {a:"surrender",lbl:"Surrender",desc:"Yield to the enemy",c:boardingColors.surrender},
+            ].map(b=>(
+              <Panel key={b.a} color={b.c} style={{background:T.panelAlt,padding:p/2,minHeight:sz.w<480?58:72,cursor:"pointer"}}>
+                <div style={{color:T.text,fontSize:fs,fontWeight:"bold",marginBottom:2}}>{b.lbl}</div>
+                {sz.w>=500&&<div style={{color:T.textDim,fontSize:fs-2}}>{b.desc}</div>}
+                {b.info&&sz.w>=500&&<div style={{color:T.textFaint,fontSize:9,marginTop:2}}>{b.info}</div>}
+              </Panel>
             ))}
           </div>
         </div>
@@ -567,13 +589,12 @@ waitReady(() => {
           </div>
           <div style={{color:T.gold, fontSize:fs+3, fontWeight:"bold"}}>Drifting Wreck</div>
 
-          {/* SVG illustration */}
-          <div style={{width:"100%", maxHeight: sz.w >= 500 ? 200 : 120,
-            overflow:"hidden", borderRadius:4, background:"#0d1824",
-            border:`1px solid ${T.borderFaint}`, marginBottom:4}}>
-            <img src="../event-wreck.svg" alt="Wreck"
-              crossOrigin="anonymous"
-              style={{width:"100%", height:"auto", display:"block"}} />
+          {/* SVG illustration: preserve the full artwork instead of cropping it. */}
+          <div style={{width:"100%", display:"flex", justifyContent:"center", alignItems:"center",
+            borderRadius:4, background:"#0d1824", border:`1px solid ${T.borderFaint}`, marginBottom:4,
+            padding:4, overflow:"hidden", maxHeight:sz.h*0.42}}>
+            <img src="../event-wreck.svg" alt="Wreck" crossOrigin="anonymous"
+              style={{width:"auto", maxWidth:"100%", height:"auto", maxHeight:sz.h*0.38, display:"block", objectFit:"contain"}} />
           </div>
 
           <p style={{color:T.text, fontSize:fs, lineHeight:1.5, marginBottom:4}}>
@@ -675,15 +696,75 @@ waitReady(() => {
     </SceneBox>
   );
 
-  const SizeBlock = ({ label, exportName, sid, children }) => (
-    <div className="size-block">
-      <div className="size-label">{label}</div>
-      {children}
-      <button className="export-btn" onClick={() => exportScene(sid, exportName)}>
-        Export {label}
-      </button>
-    </div>
+  // ── SCENE I: PWA Assets ───────────────────────────────────────
+  // Square icons reuse the Cover's visual language but remove the title text:
+  // centered glowing anchor, dark-blue/wave background, five faction dots.
+  const PwaIcon = ({ size, sid }) => {
+    const n = size.w;
+    const anchor = Math.round(n * 0.58);
+    const dot = Math.max(7, Math.round(n * 0.035));
+    const gap = Math.max(5, Math.round(n * 0.018));
+    return (
+      <SceneBox id={sid} w={n} h={n}>
+        <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.12}}
+             viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+          <path d="M0,245 Q45,215 90,235 T180,225 Q230,210 285,230 T400,220" fill="none" stroke={T.gold} strokeWidth="3" />
+          <path d="M0,285 Q55,260 110,278 T220,270 Q285,250 340,275 T400,265" fill="none" stroke={T.gold} strokeWidth="2" />
+          <path d="M0,325 Q55,300 120,320 T245,312 Q315,292 400,315" fill="none" stroke={T.gold} strokeWidth="1.5" />
+        </svg>
+        <div style={{position:"absolute",inset:Math.max(8,n*.018),border:`1px solid ${T.border}`,borderRadius:Math.max(3,n*.012)}} />
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:n*.06}}>
+          <div className="pwa-anchor-glow" style={{lineHeight:0,marginBottom:n*.055}}>
+            <IconAnchor size={anchor} color={T.gold} />
+          </div>
+          <div style={{display:"flex",gap,justifyContent:"center",alignItems:"center"}}>
+            {Object.values(FC).map((f,i)=><div key={i} style={{width:dot,height:dot,borderRadius:"50%",background:f.color,opacity:.85}} />)}
+          </div>
+        </div>
+      </SceneBox>
+    );
+  };
+
+  // iOS splash: same Cover composition, enlarged to the device portrait aspect ratio.
+  // The content remains centered and the background fills the whole screen.
+  const PwaSplash = ({ size, sid }) => {
+    const n = size;
+    const ts = Math.round(n.w * 0.075);
+    const ss = Math.round(n.w * 0.028);
+    const an = Math.round(n.w * 0.14);
+    const dot = Math.max(8, Math.round(n.w * 0.012));
+    const gap = Math.max(8, Math.round(n.w * 0.014));
+    return (
+      <SceneBox id={sid} w={n.w} h={n.h}>
+        <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.055}}
+             viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
+          <path d="M0,480 Q45,430 90,455 T180,445 Q230,420 285,450 T400,440" fill="none" stroke={T.gold} strokeWidth="3" />
+          <path d="M0,555 Q55,515 110,540 T220,530 Q285,500 340,535 T400,520" fill="none" stroke={T.gold} strokeWidth="2" />
+          <path d="M0,635 Q55,600 120,625 T245,615 Q315,590 400,620" fill="none" stroke={T.gold} strokeWidth="1.5" />
+        </svg>
+        <div style={{position:"absolute",inset:Math.max(10,n.w*.018),border:`1px solid ${T.border}`,borderRadius:4}} />
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+          <div className="pwa-anchor-glow" style={{lineHeight:0,marginBottom:n.h*.018}}><IconAnchor size={an} color={T.gold} /></div>
+          <div style={{color:T.gold,fontSize:ts,fontWeight:"bold",letterSpacing:"0.2em",textShadow:`0 0 30px ${T.goldDim}`}}>BROADSIDE</div>
+          <div style={{color:T.textDim,fontSize:ss,letterSpacing:"0.15em",marginTop:n.h*.012}}>CARIBBEAN · 1695</div>
+          <div style={{color:T.textFaint,fontSize:Math.round(ss*.72),marginTop:n.h*.02,fontStyle:"italic"}}>A turn-based, narrative pirate strategy game</div>
+          <div style={{display:"flex",gap,marginTop:n.h*.025}}>
+            {Object.values(FC).map((f,i)=><div key={i} style={{width:dot,height:dot,borderRadius:"50%",background:f.color,opacity:.75}} />)}
+          </div>
+        </div>
+      </SceneBox>
   );
+  };
+
+ const SizeBlock = ({ label, exportName, sid, children, scale }) => (
+  <div className="size-block">
+    <div className="size-label">{label}</div>
+    {children}
+    <button className="export-btn" onClick={() => exportScene(sid, exportName, scale)}>
+      Export {label}
+    </button>
+  </div>
+);
 
   const Page = () => (
     <>
@@ -772,6 +853,37 @@ waitReady(() => {
           <SceneHEmbed sid="sH2" />
         </SizeBlock>
       </div>
+
+      <div id="sceneI">
+        <SectionHeader>Scene I — PWA Assets</SectionHeader>
+        <div style={{color:T.textDim,fontSize:11,marginBottom:12,maxWidth:900,lineHeight:1.5}}>
+          Square icons use the Cover palette and waves with a large glowing anchor. Splash exports use the Cover composition in portrait device proportions.
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",alignItems:"flex-start"}}>
+          <SizeBlock label="192×192 icon" sid="sI192" exportName="icon-192x192.png" scale={1}>
+            <PwaIcon size={{w:192,h:192}} sid="sI192" />
+          </SizeBlock>
+          <SizeBlock label="512×512 icon" sid="sI512" exportName="icon-512x512.png" scale={1}>
+            <PwaIcon size={{w:512,h:512}} sid="sI512" />
+          </SizeBlock>
+          <SizeBlock label="1024×1024 source icon" sid="sI1024" exportName="icon-1024x1024.png" scale={1}>
+            <PwaIcon size={{w:1024,h:1024}} sid="sI1024" />
+          </SizeBlock>
+          <SizeBlock label="180×180 Apple touch icon" sid="sIApple" exportName="apple-touch-icon.png" scale={1}>
+            <PwaIcon size={{w:180,h:180}} sid="sIApple" />
+          </SizeBlock>
+        </div>
+        <div style={{marginTop:18}}>
+          <div className="size-label" style={{marginBottom:8}}>iOS portrait launch screens</div>
+          <SizeBlock label="1290×2796" sid="sISplash1290" exportName="apple-splash-1290x2796.png">
+            <PwaSplash size={{w:1290,h:2796}} sid="sISplash1290" />
+          </SizeBlock>
+          <SizeBlock label="1179×2556" sid="sISplash1179" exportName="apple-splash-1179x2556.png">
+            <PwaSplash size={{w:1179,h:2556}} sid="sISplash1179" />
+          </SizeBlock>
+        </div>
+      </div>
+
     </>
   );
 

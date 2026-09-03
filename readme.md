@@ -38,7 +38,6 @@ Trade, scheme, and fight your way to fortune... but your crew has opinions, and 
 - **Random events at sea:**  Storms, shipwrecks, distressed merchants, mutinies, treasure maps. About one in ten days at sea brings something unplanned.
 
 ### On the Roadmap
-
 Broadside is in active development. Major upcoming additions include:
 
 - **Crew councils** — periodic moments where the crew weighs in on your decisions, with their observations shaped by what you've actually done.
@@ -49,21 +48,6 @@ Broadside is in active development. Major upcoming additions include:
 - **Endgame and legacy** — captains retire, or the sea takes them. Either way, the next captain inherits something.
 
 See [the full roadmap](docs/roadmap.md) for the complete plan.
-
----
-
-## Architecture at a Glance
-
-Broadside is built around four ideas that you should know before reading any code:
-
-1. **Single state tree, single reducer.** All game state lives in one object, mutated only through dispatched actions. No hidden state.
-2. **Strict layer separation.** Data → Logic → Generators → Engine → UI. Each layer only reads from the layers above it. Pure functions in `logic_*.js`. All randomness in `generators.js` (but logic functions accept injectable RNG for testability). All state transitions in the engine reducers.
-3. **Narrative as a presentation layer.** Gossip, captain's log, crew biographies, journal — these *describe* what happened, they don't *cause* anything. Gameplay systems own the consequences.
-4. **No build step.** Everything runs in the browser via React + Babel-standalone CDN. Edit a file, refresh, see it.
-
-The dependency direction is strictly downward: `data.js → logic_*.js → generators.js → engine_*.js → ui.jsx → screens_*.jsx → App.jsx`.
-
-For the full picture — state shape, reducer chain mechanics, file-by-file responsibilities, and contribution patterns — see [ocs/architecture.md and the docs/.
 
 ---
 
@@ -112,9 +96,6 @@ Start a local server, then open:
 |---|---|---|
 | **Unit & integration tests** | `tests/tests.html` | Logic, engine, flow, and UI tests |
 | **Balance dashboard** | `tools/tests_balance.html` | Reachability, economy, combat, patrol, trade, event, gossip checks |
-| **Economy simulator** | `tools/sim.html` | Monte Carlo economy simulation (6 strategies) |
-| **Crew lifecycle sim** | `tools/sim-crew.html` | Crew survival curves across 6 playstyles |
-| **Bio/log analyser** | `tools/sim-crewbio.html` | Bio uniqueness and log pattern detection |
 | **Equipment combos** | `tools/sim-equipment.html` | Equipment combination analysis and stat deltas |
 | **Combat AI simulator** | `tools/sim-combatAI.html` | AI action distribution and balance validation |
 
@@ -124,78 +105,20 @@ Tests run automatically in the browser.
 
 # Project Structure
 
+The complete file tree is documented in [the architecture reference](docs/architecture.md). The root-level runtime modules are:
+
 ```text
 broadside/
 ├── index.html                         ← entry point, <script> load order
 ├── data.js                            ← window.D — game constants
 ├── data_text.js                       ← extends window.D — text/content constants
-├── logic_core.js                      ← window.L — core pure helpers
-├── logic_economy_crew.js              ← window.L — crew, economy, cargo, reputation
-├── logic_travel_events.js             ← window.L — travel, sea position, events, patrols
-├── logic_combat_encounter.js          ← window.L — B11 combat resolvers + encounter helpers + NPC AI
-├── storage.js                         ← extends window.L — save/load + tutorial state + persistence helpers
-├── generators.js                      ← window.G — RNG: missions, markets, crew, enemies, gossip, bios
-│
-├── engine_core.js                     ← window.E — reducer chain, initial state, actions, migration
-├── engine_port.js                     ←           port domain reducer
-├── engine_voyage.js                   ←           voyage domain reducer
-├── engine_battle.js                   ←           battle domain reducer (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER)
-├── engine_encounter.js                ←           encounter domain reducer (intercepts, random events, merchant encounters)
-├── engine_onboarding.js               ←           onboarding middleware reducer
-├── engine_career.js                   ←           career-stats middleware reducer
-├── engine_scripted.js                 ←           dev-only scripted-playthrough reducer (?scripted=1)
-│
-├── ui.jsx                             ← window.UI — theme tokens + presentational components
-├── icons.jsx                          ← extends window.UI — SVG icon library + LOG_ICONS
-├── screens_core.jsx                   ← window.S — TitleScreen, NewGameScreen, onboarding UI
-├── screens_port.jsx                   ← window.S — PortScreen
-├── screens_status.jsx                 ← window.S — StatusScreen, JournalScreen
-├── screens_shipyard.jsx               ← window.S — ShipyardScreen
-├── screens_crew.jsx                   ← window.S — CrewScreen
-├── screens_market.jsx                 ← window.S — MarketScreen
-├── screens_voyage.jsx                 ← window.S — MapScreen, SailingScreen
-├── screens_combat.jsx                 ← window.S — EventScreen, InterceptScreen, BattleScreen, PlunderScreen
-├── screens_menu.jsx                   ← window.S — MenuModal, FeedbackPanel
-├── App.jsx                            ← root: HUD, screen router, ErrorBoundary, DebugPanel
-│
-├── docs/
-│   ├── architecture.md                ← system architecture, data flow, state shape
-│   ├── player_guide.md                ← player-facing mechanics/reference
-│   ├── roadmap.md                     ← development roadmap and planning space
-│   ├── specs_data.md                  ← data/constants specification
-│   ├── specs_engine.md                ← engine/reducer/state specification
-│   ├── specs_logic.md                 ← logic-layer specification
-│   ├── specs_generators.md            ← generator specification
-│   ├── specs_jsx.md                   ← React/JSX/UI specification
-│   ├── specs_storage.md               ← storage/save specification
-│   ├── Home.md                        ← wiki home
-│   └── _Sidebar.md                    ← wiki sidebar
-│
-├── tests/
-│   ├── tests.html                     ← main test runner & utilities
-│   ├── tests_integration.html         ← integration/load-order/dependency tests
-│   ├── tests_coverage.html            ← return-path coverage analysis
-│   ├── tests_helpers.js               ← shared test helpers
-│   ├── tests_logic.js                 ← logic + generator unit tests
-│   ├── tests_engine.js                ← reducer/engine tests
-│   ├── tests_robustness.js            ← robustness tests for flaky/edge inputs
-│   └── tests_ui.js                    ← UI smoke & edge-case tests
-│
-└── tools/
-    ├── broadside_results.md           ← aggregated simulation results
-    ├── preview-event-vignettes.html   ← event SVG preview
-    ├── preview-icons.html             ← icon preview
-    ├── preview-port-vignettes.html    ← port silhouette preview
-    ├── preview-ships.html             ← ship sprite preview
-    ├── preview-sounds.html            ← sound preview/tester
-    ├── screenshots_builder.html       ← screenshot generator/builder
-    ├── sim-carreer.html               ← career/progression simulator
-    ├── sim-combatAI.html              ← NPC combat AI simulator
-    ├── sim-crew.html                  ← crew lifecycle simulator
-    ├── sim-crewbio.html               ← crew bio/log redundancy analyzer
-    ├── sim-equipment.html             ← equipment combination analyzer
-    ├── tools-balance.html             ← balance dashboard
-    └── tools-results-to-md.html       ← results to markdown aggregator
+├── logic_*.js                         ← window.L — pure game rules
+├── storage.js                         ← extends window.L — save/load + persistence
+├── generators.js                      ← window.G — procedural content generation
+├── engine_*.js                        ← window.E — reducer/domain modules
+├── ui.jsx / icons.jsx                 ← window.UI — reusable UI and icons
+├── screens_*.jsx                      ← window.S — player-facing screens
+└── App.jsx                            ← root UI, routing, debug tools
 ```
 
 ---
