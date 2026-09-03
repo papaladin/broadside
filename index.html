@@ -13,13 +13,17 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    html, body {
       background: #07111e;
+      width: 100%;
       height: 100%;
+      margin: 0;
+    }
+    body {
       overflow: hidden;
     }
     #root {
-      min-height: 100vh;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       padding:
@@ -27,13 +31,23 @@
         env(safe-area-inset-right)
         env(safe-area-inset-bottom)
         env(safe-area-inset-left);
-      height: 100%;
+      height: 100dvh;
+      min-height: 0;
       box-sizing: border-box;
     }
     @supports not (padding: env(safe-area-inset-top)) {
       #root {
         padding: 0;
       }
+    }
+    /* Main game scroll region: allow flex children to shrink and scroll on desktop, iOS, and Android. */
+    #root > div {
+      min-height: 0;
+    }
+    #root > div > div[style*="overflow"] {
+      min-height: 0 !important;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #07111e; }
