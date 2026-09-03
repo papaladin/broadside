@@ -7,11 +7,29 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#07111e">
   <title>Broadside – Caribbean 1695</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-title" content="Broadside">
+
+  <link rel="manifest" href="./manifest.json">
+
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="192x192"
+    href="./icon-192x192.png"
+  >
+
+  <link
+    rel="icon"
+    type="image/png"
+    sizes="512x512"
+    href="./icon-512x512.png"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="./apple-touch-icon.png"
+  >
+ 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -25,6 +43,7 @@
     }
     #root {
       min-height: 0;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       padding:
@@ -32,19 +51,36 @@
         env(safe-area-inset-right)
         env(safe-area-inset-bottom)
         env(safe-area-inset-left);
-      height: 100dvh;
-      min-height: 0;
+
       box-sizing: border-box;
     }
+
+    @supports not (height: 100dvh) {
+      #root {
+        height: 100vh;
+      }
+    }
+
     @supports not (padding: env(safe-area-inset-top)) {
       #root {
         padding: 0;
       }
     }
-    /* Main game scroll region: allow flex children to shrink and scroll on desktop, iOS, and Android. */
+
+    /*
+      Important for the main game screen:
+      flex children must be allowed to shrink so their
+      overflow:auto container can actually scroll.
+    */
     #root > div {
       min-height: 0;
     }
+
+    /*
+      Main screen scroll region.
+      Keeps modal/pop-up scrolling separate from the
+      primary application screen.
+    */
     #root > div > div[style*="overflow"] {
       min-height: 0 !important;
       -webkit-overflow-scrolling: touch;
@@ -190,45 +226,71 @@
     or GitHub Pages). Will NOT work opened directly as file:// due to
     browser CORS restrictions on XHR to local files.
   -->
-<script type="text/babel" data-presets="react" src="data.js"></script>
-<script type="text/babel" data-presets="react" src="data_text.js"></script>
-<script type="text/babel" data-presets="react" src="ship-sprite.js"></script>
-<script type="text/babel" data-presets="react" src="logic_core.js"></script>
-<script type="text/babel" data-presets="react" src="logic_economy_crew.js"></script>
-<script type="text/babel" data-presets="react" src="logic_travel_events.js"></script>
-<script type="text/babel" data-presets="react" src="logic_combat_encounter.js"></script>
-<script type="text/babel" data-presets="react"  src="storage.js"></script>
-<script type="text/babel" data-presets="react" src="generators.js"></script>
-<script type="text/babel" data-presets="react" src="engine_core.js"></script>
-<script type="text/babel" data-presets="react" src="engine_port.js"></script>
-<script type="text/babel" data-presets="react" src="engine_voyage.js"></script>
-<!-- <script type="text/babel" data-presets="react" src="engine_combat.js"></script> -->
-<script type="text/babel" data-presets="react" src="engine_battle.js"></script>
-<script type="text/babel" data-presets="react" src="engine_encounter.js"></script>
-<script type="text/babel" data-presets="react" src="engine_onboarding.js"></script>
-<script type="text/babel" data-presets="react" src="engine_career.js"></script>
-<script type="text/babel" data-presets="react" src="engine_scripted.js"></script>
-<script type="text/babel" data-presets="react" src="ui.jsx"></script>
-<script type="text/babel" data-presets="react" src="icons.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_core.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_status.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_shipyard.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_crew.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_market.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_combat.jsx"></script>
-<script type="text/babel" data-presets="react" src="screens_menu.jsx"></script>
-<script type="text/babel" data-presets="react" src="App.jsx"></script>
 
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Service Worker registered'))
-        .catch(err => console.log('Service Worker registration failed: ', err));
-    });
-  }
-</script>
+  <script type="text/babel" data-presets="react" src="data.js"></script>
+  <script type="text/babel" data-presets="react" src="data_text.js"></script>
+  <script type="text/babel" data-presets="react" src="ship-sprite.js"></script>
+  <script type="text/babel" data-presets="react" src="logic_core.js"></script>
+  <script type="text/babel" data-presets="react" src="logic_economy_crew.js"></script>
+  <script type="text/babel" data-presets="react" src="logic_travel_events.js"></script>
+  <script type="text/babel" data-presets="react" src="logic_combat_encounter.js"></script>
+  <script type="text/babel" data-presets="react" src="storage.js"></script>
+  <script type="text/babel" data-presets="react" src="generators.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_core.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_port.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_voyage.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_battle.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_encounter.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_onboarding.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_career.js"></script>
+  <script type="text/babel" data-presets="react" src="engine_scripted.js"></script>
+  <script type="text/babel" data-presets="react" src="ui.jsx"></script>
+  <script type="text/babel" data-presets="react" src="icons.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_core.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_port.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_status.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_shipyard.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_crew.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_market.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_voyage.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_combat.jsx"></script>
+  <script type="text/babel" data-presets="react" src="screens_menu.jsx"></script>
+  <script type="text/babel" data-presets="react" src="App.jsx"></script>
+
+  <script>
+    /*
+      Service worker:
+      production HTTPS only.
+
+      This prevents a local Live Server / localhost development
+      environment from registering the production service worker.
+    */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const isLocal =
+          location.hostname === 'localhost' ||
+          location.hostname === '127.0.0.1' ||
+          location.hostname === '[::1]';
+
+        const isProduction =
+          location.protocol === 'https:' && !isLocal;
+
+        if (!isProduction) {
+          return;
+        }
+
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => {
+            console.log('Service Worker registered', reg.scope);
+          })
+          .catch(err => {
+            console.log(
+              'Service Worker registration failed:',
+              err
+            );
+          });
+      });
+    }
+  </script>
 </body>
 </html>
