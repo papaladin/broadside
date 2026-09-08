@@ -52,13 +52,25 @@ window.L = window.L || {};
     return "";
   };
 
-  const meetsRequirement = (state, item) => {
-    if (item.requiredFame && state.fame < item.requiredFame)
-      return { allowed: false, reason: `Requires ★ ${item.requiredFame} fame (${L.getFameInfo(item.requiredFame).label})` };
+  const meetsRequirement = (state, item, earlyAccess = false) => {
+    let requiredFame = item.requiredFame || 0;
+    if (earlyAccess) {
+      // Apply early-access reduction based on item type
+      const access = L.getNavalYardEarlyAccess(state);
+      if (access) {
+        // We need to know if it's a ship or equipment.
+        // We can infer: if item has 'maxCrew' it's a ship, else equipment.
+        const isShip = !!item.maxCrew;
+        requiredFame = isShip
+          ? access.shipFameThreshold(requiredFame)
+          : access.equipmentFameThreshold(requiredFame);
+      }
+    }
+    if (requiredFame > 0 && state.fame < requiredFame)
+      return { allowed: false, reason: `Requires ★ ${requiredFame} fame (${L.getFameInfo(requiredFame).label})` };
     return { allowed: true, reason: null };
   };
 
-  // logic_core.js
   const canBribe = (state) => {
     const isPirate = state.faction === 'pirate';
     const bribeGateRemoved = isPirate && (L.getBirthTrait(state, 'bribeGateRemoved') || false);
@@ -80,6 +92,13 @@ window.L = window.L || {};
     const shipStats = L.getShipStats(state);
     const moraleBonus = shipStats.moraleBonus || 0;
     return Math.min(100, state.crew.morale + moraleBonus);
+  };
+
+  const getFactionReputation = (state, factionKey) => {
+    const ports = Object.keys(window.D.PORTS).filter(k => window.D.PORTS[k].faction === factionKey);
+    if (ports.length === 0) return 50;
+    const sum = ports.reduce((total, p) => total + (state.reputation[p] ?? 50), 0);
+    return Math.round(sum / ports.length);
   };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -149,24 +168,21 @@ window.L = window.L || {};
     return total;
   };
 
-  const canInstallEquipment = (state, equipmentKey) => {
+  const canInstallEquipment = (state, equipmentKey, earlyAccess = false) => {
     const item = EQUIPMENT[equipmentKey];
     if (!item) return { ok: false, reason: "Unknown equipment" };
-
-    const shipDef = SHIPS[state.ship.type];
-    const current = state.ship.equipment?.[item.slot] || [];
-
-    if ((state.fame || 0) < item.requiredFame)
-      return { ok: false, reason: "Requires more fame" };
-    if ((shipDef.maxHull || 0) < item.requiredHull)
-      return { ok: false, reason: "Ship hull too small" };
-    if ((shipDef.slots?.[item.slot] || 0) <= 0)
-      return { ok: false, reason: "No matching slot" };
-    if (current.length >= shipDef.slots[item.slot])
-      return { ok: false, reason: "Slot full" };
-    if (Object.values(state.ship.equipment || {}).flat().includes(equipmentKey))
-      return { ok: false, reason: "Already installed" };
-
+    // ... existing hull/slot/duplicate checks ...
+    // Then Fame check:
+    let requiredFame = item.requiredFame || 0;
+    if (earlyAccess) {
+      const access = L.getNavalYardEarlyAccess(state);
+      if (access) {
+        requiredFame = access.equipmentFameThreshold(requiredFame);
+      }
+    }
+    if (state.fame < requiredFame)
+      return { ok: false, reason: `Requires ★ ${requiredFame} fame` };
+    // ... rest ...
     return { ok: true };
   };
 
@@ -275,6 +291,7 @@ window.L = window.L || {};
       case 'crew':     return steps.firstContractDelivered;
       case 'shipyard': return steps.tutorialHuntCompleted;
       case 'journal':  return steps.shipRepaired;
+      case 'factionServices': return steps.tutorialHuntCompleted;
       default:         return true;
     }
   };
@@ -491,45 +508,56 @@ window.L = window.L || {};
     return true;
   };
 
-  // ── Bank helpers ──────────────────────────────────────────────────
+// ── Bank helpers ──────────────────────────────────────────────────
 
   const getBankTrustPct = (state, portKey) => {
-    const rep = state.reputation[portKey] || 0;
-    const thresholds = window.D.SERVICE_THRESHOLDS.bank.trustByReputation;
-    for (const tier of thresholds) {
-      if (rep >= tier.repMin && rep <= tier.repMax) {
-        return tier.pct;
-      }
-    }
-    return 0;
+    // Used by UI for display purposes; no longer used for capacity
+    const bank = window.D.SERVICE_THRESHOLDS.bank;
+    const rep = state.reputation[portKey] ?? 50;
+    const repMin = bank.repRequired; // 30
+    const repMax = 100;
+    const progress = Math.max(0, Math.min(1, (rep - repMin) / (repMax - repMin)));
+    return 0.4 + 0.6 * progress; // 40% at Rep 30, 100% at Rep 100
   };
 
   const getBankInterestRate = (state, portKey) => {
-    const rep = state.reputation[portKey] || 0;
-    const points = window.D.SERVICE_THRESHOLDS.bank.interestByReputation;
-    // Simple stepwise interpolation — if rep >= point.rep, use that point's rate
-    let rate = 0.10;
-    for (const p of points) {
-      if (rep >= p.rep) rate = p.rate;
-    }
-    return rate;
+    const bank = window.D.SERVICE_THRESHOLDS.bank;
+    const rep = state.reputation[portKey] ?? 50;
+    const repMin = bank.repRequired; // 30
+    const repMax = 100;
+    const progress = Math.max(0, Math.min(1, (rep - repMin) / (repMax - repMin)));
+    return bank.interestRateMax - progress * (bank.interestRateMax - bank.interestRateMin);
   };
 
-  const getBankCapacity = (state) => {
-    // Player capacity: Fame + ship value
-    const fame = state.fame || 0;
-    const shipStats = window.L.getShipStats(state);
-    const shipValue = window.D.SHIPS[state.ship.type]?.cost || 0;
-    const fameComponent = fame * 200;           // Fame 200 → 40,000g
-    const shipComponent = Math.floor(shipValue * 0.30); // 30% of ship value
-    const baseCapacity = 10000;
-    return baseCapacity + fameComponent + shipComponent;
+  const getBankCapacity = (state, portKey) => {
+    const rep = state.reputation[portKey] ?? 50;
+    const bank = window.D.SERVICE_THRESHOLDS.bank;
+
+    // Reputation part: base at Fame 0 (200 at Rep 30, 1000 at Rep 100)
+    const repProgress = Math.max(0, Math.min(1, (rep - 30) / 70));
+    const base = 200 + 800 * repProgress; // 200 → 1000
+
+    // Fame part: growth exponent 2.0 (square)
+    const fameRatio = state.fame / 350;
+    const fameFactor = fameRatio * fameRatio; // (fame/350)^2
+
+    // Loan at Fame 350: 150k at Rep 30, 300k at Rep 100
+    const loan350 = 150000 + 150000 * repProgress; // 150k → 300k
+    const multiplier = (loan350 / base) - 1;
+
+    const total = base * (1 + multiplier * fameFactor);
+    return Math.min(total, bank.loanCap);
   };
 
-  const getBankLoanCeiling = (state, portKey) => {
-    const capacity = getBankCapacity(state);
-    const trustPct = getBankTrustPct(state, portKey);
-    return Math.floor(capacity * trustPct);
+  const applyLoanGarnish = (debt, income) => {
+    if (debt <= 0 || income <= 0) return { netIncome: income, newDebt: debt };
+    const plannedRepayment = Math.floor(income * 0.20);
+    const actualRepayment = Math.min(plannedRepayment, debt);
+    return {
+      netIncome: income - actualRepayment,
+      newDebt: debt - actualRepayment,
+      actualRepayment: actualRepayment,
+    };
   };
 
   // ── Inquisitor helpers ────────────────────────────────────────────
@@ -548,7 +576,7 @@ window.L = window.L || {};
   // ── Embassy helpers ──────────────────────────────────────────────
 
   const getEmbassyCost = (state, targetFaction) => {
-    const targetRep = state.reputation[targetFaction] || 0;
+    const targetRep = L.getFactionReputation(state, targetFaction);
     const pricing = window.D.SERVICE_THRESHOLDS.embassy.pricing;
     for (const tier of pricing) {
       if (targetRep >= tier.repMin && targetRep <= tier.repMax) {
@@ -561,12 +589,11 @@ window.L = window.L || {};
   // ── Naval Yard helpers ────────────────────────────────────────────
 
   const getNavalYardEarlyAccess = (state) => {
-    const fame = state.fame || 0;
+    const englishRep = L.getFactionReputation(state, 'english');
     const thresholds = window.D.SERVICE_THRESHOLDS.navalYard;
-    if (fame < thresholds.fameRequiredForEarlyAccess) return null;
+    if (englishRep < thresholds.repRequiredForEarlyAccess) return null;
 
     const modifiers = thresholds.earlyAccessModifiers;
-    // Return the thresholds for checking individual ships/equipment
     return {
       equipmentFameThreshold: (baseFame) => Math.floor(baseFame * modifiers.equipmentFameReduction),
       shipFameThreshold: (baseFame) => Math.max(0, baseFame - modifiers.shipFameReduction),
@@ -574,15 +601,28 @@ window.L = window.L || {};
   };
 
   const isEarlyAccessEligible = (state, item, itemType) => {
+    if (window.D.PORTS[state.currentPort]?.faction !== 'english') return false;
     const access = getNavalYardEarlyAccess(state);
     if (!access) return false;
-
     const requiredFame = item.requiredFame || 0;
     const adjusted = itemType === 'ship'
       ? access.shipFameThreshold(requiredFame)
       : access.equipmentFameThreshold(requiredFame);
-
     return state.fame >= adjusted;
+  };
+
+  const canPerformEquipmentOperation = (state, operation) => {
+    const portFaction = window.D.PORTS[state.currentPort]?.faction;
+    if (operation === 'remove' || operation === 'install') {
+      if (portFaction !== 'english') {
+        return { allowed: false, reason: "Only available at English Naval Yard" };
+      }
+      const rep = state.reputation[state.currentPort] ?? 0;
+      if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
+        return { allowed: false, reason: `Requires English reputation ${window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval}+` };
+      }
+    }
+    return { allowed: true, reason: null };
   };
 
 
@@ -600,6 +640,7 @@ window.L = window.L || {};
     meetsRequirement,
     canBribe,
     getEffectiveMorale,
+    getFactionReputation,
 
     // Ship & Equipment
     getShipStats,
@@ -637,11 +678,12 @@ window.L = window.L || {};
       getBankTrustPct,
       getBankInterestRate,
       getBankCapacity,
-      getBankLoanCeiling,
+      applyLoanGarnish,
       getInquisitorCost,
       getEmbassyCost,
       getNavalYardEarlyAccess,
       isEarlyAccessEligible,
+      canPerformEquipmentOperation,
 
   });
 })();

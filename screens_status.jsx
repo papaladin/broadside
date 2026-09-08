@@ -37,16 +37,13 @@ window.S = window.S || {};
     const getFactionSummary = (factionKey) => {
       const ports = Object.entries(PORTS).filter(([_, p]) => p.faction === factionKey);
       if (ports.length === 0) return null;
-      const avgRep = Math.round(
-        ports.reduce((sum, [k]) => sum + (state.reputation[k] ?? 50), 0) / ports.length
-      );
+      const avgRep = L.getFactionReputation(state, factionKey);
       const repLabel = L.reputationLabel(avgRep);
       const heat = state.factionAlerts?.[factionKey] || 0;
       const heatLabel = L.getHeatLabel(heat);
       const crewOfFaction = (state.crew?.roster || []).filter(m => m.faction === factionKey).length;
       const totalCrew = (state.crew?.roster || []).length;
-      const crewPct = totalCrew > 0 ? Math.round((crewOfFaction / totalCrew) * 100) : 0;
-      return { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew, crewPct };
+      return { avgRep, repLabel, heat, heatLabel, crewOfFaction, totalCrew };
     };
 
     return (

@@ -2,64 +2,60 @@
 window.S = window.S || {};
 
 (() => {
-const { useState, useEffect, useMemo } = React;
-const { SHIPS, EQUIPMENT, PORTS } = window.D;
-const L = window.L;
-const A = window.E.A;
-const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Panel,
+  const { useState, useEffect, useMemo } = React;
+  const { SHIPS, EQUIPMENT, PORTS } = window.D;
+  const L = window.L;
+  const A = window.E.A;
+  const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Panel,
     IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip, ShipSideSprite,
-    IconLock, // <-- Import the new IconLock here
-} = window.UI;
-const { shouldShowTutorial, markTutorialSeen } = window.L;
+    IconLock, Tooltip,
+  } = window.UI;
+  const { shouldShowTutorial, markTutorialSeen } = window.L;
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CONSTANTS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
 
-const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
+  const getVisualEquipment = (state) => {
+    const allEquipped = [
+      ...(state.ship.equipment?.hull || []),
+      ...(state.ship.equipment?.armament || []),
+      ...(state.ship.equipment?.rigging || []),
+      ...(state.ship.equipment?.special || []),
+    ];
+    return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
+  };
 
-const getVisualEquipment = (state) => {
-  const allEquipped = [
-    ...(state.ship.equipment?.hull || []),
-    ...(state.ship.equipment?.armament || []),
-    ...(state.ship.equipment?.rigging || []),
-    ...(state.ship.equipment?.special || []),
-  ];
-  return allEquipped.filter(key => VISUAL_EQUIPMENT.includes(key));
-};
-
-const SLOT_LABELS = {
+  const SLOT_LABELS = {
     hull:     { label: "Hull",      Icon: IconShield },
     armament: { label: "Armament",  Icon: IconCannon },
     rigging:  { label: "Rigging",   Icon: IconSailboat },
     special:  { label: "Special",   Icon: IconSparkles },
-};
+  };
 
-const TABS = { EQUIP: "equip", SHIPS: "ships", LOCKER: "locker" };
+  const TABS = { EQUIP: "equip", SHIPS: "ships", LOCKER: "locker" };
 
-function StatDelta({ label, before, after }) {
+  function StatDelta({ label, before, after }) {
     const diff = after - before;
     const arrow = diff > 0 ? " ↑" : diff < 0 ? " ↓" : " =";
     const color = diff > 0 ? T.greenBr : diff < 0 ? T.redBr : T.textDim;
     return (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: T.metadataFontSize, marginBottom: 3, gap: T.spacing.md }}>
-            <span style={{ color: T.textDim, minWidth: 70, flexShrink: 0 }}>{label}</span>
-            <span style={{ color, textAlign: "right", whiteSpace: "nowrap", fontSize: 16 }}>
-                {before} → {after}{arrow}
-            </span>
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: T.metadataFontSize, marginBottom: 3, gap: T.spacing.md }}>
+        <span style={{ color: T.textDim, minWidth: 70, flexShrink: 0 }}>{label}</span>
+        <span style={{ color, textAlign: "right", whiteSpace: "nowrap", fontSize: 16 }}>
+          {before} → {after}{arrow}
+        </span>
+      </div>
     );
-}
+  }
 
-function ShipyardScreen({ state, dispatch }) {
+  function ShipyardScreen({ state, dispatch }) {
     const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
     if (perk.servicesBlocked) {
-        return (
-            <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
-                <BackButton dispatch={dispatch} />
-                <EmptyState message="⚔ You are at war with this port. No shipyard services available." />
-            </div>
-        );
+      return (
+        <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>
+          <BackButton dispatch={dispatch} />
+          <EmptyState message="⚔ You are at war with this port. No shipyard services available." />
+        </div>
+      );
     }
 
     const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
@@ -75,567 +71,600 @@ function ShipyardScreen({ state, dispatch }) {
 
     const [isNarrow, setIsNarrow] = useState(window.innerWidth < 700);
     useEffect(() => {
-        const h = () => setIsNarrow(window.innerWidth < 700);
-        window.addEventListener("resize", h);
-        return () => window.removeEventListener("resize", h);
+      const h = () => setIsNarrow(window.innerWidth < 700);
+      window.addEventListener("resize", h);
+      return () => window.removeEventListener("resize", h);
     }, []);
 
     const [equippedOpen, setEquippedOpen] = useState(!isNarrow);
 
     const switchTab = (tab) => {
-        setActiveTab(tab);
-        setSelectedEquip(null);
-        setSelectedShip(null);
-        setSlotFilter("all");
+      setActiveTab(tab);
+      setSelectedEquip(null);
+      setSelectedShip(null);
+      setSlotFilter("all");
     };
 
     const lockerItems = useMemo(() => (state.equipmentInventory || []).map(key => {
-        const item = EQUIPMENT[key];
-        if (!item) return null;
-        const validation = L.canInstallEquipment(state, key);
-        return { key, ...item, validation, canAfford: state.gold >= item.installFee };
+      const item = EQUIPMENT[key];
+      if (!item) return null;
+      const earlyAccess = L.isEarlyAccessEligible(state, item, 'equipment');
+      const validation = L.canInstallEquipment(state, key, earlyAccess);
+      const canInstall = L.canPerformEquipmentOperation(state, 'install').allowed;
+      return { key, ...item, validation, earlyAccess, canInstall, canAfford: state.gold >= item.installFee };
     }).filter(Boolean), [state]);
 
     const hasLocker = lockerItems.length > 0;
 
     const previewEquipStats = (equipmentKey) => {
-        const newEquip = { ...state.ship.equipment };
-        const item = EQUIPMENT[equipmentKey];
-        if (!item) return effectiveStats;
-        newEquip[item.slot] = [...(newEquip[item.slot] || []), equipmentKey];
-        const tempState = { ...state, ship: { ...state.ship, equipment: newEquip } };
-        return L.getShipStats(tempState);
+      const newEquip = { ...state.ship.equipment };
+      const item = EQUIPMENT[equipmentKey];
+      if (!item) return effectiveStats;
+      newEquip[item.slot] = [...(newEquip[item.slot] || []), equipmentKey];
+      const tempState = { ...state, ship: { ...state.ship, equipment: newEquip } };
+      return L.getShipStats(tempState);
     };
 
     const renderPreviewPanel = () => {
-        if (selectedEquip) {
-            const item = EQUIPMENT[selectedEquip];
-            if (!item) return null;
-            const after = previewEquipStats(selectedEquip);
-            const validation = L.canInstallEquipment(state, selectedEquip);
-            const isFromLocker = (state.equipmentInventory || []).includes(selectedEquip);
-            const totalCost = isFromLocker ? item.installFee : item.cost + item.installFee;
-            const canAfford = state.gold >= totalCost;
+      if (selectedEquip) {
+        const item = EQUIPMENT[selectedEquip];
+        if (!item) return null;
+        const after = previewEquipStats(selectedEquip);
+        const earlyAccess = L.isEarlyAccessEligible(state, item, 'equipment');
+        const validation = L.canInstallEquipment(state, selectedEquip, earlyAccess);
+        const isAllowed = validation.ok;
+        const isFromLocker = (state.equipmentInventory || []).includes(selectedEquip);
+        const totalCost = isFromLocker ? item.installFee : item.cost + item.installFee;
+        const canAfford = state.gold >= totalCost;
+        const canDoInstall = isFromLocker ? L.canPerformEquipmentOperation(state, 'install').allowed : true;
+        const installReason = isFromLocker ? L.canPerformEquipmentOperation(state, 'install').reason : null;
 
-            return (
-                <Panel color={T.gold} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
-                        <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
-                            {isFromLocker
-                                ? React.createElement(React.Fragment, null,
-                                    React.createElement(IconChest, { size: 12, color: T.gold }),
-                                    " Install from Locker"
-                                  )
-                                : React.createElement(React.Fragment, null,
-                                    React.createElement(IconHammer, { size: 12, color: T.gold }),
-                                    " Preview: Buy & Install"
-                                  )
-                            }
-                        </span>
-                        <Btn sm v="ghost" onClick={() => setSelectedEquip(null)} style={{ flexShrink: 0 }}>✕</Btn>
-                    </div>
-                    <div style={{ color: T.text, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 4 }}>{item.name}</div>
-                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
-                        {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
-                    </div>
+        return (
+          <Panel color={T.gold} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
+              <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
+                {isFromLocker
+                  ? React.createElement(React.Fragment, null,
+                      React.createElement(IconChest, { size: 12, color: T.gold }),
+                      " Install from Locker"
+                    )
+                  : React.createElement(React.Fragment, null,
+                      React.createElement(IconHammer, { size: 12, color: T.gold }),
+                      " Preview: Buy & Install"
+                    )
+                }
+              </span>
+              <Btn sm v="ghost" onClick={() => setSelectedEquip(null)} style={{ flexShrink: 0 }}>✕</Btn>
+            </div>
+            <div style={{ color: T.text, fontSize: T.heading3FontSize, fontWeight: "bold", marginBottom: 4 }}>{item.name}</div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
+              {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
+            </div>
 
-                    <div style={{ marginBottom: 8 }}>
-                        <StatDelta label="Hull"    before={effectiveStats.maxHull}      after={after.maxHull} />
-                        <StatDelta label="Cannons" before={effectiveStats.cannons}      after={after.cannons} />
-                        <StatDelta label="Speed"   before={effectiveStats.speed}        after={after.speed} />
-                        <StatDelta label="Crew"    before={effectiveStats.maxCrew}      after={after.maxCrew} />
-                        <StatDelta label="Hold"    before={effectiveStats.holdCapacity} after={after.holdCapacity} />
-                        <StatDelta label="Max Days" before={effectiveStats.maxDays}     after={after.maxDays} />
-                    </div>
+            <div style={{ marginBottom: 8 }}>
+              <StatDelta label="Hull"    before={effectiveStats.maxHull}      after={after.maxHull} />
+              <StatDelta label="Cannons" before={effectiveStats.cannons}      after={after.cannons} />
+              <StatDelta label="Speed"   before={effectiveStats.speed}        after={after.speed} />
+              <StatDelta label="Crew"    before={effectiveStats.maxCrew}      after={after.maxCrew} />
+              <StatDelta label="Hold"    before={effectiveStats.holdCapacity} after={after.holdCapacity} />
+              <StatDelta label="Max Days" before={effectiveStats.maxDays}     after={after.maxDays} />
+            </div>
 
-                    {!validation.ok ? (
-                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {validation.reason}</div>
-                    ) : !canAfford ? (
-                        <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {totalCost - state.gold}g more</div>
-                    ) : (
-                        <Btn v="gold" onClick={() => {
-                            if (isFromLocker) {
-                                dispatch({ type: A.INSTALL_EQUIPMENT, equipmentKey: selectedEquip });
-                            } else {
-                                dispatch({ type: A.BUY_EQUIPMENT, equipmentKey: selectedEquip });
-                            }
-                            setSelectedEquip(null);
-                        }}>
-                            {isFromLocker ? `Install (${item.installFee}g)` : `Buy & Install (${totalCost}g)`}
-                        </Btn>
-                    )}
-                </Panel>
-            );
-        }
+            {!isAllowed ? (
+              <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {validation.reason}</div>
+            ) : !canAfford ? (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {totalCost - state.gold}g more</div>
+            ) : isFromLocker && !canDoInstall ? (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>
+                <IconLock size={12} color={T.redBr} /> {installReason}
+              </div>
+            ) : (
+              <Btn v="gold" onClick={() => {
+                if (isFromLocker) {
+                  dispatch({ type: A.INSTALL_EQUIPMENT, equipmentKey: selectedEquip });
+                } else {
+                  dispatch({ type: A.BUY_EQUIPMENT, equipmentKey: selectedEquip });
+                }
+                setSelectedEquip(null);
+              }}>
+                {isFromLocker ? `Install (${item.installFee}g)` : `Buy & Install (${totalCost}g)`}
+              </Btn>
+            )}
+          </Panel>
+        );
+      }
 
-        if (selectedShip && selectedShip !== state.ship.type) {
-            const s = SHIPS[selectedShip];
-            const cur = currentShip;
-            const shipReq = L.meetsRequirement(state, s);
-            const canBuy = shipReq.allowed && state.gold >= s.cost;
-            const lack = shipReq.allowed && state.gold < s.cost ? s.cost - state.gold : 0;
+      if (selectedShip && selectedShip !== state.ship.type) {
+        const s = SHIPS[selectedShip];
+        const cur = currentShip;
+        const earlyAccess = L.isEarlyAccessEligible(state, s, 'ship');
+        const shipReq = L.meetsRequirement(state, s, earlyAccess);
+        const isAllowed = shipReq.allowed;
+        const canBuy = isAllowed && state.gold >= s.cost;
+        const lack = isAllowed && state.gold < s.cost ? s.cost - state.gold : 0;
 
-            return (
-                <Panel color={T.gold} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
-                        <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
-                            <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
-                        </span>
-                        <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
-                    </div>
+        return (
+          <Panel color={T.gold} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
+              <span style={{ color: T.gold, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>
+                <IconShip size={12} color={T.gold} /> Compare: {s.name} vs {cur.name}
+              </span>
+              <Btn sm v="ghost" onClick={() => setSelectedShip(null)} style={{ flexShrink: 0 }}>✕</Btn>
+            </div>
 
-                    <div style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 10,
-                        padding: 6,
-                        background: T.bgDeep,
-                        borderRadius: 3,
-                        border: `1px solid ${T.borderFaint}`,
-                    }}>
-                        <ShipSideSprite
-                            type={selectedShip}
-                            faction={null}
-                            equipment={[]}
-                            width={isNarrow ? 240 : 300}
-                            height={isNarrow ? 170 : 210}
-                            facing="left"
-                        />
-                    </div>
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 10,
+              padding: 6,
+              background: T.bgDeep,
+              borderRadius: 3,
+              border: `1px solid ${T.borderFaint}`,
+            }}>
+              <ShipSideSprite
+                type={selectedShip}
+                faction={null}
+                equipment={[]}
+                width={isNarrow ? 240 : 300}
+                height={isNarrow ? 170 : 210}
+                facing="left"
+              />
+            </div>
 
-                    {/* Ship Name Input */}
-                    <div style={{ marginBottom: 10 }}>
-                        <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Ship Name</div>
-                        <input
-                            type="text"
-                            value={selectedShipName}
-                            onChange={e => setSelectedShipName(e.target.value)}
-                            style={{
-                                padding: "6px 8px",
-                                background: T.panel,
-                                border: `1px solid ${T.border}`,
-                                color: T.text,
-                                fontSize: T.narrativeFontSize,
-                                fontFamily: T.font,
-                                borderRadius: 2,
-                                width: "100%",
-                                outline: "none",
-                            }}
-                        />
-                    </div>
+            {/* Ship Name Input */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>Ship Name</div>
+              <input
+                type="text"
+                value={selectedShipName}
+                onChange={e => setSelectedShipName(e.target.value)}
+                style={{
+                  padding: "6px 8px",
+                  background: T.panel,
+                  border: `1px solid ${T.border}`,
+                  color: T.text,
+                  fontSize: T.narrativeFontSize,
+                  fontFamily: T.font,
+                  borderRadius: 2,
+                  width: "100%",
+                  outline: "none",
+                }}
+              />
+            </div>
 
-                    <div style={{ marginBottom: 8 }}>
-                        <StatDelta label="Hull"     before={cur.maxHull}      after={s.maxHull} />
-                        <StatDelta label="Cannons"  before={cur.cannons}      after={s.cannons} />
-                        <StatDelta label="Speed"    before={cur.speed}        after={s.speed} />
-                        <StatDelta label="Max Crew"  before={cur.maxCrew}     after={s.maxCrew} />
-                        <StatDelta label="Hold"     before={cur.holdCapacity} after={s.holdCapacity} />
-                        <StatDelta label="Max Days"  before={cur.maxDays}     after={s.maxDays} />
-                    </div>
+            <div style={{ marginBottom: 8 }}>
+              <StatDelta label="Hull"     before={cur.maxHull}      after={s.maxHull} />
+              <StatDelta label="Cannons"  before={cur.cannons}      after={s.cannons} />
+              <StatDelta label="Speed"    before={cur.speed}        after={s.speed} />
+              <StatDelta label="Max Crew"  before={cur.maxCrew}     after={s.maxCrew} />
+              <StatDelta label="Hold"     before={cur.holdCapacity} after={s.holdCapacity} />
+              <StatDelta label="Max Days"  before={cur.maxDays}     after={s.maxDays} />
+            </div>
 
-                    <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
-                        ⚠ Buying a new ship clears all installed equipment. Remove items to your locker first.
-                    </div>
+            <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 8 }}>
+              ⚠ Buying a new ship clears all installed equipment. Remove items to your locker first.
+            </div>
 
-                    {!shipReq.allowed ? (
-                        <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {shipReq.reason}</div>
-                    ) : lack > 0 ? (
-                        <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {lack.toLocaleString()}g more</div>
-                    ) : (
-                        <Btn v="gold" onClick={() => {
-                            dispatch({
-                                type: A.BUY_SHIP,
-                                shipType: selectedShip,
-                                shipName: selectedShipName.trim() || SHIPS[selectedShip].name,
-                            });
-                            setSelectedShip(null);
-                        }}>
-                            Purchase ({s.cost.toLocaleString()}g)
-                        </Btn>
-                    )}
-                </Panel>
-            );
-        }
+            {!isAllowed ? (
+              <div style={{ color: T.gold, fontSize: T.captionFontSize }}><IconLock size={12} color={T.gold} /> {shipReq.reason}</div>
+            ) : lack > 0 ? (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize }}>Need {lack.toLocaleString()}g more</div>
+            ) : (
+              <Btn v="gold" onClick={() => {
+                dispatch({
+                  type: A.BUY_SHIP,
+                  shipType: selectedShip,
+                  shipName: selectedShipName.trim() || SHIPS[selectedShip].name,
+                });
+                setSelectedShip(null);
+              }}>
+                Purchase ({s.cost.toLocaleString()}g)
+              </Btn>
+            )}
+          </Panel>
+        );
+      }
 
-        return null;
+      return null;
     };
 
     const renderLeftPanel = () => (
+      <div style={{
+        ...(isNarrow ? {} : {
+          width: 280, minWidth: 280, maxWidth: 280,
+          position: "sticky", top: 44, alignSelf: "flex-start",
+        }),
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
         <div style={{
-            ...(isNarrow ? {} : {
-                width: 280, minWidth: 280, maxWidth: 280,
-                position: "sticky", top: 44, alignSelf: "flex-start",
-            }),
-            display: "flex", flexDirection: "column", gap: 10,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 10,
+          padding: 6,
+          background: T.bgDeep,
+          borderRadius: 3,
+          border: `1px solid ${T.borderFaint}`,
         }}>
-            <div style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                marginBottom: 10,
-                padding: 6,
-                background: T.bgDeep,
-                borderRadius: 3,
-                border: `1px solid ${T.borderFaint}`,
-            }}>
-                <ShipSideSprite
-                    type={state.ship.type}
-                    faction={null}
-                    equipment={getVisualEquipment(state)}
-                    width={isNarrow ? 260 : 340}
-                    height={isNarrow ? 180 : 230}
-                    facing="left"
-                />
-            </div>
-            <Panel>
-                <SectionTitle>CURRENT VESSEL — {state.ship.name}</SectionTitle>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                    <StatBlock label="Hull" value={`${state.ship.hull}/${effectiveStats.maxHull}`} />
-                    <StatBlock label="Cannons" value={effectiveStats.cannons} />
-                    <StatBlock label="Speed" value={effectiveStats.speed} />
-                    <StatBlock label="Crew" value={`${state.crew.roster.length}/${effectiveStats.maxCrew}`} />
-                    <StatBlock label="Hold" value={effectiveStats.holdCapacity} />
-                    <StatBlock label="Max Days" value={effectiveStats.maxDays} />
-                </div>
-            </Panel>
-
-            <Panel>
-                <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
-                    Hull: {state.ship.hull} / {effectiveStats.maxHull}
-                </div>
-                <Bar value={state.ship.hull} max={effectiveStats.maxHull}
-                color={
-                    state.ship.hull / effectiveStats.maxHull >= 0.6 ? T.greenBr :
-                    state.ship.hull / effectiveStats.maxHull >= 0.3 ? T.gold :
-                    T.redBr
-                }
-                h={8} />
-                <div style={{ marginTop: 6 }}>
-                    <Btn sm v="gold"
-                        onClick={() => dispatch({ type: A.REPAIR })}
-                        disabled={state.ship.hull >= effectiveStats.maxHull || state.gold < repCost}>
-                        Full Repair ({repCost}g)
-                    </Btn>
-                </div>
-            </Panel>
-
-            <Panel>
-                <div
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isNarrow ? "pointer" : "default" }}
-                    onClick={() => isNarrow && setEquippedOpen(v => !v)}
-                >
-                    <SectionTitle>EQUIPPED</SectionTitle>
-                    {isNarrow && <span style={{ color: T.textDim, fontSize: T.narrativeFontSize }}>{equippedOpen ? "▾" : "▸"}</span>}
-                </div>
-
-                {(isNarrow ? equippedOpen : true) && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {Object.entries(SLOT_LABELS).map(([slotKey, slotInfo]) => {
-                            const SlotIcon = slotInfo.Icon;
-                            const slotMax = currentShip.slots?.[slotKey] || 0;
-                            if (slotMax === 0) return null;
-                            const installed = state.ship.equipment?.[slotKey] || [];
-
-                            return (
-                                <div key={slotKey}>
-                                    <div style={{ color: T.gold, fontSize: T.captionFontSize, fontWeight: "bold", marginBottom: 2, display: "flex", alignItems: "center" }}>
-                                        <SlotIcon size={12} color={T.gold} style={{ marginRight: 4 }} />
-                                        {slotInfo.label} ({installed.length}/{slotMax})
-                                    </div>
-                                    {installed.length === 0 ? (
-                                        <div style={{ color: T.textFaint, fontSize: 9, fontStyle: "italic", paddingLeft: 4 }}>empty</div>
-                                    ) : installed.map(key => {
-                                        const item = EQUIPMENT[key];
-                                        if (!item) return null;
-                                        return (
-                                            <div key={key} style={{
-                                                display: "flex", justifyContent: "space-between", alignItems: "center",
-                                                background: T.panelAlt, padding: "4px 6px", borderRadius: 3, marginBottom: 2,
-                                            }}>
-                                                <div>
-                                                    <div style={{ color: T.text, fontSize: T.captionFontSize }}>
-                                                        {item.name}
-                                                        {!item.removable && <span style={{ color: T.gold, fontSize: 8, marginLeft: 4 }}>(Struct.)</span>}
-                                                    </div>
-                                                </div>
-                                                {item.removable && (
-                                                    <Btn sm v="ghost"
-                                                        onClick={() => dispatch({ type: A.REMOVE_EQUIPMENT, equipmentKey: key })}
-                                                        disabled={state.gold < item.installFee}
-                                                        style={{ fontSize: 9, padding: "2px 5px", minHeight: 24 }}>
-                                                        −{item.installFee}g
-                                                    </Btn>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </Panel>
+          <ShipSideSprite
+            type={state.ship.type}
+            faction={null}
+            equipment={getVisualEquipment(state)}
+            width={isNarrow ? 260 : 340}
+            height={isNarrow ? 180 : 230}
+            facing="left"
+          />
         </div>
+        <Panel>
+          <SectionTitle>CURRENT VESSEL — {state.ship.name}</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <StatBlock label="Hull" value={`${state.ship.hull}/${effectiveStats.maxHull}`} />
+            <StatBlock label="Cannons" value={effectiveStats.cannons} />
+            <StatBlock label="Speed" value={effectiveStats.speed} />
+            <StatBlock label="Crew" value={`${state.crew.roster.length}/${effectiveStats.maxCrew}`} />
+            <StatBlock label="Hold" value={effectiveStats.holdCapacity} />
+            <StatBlock label="Max Days" value={effectiveStats.maxDays} />
+          </div>
+        </Panel>
+
+        <Panel>
+          <div style={{ color: T.textDim, fontSize: T.captionFontSize, marginBottom: 4 }}>
+            Hull: {state.ship.hull} / {effectiveStats.maxHull}
+          </div>
+          <Bar value={state.ship.hull} max={effectiveStats.maxHull}
+          color={
+            state.ship.hull / effectiveStats.maxHull >= 0.6 ? T.greenBr :
+            state.ship.hull / effectiveStats.maxHull >= 0.3 ? T.gold :
+            T.redBr
+          }
+          h={8} />
+          <div style={{ marginTop: 6 }}>
+            <Btn sm v="gold"
+              onClick={() => dispatch({ type: A.REPAIR })}
+              disabled={state.ship.hull >= effectiveStats.maxHull || state.gold < repCost}>
+              Full Repair ({repCost}g)
+            </Btn>
+          </div>
+        </Panel>
+
+        <Panel>
+          <div
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isNarrow ? "pointer" : "default" }}
+            onClick={() => isNarrow && setEquippedOpen(v => !v)}
+          >
+            <SectionTitle>EQUIPPED</SectionTitle>
+            {isNarrow && <span style={{ color: T.textDim, fontSize: T.narrativeFontSize }}>{equippedOpen ? "▾" : "▸"}</span>}
+          </div>
+
+          {(isNarrow ? equippedOpen : true) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {Object.entries(SLOT_LABELS).map(([slotKey, slotInfo]) => {
+                const SlotIcon = slotInfo.Icon;
+                const slotMax = currentShip.slots?.[slotKey] || 0;
+                if (slotMax === 0) return null;
+                const installed = state.ship.equipment?.[slotKey] || [];
+
+                return (
+                  <div key={slotKey}>
+                    <div style={{ color: T.gold, fontSize: T.captionFontSize, fontWeight: "bold", marginBottom: 2, display: "flex", alignItems: "center" }}>
+                      <SlotIcon size={12} color={T.gold} style={{ marginRight: 4 }} />
+                      {slotInfo.label} ({installed.length}/{slotMax})
+                    </div>
+                    {installed.length === 0 ? (
+                      <div style={{ color: T.textFaint, fontSize: 9, fontStyle: "italic", paddingLeft: 4 }}>empty</div>
+                    ) : installed.map(key => {
+                      const item = EQUIPMENT[key];
+                      if (!item) return null;
+                      const canRemove = L.canPerformEquipmentOperation(state, 'remove').allowed;
+                      const removeReason = canRemove ? null : L.canPerformEquipmentOperation(state, 'remove').reason;
+                      return (
+                        <div key={key} style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          background: T.panelAlt, padding: "4px 6px", borderRadius: 3, marginBottom: 2,
+                        }}>
+                          <div>
+                            <div style={{ color: T.text, fontSize: T.captionFontSize }}>
+                              {item.name}
+                              {!item.removable && <span style={{ color: T.gold, fontSize: 8, marginLeft: 4 }}>(Struct.)</span>}
+                            </div>
+                            {!canRemove && item.removable && (
+                              <div style={{ color: T.redBr, fontSize: 8 }}>{removeReason}</div>
+                            )}
+                          </div>
+                          {item.removable && (
+                            <Tooltip text={removeReason || (state.gold < item.installFee ? `Need ${item.installFee - state.gold}g more` : "Remove to locker")}>
+                              <Btn sm v="ghost"
+                                onClick={() => dispatch({ type: A.REMOVE_EQUIPMENT, equipmentKey: key })}
+                                disabled={!canRemove || state.gold < item.installFee}
+                                style={{ fontSize: 9, padding: "2px 5px", minHeight: 24 }}>
+                                −{item.installFee}g
+                              </Btn>
+                            </Tooltip>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+      </div>
     );
 
     const renderEquipmentTab = () => {
-        const filterButtons = [
-            { key: "all", label: "All" },
-            ...Object.entries(SLOT_LABELS).map(([k, v]) => ({
-                key: k,
-                label: React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center' } },
-                    React.createElement(v.Icon, { size: 10, color: T.textDim, style: { marginRight: 3 } }),
-                    v.label
-                )
-            })),
-        ];
+      const filterButtons = [
+        { key: "all", label: "All" },
+        ...Object.entries(SLOT_LABELS).map(([k, v]) => ({
+          key: k,
+          label: React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center' } },
+            React.createElement(v.Icon, { size: 10, color: T.textDim, style: { marginRight: 3 } }),
+            v.label
+          )
+        })),
+      ];
 
-        const shopItems = Object.entries(EQUIPMENT).map(([key, item]) => {
-            const validation = L.canInstallEquipment(state, key);
-            const totalCost = item.cost + item.installFee;
-            const canAfford = state.gold >= totalCost;
-            return { key, ...item, validation, canAfford, totalCost };
-        }).filter(item => slotFilter === "all" || item.slot === slotFilter);
+     const shopItems = Object.entries(EQUIPMENT).map(([key, item]) => {
+      const earlyAccess = L.isEarlyAccessEligible(state, item, 'equipment');
+      const validation = L.canInstallEquipment(state, key, earlyAccess);
+      const isAllowed = validation.ok;
+      const totalCost = item.cost + item.installFee;
+      const canAfford = state.gold >= totalCost;
+      return { key, ...item, validation, earlyAccess, isAllowed, canAfford, totalCost };
+    }).filter(item => slotFilter === "all" || item.slot === slotFilter);
 
-        return (
-            <div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-                    {filterButtons.map(f => (
-                        <Btn key={f.key} sm
-                            v={slotFilter === f.key ? "gold" : "ghost"}
-                            onClick={() => { setSlotFilter(f.key); setSelectedEquip(null); }}>
-                            {f.label}
-                        </Btn>
-                    ))}
-                </div>
+      return (
+        <div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
+            {filterButtons.map(f => (
+              <Btn key={f.key} sm
+                v={slotFilter === f.key ? "gold" : "ghost"}
+                onClick={() => { setSlotFilter(f.key); setSelectedEquip(null); }}>
+                {f.label}
+              </Btn>
+            ))}
+          </div>
 
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                    gap: T.spacing.sm,
-                    maxHeight: isNarrow ? "none" : 420,
-                    overflowY: isNarrow ? "visible" : "auto",
-                    padding: "3px",
-                    paddingRight: isNarrow ? 0 : 4,
-                }}>
-                    {shopItems.map(item => {
-                        const isSelected = selectedEquip === item.key;
-                        const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
-                        const priceColor = item.validation.ok && !item.canAfford ? T.redBr : T.gold;
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+            gap: T.spacing.sm,
+            maxHeight: isNarrow ? "none" : 420,
+            overflowY: isNarrow ? "visible" : "auto",
+            padding: "3px",
+            paddingRight: isNarrow ? 0 : 4,
+          }}>
+            {shopItems.map(item => {
+              const isSelected = selectedEquip === item.key;
+              const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
+              const priceColor = item.isAllowed && !item.canAfford ? T.redBr : T.gold;
 
-                        return (
-                            <Panel key={item.key}
-                                color={isSelected ? T.gold : undefined}
-                                style={{
-                                    background: isSelected ? T.panelAlt : T.panel,
-                                    cursor: "pointer",
-                                    transition: "border-color 0.15s",
-                                    opacity: item.validation.ok ? 1 : 0.55,
-                                }}
-                                onClick={() => setSelectedEquip(isSelected ? null : item.key)}
-                            >
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                    <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
-                                    <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
-                                </div>
-                                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
-                                    {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
-                                </div>
-                                <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
-                                    {SlotIcon && (
-                                        <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
-                                    )}
-                                    {SLOT_LABELS[item.slot]?.label || item.slot}
-                                    {item.requiredFame > 0 || item.requiredHull > 0 ? (
-                                        <span> · Fame {item.requiredFame} · Hull {item.requiredHull}+</span>
-                                    ) : null}
-                                </div>
-                                {!item.validation.ok && (
-                                    <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
-                                        <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
-                                    </div>
-                                )}
-                            </Panel>
-                        );
-                    })}
-                </div>
-            </div>
-        );
+              return (
+                <Panel key={item.key}
+                  color={isSelected ? T.gold : undefined}
+                  style={{
+                    background: isSelected ? T.panelAlt : T.panel,
+                    cursor: "pointer",
+                    transition: "border-color 0.15s",
+                    opacity: item.isAllowed ? 1 : 0.55,
+                  }}
+                  onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
+                    <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{item.totalCost}g</span>
+                  </div>
+                  <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
+                    {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
+                  </div>
+                  <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
+                    {SlotIcon && (
+                      <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
+                    )}
+                    {SLOT_LABELS[item.slot]?.label || item.slot}
+                    {item.requiredFame > 0 || item.requiredHull > 0 ? (
+                      <span> · Fame {item.requiredFame} · Hull {item.requiredHull}+</span>
+                    ) : null}
+                  </div>
+                  {!item.isAllowed && (
+                    <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                      <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
+                    </div>
+                  )}
+                </Panel>
+              );
+            })}
+          </div>
+        </div>
+      );
     };
 
     const renderShipsTab = () => {
-        return (
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: T.spacing.sm,
-                maxHeight: isNarrow ? "none" : 500,
-                overflowY: isNarrow ? "visible" : "auto",
-                padding: "3px",
-                paddingRight: isNarrow ? 0 : 4,
-            }}>
-                {Object.entries(SHIPS).map(([key, s]) => {
-                    const isCur = key === state.ship.type;
-                    const shipReq = L.meetsRequirement(state, s);
-                    const isAffordable = state.gold >= s.cost;
-                    const priceColor = shipReq.allowed && !isAffordable ? T.redBr : T.gold;
-                    const isSelected = selectedShip === key;
+      return (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: T.spacing.sm,
+          maxHeight: isNarrow ? "none" : 500,
+          overflowY: isNarrow ? "visible" : "auto",
+          padding: "3px",
+          paddingRight: isNarrow ? 0 : 4,
+        }}>
+          {Object.entries(SHIPS).map(([key, s]) => {
+            const isCur = key === state.ship.type;
+            const earlyAccess = L.isEarlyAccessEligible(state, s, 'ship');
+            const shipReq = L.meetsRequirement(state, s, earlyAccess);
+            const isAllowed = shipReq.allowed;
+            const isAffordable = state.gold >= s.cost;
+            const priceColor = isAllowed && !isAffordable ? T.redBr : T.gold;
+            const isSelected = selectedShip === key;
 
-                    return (
-                        <Panel key={key}
-                            color={isCur ? T.greenBr : (isSelected ? T.gold : undefined)}
-                            style={{
-                                background: isCur ? T.greenBg : (isSelected ? T.panelAlt : T.panel),
-                                cursor: isCur ? "default" : "pointer",
-                                transition: "border-color 0.15s",
-                                opacity: shipReq.allowed ? 1 : 0.55,
-                            }}
-                            onClick={() => {
-                                if (!isCur) {
-                                    setSelectedShip(isSelected ? null : key);
-                                    setSelectedShipName(SHIPS[key].name);
-                                }
-                            }}
-                        >
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{s.name}</span>
-                                {isCur
-                                    ? <Pill label="Current" color={T.greenBr} />
-                                    : <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{s.cost.toLocaleString()}g</span>
-                                }
-                            </div>
-                            <p style={{ color: T.textDim, fontSize: 9, margin: "0 0 6px", lineHeight: 1.4 }}>{s.desc}</p>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3 }}>
-                                {[["Crew", s.maxCrew], ["Guns", s.cannons], ["Spd", s.speed], ["Hull", s.maxHull]].map(([l, v]) =>
-                                    <StatBlock key={l} label={l} value={v} />
-                                )}
-                            </div>
-                            {!shipReq.allowed && (
-                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
-                                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {shipReq.reason}
-                                </div>
-                            )}
-                        </Panel>
-                    );
-                })}
-            </div>
-        );
+            return (
+              <Panel key={key}
+                color={isCur ? T.greenBr : (isSelected ? T.gold : undefined)}
+                style={{
+                  background: isCur ? T.greenBg : (isSelected ? T.panelAlt : T.panel),
+                  cursor: isCur ? "default" : "pointer",
+                  transition: "border-color 0.15s",
+                  opacity: isAllowed ? 1 : 0.55,
+                }}
+                onClick={() => {
+                  if (!isCur) {
+                    setSelectedShip(isSelected ? null : key);
+                    setSelectedShipName(SHIPS[key].name);
+                  }
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ color: T.text, fontSize: T.narrativeFontSize, fontWeight: "bold" }}>{s.name}</span>
+                  {isCur
+                    ? <Pill label="Current" color={T.greenBr} />
+                    : <span style={{ color: priceColor, fontSize: T.captionFontSize }}>{s.cost.toLocaleString()}g</span>
+                  }
+                </div>
+                <p style={{ color: T.textDim, fontSize: 9, margin: "0 0 6px", lineHeight: 1.4 }}>{s.desc}</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3 }}>
+                  {[["Crew", s.maxCrew], ["Guns", s.cannons], ["Spd", s.speed], ["Hull", s.maxHull]].map(([l, v]) =>
+                    <StatBlock key={l} label={l} value={v} />
+                  )}
+                </div>
+                {!isAllowed && (
+                  <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {shipReq.reason}
+                  </div>
+                )}
+              </Panel>
+            );
+          })}
+        </div>
+      );
     };
 
     const renderLockerTab = () => {
-        if (lockerItems.length === 0) {
-            return <EmptyState message="Your equipment locker is empty." />;
-        }
+      if (lockerItems.length === 0) {
+        return <EmptyState message="Your equipment locker is empty." />;
+      }
 
-        return (
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: T.spacing.sm,
-                maxHeight: isNarrow ? "none" : 420,
-                overflowY: isNarrow ? "visible" : "auto",
-                padding: "3px",
-                paddingRight: isNarrow ? 0 : 4,
-            }}>
-                {lockerItems.map(item => {
-                    const isSelected = selectedEquip === item.key;
-                    const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
-                    const priceColor = item.validation.ok && !item.canAfford ? T.redBr : T.gold;
+      const canInstall = L.canPerformEquipmentOperation(state, 'install').allowed;
+      const installReason = canInstall ? null : L.canPerformEquipmentOperation(state, 'install').reason;
 
-                    return (
-                        <Panel key={item.key}
-                            color={isSelected ? T.gold : undefined}
-                            style={{
-                                background: isSelected ? T.panelAlt : T.panel,
-                                cursor: "pointer",
-                                transition: "border-color 0.15s",
-                                opacity: item.validation.ok ? 1 : 0.55,
-                            }}
-                            onClick={() => setSelectedEquip(isSelected ? null : item.key)}
-                        >
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
-                                <span style={{ color: priceColor, fontSize: 9 }}>Install: {item.installFee}g</span>
-                            </div>
-                            <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
-                                {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
-                            </div>
-                            <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
-                                {SlotIcon && (
-                                    <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
-                                )}
-                                {SLOT_LABELS[item.slot]?.label || item.slot}
-                            </div>
-                            {!item.validation.ok && (
-                                <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
-                                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
-                                </div>
-                            )}
-                        </Panel>
-                    );
-                })}
-            </div>
-        );
+      return (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isNarrow ? "1fr" : "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: T.spacing.sm,
+          maxHeight: isNarrow ? "none" : 420,
+          overflowY: isNarrow ? "visible" : "auto",
+          padding: "3px",
+          paddingRight: isNarrow ? 0 : 4,
+        }}>
+          {lockerItems.map(item => {
+            const isSelected = selectedEquip === item.key;
+            const SlotIcon = SLOT_LABELS[item.slot] ? SLOT_LABELS[item.slot].Icon : null;
+            const priceColor = item.isAllowed && item.canInstall && !item.canAfford ? T.redBr : T.gold;
+            const effectiveAllowed = item.isAllowed && item.canInstall;
+
+            return (
+              <Panel key={item.key}
+                color={isSelected ? T.gold : undefined}
+                style={{
+                  background: isSelected ? T.panelAlt : T.panel,
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
+                  opacity: effectiveAllowed ? 1 : 0.55,
+                }}
+                onClick={() => setSelectedEquip(isSelected ? null : item.key)}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ color: T.text, fontSize: T.metadataFontSize, fontWeight: "bold" }}>{item.name}</span>
+                  <span style={{ color: priceColor, fontSize: 9 }}>Install: {item.installFee}g</span>
+                </div>
+                <div style={{ color: T.textDim, fontSize: 9, marginBottom: 4, lineHeight: 1.4 }}>
+                  {item.desc}{item.downsideDesc ? ` ${item.downsideDesc}` : ""}
+                </div>
+                <div style={{ color: T.textFaint, fontSize: 8, display: 'flex', alignItems: 'center' }}>
+                  {SlotIcon && (
+                    <SlotIcon size={8} color={T.textFaint} style={{ marginRight: 2 }} />
+                  )}
+                  {SLOT_LABELS[item.slot]?.label || item.slot}
+                </div>
+                {!item.isAllowed && (
+                  <div style={{ color: T.gold, fontSize: 9, marginTop: 4 }}>
+                    <IconLock size={12} color={T.gold} style={{ marginRight: 4 }} /> {item.validation.reason}
+                  </div>
+                )}
+                {item.isAllowed && !item.canInstall && (
+                  <div style={{ color: T.redBr, fontSize: 9, marginTop: 4 }}>
+                    <IconLock size={12} color={T.redBr} style={{ marginRight: 4 }} /> {installReason}
+                  </div>
+                )}
+              </Panel>
+            );
+          })}
+        </div>
+      );
     };
 
     const renderRightPanel = () => (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <Btn sm v={activeTab === TABS.EQUIP ? "gold" : "ghost"}
-                    onClick={() => switchTab(TABS.EQUIP)}><IconCog size={12} color={activeTab === TABS.EQUIP ? T.gold : T.textDim} /> Equipment</Btn>
-                <Btn sm v={activeTab === TABS.SHIPS ? "gold" : "ghost"}
-                    onClick={() => switchTab(TABS.SHIPS)}><IconShip size={12} color={activeTab === TABS.SHIPS ? T.gold : T.textDim} /> Ships</Btn>
-                {hasLocker && (
-                    <Btn sm v={activeTab === TABS.LOCKER ? "gold" : "ghost"}
-                        onClick={() => switchTab(TABS.LOCKER)}><IconChest size={12} color={activeTab === TABS.LOCKER ? T.gold : T.textDim} /> Locker ({lockerItems.length})</Btn>
-                )}
-            </div>
-
-            {renderPreviewPanel()}
-
-            {activeTab === TABS.EQUIP && renderEquipmentTab()}
-            {activeTab === TABS.SHIPS && renderShipsTab()}
-            {activeTab === TABS.LOCKER && renderLockerTab()}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Btn sm v={activeTab === TABS.EQUIP ? "gold" : "ghost"}
+            onClick={() => switchTab(TABS.EQUIP)}><IconCog size={12} color={activeTab === TABS.EQUIP ? T.gold : T.textDim} /> Equipment</Btn>
+          <Btn sm v={activeTab === TABS.SHIPS ? "gold" : "ghost"}
+            onClick={() => switchTab(TABS.SHIPS)}><IconShip size={12} color={activeTab === TABS.SHIPS ? T.gold : T.textDim} /> Ships</Btn>
+          {hasLocker && (
+            <Btn sm v={activeTab === TABS.LOCKER ? "gold" : "ghost"}
+              onClick={() => switchTab(TABS.LOCKER)}><IconChest size={12} color={activeTab === TABS.LOCKER ? T.gold : T.textDim} /> Locker ({lockerItems.length})</Btn>
+          )}
         </div>
+
+        {renderPreviewPanel()}
+
+        {activeTab === TABS.EQUIP && renderEquipmentTab()}
+        {activeTab === TABS.SHIPS && renderShipsTab()}
+        {activeTab === TABS.LOCKER && renderLockerTab()}
+      </div>
     );
 
     return (
-        <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", flex: 1 }}>
-            <BackButton dispatch={dispatch} />
+      <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", flex: 1 }}>
+        <BackButton dispatch={dispatch} />
 
-            {showTutorial && (
-                <TutorialPopup
-                    title="The Shipyard"
-                    onDismiss={(disableAll) => {
-                        markTutorialSeen("shipyard", disableAll);
-                        setShowTutorial(false);
-                    }}
-                >
-                    <p>This is where you upgrade your ship — or buy a new one entirely.</p>
-                    <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
-                        <li><strong>Left panel</strong> shows your current ship stats and equipped items</li>
-                        <li>Use the <strong>tabs</strong> to browse Equipment, Ships, or your Locker</li>
-                        <li><strong>Click any item</strong> to see a stat preview before buying</li>
-                        <li>Ships are locked behind <strong>fame requirements</strong></li>
-                        <li>Buying a new ship <strong>clears all equipment</strong> — remove items first</li>
-                    </ul>
-                    <p>A bigger ship means more crew, more cargo, more firepower — but also higher wages.</p>
-                </TutorialPopup>
-            )}
+        {showTutorial && (
+          <TutorialPopup
+            title="The Shipyard"
+            onDismiss={(disableAll) => {
+              markTutorialSeen("shipyard", disableAll);
+              setShowTutorial(false);
+            }}
+          >
+            <p>This is where you upgrade your ship — or buy a new one entirely.</p>
+            <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
+              <li><strong>Left panel</strong> shows your current ship stats and equipped items</li>
+              <li>Use the <strong>tabs</strong> to browse Equipment, Ships, or your Locker</li>
+              <li><strong>Click any item</strong> to see a stat preview before buying</li>
+              <li>Ships are locked behind <strong>fame requirements</strong></li>
+              <li>At <strong>English ports</strong>, you can remove/install equipment once your reputation is 50+</li>
+              <li>Buying a new ship <strong>clears all equipment</strong> — remove items first</li>
+            </ul>
+            <p>A bigger ship means more crew, more cargo, more firepower — but also higher wages.</p>
+          </TutorialPopup>
+        )}
 
-            <div style={{
-                display: "flex",
-                flexDirection: isNarrow ? "column" : "row",
-                gap: T.spacing.md,
-                alignItems: "stretch",
-            }}>
-                {renderLeftPanel()}
-                {renderRightPanel()}
-            </div>
+        <div style={{
+          display: "flex",
+          flexDirection: isNarrow ? "column" : "row",
+          gap: T.spacing.md,
+          alignItems: "stretch",
+        }}>
+          {renderLeftPanel()}
+          {renderRightPanel()}
         </div>
+      </div>
     );
-}
+  }
 
-Object.assign(window.S, { ShipyardScreen });
+  Object.assign(window.S, { ShipyardScreen });
 })();

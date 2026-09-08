@@ -53,6 +53,8 @@ window.S = window.S || {};
     const canCrew = L.isFeatureUnlocked(state, 'crew');
     const canShipyard = L.isFeatureUnlocked(state, 'shipyard');
     const canJournal = L.isFeatureUnlocked(state, 'journal');
+    // -- faction service gates
+    const servicesUnlocked = L.isFeatureUnlocked(state, 'factionServices');
 
     // ── Helper: find the most negatively impacted faction ────────────
     const getHarmedFaction = (mission) => {
@@ -378,10 +380,9 @@ window.S = window.S || {};
     )}
   </div>
 
-  {/* ── Service Buttons (Shipyard, Crew) ────────────────────── */}
-  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+{/* ── Service Buttons (Shipyard, Crew, Faction Services) ────── */}
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
     {/* ── Shipyard ────────────────────────────────────────────────── */}
-    {/* Hidden when canShipyard is false, visible when true, pulses when it appears */}
     {canShipyard && port.services.includes("shipyard") && (
       <Tooltip text={
         perk.servicesBlocked ? "You are at war with this port – services are blocked" :
@@ -399,7 +400,6 @@ window.S = window.S || {};
     )}
 
     {/* ── Crew ────────────────────────────────────────────────────── */}
-    {/* Hidden when canCrew is false, visible when true, pulses when it appears */}
     {canCrew && port.services.includes("crew") && (
       <Tooltip text={
         perk.servicesBlocked ? "You are at war with this port – services are blocked" :
@@ -415,7 +415,67 @@ window.S = window.S || {};
         </PulseBtn>
       </Tooltip>
     )}
-  </div>
+
+    {/* ── Faction Service Buttons (Bank, Inquisitor, Embassy) ── */}
+    {servicesUnlocked && (
+      <>
+        {port.faction === 'dutch' && (
+          <div>
+            <Tooltip text={rep < D.SERVICE_THRESHOLDS.bank.repRequired ? `Requires Dutch reputation ${D.SERVICE_THRESHOLDS.bank.repRequired}+` : "Visit the Dutch Bank to take a loan or manage debt"}>
+              <Btn
+                v={rep >= D.SERVICE_THRESHOLDS.bank.repRequired ? "default" : "ghost"}
+                disabled={rep < D.SERVICE_THRESHOLDS.bank.repRequired}
+                onClick={() => dispatch({ type: A.NAVIGATE, screen: "bank" })}
+              >
+                <IconGold size={12} color={rep >= D.SERVICE_THRESHOLDS.bank.repRequired ? T.gold : T.textDim} /> Bank
+              </Btn>
+            </Tooltip>
+            {rep < D.SERVICE_THRESHOLDS.bank.repRequired && (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
+                Requires Dutch reputation {D.SERVICE_THRESHOLDS.bank.repRequired}+
+              </div>
+            )}
+          </div>
+        )}
+        {port.faction === 'spanish' && (
+          <div>
+            <Tooltip text={rep < 50 ? "Requires Spanish reputation 50+" : "Visit the Inquisitor to reduce Infamy"}>
+              <Btn
+                v={rep >= 50 ? "default" : "ghost"}
+                disabled={rep < 50}
+                onClick={() => dispatch({ type: A.NAVIGATE, screen: "inquisitor" })}
+              >
+                <IconSkull size={12} color={rep >= 50 ? T.gold : T.textDim} /> Inquisitor
+              </Btn>
+            </Tooltip>
+            {rep < 50 && (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
+                Requires Spanish reputation 50+
+              </div>
+            )}
+          </div>
+        )}
+        {port.faction === 'french' && (
+          <div>
+            <Tooltip text={rep < 50 ? "Requires French reputation 50+" : "Visit the French Embassy to improve relations"}>
+              <Btn
+                v={rep >= 50 ? "default" : "ghost"}
+                disabled={rep < 50}
+                onClick={() => dispatch({ type: A.NAVIGATE, screen: "embassy" })}
+              >
+                <IconHandshake size={12} color={rep >= 50 ? T.gold : T.textDim} /> Embassy
+              </Btn>
+            </Tooltip>
+            {rep < 50 && (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
+                Requires French reputation 50+
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    )}
+</div>
 
   {/* ── Quick Actions (Repair, Top Up Provisions) ───────────── */}
   {!perk.servicesBlocked && (

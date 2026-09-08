@@ -50,30 +50,20 @@
 
   // mission completion effects helper :
 
-  const applyMissionCompletion = (state, mission) => {
+const applyMissionEffects = (state, mission) => {
   const rep = state.reputation[state.currentPort] ?? 50;
   const perk = L.getRepPerk(rep);
 
-  // ── Gold ──────────────────────────────────────────────────────
-  let finalGold, bonusNote;
+  // ── Goods value (trade / smuggle only) ─────────────────────────────
+  let goodsValue = 0;
   if (mission.type === "trade" || mission.type === "smuggle") {
     const good = mission.requiredGood;
     const qty = mission.requiredQty;
-    // Use the sell price at the current port (the destination)
     const sellPrice = state.portMarket?.goods?.[good]?.sellToPort || 0;
-    const goodsValue = sellPrice * qty;
-    finalGold = mission.gold + goodsValue;
-    bonusNote = ` (+${goodsValue}g for the goods)`;
-  } else {
-    const baseGold = mission.gold;
-    finalGold = Math.floor(baseGold * perk.missionMult);
-    const goldDelta = finalGold - baseGold;
-    bonusNote = goldDelta > 0
-      ? ` (+${goldDelta}g ${perk.tier} bonus)`
-      : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
+    goodsValue = sellPrice * qty;
   }
 
-  // ── Reputation impact ─────────────────────────────────────────
+  // ── Reputation impact ─────────────────────────────────────────────
   const repImpact = { ...mission.repImpact };
   const repBonus = L.getEquipmentEffect(state, "repGainBonus") || 0;
   if (repBonus > 0) {
@@ -83,18 +73,18 @@
   }
   const newRep = L.applyReputationImpact(state, repImpact);
 
-  // ── Infamy ────────────────────────────────────────────────────
+  // ── Infamy ────────────────────────────────────────────────────────
   const infamyGain = mission.infamyGain || 0;
   const oldInfamy = state.infamy ?? 0;
   const newInfamy = Math.min(999, oldInfamy + infamyGain);
   const crossedThreshold = L.getInfamyLabel(newInfamy) !== L.getInfamyLabel(oldInfamy);
 
-  // ── Morale ────────────────────────────────────────────────────
+  // ── Morale ────────────────────────────────────────────────────────
   const alignment = L.getAlignmentModifier(state, mission.faction);
   const moraleGain = Math.round(3 * alignment);
   const newMorale = Math.min(100, state.crew.morale + moraleGain);
 
-  // ── Fame ──────────────────────────────────────────────────────
+  // ── Fame ──────────────────────────────────────────────────────────
   let finalFame = mission.fame || 0;
   const isWarPennantMission = (
     (mission.type === "combat" || mission.type === "patrol" || mission.type === "assault")
@@ -104,14 +94,19 @@
     finalFame += L.getEquipmentEffect(state, "missionCombatFameBonus");
   }
 
-  // ── Log lines ─────────────────────────────────────────────────
-  const logLines = [
-    window.E.logEntry(state, `Completed: ${mission.name}. +${finalGold}g${bonusNote}, +${finalFame} fame.`),
-  ];
+  // ── Log lines (without gold amounts) ─────────────────────────────
+  const logLines = [];
   if (infamyGain > 0) logLines.push(`+${infamyGain} infamy.`);
   if (crossedThreshold) logLines.push(`Your name grows darker. You are now ${L.getInfamyLabel(newInfamy)}.`);
 
-  return { finalGold, finalFame, newInfamy, newRep, newMorale, logLines };
+  return {
+    goodsValue,
+    finalFame,
+    newInfamy,
+    newRep,
+    newMorale,
+    logLines,
+  };
 };
 
 
@@ -289,6 +284,7 @@ case A.START_GAME: {
           sailingDaysLeft: newDays,
           sailingDaysTotal: newDays,
           screen: "sailing",
+          inquisitorUsedThisVisit: false,
           portGossip: [],
           completedCombatThisVisit: false,
           log: [...state.log, `${sailMsg} ${newDays} day${newDays !== 1 ? "s" : ""} voyage.`],
@@ -316,6 +312,7 @@ case A.START_GAME: {
         sailingDaysLeft: days,
         sailingDaysTotal: days,
         screen: "sailing",
+        inquisitorUsedThisVisit: false,
         portGossip: [],
         completedCombatThisVisit: false,
         log: [...state.log, `${sailMsg} ${days} day${days !== 1 ? "s" : ""} voyage.`],
@@ -420,6 +417,9 @@ if (
   //reset hunger/thirst counter
   nextState.daysWithoutFood  = 0;
   nextState.daysWithoutWater = 0;
+  // reset inquisitor visit
+  nextState.inquisitorUsedThisVisit = false;
+
 
   // ── Unrecoverable check ──
   const check = L.isUnrecoverable(nextState);
@@ -446,35 +446,17 @@ case A.PREVIEW_PORT: {
 
 // --------------------- PORT ACTIONS --------------------------------
       
-      case A.REPAIR: {
-        const blocked = checkServicesBlocked(state);
-        if (blocked) return blocked;
-        const shipStats = L.getShipStats(state);
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        const baseCost = L.shipRepairCost(state);
-        const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
-        const combinedMult = perk.repairMult * (1 + eqRepairPct);
-        const cost = Math.floor(baseCost * combinedMult);
-        if (state.gold < cost) return { ...state, log: [...state.log, "Not enough gold to repair."] };
-        const discountNote = perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
-        const eqPenaltyNote = eqRepairPct > 0 ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)` : "";
-        const repairMsg = L.logPick(D.REPAIR_MESSAGES, state, cost);
-        let s = {
-          ...state,
-          gold: state.gold - cost,
-          ship: { ...state.ship, hull: shipStats.maxHull },
-          log: [...state.log, `${repairMsg}${discountNote}${eqPenaltyNote}.`]
-        };
-        return s;
-      }
-
       case A.BUY_SHIP: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
         const ship = SHIPS[action.shipType];
-        const req = L.meetsRequirement(state, ship);
-        if (!req.allowed) return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
+        const earlyAccess = L.isEarlyAccessEligible(state, ship, 'ship');
+        const req = L.meetsRequirement(state, ship, earlyAccess);
+
+        if (!req.allowed) {
+          return { ...state, log: [...state.log, `Cannot purchase: ${req.reason}.`] };
+        }
+
         if (!ship || state.gold < ship.cost) return { ...state };
         let newRoster = state.crew.roster;
         if (ship.maxCrew < newRoster.length) newRoster = newRoster.slice(0, ship.maxCrew);
@@ -491,7 +473,7 @@ case A.PREVIEW_PORT: {
             equipment: { hull: [], armament: [], rigging: [], special: [] },
           },
           crew: { ...state.crew, roster: newRoster, max: ship.maxCrew },
-          hold: { ...state.hold},
+          hold: { ...state.hold },
           log: [...state.log, purchaseMsg],
         };
       }
@@ -501,8 +483,13 @@ case A.PREVIEW_PORT: {
         if (blocked) return blocked;
         const item = D.EQUIPMENT[action.equipmentKey];
         if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
-        const validation = L.canInstallEquipment(state, action.equipmentKey);
-        if (!validation.ok) return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
+        const earlyAccess = L.isEarlyAccessEligible(state, item, 'equipment');
+        const validation = L.canInstallEquipment(state, action.equipmentKey, earlyAccess);
+
+        if (!validation.ok) {
+          return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
+        }
+
         const totalCost = item.cost + item.installFee;
         if (state.gold < totalCost) return { ...state, log: [...state.log, "Not enough gold."] };
 
@@ -513,7 +500,6 @@ case A.PREVIEW_PORT: {
             [item.slot]: [...(state.ship.equipment[item.slot] || []), action.equipmentKey],
           },
         };
-        // Cap hull at new effective max after equipment change
         const newStats = L.getShipStats({ ...state, ship: newShip });
         newShip.hull = Math.min(state.ship.hull, newStats.maxHull);
 
@@ -528,13 +514,33 @@ case A.PREVIEW_PORT: {
       case A.INSTALL_EQUIPMENT: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
+
+        // Only at English Naval Yard
+        if (PORTS[state.currentPort]?.faction !== 'english') {
+          return {
+            ...state,
+            log: [...state.log, "Equipment installation is only available at English Naval Yard."]
+          };
+        }
+
+        // Require English reputation >= 50
+        const rep = state.reputation[state.currentPort] ?? 0;
+        if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
+          return {
+            ...state,
+            log: [...state.log, "The English Naval Yard requires a reputation of 50 or higher for equipment installation."]
+          };
+        }
+
         const item = D.EQUIPMENT[action.equipmentKey];
         if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
         if (!(state.equipmentInventory || []).includes(action.equipmentKey))
           return { ...state, log: [...state.log, "Equipment not in inventory."] };
-        const validation = L.canInstallEquipment(state, action.equipmentKey);
-        if (!validation.ok) return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
         if (state.gold < item.installFee) return { ...state, log: [...state.log, "Not enough gold for installation fee."] };
+
+        const earlyAccess = L.isEarlyAccessEligible(state, item, 'equipment');
+        const validation = L.canInstallEquipment(state, action.equipmentKey, earlyAccess);
+        if (!validation.ok) return { ...state, log: [...state.log, `Cannot install: ${validation.reason}.`] };
 
         const newShip = {
           ...state.ship,
@@ -558,6 +564,24 @@ case A.PREVIEW_PORT: {
       case A.REMOVE_EQUIPMENT: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
+
+        // Only at English Naval Yard
+        if (PORTS[state.currentPort]?.faction !== 'english') {
+          return {
+            ...state,
+            log: [...state.log, "Equipment removal is only available at English Naval Yard."]
+          };
+        }
+
+        // Require English reputation >= 50
+        const rep = state.reputation[state.currentPort] ?? 0;
+        if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
+          return {
+            ...state,
+            log: [...state.log, "The English Naval Yard requires a reputation of 50 or higher for equipment removal."]
+          };
+        }
+
         const item = D.EQUIPMENT[action.equipmentKey];
         if (!item) return { ...state, log: [...state.log, "Unknown equipment."] };
         if (!item.removable)
@@ -582,7 +606,6 @@ case A.PREVIEW_PORT: {
           log: [...state.log, `Removed ${item.name}. Stored in equipment locker. -${item.installFee}g.`],
         };
       }
-
 
       case A.HIRE_CREW: {
         const blocked = checkServicesBlocked(state);
@@ -657,37 +680,119 @@ case A.PREVIEW_PORT: {
         };
       }
 
-      // TOP UP PROVISONS (quick button for food and water purchase)
-      case A.TOP_UP_PROVISIONS: {
-        const market = state.portMarket;
-        if (!market) return state;
+      case A.TAKE_LOAN: {
+        const port = PORTS[state.currentPort];
+        if (!port || port.faction !== 'dutch') return state;
 
-        const crew = state.crew.roster.length;
-        if (crew === 0) return state;
+        const rep = state.reputation[state.currentPort] ?? 50;
+        if (rep < window.D.SERVICE_THRESHOLDS.bank.repRequired) return state;
 
-        const buyQty = Math.max(1, Math.ceil(crew));
+        if (state.bankDebt > 0) {
+          return { ...state, log: [...state.log, "You already have an outstanding loan."] };
+        }
 
-        const foodPrice = market.goods.food?.buyFromPort || 3;
-        const waterPrice = market.goods.water?.buyFromPort || 2;
-        const cost = buyQty * (foodPrice + waterPrice);
+        const loanAmount = Math.floor(action.amount);
+        if (!loanAmount || loanAmount <= 0) return state;
 
-        const freeSpace = L.getHoldCapacity(state) - L.getHoldUsed(state.hold?.items || {});
-        if (state.gold < cost) return state;
-        if (freeSpace < buyQty * 2) return state;
+        const capacity = Math.floor(L.getBankCapacity(state, state.currentPort));
+        if (loanAmount > capacity) {
+          return { ...state, log: [...state.log, `Cannot borrow more than ${capacity}g.`] };
+        }
 
-        const newItems = { ...state.hold.items };
-        newItems.food = (newItems.food || 0) + buyQty;
-        newItems.water = (newItems.water || 0) + buyQty;
+        const interestRate = L.getBankInterestRate(state, state.currentPort);
+        const totalObligation = Math.ceil(loanAmount * (1 + interestRate));
+
+        const newDebt = state.bankDebt + totalObligation;
+        return {
+          ...state,
+          gold: state.gold + loanAmount,
+          bankDebt: newDebt,
+          log: [...state.log,
+            `Took a loan of ${loanAmount}g from the bank. Total repayment obligation: ${newDebt}g (${Math.round(interestRate * 100)}% interest).`
+          ],
+        };
+      }
+
+      case A.REPAY_LOAN: {
+        const port = PORTS[state.currentPort];
+        if (!port || port.faction !== 'dutch') return state;
+
+        if (state.bankDebt <= 0) return state;
+
+        const payment = action.amount;
+        if (!payment || payment <= 0) return state;
+
+        const actualPayment = Math.min(payment, state.bankDebt);
+        if (state.gold < actualPayment) {
+          return { ...state, log: [...state.log, "Not enough gold to repay that amount."] };
+        }
+
+        return {
+          ...state,
+          gold: state.gold - actualPayment,
+          bankDebt: state.bankDebt - actualPayment,
+          log: [...state.log, `Repaid ${actualPayment}g to the bank. Remaining debt: ${state.bankDebt - actualPayment}g.`],
+        };
+      }
+
+      case A.PAY_INQUISITOR: {
+        const port = PORTS[state.currentPort];
+        if (!port || port.faction !== 'spanish') return state;
+
+        const rep = state.reputation[state.currentPort] ?? 0;
+        if (rep < window.D.SERVICE_THRESHOLDS.inquisitor.repRequired) {
+          return { ...state, log: [...state.log, "The Inquisitor will not hear you unless Spanish reputation is 50 or higher."] };
+        }
+
+        if (state.infamy <= 0) return state;
+
+        const cost = L.getInquisitorCost(state);
+        if (state.gold < cost) {
+          return { ...state, log: [...state.log, "Not enough gold for the Inquisitor's fee."] };
+        }
 
         return {
           ...state,
           gold: state.gold - cost,
-          hold: { ...state.hold, items: newItems },
-          log: [...state.log, window.E.logEntry(state, `Topped up provisions: +${buyQty} food, +${buyQty} water for ${cost}g.`)],
+          infamy: Math.max(0, state.infamy - 1),
+          inquisitorUsedThisVisit: true,
+          log: [...state.log, `The Inquisitor grants you absolution for ${cost}g. Your infamy decreases by 1.`],
         };
       }
 
+      case A.PURCHASE_EMBASSY_REP: {
+        const port = PORTS[state.currentPort];
+        if (!port || port.faction !== 'french') return state;
 
+        const rep = state.reputation[state.currentPort] ?? 0;
+        if (rep < window.D.SERVICE_THRESHOLDS.embassy.repRequired) {
+          return { ...state, log: [...state.log, "The French Embassy requires a French reputation of 50 or higher."] };
+        }
+
+        const targetFaction = action.targetFaction;
+        if (!targetFaction || !FACTIONS[targetFaction]) {
+          return { ...state, log: [...state.log, "Invalid target faction."] };
+        }
+
+        const targetRep = L.getFactionReputation(state, targetFaction);
+        if (targetRep >= 100) {
+          return { ...state, log: [...state.log, `The ${FACTIONS[targetFaction].label} already regard you with maximum reputation.`] };
+        }
+
+        const cost = L.getEmbassyCost(state, targetFaction);
+        if (state.gold < cost) {
+          return { ...state, log: [...state.log, "Not enough gold for the Embassy's services."] };
+        }
+
+        const newRep = L.applyReputationImpact(state, { [targetFaction]: window.D.SERVICE_THRESHOLDS.embassy.repGain });
+
+        return {
+          ...state,
+          gold: state.gold - cost,
+          reputation: newRep,
+          log: [...state.log, `The French Embassy uses its influence to improve your standing with the ${FACTIONS[targetFaction].label} by +${window.D.SERVICE_THRESHOLDS.embassy.repGain}. Cost: ${cost}g.`],
+        };
+      }
 
       // --- MISSIONS ---
       case A.REFRESH_MISSIONS: {
@@ -706,7 +811,6 @@ case A.PREVIEW_PORT: {
         }
         return { ...state, missions };
       }
-
 
       case A.TAKE_MISSION: {
         const mission = action.mission;
@@ -781,118 +885,152 @@ case A.PREVIEW_PORT: {
           };
       }
 
-case A.COMPLETE_MISSION: {
-  const mission = state.activeMission;
-  if (!mission) return state;
+      case A.COMPLETE_MISSION: {
+        const mission = state.activeMission;
+        if (!mission) return state;
 
-  // ── Escort: convoy lost → mission failed ──
-  if (mission.type === "escort" && mission.convoyLost) {
-    return {
-      ...state,
-      activeMission: null,
-      log: [...state.log, window.E.logEntry(state, "The convoy was destroyed. The escort mission has failed.")],
-      reputation: L.applyReputationImpact(state, { [mission.faction]: -5 }),
-    };
-  }
+        // ── Escort: convoy lost → mission failed ──
+        if (mission.type === "escort" && mission.convoyLost) {
+          return {
+            ...state,
+            activeMission: null,
+            log: [...state.log, window.E.logEntry(state, "The convoy was destroyed. The escort mission has failed.")],
+            reputation: L.applyReputationImpact(state, { [mission.faction]: -5 }),
+          };
+        }
 
-  // ── Patrol: must have defeated enemy ──
-  if (mission.type === "patrol" && !mission.enemyDefeated) {
-    return {
-      ...state,
-      log: [...state.log, "You have not yet found and defeated the enemy in the patrol zone. Keep searching."]
-    };
-  }
+        // ── Patrol: must have defeated enemy ──
+        if (mission.type === "patrol" && !mission.enemyDefeated) {
+          return {
+            ...state,
+            log: [...state.log, "You have not yet found and defeated the enemy in the patrol zone. Keep searching."]
+          };
+        }
 
-  // ── Target port check ──
-  if (mission.targetPort && state.currentPort !== mission.targetPort) {
-    return { ...state };
-  }
+        // ── Target port check ──
+        if (mission.targetPort && state.currentPort !== mission.targetPort) {
+          return { ...state };
+        }
 
-  // ── Required goods check ──
-  if (mission.requiredGood && mission.requiredQty) {
-    const inHold = state.hold?.items?.[mission.requiredGood] || 0;
-    if (inHold < mission.requiredQty) {
-      return {
-        ...state,
-        log: [...state.log,
-          `Cannot complete: ${mission.requiredQty} ${window.D.RESOURCES[mission.requiredGood]?.name} required, ${inHold} in hold.`
-        ]
-      };
-    }
-  }
+        // ── Required goods check ──
+        if (mission.requiredGood && mission.requiredQty) {
+          const inHold = state.hold?.items?.[mission.requiredGood] || 0;
+          if (inHold < mission.requiredQty) {
+            return {
+              ...state,
+              log: [...state.log,
+                `Cannot complete: ${mission.requiredQty} ${window.D.RESOURCES[mission.requiredGood]?.name} required, ${inHold} in hold.`
+              ]
+            };
+          }
+        }
 
-  // Remove required goods from hold
-  let holdItems = { ...(state.hold?.items || {}) };
-  if (mission.requiredGood && mission.requiredQty) {
-    holdItems[mission.requiredGood] = Math.max(0, (holdItems[mission.requiredGood] || 0) - mission.requiredQty);
-  }
+        // ── Remove required goods from hold ──────────────────────────────
+        let holdItems = { ...(state.hold?.items || {}) };
+        if (mission.requiredGood && mission.requiredQty) {
+          holdItems[mission.requiredGood] = Math.max(0, (holdItems[mission.requiredGood] || 0) - mission.requiredQty);
+        }
 
-  // Compute all rewards and log lines via the new helper
-  const { finalGold, finalFame, newInfamy, newRep, newMorale, logLines } =
-    applyMissionCompletion(state, mission);
+        // ── Compute non‑gold effects + goods value ─────────────────────
+        const { goodsValue, finalFame, newInfamy, newRep, newMorale, logLines } =
+          applyMissionEffects(state, mission);
 
-  let nextState = {
-    ...state,
-    gold: state.gold + finalGold,
-    fame: state.fame + finalFame,
-    infamy: newInfamy,
-    reputation: newRep,
-    activeMission: null,
-    hold: { ...state.hold, items: holdItems },
-    crew: { ...state.crew, morale: newMorale },
-    missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
-    log: [...state.log, ...logLines],
-  };
+        // ── Mission reward: base gold × reputation multiplier ──────────
+        const rep = state.reputation[state.currentPort] ?? 50;
+        const perk = L.getRepPerk(rep);
+        let rewardGold = Math.floor(mission.gold * perk.missionMult);
+        const goldDelta = rewardGold - mission.gold;
+        const bonusNote = goldDelta > 0
+          ? ` (+${goldDelta}g ${perk.tier} bonus)`
+          : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
 
-  // Prevent chaining combat missions in the same visit
-  if (mission.type === "combat") {
-    nextState.completedCombatThisVisit = true;
-  }
+        // ── Loan garnish: only on the mission reward (not goods value) ──
+        let netReward = rewardGold;
+        let newBankDebt = state.bankDebt ?? 0;
+        if (rewardGold > 0 && newBankDebt > 0) {
+          const garnishResult = L.applyLoanGarnish(newBankDebt, rewardGold);
+          console.log("Garnish debug: in if", { rewardGold, newBankDebt, garnishResult });
+          netReward = garnishResult.netIncome;
+          newBankDebt = garnishResult.newDebt;
+          if (garnishResult.actualRepayment > 0) {
+            logLines.push(`Bank repayment: ${garnishResult.actualRepayment}g deducted from mission income.`);
+          }
+        }
 
-  // Smuggle mission: add heat to target faction
-  if (mission.type === "smuggle" && mission.targetPort) {
-    const targetFaction = PORTS[mission.targetPort]?.faction;
-    if (targetFaction && targetFaction !== "pirate") {
-      const alerts = { ...(nextState.factionAlerts || {}) };
-      alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
-      nextState.factionAlerts = alerts;
-    }
-  }
+        const netGoldGain = netReward + goodsValue;
 
-  // Greedy trait: demands bonus
-  const greedyMembers = nextState.crew.roster.filter(m =>
-    m.tags?.includes("hidden_greedy") || m.tags?.includes("revealed_greedy")
-  );
-  if (greedyMembers.length > 0) {
-    const greedy = greedyMembers[0];
-    const wasHidden = greedy.tags?.includes("hidden_greedy");
-    if (nextState.gold >= 50) {
-      nextState.gold -= 50;
-      nextState.crew.roster = nextState.crew.roster.map(m =>
-        m.id === greedy.id ? (wasHidden ? L.revealTag(m, "greedy") : m) : m
-      );
-      nextState.log = [...nextState.log,
-        wasHidden
-          ? `${greedy.firstName} ${greedy.lastName} demands a larger share. "I did my part," he says, hand out.`
-          : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
-      ];
-    } else {
-      nextState.crew.roster = nextState.crew.roster.map(m =>
-        m.id === greedy.id
-          ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
-          : m
-      );
-      nextState.log = [...nextState.log,
-        wasHidden
-          ? `${greedy.firstName} ${greedy.lastName} demands a larger share. When refused, he grows bitter.`
-          : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
-      ];
-    }
-  }
+        let completionMsg = `Completed: ${mission.name}. +${netGoldGain}g${bonusNote}, +${finalFame} fame.`;
+        if (goodsValue > 0) {
+          completionMsg += ` (includes ${goodsValue}g for the goods)`;
+        }
 
-  if (state.autoSave !== false) autoSave(nextState);
-  return nextState;
-}
+        let nextState = {
+          ...state,
+          gold: state.gold + netGoldGain,      // ← FIXED: uses netGoldGain
+          bankDebt: newBankDebt,
+          fame: state.fame + finalFame,
+          infamy: newInfamy,
+          reputation: newRep,
+          activeMission: null,
+          hold: { ...state.hold, items: holdItems },
+          crew: { ...state.crew, morale: newMorale },
+          missions: G.generateMissions(state.currentPort, { ...state, activeMission: null }),
+          log: [
+            ...state.log,
+            window.E.logEntry(state, completionMsg),
+            ...logLines,
+          ],
+        };
+
+        // Prevent chaining combat missions in the same visit
+        if (mission.type === "combat") {
+          nextState.completedCombatThisVisit = true;
+        }
+
+        // Smuggle mission: add heat to target faction
+        if (mission.type === "smuggle" && mission.targetPort) {
+          const targetFaction = PORTS[mission.targetPort]?.faction;
+          if (targetFaction && targetFaction !== "pirate") {
+            const alerts = { ...(nextState.factionAlerts || {}) };
+            alerts[targetFaction] = Math.min(10, (alerts[targetFaction] || 0) + 1);
+            nextState.factionAlerts = alerts;
+          }
+        }
+
+        // Greedy trait: demands bonus
+        const greedyMembers = nextState.crew.roster.filter(m =>
+          m.tags?.includes("hidden_greedy") || m.tags?.includes("revealed_greedy")
+        );
+        if (greedyMembers.length > 0) {
+          const greedy = greedyMembers[0];
+          const wasHidden = greedy.tags?.includes("hidden_greedy");
+          if (nextState.gold >= 50) {
+            nextState.gold -= 50;
+            nextState.crew.roster = nextState.crew.roster.map(m =>
+              m.id === greedy.id ? (wasHidden ? L.revealTag(m, "greedy") : m) : m
+            );
+            nextState.log = [...nextState.log,
+              wasHidden
+                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. "I did my part," he says, hand out.`
+                : `${greedy.firstName} ${greedy.lastName} demands his usual cut.`
+            ];
+          } else {
+            nextState.crew.roster = nextState.crew.roster.map(m =>
+              m.id === greedy.id
+                ? L.addTag(wasHidden ? L.revealTag(m, "greedy") : m, "upset")
+                : m
+            );
+            nextState.log = [...nextState.log,
+              wasHidden
+                ? `${greedy.firstName} ${greedy.lastName} demands a larger share. When refused, he grows bitter.`
+                : `${greedy.firstName} ${greedy.lastName} demands his cut, and your refusal leaves him seething.`
+            ];
+          }
+        }
+
+        if (state.autoSave !== false) autoSave(nextState);
+        return nextState;
+      }
 
       case A.ABANDON_MISSION:
         return {
@@ -971,9 +1109,22 @@ case A.COMPLETE_MISSION: {
           logLines.push(summary);
         }
 
+        // ── Loan garnish: 20% of positive trade income goes to debt ──
+        let finalGold = goldDelta;
+        let newBankDebt = state.bankDebt ?? 0;
+        if (goldDelta > 0 && newBankDebt > 0) {
+          const garnishResult = L.applyLoanGarnish(newBankDebt, goldDelta);
+          finalGold = garnishResult.netIncome;
+          newBankDebt = garnishResult.newDebt;
+          if (garnishResult.actualRepayment > 0) {
+            logLines.push(`Bank repayment: ${garnishResult.actualRepayment}g deducted from trade income.`);
+          }
+        }
+
         const newState = {
           ...state,
-          gold: state.gold + goldDelta,
+          gold: state.gold + finalGold,
+          bankDebt: newBankDebt,
           hold: { ...state.hold, items },
           portMarket: { ...state.portMarket, goods: marketGoods },
           infamy: Math.min(999, (state.infamy ?? 0) + infamyDelta),
@@ -981,8 +1132,36 @@ case A.COMPLETE_MISSION: {
         };
 
         return newState;
-      }
+    }
 
+      case A.TOP_UP_PROVISIONS: {
+        const market = state.portMarket;
+        if (!market) return state;
+
+        const crew = state.crew.roster.length;
+        if (crew === 0) return state;
+
+        const buyQty = Math.max(1, Math.ceil(crew));
+
+        const foodPrice = market.goods.food?.buyFromPort || 3;
+        const waterPrice = market.goods.water?.buyFromPort || 2;
+        const cost = buyQty * (foodPrice + waterPrice);
+
+        const freeSpace = L.getHoldCapacity(state) - L.getHoldUsed(state.hold?.items || {});
+        if (state.gold < cost) return state;
+        if (freeSpace < buyQty * 2) return state;
+
+        const newItems = { ...state.hold.items };
+        newItems.food = (newItems.food || 0) + buyQty;
+        newItems.water = (newItems.water || 0) + buyQty;
+
+        return {
+          ...state,
+          gold: state.gold - cost,
+          hold: { ...state.hold, items: newItems },
+          log: [...state.log, window.E.logEntry(state, `Topped up provisions: +${buyQty} food, +${buyQty} water for ${cost}g.`)],
+        };
+      }
 
       default:
         return state;

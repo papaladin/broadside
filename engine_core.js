@@ -33,6 +33,10 @@ window.E = window.E || {};
     HIRE_CREW: "HIRE_CREW",
     DISMISS_CREW: "DISMISS_CREW",
     RAISE_MORALE: "RAISE_MORALE",
+    TAKE_LOAN: "TAKE_LOAN",
+    REPAY_LOAN: "REPAY_LOAN",
+    PAY_INQUISITOR: "PAY_INQUISITOR",
+    PURCHASE_EMBASSY_REP: "PURCHASE_EMBASSY_REP",
     TOP_UP_PROVISIONS: "TOP_UP_PROVISIONS",
     REFRESH_MISSIONS: "REFRESH_MISSIONS",
     TAKE_MISSION: "TAKE_MISSION",
@@ -145,19 +149,13 @@ window.E = window.E || {};
     if (s.completedCombatThisVisit === undefined) s.completedCombatThisVisit = false;
     if (s.daysWithoutFood === undefined) s.daysWithoutFood = 0;
     if (s.daysWithoutWater === undefined) s.daysWithoutWater = 0;
-
-    // B1.4.1: Add encounterSession to old saves
     if (s.encounterSession === undefined) s.encounterSession = null;
-
-    // B1.4.2: Add notableNPCs registry to old saves
     if (s.notableNPCs === undefined) s.notableNPCs = {};
-
-    // B1.4.8: Remove obsolete fields from old saves
     if (s.encounterContext !== undefined) delete s.encounterContext;
     if (s.battleState !== undefined) delete s.battleState;
-
     if (s.previewPortMarket === undefined) s.previewPortMarket = null;
-
+    if (s.bankDebt === undefined) s.bankDebt = 0;
+    if (s.inquisitorUsedThisVisit === undefined) s.inquisitorUsedThisVisit = false;
 
     return s;
   };
@@ -231,6 +229,7 @@ window.E = window.E || {};
     faction: null,
     tutorialMode: "full",
     completedCombatThisVisit: false,
+    inquisitorUsedThisVisit: false,
     daysWithoutFood: 0,
     daysWithoutWater: 0,
     onboarding: {
@@ -284,6 +283,7 @@ window.E = window.E || {};
         coffee: 0, cocoa: 0, weapons: 0, tobacco: 0, silver: 0, slaves: 0,
       },
     },
+    bankDebt: 0,
     portMarket: null,
     portGossip: [],
     missions: [],
@@ -293,7 +293,8 @@ window.E = window.E || {};
     notableNPCs: {},
     activeEvent: null,
     gameOverReason: null,
-    career: createDefaultCareer(),   // <-- uses deep clone
+    career: createDefaultCareer(),
+    
   };
 
   Object.keys(PORTS).forEach(portKey => {

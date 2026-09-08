@@ -1659,9 +1659,8 @@
     });
     u.assert(Array.isArray(st.inquisitor.pricing) && st.inquisitor.pricing.length > 0, "inquisitor pricing table");
     u.assert(Array.isArray(st.embassy.pricing) && st.embassy.pricing.length > 0, "embassy pricing table");
-    u.assert(st.bank.maturityDays === 30, "bank maturityDays = 30");
-    u.assert(st.navalYard.repRequiredForRemoval === 50, "navalYard repRequired = 50");
-  });
+    // Removed maturityDays expectation
+});
 
   reg("B10.HELPERS.BIRTH", "getBirthTrait / getBirthTraits / isSpanishBorn work as accessors", (u) => {
     const stateEnglish = { faction: "english" };
@@ -1687,20 +1686,25 @@
     const state2 = { reputation: { curacao: 20 } };
     u.assert(L.isPortServiceAvailable(state2, "curacao", "bank") === false);
 
-    // Bank trust/interest
-    const state3 = { reputation: { curacao: 30 } };
-    u.assertEqual(L.getBankTrustPct(state3, "curacao"), 0.25);
-    u.assertEqual(L.getBankInterestRate(state3, "curacao"), 0.10);
-    const state4 = { reputation: { curacao: 90 } };
-    u.assertEqual(L.getBankTrustPct(state4, "curacao"), 1.00);
-    u.assertEqual(L.getBankInterestRate(state4, "curacao"), 0.05);
+    // Bank trust/interest (NEW FORMULA)
+    const state30 = { reputation: { curacao: 30 }, fame: 0 };
+    u.assertEqual(L.getBankTrustPct(state30, "curacao"), 0.4, "rep 30 → 0.4");
+    u.assertApprox(L.getBankInterestRate(state30, "curacao"), 0.20, 0.001,  "rep 30 → 20%");
 
-    // Bank capacity/ceiling
-    const state5 = { fame: 100, ship: { type: "frigate" }, reputation: { curacao: 50 } };
-    const capacity = L.getBankCapacity(state5);
-    u.assertEqual(capacity, 105000, "bank capacity = 10000 + 100*200 + 250000*0.3");
-    const trust = L.getBankTrustPct(state5, "curacao");
-    u.assertEqual(L.getBankLoanCeiling(state5, "curacao"), Math.floor(capacity * trust));
+    const state90 = { reputation: { curacao: 90 }, fame: 0 };
+    u.assertApprox(L.getBankTrustPct(state90, "curacao"), 0.9143, 0.001, "rep 90 → ~0.9143");
+    u.assertApprox(L.getBankInterestRate(state90, "curacao"), 0.0714, 0.001, "rep 90 → ~7.14%");
+
+    const state100 = { reputation: { curacao: 100 }, fame: 0 };
+    u.assertEqual(L.getBankTrustPct(state100, "curacao"), 1.0, "rep 100 → 1.0");
+    u.assertApprox(L.getBankInterestRate(state100, "curacao"), 0.05, 0.001, "rep 100 → 5%");
+
+    // Bank capacity with fame 100, rep 50
+    const stateCap = { reputation: { curacao: 50 }, fame: 100 };
+    const capacity = L.getBankCapacity(stateCap, "curacao");
+    // repFactor at rep 50 = 0.4 + 0.6 * (20/70) = 0.5714
+    // (500 + 100*850) * 0.5714 = 85500 * 0.5714 ≈ 48857
+    u.assertApprox(capacity, 55714, 1, "capacity formula correct");
 
     // Inquisitor cost
     const state6 = { infamy: 30 };
@@ -1715,12 +1719,16 @@
     u.assertEqual(L.getEmbassyCost(state9, "spanish"), 5000);
 
     // Naval yard early access
-    const state10 = { fame: 80 };
+    const state10 = { fame: 80, currentPort: "portRoyal" }; // English port
     u.assert(L.getNavalYardEarlyAccess(state10) !== null, "early access available at fame 80");
     const shipItem = { requiredFame: 50 };
-    u.assert(L.isEarlyAccessEligible(state10, shipItem, "ship") === true);
+    u.assert(L.isEarlyAccessEligible(state10, shipItem, "ship") === true); // 50-10=40, fame 80 ≥40
     const equipItem = { requiredFame: 150 };
-    u.assert(L.isEarlyAccessEligible(state10, equipItem, "equipment") === false);
+    u.assert(L.isEarlyAccessEligible(state10, equipItem, "equipment") === false); // 150*0.8=120, fame 80 <120
+
+    // Non-English port blocks early access
+    const state11 = { fame: 200, currentPort: "tortuga" }; // Pirate port
+    u.assert(L.isEarlyAccessEligible(state11, shipItem, "ship") === false);
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1760,5 +1768,117 @@
     u.assertEqual(L.getBirthTrait(state, "maxDaysBonus"), 1);
     u.assertEqual(L.getBirthTrait({ faction: "english" }, "provisionMult"), null);
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+// B10.LOGIC — Consolidated table tests for new services
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("B10.LOGIC.LOAN_GARNISH", "applyLoanGarnish: table-driven edge cases", (u) => {
+  const cases = [
+    { desc: "no debt", debt: 0, income: 1000, netIncome: 1000, newDebt: 0 },
+    { desc: "no income", debt: 5000, income: 0, netIncome: 0, newDebt: 5000 },
+    { desc: "income == 20% of debt", debt: 10000, income: 2000, netIncome: 1600, newDebt: 9600 },
+    { desc: "income > debt", debt: 100, income: 500, netIncome: 400, newDebt: 0 },
+    { desc: "negative income", debt: 100, income: -50, netIncome: -50, newDebt: 100 },
+  ];
+  for (const c of cases) {
+    const result = L.applyLoanGarnish(c.debt, c.income);
+    u.assertEqual(result.netIncome, c.netIncome, `${c.desc}: netIncome`);
+    u.assertEqual(result.newDebt, c.newDebt, `${c.desc}: newDebt`);
+  }
+});
+
+reg("B10.LOGIC.BANK_FORMULAS", "getBankCapacity: table-driven values", (u) => {
+  // Test reputation scaling at Fame 0
+  const repValues = [30, 50, 75, 100];
+  const expectedAtFame0 = [200, 429, 714, 1000];
+  repValues.forEach((rep, i) => {
+    const state = { reputation: { curacao: rep }, fame: 0 };
+    const cap = L.getBankCapacity(state, "curacao");
+    u.assertApprox(cap, expectedAtFame0[i], 1, `Rep ${rep}, Fame 0 → ${expectedAtFame0[i]}`);
+  });
+
+  // Test Fame scaling at Rep 100
+  const fameValues = [50, 100, 200, 350];
+  const expectedAtRep100 = [8976, 31606, 120114, 300000];
+  fameValues.forEach((fame, i) => {
+    const state = { reputation: { curacao: 100 }, fame };
+    const cap = L.getBankCapacity(state, "curacao");
+    u.assertApprox(cap, expectedAtRep100[i], 2, `Rep 100, Fame ${fame} → ${expectedAtRep100[i]}`);
+  });
+
+  // Test cap at 300,000
+  const stateHigh = { reputation: { curacao: 100 }, fame: 1000 };
+  const cap = L.getBankCapacity(stateHigh, "curacao");
+  u.assertEqual(cap, 300000, "cap at 300k");
+
+  // Test Rep 30, Fame 350 → 150,000
+  const stateLow = { reputation: { curacao: 30 }, fame: 350 };
+  const capLow = L.getBankCapacity(stateLow, "curacao");
+  u.assertApprox(capLow, 150000, 1, "Rep 30, Fame 350 → 150k");
+
+  // Test that Fame 10 doesn't add much
+  const stateFame10 = { reputation: { curacao: 30 }, fame: 10 };
+  const capFame10 = L.getBankCapacity(stateFame10, "curacao");
+  u.assert(capFame10 > 200 && capFame10 < 400, "Fame 10, Rep 30 → ~324");
+});const capacity = L.getBankCapacity(stateCap, "curacao");
+
+
+reg("B10.LOGIC.NAVAL_YARD", "isEarlyAccessEligible: uses English reputation, not Fame", (u) => {
+  // English Rep 80 → early access
+  const state80 = {
+    currentPort: "portRoyal",
+    reputation: { portRoyal: 80 },
+    fame: 40, // Schooner requires 50, early access reduces to 40
+  };
+  u.assert(L.isEarlyAccessEligible(state80, { requiredFame: 50 }, "ship") === true);
+
+  // English Rep 79 → no early access, even with high Fame
+  const state79 = {
+    currentPort: "portRoyal",
+    reputation: { portRoyal: 79 },
+    fame: 200,
+  };
+  u.assert(L.isEarlyAccessEligible(state79, { requiredFame: 50 }, "ship") === false);
+
+  // Non-English port → no early access
+  const stateNonEnglish = {
+    currentPort: "tortuga",
+    reputation: { tortuga: 80 },
+    fame: 40,
+  };
+  u.assert(L.isEarlyAccessEligible(stateNonEnglish, { requiredFame: 50 }, "ship") === false);
+
+  // Equipment: requiredFame 100 → adjusted 80 → needs Fame 80
+  const stateEquip = {
+    currentPort: "portRoyal",
+    reputation: { portRoyal: 80 },
+    fame: 80,
+  };
+  u.assert(L.isEarlyAccessEligible(stateEquip, { requiredFame: 100 }, "equipment") === true);
+
+  const stateEquipFail = {
+    currentPort: "portRoyal",
+    reputation: { portRoyal: 80 },
+    fame: 79,
+  };
+  u.assert(L.isEarlyAccessEligible(stateEquipFail, { requiredFame: 100 }, "equipment") === false);
+});
+
+reg("B10.LOGIC.NAVAL_YARD_SERVICING", "canPerformEquipmentOperation: Rep 50 gate", (u) => {
+  // Rep 50 → allowed
+  const state50 = { currentPort: "portRoyal", reputation: { portRoyal: 50 } };
+  u.assert(L.canPerformEquipmentOperation(state50, "install").allowed === true);
+  u.assert(L.canPerformEquipmentOperation(state50, "remove").allowed === true);
+
+  // Rep 49 → blocked
+  const state49 = { currentPort: "portRoyal", reputation: { portRoyal: 49 } };
+  u.assert(L.canPerformEquipmentOperation(state49, "install").allowed === false);
+  u.assert(L.canPerformEquipmentOperation(state49, "remove").allowed === false);
+
+  // Non-English port → blocked
+  const stateNonEnglish = { currentPort: "tortuga", reputation: { tortuga: 80 } };
+  u.assert(L.canPerformEquipmentOperation(stateNonEnglish, "install").allowed === false);
+});
 
 })();

@@ -379,31 +379,16 @@ const SERVICE_THRESHOLDS = {
   // ── Dutch Bank ──────────────────────────────────────────────────
   bank: {
     repRequired: 30,
-    maturityDays: 30,
-    minLoan: 10000,
-    // Reputation → lending percentage
-    trustByReputation: [
-      { repMin: 30,  repMax: 39,  pct: 0.25 },
-      { repMin: 40,  repMax: 49,  pct: 0.35 },
-      { repMin: 50,  repMax: 59,  pct: 0.50 },
-      { repMin: 60,  repMax: 69,  pct: 0.65 },
-      { repMin: 70,  repMax: 79,  pct: 0.75 },
-      { repMin: 80,  repMax: 89,  pct: 0.90 },
-      { repMin: 90,  repMax: 100, pct: 1.00 },
-    ],
-    // Interest rate by reputation (interpolated between points)
-    interestByReputation: [
-      { rep: 30, rate: 0.10 },
-      { rep: 50, rate: 0.08 },
-      { rep: 70, rate: 0.06 },
-      { rep: 90, rate: 0.05 },
-    ],
+    loanCap: 300000,
+    garnishPercent: 0.20,
+    interestRateMin: 0.05,
+    interestRateMax: 0.20,
   },
 
   // ── British Naval Yard ──────────────────────────────────────────
   navalYard: {
     repRequiredForRemoval: 50,
-    fameRequiredForEarlyAccess: 80,
+    repRequiredForEarlyAccess: 80,
     // Early access: equipment Fame requirement reduced by 20%
     // Ships: Fame requirement reduced by 10 flat points
     earlyAccessModifiers: {

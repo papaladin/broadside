@@ -1,4 +1,4 @@
-### 2026-09-01
+### 2026-09-08
 - **Captain faction** now has an impact on the game. Pirate will be more cunning, French are natural explorers, English have great naval discipline, etc.. Each faction will correspond to a different player playstyle.
 -**Port identity** : Each faction now has a specificity for its own ports. Dutch will get banks where the player can get loans depending on their fame and reputation, Spanish port will get inquisitorial offices where you can repent for your sins and reduce infamy... for a donation to the Church. Smuggling missions are now exclusive to pirate ports.
 

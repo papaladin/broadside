@@ -1144,7 +1144,7 @@ const generatePortGossip = (state, portKey) => {
 };
 
 
-// ── Market Flavour Generator ──────────────────────────────────────
+// ── FLAVOR TEXT FOR PORT SERVICES ──────────────────────────────────────
 const generateMarketFlavour = (state, portKey) => {
   const T = window.D?.MARKET_FLAVOUR;
   if (!T) return [];
@@ -1265,6 +1265,77 @@ if (market?.goods?.slaves?.available > 0) {
   return selected;
 };
 
+// ── Faction Service Flavour Text ──────────────────────────────────
+
+// Dutch Bank – depends on player faction, gold, Dutch rep, loan debt
+const generateBankFlavour = (state) => {
+  const rep = state.reputation[state.currentPort] ?? 50;
+  const debt = state.bankDebt ?? 0;
+  const gold = state.gold ?? 0;
+
+  // Not enough reputation
+  if (rep < 30) return "The clerk refuses to meet your eye. 'Your standing with the Bank is insufficient.'";
+
+  // Active loan
+  if (debt > 0) {
+    if (gold > 10000) return `The manager nods. 'Repayment is going well, Captain. ${debt}g remains.'`;
+    return `The manager frowns. 'Your debt stands at ${debt}g. We will take 20% of your trade income until it's cleared.'`;
+  }
+
+  // No loan – based on wealth
+  if (gold > 20000) return "The manager smiles warmly. 'For a captain of your means, the vault is at your service.'";
+  if (gold < 2000) return "The manager hesitates. 'We can offer a small loan, but the terms are strict.'";
+  return "The manager taps the ledger. 'We can arrange a loan if you need working capital.'";
+};
+
+// Spanish Inquisitor – depends on player faction, fame, infamy
+const generateInquisitorFlavour = (state) => {
+  const infamy = state.infamy ?? 0;
+  const fame = state.fame ?? 0;
+  const isSpanish = state.faction === 'spanish';
+
+  if (infamy <= 0) return "The Inquisitor studies you. 'You have no stain on your soul, Captain. Leave.'";
+  if (infamy < 25) {
+    if (isSpanish) return "The Inquisitor speaks softly in your tongue. 'A few sins, but not beyond redemption. A donation will suffice.'";
+    return "The Inquisitor's brow furrows. 'A few sins, but not beyond redemption. A donation will suffice.'";
+  }
+  if (infamy < 50) return "The Inquisitor leans forward. 'The Church knows your deeds. Pay, and be cleansed.'";
+  if (fame >= 200) return "The Inquisitor bows slightly. 'Even the infamous can be forgiven... for a price.'";
+  return "The Inquisitor's gaze is cold. 'The devil's shadow is upon you. But even you may buy forgiveness.'";
+};
+
+// French Embassy – flavour based on the faction with the lowest reputation
+const generateEmbassyFlavour = (state) => {
+  const frenchRep = state.reputation[state.currentPort] ?? 50;
+  const isFrench = state.faction === 'french';
+
+  // If French rep is too low, the embassy itself is inaccessible
+  if (frenchRep < 50) return "The aide closes the door. 'Your standing with France is insufficient.'";
+
+  // Find the faction with the lowest reputation among all five
+  let lowestFaction = null;
+  let lowestRep = Infinity;
+  for (const [faction, fac] of Object.entries(window.D.FACTIONS)) {
+    const rep = window.L.getFactionReputation(state, faction);
+    if (rep < lowestRep) {
+      lowestRep = rep;
+      lowestFaction = fac;
+    }
+  }
+
+  // If all factions are at max, say something
+  if (lowestRep >= 100) return "The ambassador laughs. 'Every faction in the Caribbean speaks highly of you.'";
+
+  const targetName = lowestFaction.label;
+  const targetRep = lowestRep;
+
+  if (targetRep >= 80) return `The ambassador nods. 'The ${targetName} already respect you. A word from us will strengthen that.'`;
+  if (targetRep >= 50) return `The ambassador considers. 'Your standing with the ${targetName} is decent. We could improve it further.'`;
+  return `The ambassador sighs. 'The ${targetName} are difficult, but our influence can smooth things over.'`;
+};
+
+
+
 // ---------EVENTS -------------------
 
 const pickMerchantFaction = () => {
@@ -1352,6 +1423,9 @@ const generateCombatFlavour = (disposition) => {
     generatePortMarket,
     generatePortGossip,
     generateMarketFlavour,
+    generateBankFlavour,
+    generateEmbassyFlavour,
+    generateInquisitorFlavour,
     // events
     pickMerchantFaction,
     // intercept combat flavour text

@@ -198,7 +198,7 @@
         const newWind = advanceWind(state.wind);
         const wages = L.payCrewWages(state);
         const newGold = Math.max(0, state.gold - wages);
-        const newRep = (state.day % 2 === 0) ? L.decayReputation(state) : state.reputation;
+        const newRep = (state.day % 4 === 0) ? L.decayReputation(state) : state.reputation;
         let newCrew = advanceCrew(state.crew);
         const prov = advanceProvisions(state);
 

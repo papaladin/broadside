@@ -391,6 +391,9 @@ const App = () => {
       case "plunder": return <S.PlunderScreen state={state} dispatch={dispatch} />;
       case "market": return <S.MarketScreen state={state} dispatch={dispatch} />;
       case "journal": return <S.JournalScreen state={state} dispatch={dispatch} />;
+      case "bank": return <S.BankScreen state={state} dispatch={dispatch} />;
+      case "inquisitor": return <S.InquisitorScreen state={state} dispatch={dispatch} />;
+      case "embassy": return <S.EmbassyScreen state={state} dispatch={dispatch} />;
       case "gameover": return <S.GameOverScreen state={state} dispatch={dispatch} />;
       default: return <div style={{ color: T.text, padding: 20 }}>Unknown screen: {state.screen}</div>;
     }
@@ -462,7 +465,7 @@ const DebugPanel = ({ state, dispatch }) => {
       </div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Fame</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[50, 100, 200, 350].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_FAME, fame: n })} style={btnStyle}>★{n}</button>))}
+        {[49, 100, 200, 350].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_FAME, fame: n })} style={btnStyle}>★{n}</button>))}
       </div>
       <div style={{ color: T.textDim, marginBottom: 4 }}>Infamy</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>

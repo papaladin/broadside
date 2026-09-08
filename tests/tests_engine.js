@@ -188,29 +188,33 @@
   // E.SHIP — REPAIR
   // ══════════════════════════════════════════════════════════════════════════
 
-  reg("E.SHIP.01", "REPAIR: hull restored to maxHull", (u) => {
+  reg("E.SHIP.01", "REPAIR: hull restored to maxHull with friendly discount", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
+      reputation: { portRoyal: 60 }, // Friendly → 0.9 repairMult
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.ship.hull, 100, "hull restored to sloop maxHull");
   });
 
-  reg("E.SHIP.02", "REPAIR: gold is deducted", (u) => {
+  reg("E.SHIP.02", "REPAIR: gold is deducted with friendly discount", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
+      reputation: { portRoyal: 60 },
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assert(s1.gold < s0.gold, "gold decreased");
   });
 
-  reg("E.SHIP.03", "REPAIR: gold deducted matches L.shipRepairCost multiplied by reputation modifier", (u) => {
+  reg("E.SHIP.03", "REPAIR: gold deducted matches L.shipRepairCost with reputation modifier", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
+      reputation: { portRoyal: 60 },
     });
+    // sloop maxHull 100, hull 60 → 40 missing. cost per point = ceil(100/20) = 5. repMult = 0.9. total = 40 * 5 * 0.9 = 180
     const expectedCost = 180;
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.gold, s0.gold - expectedCost,
@@ -472,9 +476,11 @@
       gold: 1000,
       hold: makeHold({ sugar: 10, food: 5, water: 5 }),
       activeMission: mission,
+      // No portMarket → goodsValue = 0
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    u.assertEqual(s1.gold, 1300, "gold +300");
+    // reward = floor(300 * 1.10) = 330 (rep 50 → friendly multiplier 1.1)
+    u.assertEqual(s1.gold, 1330, "gold +330");
     u.assertEqual(s1.hold.items.sugar, 5, "sugar consumed");
     u.assert(s1.activeMission === null, "mission cleared");
     u.assert(s1.fame >= 2, "fame increased");
@@ -1940,7 +1946,11 @@
       activeMission: mission,
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    u.assertEqual(s1.gold, 500 + 150 + 300, "gold should be original + mission reward + goods value");
+    // reward = floor(150 * 1.10) = 165
+    // goodsValue = 3 * 100 = 300
+    // total = 165 + 300 = 465
+    // gold = 500 + 465 = 965
+    u.assertEqual(s1.gold, 965, "gold should be 965");
     u.assertEqual(s1.hold.items.spices, 0, "spices removed from hold");
     u.assert(s1.activeMission === null, "mission cleared");
     u.assert(s1.log.some(l => l.includes("for the goods")), "log mentions goods value");
@@ -1967,7 +1977,11 @@
       activeMission: mission,
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    u.assertEqual(s1.gold, 1000 + 200 + 150, "gold should be original + mission reward + goods value");
+    // reward = floor(200 * 1.10) = 220
+    // goodsValue = 5 * 30 = 150
+    // total = 220 + 150 = 370
+    // gold = 1000 + 370 = 1370
+    u.assertEqual(s1.gold, 1370, "gold should be 1370");
     u.assertEqual(s1.hold.items.rum, 0, "rum removed from hold");
     u.assertEqual(s1.infamy, 1, "infamy gained from smuggle mission");
   });
@@ -1992,7 +2006,10 @@
       activeMission: mission,
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    u.assertEqual(s1.gold, 500 + 150, "gold should be original + mission reward only");
+    // reward = floor(150 * 1.10) = 165
+    // goodsValue = 0
+    // gold = 500 + 165 = 665
+    u.assertEqual(s1.gold, 665, "gold should be 665");
   });
 
   reg("E.MISS.13", "COMPLETE_MISSION trade: log includes goods value note", (u) => {
@@ -2016,8 +2033,10 @@
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
     const rewardLog = s1.log.find(l => l.includes("Completed:"));
-    u.assert(rewardLog.includes("for the goods"), "log should mention goods value");
-    u.assert(rewardLog.includes("+"), "log includes plus sign");
+    // reward = floor(100 * 1.10) = 110, goodsValue = 2*50=100, total=210
+    // log should mention "+210g" and "for the goods"
+    u.assert(rewardLog.includes("+210g"), "log includes total gold");
+    u.assert(rewardLog.includes("for the goods"), "log mentions goods value");
   });
 
   // ── B10.3 — Spanish HIRE_CREW ──────────────────────────────────────
@@ -2600,19 +2619,19 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
     return makeState(base);
   };
 
-  // Mock `findNearestPortOfFaction` to return a fixed Spanish port.
+  // Mock findNearestPortOfFaction to return a fixed Spanish port.
   const originalFind = L.findNearestPortOfFaction;
   L.findNearestPortOfFaction = (state, faction, pos) => "havana";
 
-  // ── Define test matrix ──────────────────────────────────────────────
-  // Each entry: [faction, shipType, crewCount, gold, atSea, currentPortKey, expectedPort, expectedGameOver]
+  // Define test matrix:
+  // [faction, shipType, crewCount, gold, atSea, currentPortKey, expectedPort, expectedGameOver]
   const matrix = [
     // Spanish, insufficient crew, at sea, non‑Spanish port → redirect to havana
     ["spanish", "sloop", 0, 200, true, "portRoyal", "havana", false],
     // Spanish, insufficient crew, at sea, already at Spanish port → stay at havana
     ["spanish", "sloop", 0, 200, true, "havana", "havana", false],
     // Spanish, insufficient crew, at non‑Spanish port → redirect to havana
-    ["spanish", "sloop", 0, 200, false, "portRoyal", "havana", false],  // <-- FIXED: redirect expected
+    ["spanish", "sloop", 0, 200, false, "portRoyal", "havana", false],
     // Spanish, insufficient crew, in dinghy → stay at portRoyal (no redirect)
     ["spanish", "dinghy", 0, 0, false, "portRoyal", "portRoyal", false],
     // Spanish, sufficient crew (>= min) → stay at portRoyal
@@ -2624,7 +2643,6 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
   ];
 
   for (const [faction, shipType, crewCount, gold, atSea, currentPortKey, expectedPort, expectedGameOver] of matrix) {
-    // Build the base state
     let overrides = {
       faction,
       ship: { type: shipType, hull: shipType === "dinghy" ? 30 : 100 },
@@ -2634,7 +2652,6 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
       previousPort: currentPortKey,
     };
 
-    // If at sea, add a route
     if (atSea) {
       overrides.route = {
         originPos: D.PORTS.portRoyal,
@@ -2657,23 +2674,253 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
     u.assertEqual(result.currentPort, expectedPort,
       `${faction}/${shipType}/${crewCount} crew, gold=${gold}, atSea=${atSea}, port=${currentPortKey}: expected ${expectedPort}`);
 
-    // Check redirection log: present if redirect happened (i.e., expectedPort === "havana" and currentPortKey !== "havana")
     const redirectExpected = expectedPort === "havana" && currentPortKey !== "havana";
     const hasRedirectLog = result.log.some(l => l.includes("currents carried you"));
     u.assertEqual(hasRedirectLog, redirectExpected,
       `redirect log ${redirectExpected ? "present" : "absent"} for ${faction}/${shipType}/${crewCount} crew`);
 
-    // Check game over
     const isGameOver = result.screen === "gameover";
     u.assertEqual(isGameOver, expectedGameOver,
       `gameover ${expectedGameOver ? "expected" : "not expected"} for ${faction}/${shipType}/${crewCount} crew`);
 
-    // Check that encounter is cleared
     u.assert(result.encounterSession === null, "encounter cleared");
   }
 
   // Restore original
   L.findNearestPortOfFaction = originalFind;
+});
+
+  // ══════════════════════════════════════════════════════════════════════════
+// B10.ENGINE — New port service actions
+// ══════════════════════════════════════════════════════════════════════════
+
+reg("B10.ENGINE.BANK_FLOW", "TAKE_LOAN / REPAY_LOAN: table-driven flow", (u) => {
+  // Helper to build a Dutch port state
+  const makeDutchState = (overrides = {}) => makePortState("curacao", {
+    faction: "dutch",
+    reputation: { ...window.E.initialState.reputation, curacao: 50 },
+    gold: 1000,
+    bankDebt: 0,
+    ...overrides,
+  });
+
+  // ── TAKE_LOAN ──────────────────────────────────────────────────
+  // Non-Dutch port fails
+  let s = makeDutchState();
+  s.currentPort = "portRoyal"; // English
+  s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
+  u.assertEqual(s.bankDebt, 0, "non-Dutch port: no loan");
+
+  // Rep too low
+  s = makeDutchState({ reputation: { curacao: 20 } });
+  s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
+  u.assertEqual(s.bankDebt, 0, "rep <30: no loan");
+
+  // Already in debt
+  s = makeDutchState({ bankDebt: 10000 });
+  s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
+  u.assertEqual(s.bankDebt, 10000, "already in debt: no new loan");
+
+  // Amount > capacity
+  s = makeDutchState({ fame: 0, reputation: { curacao: 30 } });
+  // capacity at rep30, fame0 = 200
+  s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
+  u.assertEqual(s.bankDebt, 0, "amount > capacity: no loan");
+
+  // Valid loan
+  s = makeDutchState({ fame: 0, reputation: { curacao: 30 }, gold: 0 });
+  // capacity = 200, interest = 20%, obligation = ceil(200 * 1.2) = 240
+  s = dispatch(s, A.TAKE_LOAN, { amount: 200 });
+  u.assertEqual(s.gold, 200, "gold increased by loan amount");
+  u.assertEqual(s.bankDebt, 240, "debt includes interest");
+  u.assert(s.log.some(l => l.includes("Took a loan")), "log entry present");
+
+  // ── REPAY_LOAN ────────────────────────────────────────────────
+  s = makeDutchState({ bankDebt: 240, gold: 300 });
+  s = dispatch(s, A.REPAY_LOAN, { amount: 100 });
+  u.assertEqual(s.gold, 200, "gold reduced by repayment");
+  u.assertEqual(s.bankDebt, 140, "debt reduced");
+
+  s = dispatch(s, A.REPAY_LOAN, { amount: 1000 });
+  u.assertEqual(s.gold, 60, "gold reduced by full remaining debt");
+  u.assertEqual(s.bankDebt, 0, "debt cleared");
+});
+
+reg("B10.ENGINE.INQUISITOR_FLOW", "PAY_INQUISITOR: table-driven flow", (u) => {
+  const makeSpanishState = (overrides = {}) => makePortState("havana", {
+    faction: "spanish",
+    reputation: { ...window.E.initialState.reputation, havana: 60 },
+    gold: 500,
+    infamy: 30,
+    ...overrides,
+  });
+
+  // Non-Spanish port fails
+  let s = makeSpanishState();
+  s.currentPort = "portRoyal";
+  s = dispatch(s, A.PAY_INQUISITOR);
+  u.assertEqual(s.infamy, 30, "non-Spanish port: no change");
+
+  // Rep < 50 fails
+  s = makeSpanishState({ reputation: { havana: 40 } });
+  s = dispatch(s, A.PAY_INQUISITOR);
+  u.assertEqual(s.infamy, 30, "rep <50: no change");
+
+  // Infamy 0 fails
+  s = makeSpanishState({ infamy: 0 });
+  s = dispatch(s, A.PAY_INQUISITOR);
+  u.assertEqual(s.gold, 500, "infamy 0: no change");
+
+  // Insufficient gold
+  s = makeSpanishState({ gold: 100, infamy: 30 });
+  s = dispatch(s, A.PAY_INQUISITOR);
+  u.assertEqual(s.infamy, 30, "insufficient gold: no change");
+
+  // Valid payment reduces infamy by 1 and deducts cost (30 infamy → 400g)
+  s = makeSpanishState({ gold: 500, infamy: 30 });
+  s = dispatch(s, A.PAY_INQUISITOR);
+  u.assertEqual(s.gold, 100, "gold reduced by 400");
+  u.assertEqual(s.infamy, 29, "infamy reduced by 1");
+  u.assert(s.log.some(l => l.includes("absolution")), "log entry present");
+});
+
+reg("B10.ENGINE.EMBASSY_FLOW", "PURCHASE_EMBASSY_REP: table-driven flow", (u) => {
+  const makeFrenchState = (overrides = {}) => makePortState("martinique", {
+    faction: "french",
+    reputation: { ...window.E.initialState.reputation, martinique: 60, spanish: 30 },
+    gold: 5000,
+    ...overrides,
+  });
+
+  // Non-French port fails
+  let s = makeFrenchState();
+  s.currentPort = "portRoyal";
+  s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+  u.assertEqual(s.reputation.spanish, 30, "non-French port: no change");
+
+  // Rep < 50 fails
+  s = makeFrenchState({ reputation: { martinique: 40, spanish: 30 } });
+  s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+  u.assertEqual(s.reputation.spanish, 30, "rep <50: no change");
+
+  // Invalid target
+  s = makeFrenchState();
+  s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "ottoman" });
+  u.assertEqual(s.reputation.spanish, 30, "invalid target: no change");
+
+  // Target at 100 fails
+const frenchState100 = makeFrenchState({ 
+  reputation: { 
+    martinique: 60, 
+    spanish: 100,
+    // Also set all Spanish ports to 100
+    havana: 100,
+    santiagoDeCuba: 100,
+    santoDomingo: 100,
+    cartagena: 100,
+    maracaibo: 100,
+    portobelo: 100,
+    campeche: 100,
+    veracruz: 100,
+    trinidad: 100,
+  } 
+});
+s = dispatch(frenchState100, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+u.assertEqual(s.gold, 5000, "target max: no change");
+
+  // Insufficient gold
+  s = makeFrenchState({ gold: 100, reputation: { martinique: 60, spanish: 30 } });
+  s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+  u.assertEqual(s.reputation.spanish, 30, "insufficient gold: no change");
+
+  // Valid purchase: rep 30 → 35, cost 1000
+  s = makeFrenchState({ gold: 5000, reputation: { martinique: 60, spanish: 30 } });
+  s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+  u.assertEqual(s.gold, 4000, "gold reduced by 1000");
+  u.assertEqual(s.reputation.spanish, 35, "rep increased by 5");
+  u.assert(s.log.some(l => l.includes("French Embassy")), "log entry present");
+});
+
+reg("B10.ENGINE.MISSION_GARNISH", "COMPLETE_MISSION: loan garnish on reward only", (u) => {
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 200,
+    fame: 1,
+    requiredGood: "sugar",
+    requiredQty: 5,
+  });
+  const s0 = makePortState("portRoyal", {
+    gold: 0,
+    bankDebt: 1000,
+    hold: makeHold({ sugar: 5, food: 5, water: 5 }),
+    portMarket: { goods: { sugar: { sellToPort: 50 } } },
+    activeMission: mission,
+    reputation: { portRoyal: 50 }, // friendly multiplier 1.10
+  });
+
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+
+  // rewardGold = Math.floor(200 * 1.10) = 220
+  // garnish = 220 * 0.20 = 44
+  // netReward = 220 - 44 = 176
+  // goodsValue = 5 * 50 = 250
+  // netGoldGain = 176 + 250 = 426
+  u.assertEqual(s1.gold, 426, "gold added correctly");
+  u.assertEqual(s1.bankDebt, 956, "debt reduced by 44");
+  u.assert(s1.log.some(l => l.includes("Bank repayment")), "garnish log present");
+});
+
+reg("B10.ENGINE.TRADE_GARNISH", "CONFIRM_TRADE: garnish on net profit only", (u) => {
+  const s0 = makePortState("portRoyal", {
+    gold: 0,
+    bankDebt: 1000,
+    hold: makeHold({ cloth: 10 }),
+    portMarket: {
+      goods: {
+        cloth: { buyFromPort: 60, sellToPort: 45, available: 100 },
+        sugar: { buyFromPort: 50, sellToPort: 40, available: 100 },
+      }
+    },
+  });
+  // Sell 10 cloth: +450, buy 5 sugar: -250 → net +200
+  // Garnish 20% of 200 = 40 → net gold gain = 160
+  const s1 = dispatch(s0, A.CONFIRM_TRADE, { buys: { sugar: 5 }, sells: { cloth: 10 } });
+  u.assertEqual(s1.gold, 160, "gold after garnish");
+  u.assertEqual(s1.bankDebt, 960, "debt reduced by 40");
+  u.assert(s1.log.some(l => l.includes("Bank repayment")), "garnish log present");
+});
+
+reg("B10.ENGINE.NAVAL_YARD", "BUY_SHIP: early access uses English Rep 80", (u) => {
+  // English Rep 80, Fame 40 (Schooner requires 50, adjusted to 40)
+  const s0 = makePortState("portRoyal", {
+    gold: 25000,
+    reputation: { portRoyal: 80 },
+    fame: 40,
+    ship: makeShip("sloop"),
+  });
+  const s1 = dispatch(s0, A.BUY_SHIP, { shipType: "schooner" });
+  u.assertEqual(s1.ship.type, "schooner", "bought with early access");
+
+  // English Rep 79, Fame 40 → blocked
+  const s2 = makePortState("portRoyal", {
+    gold: 25000,
+    reputation: { portRoyal: 79 },
+    fame: 40,
+    ship: makeShip("sloop"),
+  });
+  const s3 = dispatch(s2, A.BUY_SHIP, { shipType: "schooner" });
+  u.assertEqual(s3.ship.type, "sloop", "not bought with low English rep");
+
+  // Non-English port → blocked even with Fame
+  const s4 = makePortState("tortuga", {
+    gold: 25000,
+    reputation: { tortuga: 80 },
+    fame: 40,
+    ship: makeShip("sloop"),
+  });
+  const s5 = dispatch(s4, A.BUY_SHIP, { shipType: "schooner" });
+  u.assertEqual(s5.ship.type, "sloop", "non-English port blocks early access");
 });
 
 

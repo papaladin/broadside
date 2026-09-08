@@ -889,7 +889,7 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
   const fColor = FACTIONS[port.faction]?.color ?? T.textDim;
 
   // Get market goods for this port (if not current, generate)
-    const market = portKey === state.currentPort ? state.portMarket : null;
+  const market = portKey === state.currentPort ? state.portMarket : null;
 
   // Available goods — only show for current port
   const availableGoods = useMemo(() => {
@@ -910,6 +910,12 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
       .filter(([good, data]) => data.available > 0 && D.RESOURCES[good]?.illegal)
       .map(([good]) => D.RESOURCES[good]?.name || good);
   }, [market]);
+
+  // ── Port Specialty / Service ────────────────────────────────────────────
+  const specialty = L.getPortSpecialty(portKey);
+  const specialtyAvailable = specialty ? L.isPortServiceAvailable(state, portKey, specialty.id) : false;
+  const specialtyReq = specialty?.access?.reputation;
+  const isGated = specialtyReq !== undefined && rep < specialtyReq;
 
   return (
     <Panel variant="subtle" style={{ padding: T.spacing.md, marginBottom: 8 }}>
@@ -945,6 +951,51 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
           <StatBlock label="Distance" value={`${distance}d`} />
         )}
       </div>
+
+            {/* ── Unique Service ────────────────────────────────────────── */}
+      {specialty && (() => {
+        // Map specialty IDs to icon components from window.UI
+        const iconMap = {
+          bank: window.UI.IconGold,
+          inquisitor: window.UI.IconSkull,
+          embassy: window.UI.IconHandshake,
+          naval_yard: window.UI.IconAnchor,
+          black_market: window.UI.IconGoldBag,
+        };
+        const IconComponent = iconMap[specialty.id] || window.UI.IconAnchor;
+        const IconEl = IconComponent ? React.createElement(IconComponent, { size: 12, color: T.gold, style: { marginRight: 4 } }) : null;
+
+        return (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ color: T.gold, fontSize: T.metadataFontSize, fontWeight: "bold", letterSpacing: "0.06em", display: "flex", alignItems: "center" }}>
+              {IconEl}
+              {specialty.label}
+            </div>
+            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, marginTop: 2 }}>
+              {specialty.description}
+            </div>
+            {specialtyReq !== undefined && (
+              <div style={{
+                color: isGated ? T.redBr : T.textDim,
+                fontSize: T.captionFontSize,
+                marginTop: 2,
+              }}>
+                Requires {FACTIONS[port.faction]?.label || "Faction"} reputation {specialtyReq}+
+                {isGated ? ` (current: ${rep})` : ""}
+              </div>
+            )}
+            {/* Special handling for English Naval Yard: show both servicing and early access */}
+            {specialty.id === 'naval_yard' && port.faction === 'english' && (
+              <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
+                Servicing (install/remove): Rep {D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval}+
+                {rep >= D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval ? " ✓" : ""}
+                &nbsp;·&nbsp; Early access: Rep {D.SERVICE_THRESHOLDS.navalYard.repRequiredForEarlyAccess}+
+                {rep >= D.SERVICE_THRESHOLDS.navalYard.repRequiredForEarlyAccess ? " ✓" : ""}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Goods & Trade */}
       <div style={{ marginBottom: 10 }}>
