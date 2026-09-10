@@ -25,14 +25,14 @@ Trade, scheme, and fight your way to fortune... but your crew has opinions, and 
 - **Contraband pays well, until it doesn't:**  Tobacco and slaves are lucrative. They're also illegal. Patrols strip cargo and add to your infamy. The more notorious you become, the more patrols you attract.
 
 ### Combat With Consequences
-- **Turn-based naval combat:**  Four actions: broadside, precision shot, grappling, evasion. There's no always-correct answer -- it depends on your ship, your crew count, and how much risk you can absorb.
-- **Every fight costs something:**  Hull damage, crew loss, morale drop. Win the battle and you still have problems. Dead crew can't be replaced at sea. A demoralized crew fights worse next time.
 - **Intercept screen before every battle:**  Negotiate, bribe, flee, or surrender before a single cannon fires. Sometimes the fight isn't worth it.
-- **Plunder decisions:**  After boarding, browse the enemy's cargo and pick what to take. Your hold space is limited -- choose wisely.
+- **Turn-based naval combat:**  Fire at your enemy, maneuver to change distance, try boarding them to bring the fight on their deck. There's no always-correct answer -- it depends on your ship, your crew count, and how much risk you can absorb.
+- **Every fight costs something:**  Hull damage, crew loss, morale drop. Win the battle and you still have problems. Dead crew can't be replaced at sea. A demoralized crew wont be eager to board the next enemy.
+- **Plunder decisions:**  After boarding, browse the enemy's cargo and pick what to take. Your hold space is limited so choose wisely.
 
 ### A Career That Accumulates
 - **Fame and infamy as parallel tracks:**  Fame unlocks bigger ships and better-paying missions. Infamy unlocks pirate ports and attracts more patrols. They pull in different directions. You can't have everything.
-- **11 ships across 5 tiers:**  From a dinghy to a Ship of the Line. Bigger ships require more crew, more provisions, more gold to sustain -- and fame to even purchase.
+- **11 ships across 5 tiers:**  From a dinghy to a Ship of the Line. Bigger ships require more crew, more provisions, more gold to sustain and fame to be allowed to purchase them.
 - **17 equipment items across 4 slot types:**  Hull, armament, rigging, and special equipment let you customise your ship's identity. Fast raider, armoured trader, balanced warship -- your build defines your strategy.
 - **5 starting scenarios:**  Different factions, starting ports, and opening problems. Each drops you into a different corner of the Caribbean with a different hand to play.
 - **Random events at sea:**  Storms, shipwrecks, distressed merchants, mutinies, treasure maps. About one in ten days at sea brings something unplanned.
@@ -62,7 +62,7 @@ See [the full roadmap](docs/roadmap.md) for the complete plan.
 | Storage        | `localStorage` (via `storage.js`)               |
 | Testing        | Custom browser-native test harness              |
 
-Everything runs entirely in the browser -- no build step, no server needed for the player.
+Everything runs entirely in the browser or as a PWA on your phone if you want.
 
 ---
 

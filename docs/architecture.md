@@ -4,87 +4,52 @@
 
 ## Design Philosophy
 
-Broadside is a **systems-driven pirate game** that creates stories through mechanical interaction, not scripted narrative.
+Broadside is a **systems-driven pirate game** that creates emergent stories through mechanical interaction, not scripted narrative.
 
 > *A few mechanics that interact strongly beat many mechanics that exist independently.*
 
 Every feature must pass this test: **does it create situations where two or more existing systems collide in ways the player didn't expect?**
 
-### Three Pillars
-
-Every feature must serve at least one of these. If it doesn't, it doesn't ship.
-
-| Pillar | What it means | Examples in-game |
-|---|---|---|
-| **Freedom** | Open-world, player-directed, multiple viable playstyles | Go anywhere, be a trader/pirate/privateer/smuggler, no forced path |
-| **Consequence** | Every choice ripples — the world reacts, remembers, and pushes back | Reputation, crew loyalty, faction heat, infamy, gossip, named crew death |
-| **Discovery** | The Caribbean reveals itself through play — secrets earned, not given | Hidden ports, gossip hints, emergent crew stories, market patterns, map fragments |
 
 ### Core Design Axioms
 
 - **Every success creates a new problem.** Win a battle → hull damaged, crew lost, cargo to manage, reputation shifted, heat increased.
-- **The world remembers what you did.** Reputation, infamy, heat, crew loyalty, gossip — actions have echoes.
+- **The world remembers what you did.** Reputation, infamy, heat, crew loyalty, gossip : actions have echoes.
 - **Crew are people, not numbers.** Named individuals with traits, scars, faction loyalties, and generated biographies. Losing a veteran hurts because you remember their story.
 - **Resources are interconnected.** Gold buys crew, crew costs wages, wages require missions, missions require ships, ships require fame.
-- **Time is the universal cost.** Every action takes days. Days consume provisions. Provisions cost gold. The clock is always ticking.
-
-### Core Emotional Targets
-
-| Emotion | Source | Example |
-|---|---|---|
-| **Pressure** | Resource interconnection | You need crew but can't afford wages. You need gold but can't afford the mission's risk. |
-| **Consequence** | Permanent state changes | Your best navigator dies. A faction remembers your betrayal. Your ship is scarred. |
-| **Attachment** | Named crew, emergent reputation | You protect crew members who've been with you since the beginning. |
-| **Emergent story** | System collisions | A smuggle run goes wrong because your Spanish crew refused to forgive the attack on a Spanish patrol. |
+- **Time is the universal cost.** Every action takes days, days consume provisions, provisions cost gold.
 
 ### Game Influences & Stance
 
 | Area | Reference | Broadside stance |
 |---|---|---|
 | Game loop structure | *Sid Meier's Pirates!*, *Galaxy on Fire 2HD*, *Caravaneer* | Similar feel, but with the resource pressure and logistics of Caravaneer |
-| Roguelike structure | *FTL: Faster Than Light* | Node-based exploration, meaningful events, permadeath consequences |
 | Systems-driven narrative | *Dwarf Fortress* | Stories emerge from mechanics, not scripts |
 | Crew identity | *Darkest Dungeon* | Named characters accumulate traits; loss has weight |
 | Encounter design | *Sunless Sea* | Atmosphere-first writing, choices with consequences |
 
 ***
 
-## Gameplay Architecture
-
-Broadside is designed as a systems-driven game. The goal is not to add isolated features, but to build interacting rule sets where player choices create consequences across multiple parts of the game.
-
-| Term                             | Meaning in Broadside                                                                          | Example                                                   |
-| -------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Loop**                         | A repeated player activity cycle                                                              | Port → Prepare → Sail → Encounter → Arrive → Recover      |
-| **System**                       | A stateful rule set that can be affected by actions and can mechanically affect other systems | Heat, Crew, Combat, Economy                               |
-| **Mechanic**                     | A specific action or rule operation within a system                                           | Buy goods, grapple, install equipment, buy drinks         |
-| **Stat / Resource / Tag**        | A value read or written by systems                                                            | Gold, hull, fame, morale, `upset`, `loyal`, `scar_battle` |
-| **Feature / Screen**             | A player-facing implementation that exposes or supports systems                               | Shipyard screen, Captain's Journal, tutorial overlay      |
-| **Narrative Presentation Layer** | Textual output that makes systemic consequences readable                                      | Gossip, captain's log, crew bios, journal entries         |
-
-> Every major gameplay system should create consequences that at least one or two other systems care about — but not every stat needs to affect everything.
-
-***
 
 ## Nested Game Loops
 
 **Core Loop** (click)
-```
-Advance Day
- → Travel progresses
- → Event roll (heat / mission / random)
- → Player reaction (fight / flee / accept / ignore)
- → Resolution (combat / reward / loss)
- → Log entry generated
- → State updated (crew / morale / gold / supplies)
-```
+ - Travel progresses (advance day)
+ - Event roll (heat / mission / random)
+ - Player reaction (fight / flee / accept / ignore)
+ - Resolution (combat / reward / loss)
+ - Log entry generated
+ - State updated (crew / morale / gold / supplies)
+
 
 **Decision & Resolution loops** (micro, sec)
+
 Player decisions
 - Choose destination
 - Choose mission
 - Trade / hire / upgrade
 - Choose reactions
+  
 System resolutions
 - Random events and encounters
 - Combat, mission and trade resolution
@@ -111,7 +76,7 @@ System resolutions
 
 ## Core Gameplay Systems
 
-| System                       | Main state                                                            | Main design role                 |  Mains Systems impacted            |  
+| System                       | Main state                | Main design role                 |  Mains Systems impacted            |  
 | ---------------------------- | --------------------------------------------------------------------- | -------------------------------- | ---------------------------------- |
 | **Economy**                  | Gold, cargo, provisions, wages, prices, repair costs                  | Pressure                         | Navigation, Ship, Equipment, Crew               |
 | **Mission**                  | Active mission, rewards, destination, risk, target, reputation impact | Structure                        | Economy, Combat, Fame/Infamy, Reputation          |
@@ -126,21 +91,11 @@ System resolutions
 | **Port / Market / Services** | Port faction, services, goods, missions, shipyard access              | Decision hub                     | Economy, Mission, Crew, Navigation        |
 | **Events**                   | Voyage events, event choices, outcomes                                | System disruption and surprise   |  Navigation, Crew          |
 
-One system sits outside this table deliberately: **Onboarding** (the guided quartermaster tutorial) is scaffolding, not a permanent gameplay system — it has its own state ('state.onboarding') and it does reach into other systems (gating which Port actions are visible, suppressing random events and patrols during the first voyage, force-stocking the market for the opening delivery), but every one of those effects is temporary and switches off once onboarding completes or the player skips it. It earns a place in this document because of how it's wired in — see the engine middleware pattern below — not because it's a pillar-bearing system in the way Combat or Reputation are."
+One system sits outside this table deliberately: **Onboarding** (the guided quartermaster tutorial) is scaffolding, not a permanent gameplay system : it has its own state ('state.onboarding') and it does reach into other systems (gating which Port actions are visible, suppressing random events and patrols during the first voyage, force-stocking the market for the opening delivery), but every one of those effects is temporary and switches off once onboarding completes or the player skips it. It earns a place in this document because of how it's wired in : see the engine middleware pattern below : not because it's a pillar-bearing system in the way Combat or Reputation are."
 
-Gossip, captain's log entries, crew biographies, the Captain's Journal, the quartermaster's onboarding dialogue, and the Market screen's flavour text are not treated as core gameplay systems by themselves. They are part of the **Narrative Presentation Layer**.
+Gossip, captain's log entries, crew biographies, the Captain's Journal, the quartermaster's onboarding dialogue, and the  screen's flavour text are not treated as core gameplay systems by themselves. They are part of the **Narrative Presentation Layer**.
 Their role is to make consequences visible and help the player understand why things happened.
-They generally do not create mechanical effects on their own.
-
-Technical modules should remain simple and data-driven, but gameplay architecture should preserve clear boundaries:
-
-* Systems own state and rules.
-* Mechanics are actions or rule operations inside systems.
-* Stats/resources/tags are data read and written by systems.
-* Features/screens expose systems to the player.
-* Narrative presentation translates system consequences into readable story.
-
-This keeps Broadside expandable without turning every feature into an isolated mini-system or making every stat affect every other stat.
+They do not create mechanical effects on their own.
 
 Example:
 
@@ -156,48 +111,42 @@ Narrative Layer:  "Maria Navarro is disturbed by the attack on Spanish ships."
 
 # Technical Design
 
-## Table of Contents
-
-1. [Design Principles](#1-design-principles)
-2. [Tech Stack and Constraints](#2-tech-stack-and-constraints)
-3. [File Structure](#3-file-structure)
-4. [Dependency Graph](#4-dependency-graph)
-5. [File Responsibilities](#5-file-responsibilities)
-6. [Global Namespace Convention](#6-global-namespace-convention)
-7. [State Shape Reference](#7-state-shape-reference)
-8. [Game Mechanics Implementation](#8-game-mechanics-implementation)
-9. [Adding New Content — Patterns](#9-adding-new-content--patterns)
-10. [Testing Infrastructure](#10-testing-infrastructure)
-11. [Constraints for AI Agents](#11-constraints-for-ai-agents)
-
 ---
 
 ## 1. Design Principles
 
-### Separation of concerns — the core rule
 
-| Layer | File(s) | May call | May NOT call |
-|---|---|---|---|
-| **Data** | `data.js`, `data_text.js` | Nothing | Logic, Engine, UI |
-| **Logic** | `logic_core.js`, `logic_economy_crew.js`, `logic_travel_events.js`, `logic_combat_encounter.js` | `window.D` | Engine, UI, Generators (except `generateCombatFlavour`? Actually logic doesn't call generators) |
-| **Storage** | `storage.js` | `window.D`, `window.L` | Engine, UI |
-| **Generators** | `generators.js` | `window.D`, `window.L` | Engine, UI |
-| **Engine** | `engine_core.js`, `engine_port.js`, `engine_voyage.js`, `engine_battle.js`, `engine_encounter.js`, `engine_onboarding.js`, `engine_career.js`, `engine_scripted.js` | `window.D`, `window.L`, `window.G` | UI |
-| **UI** | `ui.jsx`, `icons.jsx` | `window.D`, `window.L` | Engine, Generators |
-| **Screens** | `screens_*.jsx` | `window.D`, `window.L`, `window.E`, `window.UI` | Generators (directly) |
-| **App** | `App.jsx` | Everything via dispatch | — |
+## Module Responsibilities & Ownership
 
-### Pure functions in logic.js
+Each layer has a clear responsibility. Put new code in the layer that owns the concern rather than duplicating the concern across layers.
 
-`logic_*.js` files contain **zero side-effects**. Every function is `(input) → output` with no mutation, no DOM access, no randomness. All RNG lives in `generators.js` — but logic functions accept an **injectable RNG** parameter (defaulting to `window.L.RNG`) so they remain testable and deterministic.
+| Layer           | Files                     | Responsibility                          |  May call | May NOT call |
+| --------------- | ------------------------- | ----------------------------------------------------------------------------------- | ----------|--------------|
+| **Data**        | `data.js`, `data_text.js` | Canonical game constants and content.   |   Nothing | Logic, Engine, UI |
+| **Logic**       | `logic_*.js`              | Pure game rules, calculations, validation, and deterministic resolution.            | `window.D` | Engine, UI, Generators |
+| **Generators**  | `generators.js`           | Random/procedural runtime content generation.                                       |  `window.D`, `window.L` | Engine, UI |
+| **Engine**      | `engine_*.js`             | State transitions and domain orchestration.                                         |  `window.D`, `window.L` | Engine, UI |
+| **Storage**     | `storage.js`              | Browser persistence, save/load, migration, and persistent tutorial/discovery state. | `window.D`, `window.L`, `window.G` | UI |
+| **UI**          | `ui.jsx`, `icons.jsx`     | Reusable presentation components, theme tokens, and icons.                          | `window.D`, `window.L` | Engine  |
+| **Screens**     | `screens_*.jsx`           | Player-facing rendering and action dispatch.                                        | `window.D`, `window.L`, `window.E`, `window.UI` | Generators (except flavour texts) |
+| **Application** | `App.jsx`                 | Root application, screen routing, HUD, and application-level UI/debug integration.  | Everything via dispatch | N/A |
 
-### Storage as a logic extension
+### Ownership Rules
 
-`storage.js` extends `window.L` with localStorage-related helpers (save/load encoding, tutorial state management, persistence functions). It loads immediately after the logic files and attaches functions to the same `window.L` namespace. No RNG — just I/O wrappers.
+* **Data owns constants.** Do not duplicate game constants in logic, engine, generators, or UI.
+* **Logic owns rules.** If a calculation or validation is a game rule, it should have one authoritative implementation in the logic layer. `logic_*.js` files contain **zero side-effects**. Every function is `(input) → output` with no mutation, no DOM access, no randomness. All RNG lives in `generators.js` : but logic functions accept an **injectable RNG** parameter (defaulting to `window.L.RNG`) so they remain testable and deterministic.
+* **Generators own randomness.** Procedural content generation belongs in `generators.js`, not in UI or pure logic.  generators.js handles all randomness. Pure logic never calls Math.random().
+* **Engine owns state transitions.** UI expresses intent through actions; engine reducers decide how state changes.
+* **Storage owns persistence.** Game systems should not perform direct `localStorage` operations. `storage.js` extends `window.L` with localStorage-related helpers (save/load encoding, tutorial state management, persistence functions). It loads immediately after the logic files and attaches functions to the same `window.L` namespace. No RNG : just I/O wrappers.
+* **UI owns presentation.** Screens render state and dispatch actions; they do not become alternate implementations of game rules.
+* **Application code owns routing and composition.** Individual screens should not take over application-level navigation or state ownership.
+
+The code is authoritative for implementation details such as exact function names, object fields, reducer cases, and current constants. This document defines architectural ownership and constraints, not an exhaustive API reference.
+
 
 ### Immutable state
 
-The reducer always returns a **new** state object. No mutation of the previous state. Spread-copy every nested object that changes.
+The reducer always returns a **new** state object. No mutation of the previous state. Spread-copy every nested object that changes. useReducer, no direct mutation.
 
 ### Single source of truth
 
@@ -224,15 +173,41 @@ Port-related screens, port engine actions, and port-related generators are organ
 | Babel Standalone (CDN) | JSX → JS in-browser (! use Babel 7.29, currently incompatible with Babel 8 and above) |
 | Vanilla JS (ES2020) | All game logic, engine, data |
 | localStorage | Save/load (via `storage.js`) |
-| No build step | Files loaded via `<script>` tags in `index.html` |
 
-### Hard constraints
+### Hard constraints and Anti-Patterns
 
-- No npm, no bundler, no TypeScript, no build step.
+- No npm, no bundler, no TypeScript, no build step. 
+- No external dependencies:  Nothing beyond React, ReactDOM, Babel to Minimise  maintenance burden.
 - Each `.js` / `.jsx` file is a single IIFE or global assignment.
+- Reducer chain: domain engines register independently. Adding a new domain = adding a new file. Keep reducers immutable.
 - Scripts are loaded in strict dependency order via `<script>` tags.
+- Never violate the dependency direction (downward only).
+- Use injectable RNG in logic functions.
+- All text constants go in `data_text.js`, not hardcoded in engine logic.
 - All inter-file communication is via `window.*` namespaces.
-- Target: modern desktop and mobile browsers.
+- Target: modern desktop and mobile browsers. Touch targets ≥ 44px, responsive layouts, no hover-only interactions for critical actions. 
+- Text first UI : Art and sound are polish layers, not structural. The game must be compelling and playable with text alone.
+- After any code change, run the test suite (`tests/tests.html`).
+* **Single ownership**: each rule, state transition, data definition, and persistence concern has one authoritative owner.
+* **No duplicated rules**: consumers call canonical logic rather than reproducing calculations locally.
+* **Layered responsibility**: data defines, logic calculates, generators generate, engine transitions, storage persists, and UI presents.
+* **Code over inventory**: implementation details are read from the source; architecture documentation records decisions and boundaries.
+
+
+Avoid:
+* Duplicating a game rule in multiple layers.
+* Copying a constant from `data.js` into engine, logic, generator, or UI code.
+* Calling `generators.js` directly from a screen.
+* Implementing authoritative game rules inside UI components.
+* Mutating the shared state tree directly.
+* Performing direct browser persistence outside `storage.js`.
+* Creating alternate representations of state when the existing state can express the information.
+* Adding a new abstraction solely to work around an existing ownership boundary.
+* Maintaining Markdown inventories of functions, constants, reducer cases, components, or object fields that can be obtained directly from the code.
+* Treating historical implementation notes as current architecture.
+The preferred solution is usually to strengthen the existing owner rather than create a second owner.
+
+
 
 ### Save keys
 
@@ -255,16 +230,16 @@ Managed by: storage.js (shouldShowTutorial, markTutorialSeen)
 ```text
 broadside/
 ├── index.html                         ← entry point, <script> load order
-├── data.js                            ← window.D — game constants
-├── data_text.js                       ← extends window.D — text/content constants
-├── logic_core.js                      ← window.L — core pure helpers
-├── logic_economy_crew.js              ← window.L — crew, economy, cargo, reputation
-├── logic_travel_events.js             ← window.L — travel, sea position, events, patrols
-├── logic_combat_encounter.js          ← window.L — combat resolvers + encounter helpers + NPC AI + action preview
-├── storage.js                         ← extends window.L — save/load + tutorial state + persistence
-├── generators.js                      ← window.G — RNG: missions, markets, crew, enemies, gossip, bios, combat flavour
+├── data.js                            ← window.D : game constants
+├── data_text.js                       ← extends window.D : text/content constants
+├── logic_core.js                      ← window.L : core pure helpers
+├── logic_economy_crew.js              ← window.L : crew, economy, cargo, reputation
+├── logic_travel_events.js             ← window.L : travel, sea position, events, patrols
+├── logic_combat_encounter.js          ← window.L : combat resolvers + encounter helpers + NPC AI + action preview
+├── storage.js                         ← extends window.L : save/load + tutorial state + persistence
+├── generators.js                      ← window.G : RNG: missions, markets, crew, enemies, gossip, bios, combat flavour
 │
-├── engine_core.js                     ← window.E — reducer chain, initial state, actions, migration
+├── engine_core.js                     ← window.E : reducer chain, initial state, actions, migration
 ├── engine_port.js                     ←           port domain reducer
 ├── engine_voyage.js                   ←           voyage domain reducer
 ├── engine_battle.js                   ←           battle domain reducer (BATTLE_ACTION, DISMISS_BATTLE, TAKE_PLUNDER)
@@ -273,17 +248,17 @@ broadside/
 ├── engine_career.js                   ←           career-stats middleware reducer
 ├── engine_scripted.js                 ←           dev-only scripted-playthrough reducer (?scripted=1)
 │
-├── ui.jsx                             ← window.UI — theme tokens + presentational components
-├── icons.jsx                          ← extends window.UI — SVG icon library + LOG_ICONS
-├── screens_core.jsx                   ← window.S — TitleScreen, NewGameScreen, onboarding UI
-├── screens_port.jsx                   ← window.S — PortScreen
-├── screens_status.jsx                 ← window.S — StatusScreen, JournalScreen
-├── screens_shipyard.jsx               ← window.S — ShipyardScreen
-├── screens_crew.jsx                   ← window.S — CrewScreen
-├── screens_market.jsx                 ← window.S — MarketScreen
-├── screens_voyage.jsx                 ← window.S — MapScreen, SailingScreen
-├── screens_combat.jsx                 ← window.S — EventScreen, InterceptScreen, BattleScreen, PlunderScreen
-├── screens_menu.jsx                   ← window.S — MenuModal, FeedbackPanel
+├── ui.jsx                             ← window.UI : theme tokens + presentational components
+├── icons.jsx                          ← extends window.UI : SVG icon library + LOG_ICONS
+├── screens_core.jsx                   ← window.S : TitleScreen, NewGameScreen, onboarding UI
+├── screens_port.jsx                   ← window.S : PortScreen
+├── screens_status.jsx                 ← window.S : StatusScreen, JournalScreen
+├── screens_shipyard.jsx               ← window.S : ShipyardScreen
+├── screens_crew.jsx                   ← window.S : CrewScreen
+├── screens_market.jsx                 ← window.S : MarketScreen
+├── screens_voyage.jsx                 ← window.S : MapScreen, SailingScreen
+├── screens_combat.jsx                 ← window.S : EventScreen, InterceptScreen, BattleScreen, PlunderScreen
+├── screens_menu.jsx                   ← window.S : MenuModal, FeedbackPanel
 ├── App.jsx                            ← root: HUD, screen router, ErrorBoundary, DebugPanel
 │
 ├── docs/                              (see documentation section)
@@ -295,444 +270,468 @@ broadside/
 
 ## 4. Dependency Graph
 
-### Current
 
-```text
-data.js (D)
-└─→ data_text.js (extends D)
-    └─→ logic_core.js (L)
-        ├─→ logic_economy_crew.js
-        ├─→ logic_travel_events.js
-        └─→ logic_combat_encounter.js
-            ├─→ storage.js (extends L)
-            └─→ generators.js (G)
-                └─→ engine_core.js (E)
-                    ├─→ engine_port.js
-                    ├─→ engine_voyage.js
-                    ├─→ engine_battle.js
-                    ├─→ engine_encounter.js
-                    ├─→ engine_onboarding.js   (middleware — runs after the domain reducers)
-                    ├─→ engine_career.js       (middleware — runs after onboarding)
-                    └─→ engine_scripted.js     (dev-only — runs last, inert without ?scripted=1)
-                        └─→ ui.jsx (UI)
-                            └─→ icons.jsx (extends UI)
-                                ├─→ screens_core.jsx (S)
-                                ├─→ screens_port.jsx (S)
-                                ├─→ screens_status.jsx (S)
-                                ├─→ screens_shipyard.jsx (S)
-                                ├─→ screens_crew.jsx (S)
-                                ├─→ screens_market.jsx (S)
-                                ├─→ screens_voyage.jsx (S)
-                                ├─→ screens_combat.jsx (S)
-                                ├─→ screens_menu.jsx (S)
-                                └─→ App.jsx
-```
-
-### Dependency direction rule — never violated
-
-Arrows point **downward only**. A file may import from files above it in the graph but never below. `data.js` imports nothing. `App.jsx` can read anything.
-
-The `index.html` `<script>` load order matches this graph top-to-bottom.
-
----
-
-## 5. File Responsibilities (rewrite)
-
-### data.js → `window.D`
-
-Pure constants. No functions except a few inline `(state) => boolean` condition callbacks on `RANDOM_EVENTS`. Contains: `FACTIONS`, `PORTS`, `SHIPS`, `SHIP_VISUALS`, `EQUIPMENT`, `RESOURCES`, `GOODS_AVAILABILITY`, `MISSION_GOLD_RANGES`, `MISSION_ENEMY_RANGES`, `PLUNDER_TARGET`, `PLUNDER_GOLD_RATIO`, `FACTION_PLUNDER_GOODS`, `MISSION_REP_IMPACTS`, `TRADE_MISSION_PROFIT_MARGINS`, `SMUGGLE_PROFIT_MARGINS`, `PATROL_FINE_RATE`, `RANDOM_EVENTS`, `STARTS`, `TUTORIAL_DELIVERY`, `TUTORIAL_HUNT`, `DEFAULT_CAREER`, `SURRENDER_CONSEQUENCE`, `DISTANCE_DAMAGE_MULTIPLIERS`, `LEGAL_ACTIONS_BY_DISTANCE`, `AI_ARCHETYPES`, `AI_ORIGIN_MODIFIERS`.
-
-**`SHIP_VISUALS`** is pure data — `ship-sprite.js` is the only file that interprets it.
-
-**`STARTS`** is now a faction-keyed object: `factionPorts` (faction → starting port), `factionRepAdjust` (faction → rep deltas), `factionBackstory` (faction → opening narrative + log lines), `factionQM` (faction → quartermaster name/bio), plus shared `gold`, `ship`, `hold`, `startDate` values.
-
-**`DEFAULT_CAREER`** is the zeroed shape for `state.career`.
-
-### data_text.js → extends `window.D`
-
-Text-only constants. Contains: `CREW_FIRST_NAMES`, `CREW_LAST_NAMES`, `CREW_ROLES`, `BIO_OPENINGS`, `PORT_GOSSIP_TEMPLATES`, `MARKET_FLAVOUR`, `MISSION_NAME_PARTS`, `COMBAT_LOG_TEMPLATES`, `ENEMY_SHIP_NAMES`, `ENCOUNTER_FLAVOUR`, `QM_DIALOGUE`, `ARRIVAL_MESSAGES`, `SAILING_MESSAGES`, `VICTORY_MESSAGES`, `DEFEAT_MESSAGES`, `FLED_MESSAGES`, `BOARDING_SUCCESS_MESSAGES`, `REPAIR_MESSAGES`, `PURCHASE_MESSAGES`, `PLUNDER_MESSAGES`, `FACTION_RELATIONSHIP_TEMPLATES`.
-
-`QM_DIALOGUE` keys are now `step0_welcome`, `step1_accepted`, `step1_contractAccepted`, `step2_marketOpen`, `step2_stocked`, `step3_mapOpen`, `step4_sailing`, `step5_arrival`, `step5_delivered`, `step6_crewOpen`, `step6_hired`, `step6b_huntAccepted`, `step6b_victory`, `step7_shipyardOpen`, `step7_repaired`, `step8_journalOpen`, `step9_departure`, `tutorialAbandonRefuse`.
-
-### ship-sprite.js → `window.ShipSprite`
-
-Pure SVG silhouette renderer. Reads `window.D.SHIP_VISUALS` and `window.D.FACTIONS`. Exposes `window.ShipSprite.render(shipType, { faction, equipment, width, height, facing, showFlag }) → SVGElement`.
-
-### logic_core.js / logic_economy_crew.js / logic_travel_events.js / logic_combat_encounter.js → `window.L`
-
-Pure functions, zero side-effects. Functions accept an optional `rng` parameter (default `window.L.RNG`) for determinism. New functions added:
-- `L.applyCrewLoss(state, crewLoss, rng)` — removes crew and returns `{ state, lostNames, lostCount }`.
-- `L.getPatrolContrabandInfo(state, fineRate)` — centralizes contraband detection and fine calculation.
-- `L.getActionPreview(state, action, distance, enemy, battle)` — returns combat action preview for UI.
-- NPC AI scoring functions: `computeAIDisposition`, `getHullAdvantage`, `getCrewAdvantage`, `getSpeedDifferential`, `scoreNavalActions`, `scoreBoardingActions`, `selectWeightedAction`.
-- `L.RNG` — default RNG object with `random()`, `int()`, `pick()`.
-
-### storage.js → extends `window.L`
-
-Owns all browser persistence. Functions: `simpleHash`, `checkLocalStorageAvailable`, `hasSave`, `encodeSave`, `decodeSave`, `loadTutorialState`, `saveTutorialState`, `getDefaultTutorialState`, `shouldShowTutorial`, `markTutorialSeen`, `saveToLocalStorage`, `loadFromLocalStorage`, `clearLocalStorage`, `getSeenDiscoveries`, `setSeenDiscovery`.
-
-### generators.js → `window.G`
-
-All RNG-dependent generation. New: `generateCombatFlavour`. Now only called by the engine (never by UI).
-
-### engine_core.js → `window.E`
-
-Shared infrastructure: `window.E.A` (action constants), `window.E.initialState`, the reducer dispatcher, `window.E.autoSave`, `window.E.migrateState`, `window.E.buildEncounterSession`, `window.E.logEntry`. No longer contains `createBattleState`. Persistence actions call `storage.js` functions.
-
-### engine_port.js
-
-Port domain reducer: `START_GAME`, `NAVIGATE`, `SAIL_TO`, `ENTER_PORT`, `REPAIR`, `BUY_SHIP`, `BUY_EQUIPMENT`, `INSTALL_EQUIPMENT`, `REMOVE_EQUIPMENT`, `HIRE_CREW`, `DISMISS_CREW`, `RAISE_MORALE`, `REFRESH_MISSIONS`, `TAKE_MISSION`, `COMPLETE_MISSION`, `ABANDON_MISSION`, `CONFIRM_TRADE`, `PREVIEW_PORT`.
-
-### engine_voyage.js
-
-Voyage domain reducer: `ADVANCE_DAY`, `DISCOVER_PORT`. Includes `maybeDrunkardEvent`, `maybeSmugglePatrol`, `maybeMissionEncounter`, `maybeRandomEvent`, `checkRandomPatrol`, `advanceHiddenPorts`.
-
-### engine_battle.js
-
-Battle domain reducer: `BATTLE_ACTION`, `DISMISS_BATTLE`, `TAKE_PLUNDER`. No longer exports `applyCrewLossToState` or `washAshore`; uses `L.applyCrewLoss` and `window.E.washAshore` (from encounter).
-
-### engine_encounter.js
-
-Encounter domain reducer: `INTERCEPT_FIGHT`, `INTERCEPT_FLEE`, `INTERCEPT_PARLEY`, `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER`, `PATROL_INSPECT`, `RESOLVE_INSPECTION`, `RESOLVE_EVENT`, `ATTACK_PIRATE`, `ATTACK_MERCHANT`, `RESOLVE_DRIFTING_WRECK_SEARCH`. Owns `washAshore` and `applyNavyPatrolSurrender`.
-
-### engine_onboarding.js (middleware)
-
-Watches actions via `STEP_RULES`. Owns lifecycle actions: `ONBOARDING_QM_SEEN`, `ONBOARDING_SKIP`, `ONBOARDING_COMPLETE`.
-
-### engine_career.js (middleware)
-
-Tracks `state.career` via delta-based detection.
-
-### engine_scripted.js (dev-only)
-
-Inert unless `?scripted=1`.
-
-### ui.jsx → `window.UI`
-
-Theme tokens (`T`) and presentational primitives. Includes `PortCard`, `PortModal` (which dispatches `PREVIEW_PORT`), `ShipSideSprite`, `Tooltip`, etc. No generator calls.
-
-### icons.jsx → extends `window.UI`
-
-SVG icon library + `LOG_ICONS`.
-
-### screens_*.jsx → `window.S`
-
-All screen components. No generator calls.
-
----
-
-## 6. Global Namespace Convention
+#### Namespace Convention
 
 | Namespace | Source | Contents |
 |---|---|---|
 | `window.D` | `data.js` + `data_text.js` | All constants. |
 | `window.ShipSprite` | `ship-sprite.js` | Single function `render(shipType, options) → SVGElement`. |
-| `window.L` | `logic_core.js` + `logic_economy_crew.js` + `logic_travel_events.js` + `logic_combat_encounter.js` + `storage.js` | All pure functions + save/load encoding + tutorial state helpers + persistence. |
+| `window.L` | `logic_*.js`  + `storage.js` | All pure functions + save/load encoding + tutorial state helpers + persistence. |
 | `window.G` | `generators.js` | All RNG-dependent generators. |
-| `window.E` | `engine_core.js` + 7 other engine files | Reducer chain (`window.E._reducers`), action constants (`window.E.A`), initial state, shared helpers. |
+| `window.E` | `engine_*.js` | Reducer chain (`window.E._reducers`), action constants (`window.E.A`), initial state, shared helpers. |
 | `window.UI` | `ui.jsx` + `icons.jsx` | Theme tokens, all presentational components, the full icon library, and the `LOG_ICONS` category map. |
-| `window.S` | `screens_*.jsx` (9 files) | All screen components. |
+| `window.S` | `screens_*.jsx` | All screen components. |
+
+### Dependency Direction
+
+The runtime layers communicate through clear boundaries:
+
+```text
+                    data.js / data_text.js
+                       window.D
+                           ↑
+             ┌─────────────┼─────────────┐
+             │             │             │
+             L             G             UI
+        window.L      window.G       window.UI
+             ↑             ↑             ↑
+             │             │             │
+             └──────────── E ────────────┘
+                         window.E
+                            │
+                         state
+                            │
+                         storage
+```
+
+The practical dependency rules are:
+
+* `data.js` and `data_text.js` are read by other layers; runtime code does not mutate `window.D`.
+* `logic_*.js` may read data and call other pure logic helpers.
+* `logic_*.js` must not call Engine, Generators, UI, or persistence.
+* `generators.js` may use data and pure logic helpers.
+* `generators.js` must not call Engine or UI.
+* Engine reducers may use data, logic, and generators.
+* Screens and UI may read data and logic and dispatch Engine actions.
+* Screens must not call generators directly.
+* Screens must not directly mutate game state.
+* Persistence is centralized in `storage.js`; other modules do not bypass it with direct browser storage operations.
+
+When a dependency would violate these boundaries, move the responsibility to the layer that owns it rather than introducing a cross-layer shortcut.
+
+
+### Dependency direction rule : never violated
+
+Arrows point **downward only**. A file may import from files above it in the graph but never below. `data.js` imports nothing. `App.jsx` can read anything.
+
+The `index.html` `<script>` load order matches this graph top-to-bottom.
+
+
+### Canonical Sources of Truth
+
+Each kind of information has one authoritative home.
+
+| Information                                    | Canonical source                      |
+| ---------------------------------------------- | ------------------------------------- |
+| Game constants and content                     | `data.js`, `data_text.js`             |
+| Pure game rules and calculations               | `logic_*.js`                          |
+| Random/procedural generation                   | `generators.js`                       |
+| Current game state shape and state transitions | `engine_*.js`                         |
+| Persistence format and migrations              | `storage.js` / state-version handling |
+| Reusable UI primitives and theme tokens        | `ui.jsx`                              |
+| Icons                                          | `icons.jsx`                           |
+| Player-facing screen composition               | `screens_*.jsx`                       |
+| Application routing and root composition       | `App.jsx`                             |
+| Guaranteed behavior and invariants             | Tests                                 |
+
+Do not maintain parallel Markdown copies of exhaustive constants, function inventories, reducer cases, component inventories, or state schemas. Those documents become stale as the code changes.
+
+Use this document to describe **architectural intent, ownership, dependencies, and invariants**. Use the source code to determine the current implementation.
+
+
+
+### State & Reducer Contract
+
+Game state is owned by the Engine.
+The full state shape is defined in `engine_core.js` -> `window.E.initialState`.
+
+* The game uses one immutable state tree.
+* UI code reads state and dispatches actions; it does not own gameplay state.
+* Engine reducers are the authoritative mechanism for state transitions.
+* Domain reducers are responsible for their own state-transition concerns.
+* Shared reducer infrastructure belongs in `engine_core.js`.
+* Middleware reducers may observe completed transitions and maintain derived/lifetime tracking state.
+* Pure calculations needed by reducers belong in the logic layer rather than being duplicated inside reducers.
+* Random content required by a state transition is generated through `generators.js` and then stored in state where appropriate.
+
+A new gameplay mechanic should therefore normally follow this path:
+
+```text
+player action
+    ↓
+UI dispatches action
+    ↓
+engine reducer
+    ↓
+logic resolves rules / generator creates content
+    ↓
+new immutable state
+    ↓
+UI renders new state
+```
+
+Do not create a second state model in UI, generators, or individual engine domains merely to simplify a local implementation.
+
+
+### Logic & Generator Contract
+
+placeholder
+
+### Persistence Contract
+
+`storage.js` owns browser persistence.
+
+* Game saves are serialized and restored through the storage layer.
+* Tutorial and discovery persistence remains separate from the main game save where the implementation requires it.
+* Persisted game state is versioned.
+* Changes to the persisted state shape require migration handling rather than silently breaking existing saves.
+* Storage failures should fail gracefully where possible, including restricted browser storage environments.
+* Game rules and UI code must not implement their own persistence paths.
+* Save/load behavior is separate from gameplay logic: a state modified through normal gameplay or development/debug tooling is still ordinary state for persistence purposes.
+
+## UI Contract
+
+The UI is a presentation and interaction layer, not a second game engine.
+
+* `ui.jsx` owns reusable presentation primitives and theme tokens.
+* `icons.jsx` owns the shared SVG icon library.
+* `screens_*.jsx` own player-facing screen composition.
+* Screens read current state and dispatch Engine actions.
+* Screens do not directly mutate state.
+* Screens do not call generators.
+* Game rules and authoritative calculations belong in the logic layer.
+* Reuse existing UI primitives before introducing new one-off components.
+* Shared visual constants should use the existing theme/token system rather than introducing unrelated hardcoded values.
+* UI behavior should remain usable on the supported narrow/mobile layouts as well as desktop layouts.
+
 
 ---
 
-## 7. State Shape Reference
+## 5. File & Responsibility Map
 
-The full state shape is defined in `engine_core.js` -> `window.E.initialState`. See [specs_engine.md](specs_engine) for the complete shape with types and defaults.
+This section provides a high-level map of runtime file responsibilities.
 
-Key top-level fields:
+It is intended to answer:
+* Which file owns a given kind of rule, calculation, state transition, generation step, or presentation?
+* What type of functionality is expected to live in each file?
+* When does a file appear to be accumulating responsibilities that belong elsewhere?
 
-```js
-{
-  version: 2,                     // CURRENT_STATE_VERSION
-  screen: "title",
-  day: 1,
-  startDate: { day: 1, month: 6, year: 1695 },
-  log: [],
-  gold: 0,
-  fame: 0,
-  infamy: 0,
-  factionAlerts: { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 },
-  currentPort: "portRoyal",
-  route: null,
-  captainName: "",
-  faction: null,
-  tutorialMode: "full",
-  onboarding: { /* see below */ },
-  autoSave: true,
-  scenarioId: null,               // vestigial
-  previousPort: null,
-  previewPortMarket: null,        // NEW — generated by PREVIEW_PORT
-  destination: null,
-  discoveredPorts: [...],
-  mapFragments: [],
-  equipmentInventory: [],
-  sailingDaysLeft: 0,
-  sailingDaysTotal: 0,
-  wind: { angle: 45, speed: 10 },
-  ship: { type, name, hull, cannons, equipment },
-  crew: { roster: [], max, morale },
-  hold: { items: { ... } },
-  portMarket: null,
-  portGossip: [],
-  missions: [],
-  activeMission: null,
-  reputation: {},
-  encounterSession: null,         // { type, phase, source, intercept, battle, ... }
-  notableNPCs: {},
-  activeEvent: null,
-  gameOverReason: null,
-  career: { /* deep-cloned from D.DEFAULT_CAREER */ },
-}
-```
+This is an architectural overview, not an API reference. Exact function names, reducer cases, fields, and constants are defined by the source code and should not be duplicated here unless they represent an important architectural interface.
 
-Onboarding shape:
+### Runtime Ownership
 
-```js
-onboarding: {
-  enabled: false,
-  completed: true,
-  currentStep: 0,
-  stepsCompleted: { /* ~15 boolean flags */ },
-  qmMessagesSeen: {},
-  combatHintShown: false,
-  qmDismissed: false,
-}
-```
+| File    | Scope owns | Typical functions or cases     |
+| ------- | ---------- | ------------------------------ |
+| `data.js`| Canonical game data and configuration. No gameplay orchestration.| Ship definitions, equipment definitions, goods, ports, factions, missions, balance constants, thresholds, tables, static configuration, progression data.|
+| `data_text.js`| Canonical player-facing text and narrative content.| UI labels, descriptions, mission text, flavour text, dialogue, tutorial text, contextual messages, named text keys.|
+| `ship-sprite.js`| Ship visual representation independent of gameplay rules.| Ship silhouette/sprite construction, visual configuration, rendering helpers, damage/state visual variants.   |
+| `logic_core.js`| Cross-system pure rules and generic calculations used throughout the game.| Shared validation, generic requirement checks, derived values, reputation/Fame relationships, common state queries, reusable rule helpers.      |
+| `logic_economy_crew.js`| Economy, crew, provisions, morale, wages, and related pure rules.| Trade calculations, buy/sell validation, prices and profits, crew costs, wages, provisions consumption, morale effects, crew-related derived values and validation.|
+| `logic_travel_events.js`| Travel, voyage, distance, timing, patrol/event conditions, and other at-sea pure rules.   | Travel time and reach, speed/hold effects, voyage constraints, event/patrol conditions, encounter eligibility, at-sea derived values.|
+| `logic_combat_encounter.js`| Combat, encounter, boarding, and related pure resolution/validation rules.| Combat action legality, hit/damage calculations, distance rules, boarding resolution, surrender conditions, encounter validation, combat previews, deterministic resolution helpers.|
+| `storage.js`| Persistence and save/load concerns. It may use the shared `L` namespace for historical compatibility, but its responsibility is persistence rather than gameplay logic. | Save/load, serialization, migration, export/import, persistence validation, browser storage access, tutorial/discovery persistence.             |
+| `generators.js`| Random and procedural content generation. Generates content but does not own gameplay state transitions.| Random encounters, patrol composition, enemy generation, mission generation, random traits, procedural choices, seeded/testable generation helpers.|
+| `engine_core.js`| Central state/reducer infrastructure and cross-domain orchestration.| Initial state, reducer registration/dispatch infrastructure, shared reducer flow, global actions that do not belong to a specific domain engine, reducer composition.|
+| `engine_port.js`| Port and port-service state transitions.| Entering/leaving ports, port actions, trade completion, repairs, hiring/dismissing crew, provisions, faction services, loans, reputation/service transactions, port-specific state updates. |
+| `engine_voyage.js`| Voyage lifecycle and at-sea state transitions.| Departing, travelling, course changes, consuming travel resources, travel time progression, voyage completion, event/patrol triggers, at-sea state changes.|
+| `engine_battle.js`| Naval combat state transitions.| Starting/resolving turns, combat actions, distance changes, damage, evasion, grappling, boarding transitions, combat victory/defeat, plunder-related state changes.|
+| `engine_encounter.js`| Encounter/interception flow outside the core battle exchange.| Encounter creation, intercept choices, parley/bribe/inspection/surrender flows, encounter consequences, escalation into battle or other outcomes.|
+| `engine_onboarding.js`| New-player onboarding state and tutorial progression.| First-game setup, onboarding choices, tutorial progression, introductory unlocks, one-time onboarding state changes.|
+| `engine_career.js`| Career/progression state transitions and career-specific rules.| Career progression, milestones, rewards, unlock progression, career-specific state changes.|
+| `engine_scripted.js`| Explicit scripted events and authored state transitions that do not belong to normal procedural systems.| Story/scripted events, special one-off sequences, authored branching outcomes, predefined event state changes.|
+| `ui.jsx`| Shared UI primitives and presentation utilities.| Panels, buttons, cards, layout primitives, common controls, formatting helpers, reusable presentation components.|
+| `icons.jsx`| Reusable visual icons and icon components.    | UI icons, symbolic indicators, status/action icons, shared icon rendering helpers.|
+| `screens_core.jsx`| Shared/core application screens.| Menu, general HUD/status views, common information screens, screens that do not belong to a specific domain subsystem.|
+| `screens_port.jsx`| Port-facing UI and port navigation.| Port overview, port services, navigation from port, port information cards, service entry points.|
+| `screens_shipyard.jsx`| Shipyard and equipment UI.| Ship browsing, ship selection, equipment browsing, installation/removal UI, requirement previews, purchase actions.|
+| `screens_crew.jsx`| Crew management UI.| Crew roster, hiring/dismissal, crew details, morale/trait presentation, crew-related actions.|
+| `screens_market.jsx`| Market and trade UI.| Goods listings, prices, buy/sell controls, trade summaries, trade-related information and validation display. |
+| `screens_voyage.jsx`| Voyage and navigation UI.| Map/navigation, route selection, at-sea status, voyage actions, travel information, event presentation.|
+| `screens_combat.jsx`| Combat and boarding UI.| Combat state display, legal action presentation, combat previews, boarding choices, combat outcome presentation.|
+| `screens_status.jsx`| Player/ship/faction status presentation.| Fame, reputation, Infamy, faction status, ship statistics, progression and other overview information.        |
+| `screens_menu.jsx`| Menu and persistence-related UI.| Save/load, export/import, settings and menu-level actions.|
+| `screens_FactionService.jsx` | Dedicated faction-service screens.| Dutch Bank, Spanish Inquisitor, French Embassy, and other specialized faction-service interfaces.|
+| `App.jsx`| Application composition and top-level routing.| Screen routing, global HUD/debug integration, root composition, dispatch wiring, top-level application state flow.|
 
-Career shape:
+### Scope-Creep Checks
 
-```js
-career: {
-  goldEarned: 0,
-  goldSpent: 0,
-  battles: { won: 0, lost: 0, fled: 0 },
-  shipsSunk: 0,
-  shipsPlundered: 0,
-  crewHired: 0,
-  crewLost: { inBattle: 0, inStorm: 0, deserted: 0, other: 0 },
-  crewDismissed: 0,
-  longestCrewTenure: 0,
-  portsVisited: [],
-  shipsOwned: [],
-  stormsSurvived: 0,
-  contrabandSeized: 0,
-  missionLog: [],
-  combatLog: [],
-}
-```
+A change should be reviewed when it causes a file to accumulate responsibilities outside the scope above.
 
----
+Typical warning signs include:
+* A **screen** starts implementing authoritative gameplay calculations, state transitions, or random generation instead of displaying prepared state and dispatching actions.
+* A **generator** directly mutates game state or begins acting as a reducer.
+* A **logic** file performs persistence, DOM access, UI work, or owns uncontrolled randomness.
+* An **engine** introduces reusable calculations that should be pure logic helpers instead of being tied to a state transition.
+* `engine_core.js` starts accumulating domain-specific reducer cases that clearly belong to a domain engine.
+* A **data** file starts containing procedural generation or gameplay orchestration instead of canonical definitions/configuration.
+* A **UI utility** or screen begins containing rules that already have a canonical implementation in `logic_*.js`.
+* A new helper is placed in a file only because it is convenient there, while another file already clearly owns that responsibility.
+* A file starts needing detailed knowledge of several unrelated game domains in order to implement what should be a local responsibility.
 
-## 8. Game Mechanics Implementation
+### Ownership Test
 
-This section describes how game mechanics are implemented. For detailed numbers, see the referenced spec files.
+Before adding a new function or reducer case, ask:
+1. **What responsibility does this code own?**
+2. **Does another module already own that kind of responsibility?**
+3. **Is it calculating, generating, mutating state, persisting, or presenting?**
+4. **Would another developer immediately know why this code belongs in this file?**
+
+When the answer is unclear, prefer extracting the responsibility into the existing owning layer rather than expanding the file opportunistically.
+
+### Architectural Interfaces Worth Naming
+
+Most individual helpers do not need to be listed here. A small number of interfaces are important enough to document because they define boundaries between modules.
+
+Examples include:
+* `E.initialState`
+* `E._reducers`
+* major reducer action families owned by each engine domain
+* shared logic interfaces such as `L.canInstallEquipment()`
+* important derived-state or rules interfaces such as `L.getShipStats()`
+* major encounter/combat context builders
+* the ship visual rendering interface exposed by `ship-sprite.js`
+
+These should be documented when they represent an architectural contract; ordinary implementation helpers should remain visible only in the source code.
+
+
 
 ---
 
-### Equipment installation rules
+## 6. Game Mechanics & System Invariants
 
-Ships have a `slots` object defining how many items of each slot type they support (e.g. `{ hull: 1, armament: 1, rigging: 1, special: 0 }`). Player equipment is stored in `state.ship.equipment: { hull: [], armament: [], rigging: [], special: [] }`.
+This section documents the important mechanics, cross-system relationships, and invariants that the implementation must preserve.
+It is not a complete mechanics reference or balance sheet. Canonical data belongs in `data.js` / `data_text.js`, executable rules belong in the appropriate logic and engine modules, and exact implementation details belong in the source code.
+The purpose of this section is to document rules that are especially important when changing or extending the game because they involve multiple systems, ordering constraints, or architectural boundaries.
 
-```js
-// Check if equipment can be installed:
-L.canInstallEquipment(state, equipKey) // checks slot availability, requiredFame, requiredHull
+### 6.1 State Flow & Domain Boundaries
 
-// Effective stats with equipment applied:
-L.getShipStats(state) // { maxHull, cannons, speed, holdCapacity, maxDays, maxCrew, ... } with equipment applied
-```
+Gameplay follows a layered flow:
+`data → logic / generators → engine state transition → UI`
 
-**Equipment effect keys**: stat-named keys (e.g. `cannons`, `speed`, `maxDays`, `maxCrew`) are additive; `hullPct` and `holdPct` are multiplicative. Non-stat keys (e.g. `repairCostPct`, `crewLossMult`, `calmImmune`) are read individually via `L.getEquipmentEffect(state, key)`.
+The responsibilities remain distinct:
+* **Data** defines canonical configuration and content.
+* **Logic** calculates rules, validates actions, and resolves deterministic outcomes without mutating game state.
+* **Generators** create random or procedural content.
+* **Engines** combine rules and generated content with state transitions.
+* **Screens** present prepared state and dispatch actions rather than implementing authoritative gameplay rules.
+* **Storage** persists and restores authoritative state.
 
-When buying a new ship, all installed equipment is **lost** (reset to empty arrays). Removable equipment (`removable: true`) can be uninstalled to the **locker** (`state.equipmentInventory`) before selling the ship; non-removable equipment is simply destroyed.
+When a mechanic crosses several systems, each layer should still retain its normal responsibility rather than moving the entire mechanic into the layer where it is first encountered.
+State transitions should remain centralized in the owning engine domain. Derived values should normally be recalculated from authoritative state rather than stored separately unless persistence or performance requires otherwise.
 
-### Travel and range
+### 6.2 Reputation, Fame & Infamy
 
-```js
-L.travelDays(fromPort, toPort, state) // number of days
-L.canReach(state, portKey) // boolean
-L.getUnreachableReason(state, portKey) // string | null
-```
+Fame, faction reputation, Infamy, and faction Heat are separate progression/state systems and must not be treated as interchangeable.
+**Fame** is a persistent player progression value. It does not decay and is used for progression and access requirements.
+**Faction reputation** represents the player's standing with a specific faction. Reputation affects missions, faction services, and other faction-specific access rules.
+**Infamy** represents criminal notoriety and is independent of faction reputation and Fame.
+**Faction Heat** represents a faction's current hostility toward the player's recent activity and is distinct from long-term faction reputation.
 
-Travel days are based on Euclidean distance between port coordinates, modified by ship speed, equipment bonuses, morale modifier, hold load, and wind. Some ports have a `minHull` requirement (remote ports need brigantine+ sized vessels). Hidden ports (`port.hidden = true`) are not shown on the map until `state.discoveredPorts` includes their key; discovery is gated by `port.unlockCondition` and evaluated by the `advanceHiddenPorts` helper in `engine_voyage.js` each day.
+Important invariants:
+* Faction reputation effects must use the canonical reputation rules rather than ad-hoc changes in UI or individual screens.
+* Fame progression must not be silently replaced by faction reputation as a progression gate.
+* Service access may depend on faction reputation while service-level benefits may additionally depend on Fame.
+* Reputation-based effects that intentionally apply to an entire faction should use the canonical faction-wide mechanism rather than modifying only the currently displayed port.
+* Reputation decay, where applicable, is a time/state transition and is not a UI-side calculation.
 
-A second family of helpers exists for **mid-voyage rerouting from sea position** rather than from a port: `L.getSeaPosition(route)`, `L.travelDaysFromPosition(seaPos, portKey, state)`, `L.canReachFromPosition(seaPos, portKey, state, remainingEndurance)`, `L.getReachablePortsFromSea(state)`. These back the "Change Course" button on the Sailing screen — dispatching `SAIL_TO` while a `route` is active and `sailingDaysLeft > 0` recalculates the trip from the ship's current interpolated `seaPosition`, not from the original origin port, while `route.enduranceSpent` keeps accumulating against the ship's `maxDays` budget so a reroute can't extend total range beyond what the ship could actually sail.
+Exact thresholds and progression values are data-driven and should not be duplicated here.
 
-### Wind and sailing
+### 6.3 Economy & Trade
 
-Wind is randomised at game start and drifts each day: `{ angle: 0-360, speed: 5-25 }`. Wind affects travel time inside `L.travelDays()`: favourable wind (-1 day), opposing wind (+1 day), based on the angle difference between wind direction and bearing to the destination.
+The economy is authoritative at the engine/logic level. Screens display prices and possible outcomes but do not determine the final transaction result.
 
-### Encounter routing — all encounters through InterceptScreen
+Trade calculations should remain centralized so that:
+* port-specific pricing and modifiers are applied consistently;
+* buy and sell totals are calculated from the same authoritative rules;
+* the final transaction result is resolved by the port/trade engine path;
+* derived profit is not independently recalculated by UI code.
 
-Every hostile encounter now uses the unified `encounterSession` model. When an encounter is triggered:
+The Dutch Bank debt system interacts with trade as a separate financial rule:
+* positive trade income can be subject to debt repayment;
+* the debt garnish is calculated from eligible trade income and remaining debt;
+* irregular cash acquired outside trade, such as plunder, is not automatically treated as trade income;
+* mission reward garnish is applied to the reward itself rather than to the value of mission cargo.
 
-1. `engine_port.js` or `engine_voyage.js` calls `L.buildEncounterContext()` to create a context object (with explicit `source`).
-2. The caller then passes this context to `window.E.buildEncounterSession(state, context)` to create the `encounterSession`.
-3. The session is stored on `state.encounterSession` with `phase: "intercept"`.
-4. `InterceptScreen` renders `encounterSession.intercept.flavourText` and `encounterSession.intercept.flavourLines` (generated during session creation).
+These distinctions are intentional and must remain explicit when modifying economy systems.
 
-When the player chooses an action (Fight, Flee, Parley, Bribe, Surrender, Inspect):
-- The action handler transitions the session phase:
-  - `INTERCEPT_FIGHT`, `INTERCEPT_FLEE` (failure), `INTERCEPT_PARLEY` (failure) → `phase: "battle"` and populate `battle`
-  - `INTERCEPT_FLEE` (success), `INTERCEPT_PARLEY` (success), `INTERCEPT_BRIBE`, `INTERCEPT_SURRENDER`, `PATROL_INSPECT` → `encounterSession: null`
-- `BattleScreen` reads from `encounterSession.battle`
-- `DISMISS_BATTLE` clears `encounterSession` (or transitions to `"plunder"` if applicable)
-- `TAKE_PLUNDER` clears `encounterSession` after the player confirms
+### 6.4 Crew, Morale & Resources
 
-**Note:** `PATROL_INSPECT` may transition to `phase: "inspection_pending"` if contraband is found. The player then chooses `handOver` or `resist` via `RESOLVE_INSPECTION`.
+Crew, morale, provisions, and wages form an interconnected system.
 
-### Random patrol generation
+Important relationships include:
+* crew count affects ship operation and combat effectiveness;
+* provisions are consumed over time based on crew requirements;
+* shortages produce morale consequences and, under sustained deprivation, crew losses;
+* wages are a recurring cost and interact with morale;
+* morale affects crew effectiveness and certain travel/combat outcomes;
+* crew losses can themselves affect morale and subsequent combat performance.
 
-```
-L.maybeRandomPatrol(state)
-Base chance: ~1% per sailing day
-+ infamy / 400  (i.e. +0.25% per infamy point)
-+ heat bonus: highest relevant faction alert * 0.03, itself dampened by reputation
-  (Allied rep ≥70 → ×0.5, Friendly rep ≥50 → ×0.75, else ×1.0)
-Capped at 40%: min(baseChance + infamyBonus + heatBonus, 0.40)
-```
+Crew-related UI should present these consequences but should not reproduce the underlying calculations.
+Crew requirements and ship capacity constraints are game rules and belong in canonical validation/calculation helpers. Actions such as hiring, dismissing, losing, or restoring crew are state transitions owned by the appropriate engine.
 
-When a random patrol does trigger (`checkRandomPatrol` in `engine_voyage.js`), the **enemy's risk tier scales with the current port's faction heat**, not just the player's fame: heat ≥7 → `"high"` risk enemy, heat ≥3 → `"medium"`, otherwise `"low"`.
+### 6.5 Travel, Events & Encounters
 
-### Reputation thresholds
+Travel is a stateful process rather than a single calculation.
 
-Port reputation (0–100) determines service access, mission reward multipliers, and repair discounts.
+The voyage system combines:
+* ship capabilities,
+* current cargo/load,
+* provisions and other travel resources,
+* elapsed travel time,
+* route and destination constraints,
+* random events and patrol generation,
+* encounters that may interrupt or redirect normal travel flow.
 
-| Tier | Range | Label | Repair Discount | Mission Gold | Services |
-|---|---|---|---|---|---|
-| 0 | 0–9 | At War | -- | Blocked | Blocked |
-| 1 | 10–29 | Hostile | -- | -25% | No missions |
-| 2 | 30–49 | Neutral | -- | Standard | All |
-| 3 | 50–79 | Friendly | -10% | +10% | All |
-| 4 | 80–100 | Allied | -20% | +20% | All |
+Important architectural distinctions:
+* Travel calculations belong in pure logic.
+* Random event/patrol creation belongs in generators.
+* Changes to voyage state belong in the voyage/encounter engines.
+* Screens present the current voyage state and dispatch available actions.
+* Encounter generation and encounter resolution are separate responsibilities.
 
-Reputation above 50 decays -1/day toward 50.
+An encounter may lead to several distinct outcomes, including escalation into combat, negotiation, inspection, surrender, or continuation of travel. The encounter engine owns those state transitions; combat rules are handled by the combat domain once combat begins.
+Port entry is an important state boundary. Entering a port may reset visit-specific values and establish the new current-port context. Visit-scoped mechanics should therefore be reset through the canonical port-entry transition rather than through individual screens.
 
-### Fame system
+### 6.6 Naval Combat & Boarding
 
-Fame is a permanent progression score (never decreases). It gates ship purchases, equipment availability, mission tiers, and hidden-port discovery.
+Naval combat is turn-based and uses the ship's current combat state, including distance, hull, crew, and relevant combat modifiers.
+The important architectural invariant is that **action legality and combat resolution are determined by logic**, while the combat screen only presents actions that are currently available and dispatches the chosen action.
+Combat is organized around distance states. Available actions depend on the current distance, and actions that change distance must use the canonical movement/resolution rules rather than directly modifying the distance in the UI.
+Broadside, precision fire, distance control, evasion, and grappling are separate combat actions with distinct resolution rules.
+Grappling transitions combat into the boarding state. Boarding is not simply another naval attack action; it is a separate resolution phase with its own crew and morale relationships and its own action set.
 
-| Tier | Range | Label |
-|---|---|---|
-| 0 | 0–49 | Unknown |
-| 1 | 50–99 | Recognised |
-| 2 | 100–199 | Notorious |
-| 3 | 200–349 | Legendary |
-| 4 | 350+ | Immortal |
+Important combat invariants include:
+* the combat engine owns combat state transitions;
+* the logic layer owns action legality and deterministic combat calculations;
+* zero hull and zero crew represent different combat outcomes;
+* boarding victory determines whether plunder becomes available;
+* a ship that sinks cannot subsequently be plundered;
+* mission-linked consequences may occur when the relevant target is lost, even if the surrounding combat continues;
+* surrender, retreat, capture, and victory consequences are resolved centrally rather than inferred by the screen.
 
-### Morale system
+Exact hit chances, damage multipliers, thresholds, and numerical modifiers belong to the canonical rules/data and tests.
 
-Crew morale (0–100) affects combat effectiveness, wage cost (×1.5 below 30), and can trigger desertion/mutiny events.
+### 6.7 Missions & Mission Consequences
 
-### Economy system
+Missions are structured gameplay objectives rather than independent UI activities.
+Mission state should remain authoritative in the appropriate engine domain, while mission-specific calculations and validation remain in logic helpers.
 
-Each port visit generates prices via `RESOURCES[good].basePrice * (1 ± variance)`, with availability tiers (`always`/`frequently`/`sometimes`/`rarely`/`never`) mapped per-port in `GOODS_AVAILABILITY`. Hold capacity is always `L.getHoldCapacity(state)` — never a stored field. The **Market screen's atmosphere text** is generated separately from port gossip, by `G.generateMarketFlavour(state, portKey)` reading `D.MARKET_FLAVOUR`.
+Mission outcomes can affect several systems simultaneously, including:
+* gold,
+* Fame,
+* faction reputation,
+* cargo,
+* Infamy or Heat,
+* ship/crew state,
+* subsequent encounter or voyage state.
 
-### Parametric mission generation
+These consequences should be resolved as part of the relevant state transition rather than distributed across multiple screens.
+Abandoning or failing a mission must use the canonical mission-consequence path so that any associated commissioning-faction effects are applied consistently.
+Mission rewards, requirements, and outcome values remain data-driven.
 
-Missions are generated procedurally by `G.generateMissions()`. Six types: **escort, patrol, combat, trade, smuggle, assault**. Type selection is weighted by the issuing port's faction (pirate ports never offer patrol or trade missions). Risk level is tier-weighted toward higher risk as fame increases. Gold, fame, and enemy stats scale with the player's fame tier (0–4).
+### 6.8 Faction Services & Special Access
 
-**Trade missions** now select a target port where the required good is **in demand** (using `L.getPortTradeProfile`). This guarantees the trade itself is profitable, making the mission reward a pure bonus.
+Faction services are intentionally implemented as domain-specific port interactions rather than as generic global bonuses.
+The current special-service pattern is:
 
-**Smuggle missions** now select a target port where the illegal good is **scarce** (availability tier `"rarely"` or `"never"` in `GOODS_AVAILABILITY`). The enemy faction is set to match the target port's faction.
+| Faction | Service      | Important rule|
+| ------- | ------------ | -------------- |
+| English | Naval Yard   | Reputation unlocks servicing/removal access; higher reputation unlocks early access to ships and equipment with reduced Fame requirements. |
+| Spanish | Inquisitor   | Reputation-gated service that reduces Infamy by a fixed amount, subject to the service's visit/use restrictions.|
+| French  | Embassy      | Reputation-gated service that converts gold into a reputation increase with another faction.|
+| Dutch   | Bank         | Reputation-gated loans and debt repayment through eligible income.|
+| Pirate  | Black Market | Pirate ports provide the exclusive source of Smuggling missions.|
 
-### Named crew roster
+These services illustrate an important distinction between **access reputation** and **progression requirements**. For example, a faction's reputation may unlock a service while Fame still determines normal ship/equipment progression, with the service providing an explicitly defined exception.
+Service requirements and costs are data-driven. Individual service screens should not duplicate their rules; they dispatch actions to the owning engine.
 
-Crew members are generated with `G.generateCrewMember(faction)` → `{ id, firstName, lastName, role, faction, daysAboard, tags }`. Roles are weighted-random but cosmetic. Crew accumulate tags over time: hidden traits (`hidden_drunkard`, `hidden_coward`, `hidden_greedy`, `hidden_troublemaker`) revealed through gameplay, scars (`scar_battle`, `scar_storm`, `scar_shipwreck`), positive progression (`seasoned` at 50d, `veteran` at 100d, `loyal` at 200d + high faction rep), and alignment tags (`upset`, `mutineer`). Generated biographies (`G.generateCrewBio`) combine opening templates with combo sentences and suppression logic to avoid redundant scar/trait lines.
+### 6.9 Ship, Equipment & Progression Invariants
 
-### Combat resolution flow
+Ships and equipment are related but distinct progression systems.
 
-Turn-based, resolved in `engine_battle.js` via `BATTLE_ACTION`.
+Important rules include:
+* ship capability and equipment compatibility are validated centrally;
+* equipment installation/removal must respect slot type, hull/ship compatibility, duplicate restrictions, and other structural constraints;
+* removable equipment can be stored and reinstalled according to the applicable service rules;
+* structural or permanently attached equipment is handled differently from removable equipment;
+* acquiring a new ship may change the equipment state and therefore requires a canonical transition rather than UI-side manipulation;
+* Fame remains the normal progression gate for ships and equipment;
+* explicit faction-service privileges may reduce or bypass only the progression requirement they are intended to affect, while structural validity rules still apply.
 
-The combat system now uses **distance bands (Far/Medium/Close)** and a **boarding phase**:
+The English Naval Yard is an example of this separation: servicing access and early-access progression benefits are different privileges and should not be merged into a single generic bypass.
 
-1. **Naval Battle**:
-   - Actions: Broadside, Precision, Close Distance, Open Distance, Evade, Grapple.
-   - Resolution order: Evade → Damage → Hull/Crew check → Reposition → Grapple.
-   - Distance changes based on Close/Open actions (contested via speed when opposing).
-   - Damage multipliers vary by distance (Broadside: 0.6× at Far, 1.0× at Medium, 0.9× at Close; Precision: 1.1× at Far, 1.0× at Medium, 0.7× at Close).
-   - Grapple requires Close distance; if successful, the battle transitions to Boarding sub‑phase.
+### 6.10 Persistence & Migration Invariants
 
-2. **Boarding Phase**:
-   - Actions: Continue Fighting, Fall Back, Demand Surrender, Surrender.
-   - Effective strength: `crew × (0.5 + morale/200)`, enemy morale derived from risk tier.
-   - Continue Fighting: both sides take losses proportional to their advantage ratio.
-   - Fall Back: returns to Naval battle at Close distance with a cost to the retreater.
-   - Demand Surrender: success chance based on advantage ratio; automatic if the opponent tries to Fall Back.
-   - Surrender: ends the battle immediately.
+Saved data represents authoritative game state, not UI state.
 
-3. **Victory/Defeat**:
-   - **Sunk** (hull reaches 0): no plunder, immediate victory screen with "Sail Away" only.
-   - **Captured/Wiped** (crew reaches 0 while hull remains): plunder available, victory screen with "Plunder" and "Sail Away" buttons.
-   - **Player defeat**: wash ashore, lose cargo, mission may fail.
+Persistence code is responsible for:
+* serializing authoritative state;
+* restoring state into the current schema;
+* migrating older save versions;
+* preserving player progress across sessions and exports/imports;
+* supplying appropriate defaults for fields introduced by later versions.
 
-NPC action selection uses utility scoring (`L.getNPCNavalAction`, `L.getNPCBoardingAction`) based on faction archetypes, hull/crew/speed advantages, and distance.
+Derived presentation state should not be persisted merely because it is convenient for a screen.
+Debug-modified state follows the same persistence rules as normal game state. There should not be a separate save path or implicit "debug save" classification unless explicitly introduced as a gameplay feature.
+When a new persistent field is introduced, its initialization, save/load behavior, and migration/default behavior should be considered together.
 
-### Save / load behaviour
+### 6.11 Randomness & Determinism
 
-- **Auto-save**: triggers on `ENTER_PORT` and a few other state-settling actions via `window.E.autoSave`, which calls `L.saveToLocalStorage`.
-- **Manual save/load**: `SAVE_GAME`/`LOAD_GAME` in `engine_core.js` → `L.saveToLocalStorage` / `L.loadFromLocalStorage` + `migrateState()`.
-- **File export/import**: `EXPORT_SAVE` → `L.encodeSave(state)` (base64 + hash) → downloads as a `.broadside` file; `IMPORT_SAVE` → `L.decodeSave(json)` → `migrateState` → dispatch, flagging tampering if the embedded hash doesn't match.
-- **Error recovery**: `ErrorBoundary` in `App.jsx` offers "Try Load Last Save."
-- `L.checkLocalStorageAvailable()` detects iframe/Safari storage blocks and the Title/Port screens surface a warning + push the player toward Export/Import instead.
+Randomness belongs to generation and explicitly random resolution rules, not to arbitrary engine or UI code.
+The project supports injectable randomness so that rules involving random outcomes can remain deterministic under test.
 
-### Onboarding system (guided quartermaster tutorial)
+Important expectations:
+* generators own procedural/random content creation;
+* pure logic may accept an injected RNG when randomness is part of the rule being resolved;
+* engines should consume the generated/resolved result and apply state transitions;
+* screens should not call random generators to decide gameplay outcomes.
 
-When a player picks **Guided** on the New Game screen, `tutorialMode` is set to `"full"`, `START_GAME` injects a faction-specific quartermaster into the crew roster (tagged `quartermaster, protected`) and auto-accepts the faction's `D.TUTORIAL_DELIVERY` mission.
+This separation allows random systems to remain testable and prevents UI rendering or interaction order from changing gameplay outcomes.
 
-From there, progress is **inferred, not driven**: `engine_onboarding.js` registers as middleware and watches ordinary actions against a `STEP_RULES` lookup table. There is no "next step" button; the player simply plays, and the relevant flags set themselves as a side effect of normal actions.
+### 6.12 Derived State & Presentation
 
-Two other systems consume these flags:
-- **`L.isFeatureUnlocked(state, feature)`** gates which Port-screen action buttons are visible while onboarding is active.
-- **`OnboardingPopup`** walks a separate ordered list of QM dialogue conditions, picks the first one whose precondition is met, and renders that line via `QMPopup`.
+The UI should generally consume authoritative state plus canonical derived calculations.
+When a value can be calculated from existing authoritative state, storing a second copy creates a synchronization risk.
 
-A player can bail out early via the "I'll take it from here" link, which dispatches `ONBOARDING_SKIP`.
+Examples include:
+* displayed ship statistics,
+* combat action legality,
+* service availability,
+* trade totals,
+* progression/access previews,
+* voyage information.
 
-Two content-injection points are tied to onboarding state: the **tutorial hunt** (`D.TUTORIAL_HUNT`) is spliced onto the mission board once the player has hired their first crew member; and `G.generatePortMarket` force-stocks whatever good the active tutorial delivery mission requires.
+Presentation code may format, group, or explain these values, but it should not silently create a competing version of the underlying rule.
+When a screen needs a new calculation, first check whether the rule already belongs in an existing logic owner. A new screen-local helper is appropriate primarily for presentation formatting or genuinely local display concerns.
 
-While `onboarding.enabled && !onboarding.completed`, `engine_voyage.js` also suppresses the normal random-event/patrol/drunkard checks during `ADVANCE_DAY`.
+### 6.13 Architectural Change Guardrails
 
-### Career stats tracking (middleware pattern)
+When extending an existing mechanic, preserve the following sequence:
 
-`engine_career.js` is the second middleware reducer, registered after `engine_onboarding.js`. It maintains `state.career` purely as derived bookkeeping — nothing in the game reads `career` to make a gameplay decision, so a bug here can never affect actual play, only the Status screen's narrative.
+1. Identify the canonical data/configuration involved.
+2. Identify the logic owner of the rule or calculation.
+3. Identify the engine owner of the resulting state transition.
+4. Keep random/procedural generation in `generators.js`.
+5. Expose the result to the UI through authoritative state or canonical derived calculations.
+6. Add or update tests for the invariant or cross-system interaction being changed.
 
-The pattern it demonstrates is worth calling out: rather than adding `nextCareer.x++` lines scattered across domain reducers, the middleware instead does a single `switch (action.type)` over the *already-resolved* state, comparing `action.__prevState` (the state before any domain reducer ran) against `state` (the state after every domain reducer has already run).
+A mechanic that requires substantial logic in multiple unrelated screens, duplicated validation, or duplicated state is a signal that the implementation boundary should be reconsidered rather than extended locally.
 
-### Ship visual identity system
-
-`window.D.SHIP_VISUALS` (one entry per ship type) and `ship-sprite.js` (`window.ShipSprite.render`) together produce the detailed side-view ship art used in the Shipyard and Battle screens — this is distinct from the small top-down `ShipSprite` SVG in `ui.jsx` used as a map marker.
 
 ---
 
-## 9. Adding New Content — Patterns
-
-### Add a port
-
-1. Add entry to `PORTS` in `data.js` with `name`, `faction`, `x`, `y`, `services[]`, `desc`
-2. If hidden: add `hidden: true` and `unlockCondition`
-3. Add goods availability row to `GOODS_AVAILABILITY` in `data.js`
-4. Add reputation entry to `initialState.reputation` in `engine_core.js`
-5. MapScreen reads `PORTS` directly -- no screen changes needed
-
-### Add a ship
-
-1. Add entry to `SHIPS` in `data.js` with all stats
-2. ShipyardScreen iterates `SHIPS` automatically -- no screen changes needed
-3. Ensure the `slots` object only lists counts for valid slot types
-4. Add a matching entry to `SHIP_VISUALS` in `data.js` or the ship will render as a blank/missing sprite
-
-### Add an equipment item
-
-1. Add entry to `EQUIPMENT` in `data.js` with `name`, `desc`, `cost`, `installFee`, `slot`, `effects`, `removable`, and optionally `requiredFame`, `requiredHull`
-2. If the item introduces a **new effect key**: stat-named keys are additive; `hullPct`/`holdPct` are multiplicative; non-stat keys are read individually.
-
-### Add a random event
-
-1. Add entry to `RANDOM_EVENTS` in `data.js` with `id`, `type`, `title`, `desc`, `choices`, and optional `condition`.
-2. Ensure `triggerRandomEvent` in `logic_travel_events.js` does not mutate the data (it creates a copy).
-
----
-
-## 10. Testing Infrastructure
+## 7. Testing Infrastructure
 
 - **Unit tests** (`tests/tests_logic.js`): pure logic and generator functions.
 - **Engine tests** (`tests/tests_engine.js`): reducer cases, immutability checks, new actions.
@@ -740,14 +739,3 @@ The pattern it demonstrates is worth calling out: rather than adding `nextCareer
 - **Integration tests** (`tests/tests_integration.html`): load order and namespace integrity.
 - **Robustness tests** (`tests/tests_robustness.js`): edge cases, fuzzing, RNG determinism.
 - **Simulation tools** in `tools/`: balance, career, crew, combat AI, etc.
-
----
-
-## 11. Constraints for AI Agents
-
-- Never violate the dependency direction (downward only).
-- Never call `window.G` from UI or logic (engine only).
-- Keep reducers immutable.
-- Use injectable RNG in logic functions.
-- All text constants go in `data_text.js`, not hardcoded in engine logic.
-- After any code change, run the test suite (`tests/tests.html`).
