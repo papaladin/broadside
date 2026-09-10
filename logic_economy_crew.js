@@ -16,8 +16,8 @@ window.L = window.L || {};
 
   const decayReputation = (state) => {
     const newRep = { ...state.reputation };
-    Object.keys(newRep).forEach(port => {
-      if (newRep[port] > 50) newRep[port] = Math.max(50, newRep[port] - 1);
+    Object.keys(newRep).forEach(faction => {
+      if (newRep[faction] > 50) newRep[faction] = Math.max(50, newRep[faction] - 1);
     });
     return newRep;
   };
@@ -25,11 +25,8 @@ window.L = window.L || {};
   const applyReputationImpact = (state, repImpact) => {
     const newRep = { ...state.reputation };
     Object.entries(repImpact).forEach(([faction, delta]) => {
-      Object.keys(PORTS).forEach(port => {
-        if (PORTS[port].faction === faction) {
-          newRep[port] = Math.max(0, Math.min(100, (newRep[port] || 50) + delta));
-        }
-      });
+      if (!(faction in newRep)) return;   // ignore unknown faction keys (guards against typos)
+      newRep[faction] = Math.max(0, Math.min(100, newRep[faction] + delta));
     });
     return newRep;
   };
@@ -152,8 +149,7 @@ window.L = window.L || {};
       if (tags.includes("loyal")) return updated;
       if (days >= 200 && !tags.includes("upset")) {
         const memberFaction = member.faction;
-        const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === memberFaction);
-        const maxRep = Math.max(...factionPorts.map(k => state.reputation[k] || 0));
+        const maxRep = state.reputation?.[memberFaction] ?? 0;
         if (maxRep >= 80) {
           updated = window.L.removeTag(window.L.removeTag(member, "veteran"), "seasoned");
           updated = window.L.addTag(updated, "loyal");

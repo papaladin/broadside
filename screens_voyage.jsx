@@ -233,7 +233,6 @@ window.S = window.S || {};
                   const isHov = hov === key;
                   const isMissionTarget = state.activeMission?.targetPort === key;
                   const fColor = FACTIONS[p.faction]?.color ?? T.textDim;
-                  const rep = state.reputation[key] ?? 20;
                   let days, reachable;
                   if (atSea) {
                     days = L.travelDaysFromPosition(seaPos, key, state);

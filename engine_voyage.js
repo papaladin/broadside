@@ -169,10 +169,8 @@
         if (c.type === "fame") return state.fame >= c.value;
         if (c.type === "infamy") return (state.infamy ?? 0) >= c.value;
         if (c.type === "reputation") {
-          const factionPorts = Object.keys(PORTS).filter(k => PORTS[k].faction === c.faction);
-          if (factionPorts.length === 0) return false;
-          const avgRep = factionPorts.reduce((sum, k) => sum + (state.reputation[k] ?? 50), 0) / factionPorts.length;
-          return avgRep >= c.value;
+          const rep = L.getFactionReputation(state, c.faction);
+          return rep >= c.value;
         }
         return false;
       });

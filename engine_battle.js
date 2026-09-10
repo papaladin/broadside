@@ -778,13 +778,7 @@
           const inspectingFaction = session.enemy.faction;
           let reputation = nextState.reputation;
           if (inspectingFaction) {
-            const repImpact = {};
-            Object.keys(PORTS).forEach(portKey => {
-              if (PORTS[portKey].faction === inspectingFaction) {
-                repImpact[portKey] = -8;
-              }
-            });
-            reputation = L.applyReputationImpact(nextState, repImpact);
+            reputation = L.applyReputationImpact(nextState, { [inspectingFaction]: -8 });
           }
 
           nextState = {
@@ -814,13 +808,7 @@
 
           let reputation = nextState.reputation;
           if (inspectingFaction) {
-            const repImpact = {};
-            Object.keys(PORTS).forEach(portKey => {
-              if (PORTS[portKey].faction === inspectingFaction) {
-                repImpact[portKey] = -5;
-              }
-            });
-            reputation = L.applyReputationImpact(nextState, repImpact);
+            reputation = L.applyReputationImpact(nextState, { [inspectingFaction]: -5 });
           }
 
           const finalState = {

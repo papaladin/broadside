@@ -1,8 +1,5 @@
 - [Home](Home)
-- 🎮 **[Player Guide](player_guide)**
-- 📖 **Documentation**
-  - [Architecture](architecture)
-  - [Changelog](changelog) 
-  - [Roadmap](roadmap)
-- 📖 **Reference**
-  - [Captain's Handbook](https://papaladin.github.io/broadside/handbook.html)
+- [Architecture](architecture)
+- [Changelog](changelog) 
+- [Roadmap](roadmap)
+- [Captain's Handbook](https://papaladin.github.io/broadside/handbook.html)

@@ -177,7 +177,7 @@ function advanceDays(days, roster, morale, holdItems, day) {
     // Gradual decay when morale > 50
     if(morale > 50 && d % 2 === 0) morale = Math.max(0, morale - 1);
     // Provisions consumption
-    const consumption = L.getProvisionConsumptionPerDay({ crew: { roster } });
+    const consumption = L.getProvisionConsumptionForDay({ crew: { roster } });
     if(holdItems.food) holdItems.food = Math.max(0, holdItems.food - consumption.food);
     if(holdItems.water) holdItems.water = Math.max(0, holdItems.water - consumption.water);
     // Check starvation (simplified)

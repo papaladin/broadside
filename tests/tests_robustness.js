@@ -266,10 +266,10 @@ const { makeState, makePortState, makeSailingState, makeShip, makeHold, makeMiss
           fc.integer(0, 100),   // current rep
           fc.integer(-20, 20),  // delta
           (rep, delta) => {
-            const state = makePortState({ reputation: { portRoyal: rep } });
+            const state = makePortState({ reputation: { english: rep } });
             const impact = { english: delta }; // will apply to all english ports
             const s1 = L.applyReputationImpact(state, impact);
-            const resultRep = s1.reputation[state.currentPort];
+            const resultRep = s1.reputation.english;
             u.assert(resultRep >= 0 && resultRep <= 100, "rep in [0,100]");
             return true;
           }
@@ -363,7 +363,7 @@ const { makeState, makePortState, makeSailingState, makeShip, makeHold, makeMiss
       ship: { type: "sloop", hull: 80, equipment: { hull: ["reinforced_hull"] } },
       crew: { roster: fillRoster(5), morale: 85 },
       hold: { items: { food: 50, water: 30, rum: 10 } },
-      reputation: { portRoyal: 60, tortuga: 40 },
+      reputation: { english: 60, pirate: 40 },
     });
     const encoded = L.encodeSave(state);
     const decoded = L.decodeSave(encoded);

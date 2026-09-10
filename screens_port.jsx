@@ -14,11 +14,42 @@ window.S = window.S || {};
   const { FactionPill, RepPill, ShipSprite } = window.UI;
   const { shouldShowTutorial, markTutorialSeen } = window.L;
 
+
+  // Small badge showing the faction-reputation bonus already baked into a
+  // mission's gold value. Purely an explainer — the gold on the card is
+  // already the final amount. Renders nothing when the multiplier is 1.
+  function MissionRewardTag({ state, faction }) {
+    const fac = window.D.FACTIONS[faction];
+    if (!fac) return null;
+
+    const fRep = L.getFactionReputation(state, faction);
+    const fPerk = L.getRepPerk(fRep);
+    if (fPerk.missionMult === 1) return null;
+
+    const pct = Math.round((fPerk.missionMult - 1) * 100);
+    const abbrev = fac.label.substring(0, 3);
+
+    return (
+      <span style={{
+        color: fac.color,
+        fontSize: T.captionFontSize,
+        fontWeight: "bold",
+        whiteSpace: "nowrap",
+      }}>
+        ({abbrev} : {pct > 0 ? "+" : ""}{pct}%)
+      </span>
+    );
+  }
+
   // ── PORT SCREEN ──────────────────────────────────────────────────────
   function PortScreen({ state, dispatch }) {
     const port = PORTS[state.currentPort];
-    const rep = state.reputation[state.currentPort] ?? 0;
+    const portFaction = port?.faction;
+    const rep = portFaction ? L.getFactionReputation(state, portFaction) : 0;
     const perk = L.getRepPerk(rep);
+    const bankStatus       = L.isBankAvailable(state);
+    const inquisitorStatus = L.isInquisitorAvailable(state);
+    const embassyStatus    = L.isEmbassyAvailable(state);
     const repCost = Math.floor(L.shipRepairCost(state) * (perk.repairMult || 1));
     const canFinish = state.activeMission && (!state.activeMission.targetPort || state.currentPort === state.activeMission.targetPort);
     const importRef = React.useRef(null);
@@ -42,9 +73,11 @@ window.S = window.S || {};
     const isCrewBlocked = !isDinghy && state.crew.roster.length < minCrew;
     const sailDisabled = isHullBlocked || isCrewBlocked;
 
-    let sailTooltip = "";
-    if (isHullBlocked) sailTooltip = "Hull is destroyed – repair needed.";
-    else if (isCrewBlocked) sailTooltip = `Need at least ${minCrew} crew to sail.`;
+    const sailReasons = [];
+    if (isHullBlocked) sailReasons.push("Hull is destroyed — repair needed.");
+    if (isCrewBlocked) sailReasons.push(`Need at least ${minCrew} crew to sail.`);
+    const sailDisabledReason = sailReasons.join(" ");
+    const sailTooltip = sailDisabledReason;
 
     // ── Feature unlocking gates ──────────────────────────────────────
     const canContracts = true; // always available
@@ -312,10 +345,6 @@ window.S = window.S || {};
                 ))}
               </NarrativePanel>
             )}
-
-            {perk.servicesBlocked && (
-              <EmptyState message="⚔ You are at war with this port. No faction will deal with you here." />
-            )}
           </Panel>
 
           {/* ── Action Buttons ────────────────────────────────────────── */}
@@ -332,14 +361,21 @@ window.S = window.S || {};
     {/* ── World Map ────────────────────────────────────────────── */}
     {/* Hidden when canNavigation is false, visible when true */}
     {canNavigation && (
-      <Tooltip text="Open your chart and choose your next destination.">
-        <Btn
-          onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}
-          disabled={sailDisabled}
-        >
-          <IconMap size={12} color={T.text} /> World Map
-        </Btn>
-      </Tooltip>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <Tooltip text={sailDisabled ? sailDisabledReason : "Open your chart and choose your next destination."}>
+          <Btn
+            onClick={() => dispatch({ type: A.NAVIGATE, screen: "map" })}
+            disabled={sailDisabled}
+          >
+            <IconMap size={12} color={T.text} /> World Map
+          </Btn>
+        </Tooltip>
+        {sailDisabled && (
+          <div style={{ color: T.redBr, fontSize: T.captionFontSize, maxWidth: 220, lineHeight: 1.3 }}>
+            {sailDisabledReason}
+          </div>
+        )}
+      </div>
     )}
 
     {/* ── Status ────────────────────────────────────────────────── */}
@@ -421,54 +457,60 @@ window.S = window.S || {};
       <>
         {port.faction === 'dutch' && (
           <div>
-            <Tooltip text={rep < D.SERVICE_THRESHOLDS.bank.repRequired ? `Requires Dutch reputation ${D.SERVICE_THRESHOLDS.bank.repRequired}+` : "Visit the Dutch Bank to take a loan or manage debt"}>
+            <Tooltip text={bankStatus.available
+              ? "Visit the Dutch Bank to take a loan or manage debt"
+              : bankStatus.reason}>
               <Btn
-                v={rep >= D.SERVICE_THRESHOLDS.bank.repRequired ? "default" : "ghost"}
-                disabled={rep < D.SERVICE_THRESHOLDS.bank.repRequired}
+                v={bankStatus.available ? "default" : "ghost"}
+                disabled={!bankStatus.available}
                 onClick={() => dispatch({ type: A.NAVIGATE, screen: "bank" })}
               >
-                <IconGold size={12} color={rep >= D.SERVICE_THRESHOLDS.bank.repRequired ? T.gold : T.textDim} /> Bank
+                <IconGold size={12} color={bankStatus.available ? T.gold : T.textDim} /> Bank
               </Btn>
             </Tooltip>
-            {rep < D.SERVICE_THRESHOLDS.bank.repRequired && (
+            {!bankStatus.available && (
               <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
-                Requires Dutch reputation {D.SERVICE_THRESHOLDS.bank.repRequired}+
+                {bankStatus.reason}
               </div>
             )}
           </div>
         )}
         {port.faction === 'spanish' && (
           <div>
-            <Tooltip text={rep < 50 ? "Requires Spanish reputation 50+" : "Visit the Inquisitor to reduce Infamy"}>
+            <Tooltip text={inquisitorStatus.available
+              ? "Visit the Inquisitor to reduce Infamy"
+              : inquisitorStatus.reason}>
               <Btn
-                v={rep >= 50 ? "default" : "ghost"}
-                disabled={rep < 50}
+                v={inquisitorStatus.available ? "default" : "ghost"}
+                disabled={!inquisitorStatus.available}
                 onClick={() => dispatch({ type: A.NAVIGATE, screen: "inquisitor" })}
               >
-                <IconSkull size={12} color={rep >= 50 ? T.gold : T.textDim} /> Inquisitor
+                <IconSkull size={12} color={inquisitorStatus.available ? T.gold : T.textDim} /> Inquisitor
               </Btn>
             </Tooltip>
-            {rep < 50 && (
+            {!inquisitorStatus.available && (
               <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
-                Requires Spanish reputation 50+
+                {inquisitorStatus.reason}
               </div>
             )}
           </div>
         )}
         {port.faction === 'french' && (
           <div>
-            <Tooltip text={rep < 50 ? "Requires French reputation 50+" : "Visit the French Embassy to improve relations"}>
+            <Tooltip text={embassyStatus.available
+              ? "Visit the French Embassy to improve relations"
+              : embassyStatus.reason}>
               <Btn
-                v={rep >= 50 ? "default" : "ghost"}
-                disabled={rep < 50}
+                v={embassyStatus.available ? "default" : "ghost"}
+                disabled={!embassyStatus.available}
                 onClick={() => dispatch({ type: A.NAVIGATE, screen: "embassy" })}
               >
-                <IconHandshake size={12} color={rep >= 50 ? T.gold : T.textDim} /> Embassy
+                <IconHandshake size={12} color={embassyStatus.available ? T.gold : T.textDim} /> Embassy
               </Btn>
             </Tooltip>
-            {rep < 50 && (
+            {!embassyStatus.available && (
               <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 2 }}>
-                Requires French reputation 50+
+                {embassyStatus.reason}
               </div>
             )}
           </div>
@@ -531,6 +573,12 @@ window.S = window.S || {};
       )}
     </div>
   )}
+  {/* ── At-war warning (bottom of Actions panel) ──────────── */}
+  {perk.servicesBlocked && (
+    <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 10, lineHeight: 1.4 }}>
+      You are at war with this port, some services won't be available to you here.
+    </div>
+  )}
 </Panel>
 
           {/* Mission board */}
@@ -542,13 +590,6 @@ window.S = window.S || {};
             }>
               MISSION BOARD
             </SectionTitle>
-            {perk.tier !== "neutral" && (
-              <div style={{ color: perk.missionMult > 1 ? T.greenBr : T.gold, fontSize: T.captionFontSize, marginBottom: 8 }}>
-                {perk.missionMult > 1
-                  ? `★ ${perk.tier} standing: +${Math.round((perk.missionMult - 1) * 100)}% mission rewards`
-                  : `⚠ Hostile standing: −${Math.round((1 - perk.missionMult) * 100)}% mission rewards`}
-              </div>
-            )}
             {state.activeMission && (
               <Panel color={T.greenBr} style={{ background: T.greenBg, marginTop: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -575,6 +616,7 @@ window.S = window.S || {};
                   <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
                     <IconCoins size={14} color={T.gold} /> {state.activeMission.gold}
                   </span>
+                  <MissionRewardTag state={state} faction={state.activeMission.faction} />
                   <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {state.activeMission.fame}</span>
                 </div>
 
@@ -655,6 +697,7 @@ window.S = window.S || {};
                         <span style={{ color: T.gold, fontSize: T.heading2FontSize, display: "flex", alignItems: "center", gap: 3 }}>
                           <IconCoins size={14} color={T.gold} /> {m.gold}
                         </span>
+                        <MissionRewardTag state={state} faction={m.faction} />
                         <span style={{ color: T.blueBr, fontSize: T.heading2FontSize }}>★ {m.fame}</span>
                         <span style={{ color: T.textDim, fontSize: T.captionFontSize }}>→ {PORTS[m.targetPort]?.name}</span>
                         <Tooltip text={acceptTooltip}>

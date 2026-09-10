@@ -477,10 +477,27 @@ const DebugPanel = ({ state, dispatch }) => {
           <button key={t} onClick={() => dispatch({ type: A.DEBUG_SET_SHIP, shipType: t })} style={{ ...btnStyle, color: state.ship.type === t ? T.gold : T.textDim }}>{t}</button>
         ))}
       </div>
-      <div style={{ color: T.textDim, marginBottom: 4 }}>Rep (current port)</div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-        {[5, 10, 50, 65, 85].map(n => (<button key={n} onClick={() => dispatch({ type: A.DEBUG_SET_PORT_REP, port: state.currentPort, amount: n })} style={btnStyle}>{n}</button>))}
-      </div>
+      {(() => {
+        const faction = window.D.PORTS[state.currentPort]?.faction;
+        if (!faction) return null;
+        const fac = FACTIONS[faction];
+        return (
+          <>
+            <div style={{ color: T.textDim, marginBottom: 4 }}>
+              Rep: <span style={{ color: fac?.color || T.textDim }}>{fac?.label || faction}</span>
+            </div>
+            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+              {[5, 10, 50, 65, 85].map(n => (
+                <button
+                  key={n}
+                  onClick={() => dispatch({ type: A.DEBUG_SET_FACTION_REP, faction, amount: n })}
+                  style={btnStyle}
+                >{n}</button>
+              ))}
+            </div>
+          </>
+        );
+      })()}
       <div style={{ color: T.textDim, marginBottom: 4 }}>Heat (per faction)</div>
       {["english","spanish","french","dutch"].map(faction => {
         const fac = FACTIONS[faction];

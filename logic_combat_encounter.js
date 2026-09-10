@@ -630,7 +630,9 @@ const resolveBoardingRound = (state, playerAction, enemyAction, battle, enemy, r
     const mySpeed = shipStats.speed;
     const enemyShip = window.L.guessShipType(enemy);
     const eSpeed = SHIPS[enemyShip]?.speed ?? 5;
-    const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
+    const portKey = state.destination ?? state.currentPort;
+    const portFaction = window.D.PORTS[portKey]?.faction;
+    const rep = portFaction ? window.L.getFactionReputation(state, portFaction, 20) : 20;
     const gold = state.gold;
     // Use centralized helper for contraband-based bribe cost (A8)
     const patrolInfo = type === "navy_patrol" ? getPatrolContrabandInfo(state) : null;

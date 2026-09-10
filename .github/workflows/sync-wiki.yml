@@ -23,18 +23,10 @@ jobs:
 
       - name: Copy .md files to wiki
         run: |
-          # Wiki homepage & sidebar
           cp docs/Home.md wiki/Home.md
           cp docs/_Sidebar.md wiki/_Sidebar.md 2>/dev/null || true
-
-          # Player & developer guides
-          cp docs/player_guide.md wiki/player_guide.md
           cp docs/changelog.md wiki/changelog.md
-
-          # Architecture & specs
           cp docs/architecture.md wiki/architecture.md
-
-          # Roadmap
           cp docs/roadmap.md wiki/roadmap.md
 
           # Tasks files are intentionally NOT synced

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚓ Broadside — Career Balance Lab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a141e;color:#e0e0e0;font-family:'Courier New',monospace;font-size:12px;padding:16px;min-height:100vh}
+h1{color:#ffd700;font-size:18px;letter-spacing:.12em;margin-bottom:4px}
+h2{color:#ffd700;font-size:14px;margin:18px 0 8px;letter-spacing:.08em}
+h3{color:#cc9900;font-size:12px;margin:12px 0 6px}
+.subtitle{color:#a0a0a0;font-size:10px;margin-bottom:16px;line-height:1.45}
+.panel{background:#121c28;border:1px solid #2a3a4a;border-radius:4px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{color:#a0a0a0;font-size:11px}
+input[type=number]{background:#0d1620;border:1px solid #2a3a4a;color:#e0e0e0;padding:4px 8px;border-radius:3px;width:80px;font-family:inherit;font-size:12px}
+select{background:#0d1620;border:1px solid #2a3a4a;color:#e0e0e0;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:12px}
+button#runBtn{background:#cc9900;border:1px solid #ffd700;color:#000;padding:8px 20px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold;min-height:36px}
+button#runBtn:hover{background:#ffd700}button#runBtn:disabled{opacity:.5;cursor:not-allowed}
+.progress-bar{width:100%;height:6px;background:#1a2a3a;border-radius:3px;margin:8px 0;overflow:hidden}.progress-fill{height:100%;background:#ffd700;border-radius:3px;transition:width .1s;width:0%}
+#status{color:#a0a0a0;font-size:10px;min-height:14px}
+table{border-collapse:collapse;width:100%;margin:8px 0;font-size:10px}th{color:#ffd700;text-align:left;padding:5px 6px;border-bottom:1px solid #2a3a4a;font-size:9px;letter-spacing:.04em;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #1a2a3a;vertical-align:top}.val{text-align:right}.dim{color:#606060}.gold{color:#ffd700}.green{color:#4caf50}.red{color:#f44336}.blue{color:#2196f3}.purple{color:#9c27b0}.cyan{color:#00bcd4}.orange{color:#ff9800}
+.note{color:#808080;font-size:10px;line-height:1.48}.small{font-size:9px}.center{text-align:center}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.metric-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric-card{border:1px solid #2a3a4a;background:#0d1620;padding:8px}.metric-card .k{color:#808080;font-size:9px}.metric-card .v{color:#ffd700;font-size:16px;margin-top:3px}
+.bar-row{display:grid;grid-template-columns:150px 1fr 60px;gap:8px;align-items:center;margin:4px 0;font-size:9px}.bar{height:8px;background:#1a2a3a;border:1px solid #2a3a4a}.bar>span{display:block;height:100%;background:#cc9900}.bar.red>span{background:#f44336}.bar.green>span{background:#4caf50}.bar.blue>span{background:#2196f3}.bar.purple>span{background:#9c27b0}.bar.orange>span{background:#ff9800}.bar-value{text-align:right;color:#a0a0a0}
+.tag{display:inline-block;padding:2px 5px;border:1px solid #2a3a4a;margin:1px 2px;color:#a0a0a0}.good{color:#4caf50}.warn{color:#ff9800}.bad{color:#f44336}
+.scroll-x{overflow-x:auto}.sticky{position:sticky;left:0;background:#121c28}
+.fingerprint{display:grid;grid-template-columns:160px repeat(6,minmax(80px,1fr));gap:1px;background:#1a2a3a;font-size:9px}.fingerprint>div{background:#0d1620;padding:5px}.fingerprint .head{background:#172535;color:#ffd700;font-weight:bold}.heat{height:10px;border:1px solid #2a3a4a;background:#0a141e}.heat>span{display:block;height:100%;background:#cc9900}
+canvas{border:1px solid #2a3a4a;border-radius:4px;margin:6px 0;width:100%;height:auto;background:#0d1620}
+@media(max-width:1100px){.metric-cards{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.fingerprint{grid-template-columns:130px repeat(6,90px)}}
+@media(max-width:800px){.grid-2,.grid-3{grid-template-columns:1fr}.metric-cards{grid-template-columns:1fr 1fr}.bar-row{grid-template-columns:115px 1fr 50px}}
+@media(max-width:700px){body{padding:10px}.metric-cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>⚓ Broadside — Career Balance Lab</h1>
+<div class="subtitle">Statistical career model for overall balance, progression, viability, and faction identity. It is intentionally not engine-backed and does not depend on the archived Career V2 simulator.</div>
+
+<script>window.E={A:{},_reducers:[]};window.UI={T:{}};window.S={};</script>
+<script src="../data.js"></script>
+<script src="../logic_core.js"></script>
+<script src="../logic_economy_crew.js"></script>
+<script src="../logic_travel_events.js"></script>
+<script src="../logic_combat_encounter.js"></script>
+<script src="../generators.js"></script>
+
+<div class="panel">
+  <h3>⚙ Configuration</h3>
+  <div class="row">
+    <div><label>Runs / Cell</label><br><input type="number" id="nRuns" value="150" min="20" max="2000"></div>
+    <div><label>Max Days</label><br><input type="number" id="maxDays" value="5000" min="500" max="20000"></div>
+    <div><label>Target Fame</label><br><input type="number" id="targetFame" value="350" min="20" max="500"></div>
+    <div><label>Seed (0 = random)</label><br><input type="number" id="seed" value="0" min="0" max="999999999"></div>
+    <div style="margin-left:auto"><button id="runBtn" onclick="runSimulation()">▶ Run Career Lab</button></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="status"></div>
+</div>
+
+<div class="panel"><h3>📐 Model Contract</h3><div class="note">
+This is the authoritative coarse career-balance instrument. It compares six playstyles across all five starting factions. The model simplifies the sequence of play, but quantities that it models are taken from current game data wherever practical. Deliberate approximations are labelled here and in the code: travel is distance/speed based, missions are event-oriented rather than engine-state based, combat resolves in one coarse exchange, cargo is represented through a profit proxy, and detailed event/UI choice trees are omitted; Spanish crew-port restriction is represented explicitly, including dedicated reposition travel when a Spanish captain is below their crew target outside a Spanish port.
+<br><br>
+<b>Not used here:</b> archived Career V2, engine legality, exact encounter state machines, exact boarding action sequences, detailed equipment loadouts, or detailed crew-biography/trait modelling. Those areas belong to the specialised tools or the main game rather than this balance lab.
+</div></div>
+
+<div class="panel"><h3>🎭 Playstyles</h3><div id="playstyleLegend" class="note"></div></div>
+
+<div id="results" style="display:none">
+  <div class="panel"><h2>1. Overall Viability</h2><div class="metric-cards" id="headlineCards"></div><div class="scroll-x" id="viabilityTable"></div></div>
+
+  <div class="panel"><h2>2. Progression</h2>
+  <div class="note">This is the main progression report. For each Fame milestone it shows the median day reached, gold carried at the crossing, crew carried, and ship currently owned. A second table records actual ship purchases.</div>
+  <h3>Fame Milestones</h3><div class="scroll-x" id="progressionTable"></div>
+  <h3>Ship Purchases</h3><div class="scroll-x" id="shipPurchaseTable"></div>
+  <div class="grid-2"><div><h3>Median Days to Fame</h3><canvas id="chartDays" width="760" height="380"></canvas></div><div><h3>Median Gold at Fame</h3><canvas id="chartGold" width="760" height="380"></canvas></div></div>
+</div>
+
+  <div class="panel"><h2>3. Economy</h2><div class="scroll-x" id="economyTable"></div><div id="economyBars"></div></div>
+
+  <div class="panel"><h2>4. Risk & Crew</h2><div class="note">These metrics describe sustained career risk. Temporary touches of 0 gold, 0 fame, or 0 crew are not counted as balance failures and are intentionally omitted.</div><div class="scroll-x" id="riskTable"></div><div class="grid-2"><div><h3>Gold p10 / Median / p90</h3><canvas id="chartGoldSpread" width="760" height="380"></canvas></div><div><h3>Final Crew Survival</h3><canvas id="chartCrew" width="760" height="380"></canvas></div></div></div>
+
+  <div class="panel"><h2>5. Faction Identity</h2><div class="scroll-x" id="factionTable"></div><div class="grid-2"><div><h3>Starting-Faction Effect: Median Gold / Day</h3><canvas id="chartFactionPower" width="760" height="380"></canvas></div><div><h3>Starting-Faction Effect: Crew Survival</h3><canvas id="chartFactionCrew" width="760" height="380"></canvas></div></div></div>
+
+  <div class="panel"><h2>6. Career Fingerprint</h2><div class="note">Normalized behavior measures from 0–100. These are comparative fingerprints, not scores of "goodness".</div><div id="fingerprint"></div></div>
+
+  <div class="panel"><h2>7. Diagnostics</h2><div id="diagnostics"></div></div>
+
+  <div class="panel"><h2>8. Run Information</h2><div id="runInfo" class="note"></div></div>
+</div>
+
+<script>
+const D=window.D,L=window.L;
+const SHIPS=D.SHIPS, SHIPS_ORDER=Object.keys(SHIPS);
+const FACTIONS=['english','spanish','french','dutch','pirate'];
+const FNAME=Object.fromEntries(FACTIONS.map(f=>[f,D.FACTIONS?.[f]?.label||f]));
+const FCOLOR=Object.fromEntries(FACTIONS.map(f=>[f,D.FACTIONS?.[f]?.color||'#cc9900']));
+const STARTS=D.STARTS||{};
+const PORTS_RAW=D.PORTS||{};
+const portList=(Array.isArray(PORTS_RAW)?PORTS_RAW:Object.entries(PORTS_RAW).map(([id,p])=>({...p,id}))).filter(p=>!p.hidden).map(p=>({id:p.id||p.key||p.name,name:p.name||p.id,faction:p.faction||'english',x:p.mapX??p.x??0,y:p.mapY??p.y??0}));
+const portIndex=Object.fromEntries(portList.map((p,i)=>[p.id,i]));
+const RESOURCES=D.RESOURCES||{};
+const TRADE_GOODS=D.TRADE_GOODS_BY_TIER||{};
+const SMUGGLE_GOODS=D.SMUGGLE_GOODS_BY_TIER||{};
+const MISSION_GOLD=D.MISSION_GOLD_RANGES||{};
+const MISSION_ENEMY=D.MISSION_ENEMY_RANGES||{};
+const TRADE_MARGINS=D.TRADE_MISSION_PROFIT_MARGINS||{};
+const SMUGGLE_MARGINS=D.SMUGGLE_PROFIT_MARGINS||{};
+const PLUNDER_TARGET=D.PLUNDER_TARGET||{};
+const SERVICE=D.SERVICE_THRESHOLDS||{};
+const TRAITS=D.BIRTH_TRAITS||{};
+const START_GOLD=Number(STARTS.gold||490);
+const START_CREW=Number(STARTS.crew||0);
+const START_SHIP=STARTS.ship||'dinghy';
+const START_HOLD=STARTS.hold||{food:5,water:5};
+const TARGET_MILESTONES=[20,50,100,200,350];
+const ACTIVE_MILESTONES=TARGET_MILESTONES;
+
+const PLAYSTYLES={
+  cautiousTrader:{label:'Cautious Trader',tag:'trade / low risk',risk:0.18,trade:0.42,smuggle:0.02,combat:0.06,escort:0.18,explore:0.32,crewSafety:0.85,cashReserve:0.28,reputation:0.45,service:0.50},
+  opportunist:{label:'Opportunist',tag:'mixed / flexible',risk:0.45,trade:0.24,smuggle:0.08,combat:0.12,escort:0.14,explore:0.42,crewSafety:0.55,cashReserve:0.18,reputation:0.40,service:0.42},
+  privateer:{label:'Privateer',tag:'combat / legal',risk:0.60,trade:0.04,smuggle:0.01,combat:0.50,escort:0.20,explore:0.25,crewSafety:0.45,cashReserve:0.16,reputation:0.72,service:0.58},
+  smuggler:{label:'Smuggler',tag:'smuggle / avoid patrols',risk:0.55,trade:0.12,smuggle:0.48,combat:0.04,escort:0.03,explore:0.20,crewSafety:0.65,cashReserve:0.22,reputation:0.20,service:0.44},
+  pirateRaider:{label:'Pirate Raider',tag:'combat / plunder',risk:0.78,trade:0.03,smuggle:0.18,combat:0.56,escort:0.01,explore:0.18,crewSafety:0.28,cashReserve:0.10,reputation:0.08,service:0.32},
+  explorer:{label:'Explorer',tag:'travel / discovery',risk:0.34,trade:0.16,smuggle:0.02,combat:0.08,escort:0.08,explore:0.66,crewSafety:0.70,cashReserve:0.22,reputation:0.42,service:0.38}
+};
+const PLAYSTYLE_KEYS=Object.keys(PLAYSTYLES);
+const PLAYSTYLE_COLORS={cautiousTrader:'#4caf50',opportunist:'#2196f3',privateer:'#00bcd4',smuggler:'#ff9800',pirateRaider:'#9c27b0',explorer:'#ffd700'};
+
+document.getElementById('playstyleLegend').innerHTML=PLAYSTYLE_KEYS.map(k=>`<span class="tag" style="border-color:${PLAYSTYLE_COLORS[k]}"><b style="color:${PLAYSTYLE_COLORS[k]}">${PLAYSTYLES[k].label}</b> — ${PLAYSTYLES[k].tag}</span>`).join(' ');
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function avg(a){return a.length?a.reduce((s,x)=>s+x,0)/a.length:0;}
+function median(a){if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function pct(a,p){if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),i=(p/100)*(s.length-1),lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);}
+function fmt(n){return Math.round(n).toLocaleString();}
+function fmt1(n){return Number(n||0).toFixed(1);}
+function pctFmt(n){return `${Math.round(n)}%`;}
+function fameTier(fame){return clamp(Math.floor((L.getFameInfo?L.getFameInfo(fame).tier:0)),0,5);}
+function getPort(i){return portList[clamp(i,0,portList.length-1)];}
+function distPorts(a,b){const p=getPort(a),q=getPort(b);return Math.hypot(p.x-q.x,p.y-q.y);}
+function nearestPortOfFaction(cur,f){let best=-1,bd=Infinity;for(let i=0;i<portList.length;i++){if(i===cur||portList[i].faction!==f)continue;const d=distPorts(cur,i);if(d<bd){bd=d;best=i;}}return best;}
+const allDistances=[];for(let i=0;i<portList.length;i++)for(let j=i+1;j<portList.length;j++)allDistances.push(distPorts(i,j));
+allDistances.sort((a,b)=>a-b);const medianDistance=median(allDistances)||100;const DIST_SCALE=3.5/medianDistance;
+function calcTravelDays(cur,target,speed,cargoLoad,reachBonus,shipKey){
+  const raw=distPorts(cur,target)*DIST_SCALE*(10/Math.max(1,speed));
+  const loadMult=cargoLoad>.5?1+(cargoLoad-.5)*.6:1;
+  const days=Math.max(1,Math.round(raw*loadMult));
+  const maxDays=(SHIPS[shipKey]?.maxDays||8)+reachBonus;
+  return {days,maxDays,within:days<=maxDays};
+}
+function pick(rng,a){return a[Math.floor(rng()*a.length)];}
+function randInt(rng,a,b){return Math.floor(rng()*(b-a+1))+a;}
+function weightedPick(rng,items){
+  const total=items.reduce((s,x)=>s+Math.max(0,x.w),0);if(total<=0)return items[0]?.v;
+  let r=rng()*total;for(const x of items){r-=Math.max(0,x.w);if(r<=0)return x.v;}return items[items.length-1]?.v;
+}
+function mulberry32(seed){let s=seed>>>0;return function(){s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+function hashSeed(base,playstyle,faction,runIndex){let h=base>>>0;const str=playstyle+'|'+faction+'|'+runIndex;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),16777619)>>>0;}return h>>>0;}
+function tradeSpreadMultiplier(faction){const t=TRAITS[faction]||{};const buy=Number(t.tradeBuyMult||1),sell=Number(t.tradeSellMult||1);return buy>0?sell/buy:1;}
+function startPortForFaction(faction){const key=STARTS.factionPorts?.[faction];if(key&&portIndex[key]!==undefined)return portIndex[key];const idx=portList.findIndex(p=>p.faction===faction);return idx>=0?idx:0;}
+function initialRep(faction){const rep={};for(const f of FACTIONS)rep[f]=50;const adj=STARTS.factionRepAdjust?.[faction];if(adj&&typeof adj==='object'){for(const [f,v] of Object.entries(adj))rep[f]=clamp(50+(Number(v)||0),0,100);}else rep[faction]=60;return rep;}
+function shipSeq(){return SHIPS_ORDER.filter(k=>SHIPS[k]?.requiredFame!==undefined && SHIPS[k]?.cost!==undefined);}
+const UPGRADE_SEQ=shipSeq();
+
+function liveTradeProxy(portIdx,tier){
+  const p=getPort(portIdx);const profile=L.getPortTradeProfile?L.getPortTradeProfile(p.id):{goodDeals:[],inDemand:[]};
+  const goods=(TRADE_GOODS[tier]||TRADE_GOODS[0]||[]).filter(g=>RESOURCES[g]);
+  const demand=new Set(profile.inDemand||[]);const deals=new Set(profile.goodDeals||[]);
+  const candidates=goods.map(g=>{
+    const base=Number(RESOURCES[g]?.basePrice||100);
+    const localFactionMod=Number((D.FACTION_PRICE_MODIFIERS?.[p.faction]||{})[g]||1);
+    let quality=1;
+    if(deals.has(g))quality*=1.10;
+    if(demand.has(g))quality*=1.25;
+    return {good:g,value:base*quality*localFactionMod};
+  }).sort((a,b)=>b.value-a.value);
+  if(!candidates.length)return {buy:150,sell:250,good:null};
+  const best=candidates[0];
+  return {buy:best.value,sell:best.value*1.75,good:best.good};
+}
+function liveSmuggleProxy(portIdx,tier){
+  const p=getPort(portIdx);const profile=L.getPortTradeProfile?L.getPortTradeProfile(p.id):{inDemand:[]};
+  const goods=(SMUGGLE_GOODS[tier]||SMUGGLE_GOODS[0]||[]).filter(g=>RESOURCES[g]);
+  const demand=new Set(profile.inDemand||[]);
+  const g=goods.sort((a,b)=>((demand.has(b)?1:0)-(demand.has(a)?1:0)) || ((RESOURCES[b]?.basePrice||0)-(RESOURCES[a]?.basePrice||0)))[0];
+  const base=Number(RESOURCES[g||'rum']?.basePrice||120);
+  return {cost:base*1.15,mult:demand.has(g)?1.12:1};
+}
+function bankCapacity(fame,rep){
+  const bank=SERVICE.bank||{};const loanCap=Number(bank.loanCap||300000);const rp=clamp((rep-30)/70,0,1);
+  const base=200+800*rp;const fameRatio=fame/350;const fameFactor=fameRatio*fameRatio;const loan350=150000+150000*rp;const multiplier=(loan350/base)-1;return Math.min(base*(1+multiplier*fameFactor),loanCap);
+}
+function bankRate(rep){const bank=SERVICE.bank||{};const rp=clamp((rep-30)/70,0,1);return Number(bank.interestRateMax||.20)-rp*(Number(bank.interestRateMax||.20)-Number(bank.interestRateMin||.05));}
+function serviceAvailable(service,portFaction,rep){
+  if(portFaction!==service.faction)return false;
+  const threshold=Number(service.rep||0);return rep>=threshold;
+}
+
+function simulate(playstyleKey,faction,maxDays,targetFame,baseSeed,runIndex){
+  const ps=PLAYSTYLES[playstyleKey];const rng=mulberry32(hashSeed(baseSeed,playstyleKey,faction,runIndex));
+  let gold=START_GOLD,fame=0,ship=START_SHIP,crew=START_CREW||0,morale=70,infamy=0,heat=0,food=Number(START_HOLD.food||5),water=Number(START_HOLD.water||5),day=1,current=startPortForFaction(faction);
+  let mission=null,missionTravelDays=0,travelMode='';let loan=0;let totalCrewLost=0;
+  const rep=initialRep(faction),shots={},metrics={travelDays:0,portVisits:0,missions:0,completed:0,failed:0,trade:0,smuggle:0,combatMissions:0,escort:0,explore:0,combats:0,wins:0,plunders:0,crewHired:0,crewLost:0,combatCrewLost:0,desertions:0,bribes:0,smuggleAvoided:0,storms:0,encounters:0,infamyGained:0,infamyReduced:0,loans:0,loanRepayment:0,routeWithinRange:0,routeTotal:0,services:{bank:0,embassy:0,inquisitor:0,navalYard:0,blackMarket:0},tradeProfit:0,smuggleProfit:0,missionGold:0,exploreGold:0,spendCrew:0,spendProvisions:0,spendShip:0,restrictedCrewPortVisits:0,crewReplenishmentTrips:0,crewReplenishmentDays:0};
+  for(const f of TARGET_MILESTONES)shots[f]=null;const shipPurchases=[];
+  let gameOver=false;let lastFame=fame;
+
+  function recordMilestones(){for(const f of TARGET_MILESTONES)if(shots[f]===null&&fame>=f)shots[f]={day,gold,ship,crew,morale,infamy};}
+  function adjustRep(f,d){rep[f]=clamp((rep[f]||0)+d,0,100);}
+  function factionTrait(name){return TRAITS[faction]?.[name];}
+  function effectiveCrewLoss(loss){return Math.max(0,Math.round(loss*Number(factionTrait('crewLossMult')||1)));}
+  function nextShip(){const idx=UPGRADE_SEQ.indexOf(ship);return idx>=0?UPGRADE_SEQ[idx+1]:null;}
+  function canBuyShip(next){const s=SHIPS[next];if(!s)return false;let req=Number(s.requiredFame||0);if(portList[current]?.faction==='english'&&(rep.english||0)>=80&&SERVICE.navalYard){req=Math.max(0,req-Number(SERVICE.navalYard.earlyAccessModifiers?.shipFameReduction||10));}return fame>=req;}
+  function upgradeIfPossible(){
+    let bought=false;for(let guard=0;guard<UPGRADE_SEQ.length;guard++){
+      const next=nextShip();if(!next)break;const s=SHIPS[next];if(!canBuyShip(next)||gold<s.cost)break;
+      const reserve=s.cost*ps.cashReserve; if(gold-s.cost<reserve&&fame<350)break;
+      const goldBefore=gold;gold-=s.cost;metrics.spendShip+=Number(s.cost||0);ship=next;crew=Math.max(crew,Math.min(Number(s.maxCrew||5),Math.ceil((Number(s.maxCrew||5))*0.45)));shipPurchases.push({ship:next,day,fame,goldBefore,goldAfter:gold,crew});bought=true;
+    }return bought;
+  }
+  function desiredCrew(){const max=Number(SHIPS[ship]?.maxCrew||5);return clamp(Math.round(max*(0.45+0.30*ps.crewSafety)),2,max);}
+  function recruitAtPort(){
+    let allowed=true;const trait=factionTrait('crewPortLock');if(trait&&portList[current]?.faction!=='spanish')allowed=false;
+    const cost=Number(factionTrait('crewCost')||50);const desired=desiredCrew();
+    if(!allowed)metrics.restrictedCrewPortVisits++;
+    while(allowed&&crew<desired&&gold>=cost){crew++;gold-=cost;metrics.crewHired++;metrics.spendCrew+=cost;}
+  }
+  function spanishCrewReposition(){
+    const trait=factionTrait('crewPortLock');
+    if(!(trait&&portList[current]?.faction!=='spanish'))return false;
+    if(crew>=desiredCrew())return false;
+    const target=nearestPortOfFaction(current,'spanish');
+    if(target<0)return false;
+    const days=travelTo(target,'crewReplenish');
+    const routeCheck=calcTravelDays(current,target,Number(SHIPS[ship]?.speed||10),.20,Number(factionTrait('maxDaysBonus')||0),ship);
+    metrics.routeTotal++;if(routeCheck.within)metrics.routeWithinRange++;
+    const consume=Math.max(1,Math.floor(days*crew/10*(Number(factionTrait('provisionMult')||1))));
+    food-=consume;water-=consume;
+    const dailyCost=Math.max(0,Math.floor(crew*(morale<30?3:2)));gold=Math.max(0,gold-dailyCost*days);
+    day+=days;current=target;metrics.crewReplenishmentTrips++;metrics.crewReplenishmentDays+=days;
+    if(food<=0||water<=0)morale=clamp(morale-5,0,100);
+    metrics.portVisits++;
+    heat=Math.max(0,heat-2);
+    recruitAtPort();buyProvisions();useServices();upgradeIfPossible();
+    return true;
+  }
+  function buyProvisions(){
+    const mult=Number(factionTrait('provisionMult')||1);const shipDays=Number(SHIPS[ship]?.maxDays||8)+Number(factionTrait('maxDaysBonus')||0);const need=Math.max(2,Math.ceil(shipDays*crew/10*mult));
+    const fNeed=Math.max(0,need-food),wNeed=Math.max(0,need-water);const spend=fNeed*3+wNeed*2;
+    if(spend<=gold){gold-=spend;food+=fNeed;water+=wNeed;metrics.spendProvisions+=spend;}
+  }
+  function useServices(){
+    const pf=portList[current]?.faction;const fr=rep[pf]||0;
+    if(pf==='dutch'&&fr>=Number(SERVICE.bank?.repRequired||30)){
+      const cap=bankCapacity(fame,fr);
+      if(loan===0&&gold < Math.max(400,Math.min(12000,(nextShip()?SHIPS[nextShip()].cost*.40:3000))) && cap>0){
+        loan=Math.max(200,Math.round(cap));gold+=loan;metrics.loans++;metrics.services.bank++;
+      }
+    }
+    if(pf==='spanish'&&fr>=Number(SERVICE.inquisitor?.repRequired||50)&&infamy>0){
+      const tiers=SERVICE.inquisitor?.pricing||[];const tier=tiers.find(x=>infamy>=x.infamyMin&&infamy<=x.infamyMax);const cost=Number(tier?.cost||250);
+      if(gold>=cost && (ps.service>.55 || infamy>24)){gold-=cost;infamy=Math.max(0,infamy-Number(SERVICE.inquisitor?.infamyReduction||1));metrics.infamyReduced++;metrics.services.inquisitor++;}
+    }
+    if(pf==='french'&&fr>=Number(SERVICE.embassy?.repRequired||50)&&ps.service>.35 && rep.french<70){
+      const tiers=SERVICE.embassy?.pricing||[];const tier=tiers.find(x=>rep.french>=x.repMin&&rep.french<=x.repMax);const cost=Number(tier?.cost||500);
+      if(gold>=cost){gold-=cost;rep.french=clamp(rep.french+Number(SERVICE.embassy?.repGain||5),0,100);metrics.services.embassy++;}
+    }
+    if(pf==='english'&&fr>=Number(SERVICE.navalYard?.repRequiredForRemoval||50))metrics.services.navalYard++;
+    if(pf==='pirate')metrics.services.blackMarket++;
+  }
+  function repayLoan(){if(loan<=0)return;const garnish=Math.floor(Math.max(0,gold)*Number(SERVICE.bank?.garnishPercent||.20));const repay=Math.min(loan,garnish);if(repay>0){gold-=repay;loan-=repay;metrics.loanRepayment+=repay;}}
+  function chooseAction(){
+    const pf=portList[current]?.faction;
+    const weights=[];
+    weights.push({v:'trade',w:ps.trade});weights.push({v:'smuggle',w:ps.smuggle*(pf==='pirate'?1.6:0.45)});weights.push({v:'combat',w:ps.combat});weights.push({v:'escort',w:ps.escort});weights.push({v:'explore',w:ps.explore});
+    if(faction==='pirate'&&pf==='pirate')weights.find(x=>x.v==='smuggle').w*=1.35;
+    if(faction==='spanish'&&pf!=='spanish')weights.find(x=>x.v==='smuggle').w*=1.05;
+    if(ps.cautiousTrader && heat>=6)weights.find(x=>x.v==='combat').w*=.4;
+    if(crew<Math.max(2,SHIPS[ship].maxCrew*.25))weights.forEach(x=>{if(x.v==='combat')x.w*=.35;});
+    return weightedPick(rng,weights);
+  }
+  function chooseRisk(action){
+    let risk=ps.risk;
+    if(action==='combat'||action==='smuggle')risk+=.18;if(action==='trade'||action==='escort')risk-=.08;if(crew<SHIPS[ship].maxCrew*.3)risk-=.15;if(gold<100)risk-=.08;
+    return risk<.30?'low':risk<.62?'medium':'high';
+  }
+  function travelTo(target,action){
+    const cargoLoad=(action==='trade'||action==='smuggle')?.70:.20;const bonus=Number(factionTrait('maxDaysBonus')||0);const r=calcTravelDays(current,target,Number(SHIPS[ship]?.speed||10),cargoLoad,bonus,ship);let days=r.days;
+    if(!r.within){days=Math.max(days,Number(SHIPS[ship]?.maxDays||8)+bonus);}
+    missionTravelDays=days;travelMode=action;metrics.travelDays+=days;return days;
+  }
+  function combat(actionRisk){
+    const tier=fameTier(fame),s=SHIPS[ship],enemyCannons=MISSION_ENEMY.cannons?.[tier]||[1,2],enemyCrew=MISSION_ENEMY.crew?.[tier]||[1,4];
+    const ec=randInt(rng,enemyCannons[0],enemyCannons[1]),ecrew=randInt(rng,enemyCrew[0],enemyCrew[1]);
+    const crewRatio=Math.max(1,crew)/Math.max(1,ecrew),gunRatio=Math.max(1,s.cannons)/Math.max(1,ec);
+    let p=.48 + (crewRatio-1)*.10 + (gunRatio-1)*.10;
+    if(actionRisk==='low')p+=.13;if(actionRisk==='high')p-=.10;
+    p=clamp(p,.18,.94);
+    metrics.combats++;
+    const win=rng()<p;
+    if(win){const maxLoss=Math.max(0,Math.floor(Math.max(1,crew)/10));const loss=effectiveCrewLoss(randInt(rng,0,maxLoss));crew=Math.max(1,crew-loss);totalCrewLost+=loss;metrics.combatCrewLost+=loss;morale=clamp(morale+5,0,100);heat+=1.5;metrics.wins++;return true;}
+    const baseLoss=randInt(rng,1,Math.max(1,Math.ceil(crew*.18)));const loss=effectiveCrewLoss(baseLoss);crew=Math.max(1,crew-loss);totalCrewLost+=loss;metrics.combatCrewLost+=loss;morale=clamp(morale-12,0,100);gold=Math.max(0,gold-Math.floor(gold*.08));heat+=2.5;return false;
+  }
+  function smuggleResolution(risk,portFaction){
+    const proxy=liveSmuggleProxy(current,fameTier(fame));const margin=Number(SMUGGLE_MARGINS[risk]??1.0);let avoidance=.35+Number(factionTrait('contrabandAvoidBonus')||0);
+    if(portFaction!=='pirate')avoidance*=.78;if(heat>=6)avoidance*=.85;avoidance=clamp(avoidance,.05,.90);
+    if(rng()<avoidance){metrics.smuggleAvoided++;const profit=Math.round(proxy.cost*margin*proxy.mult)+randInt(rng,40,120);gold+=profit;metrics.smuggleProfit+=profit;fame+=risk==='high'?3:risk==='medium'?2:1;metrics.completed++;infamy+=1;metrics.infamyGained++;adjustRep(portFaction,-1);return;}
+    if(rng()<.55+(faction==='pirate'?.10:0) && (faction==='pirate'||(rep[portFaction]||0)>30)){
+      metrics.bribes++;gold=Math.max(0,gold-100);infamy+=1;metrics.infamyGained++;heat+=1;const profit=Math.round(proxy.cost*margin*.65);gold+=profit;metrics.smuggleProfit+=profit;fame+=1;metrics.completed++;return;
+    }
+    gold=Math.max(0,gold-Math.round(proxy.cost*.65));infamy+=2;metrics.infamyGained+=2;heat+=2;metrics.failed++;morale=clamp(morale-6,0,100);
+  }
+  function resolveAction(action,risk,target){
+    const tier=fameTier(fame);
+    if(action==='explore'){
+      const reward=randInt(rng,30+20*tier,90+70*tier);gold+=reward;fame+=risk==='high'?2:1;metrics.explore++;metrics.exploreGold+=reward;metrics.completed++;heat=Math.max(0,heat-1);return;
+    }
+    if(action==='trade'){
+      const proxy=liveTradeProxy(current,tier);const cost=proxy.buy*(tier<2?2.0:tier<4?4.0:6.0);if(gold<cost){metrics.failed++;morale=clamp(morale-2,0,100);return;}
+      gold-=cost;let profit=cost*(Number(TRADE_MARGINS[risk]??.8)*.55);profit*=tradeSpreadMultiplier(faction);profit+=Math.max(25,Math.round((proxy.sell-proxy.buy)*.8));profit=Math.round(profit);gold+=cost+profit;metrics.trade++;metrics.tradeProfit+=profit;metrics.completed++;const mf=risk==='high'?3:risk==='medium'?2:1;fame+=mf;metrics.missionGold+=Math.max(0,Math.round((MISSION_GOLD[tier]?.[risk]||[0,0])[1]*.25));adjustRep(portList[current].faction,Number((D.MISSION_REP_IMPACTS||{}).trade?.[risk]||2));return;
+    }
+    if(action==='smuggle'){metrics.smuggle++;smuggleResolution(risk,portList[current].faction);return;}
+    if(action==='combat'||action==='escort'){
+      const rewardRange=MISSION_GOLD[tier]?.[risk]||MISSION_GOLD[0]?.[risk]||[140,180];const reward=randInt(rng,rewardRange[0],rewardRange[1]);const win=combat(risk);
+      if(win){let bonus=reward*(action==='combat'?1.25:1.0);gold+=Math.round(bonus);fame+=risk==='high'?3:risk==='medium'?2:1;metrics.completed++;metrics.missionGold+=reward;adjustRep(portList[current].faction,Number((D.MISSION_REP_IMPACTS||{})[action]?.[risk]||2));if(action==='combat'&&rng()<.55+ps.risk*.20){const target=PLUNDER_TARGET[tier]?.[risk]||PLUNDER_TARGET[0]?.[risk]||20;const loot=Math.round(target*(.45+rng()*.65));gold+=loot;metrics.plunders++;}}
+      else{metrics.failed++;fame+=risk==='high'?1:0;}
+      return;
+    }
+  }
+
+  while(day<=maxDays && fame<targetFame){
+    recordMilestones();
+    if(gold<=0&&crew<=1&&food<=0&&water<=0){gameOver=true;break;}
+
+    const port=getPort(current);metrics.portVisits++;
+    heat=Math.max(0,heat-2);
+    for(const f of FACTIONS)if(rep[f]>50)rep[f]=Math.max(50,rep[f]-1);
+    if(loan>0)repayLoan();
+    recruitAtPort();buyProvisions();useServices();upgradeIfPossible();
+    if(loan>0&&gold>Math.max(loan*.75,5000))repayLoan();
+    recordMilestones();
+
+    // Spanish captains can only recruit in Spanish ports. If below their crew target,
+    // the lab makes a dedicated reposition trip to the nearest Spanish port before the next career action.
+    if(spanishCrewReposition()){recordMilestones();}
+
+    const action=chooseAction();metrics.missions += action==='explore'?0:1;lastFame=fame;
+    const risk=chooseRisk(action);const candidates=[];
+    for(let i=0;i<portList.length;i++){
+      if(i===current)continue;const pf=portList[i].faction;let score=1;
+      if(action==='smuggle'&&pf==='pirate')score+=3;
+      if(action==='trade')score+=Math.max(0,(L.getPortTradeProfile?L.getPortTradeProfile(portList[i].id).inDemand?.length||0:0))*0.25;
+      if(action==='escort'||action==='combat')score+=pf==='english'&&faction==='english'?1:0;
+      if(action==='explore')score+=0.5;
+      candidates.push({i,w:score});
+    }
+    const target=weightedPick(rng,candidates.map(x=>({v:x.i,w:x.w})));
+    const travel=travelTo(target,action);metrics.routeTotal++;const routeCheck=calcTravelDays(current,target,Number(SHIPS[ship]?.speed||10),((action==='trade'||action==='smuggle')?.70:.20),Number(factionTrait('maxDaysBonus')||0),ship);if(routeCheck.within)metrics.routeWithinRange++;if(action==='trade'||action==='smuggle'){food-=Math.max(0,Math.floor(travel*crew/10*(Number(factionTrait('provisionMult')||1))));water-=Math.max(0,Math.floor(travel*crew/10*(Number(factionTrait('provisionMult')||1))));}else{food-=Math.max(0,Math.floor(travel*crew/10*(Number(factionTrait('provisionMult')||1))));water-=Math.max(0,Math.floor(travel*crew/10*(Number(factionTrait('provisionMult')||1))));}
+    const dailyCost=Math.max(0,Math.floor(crew*(morale<30?3:2)));gold=Math.max(0,gold-dailyCost*travel);
+    day+=travel;current=target;
+    if(food<=0||water<=0)morale=clamp(morale-5,0,100);
+
+    // Approximate sea-event envelope: same career signals, not the engine's event state machine.
+    const eventChance=clamp(.05+heat*.012+infamy*.002+(action==='smuggle'?.03:0)+(action==='combat'||action==='escort'?.02:0),.03,.30);
+    if(rng()<eventChance){metrics.encounters++;const r=rng();if(r<.20){metrics.storms++;day+=1;morale=clamp(morale-3,0,100);}else if(r<.52){morale=clamp(morale-2,0,100);heat+=.5;}else if(r<.76){const contraband=action==='smuggle';const avoid=Number(factionTrait('contrabandAvoidBonus')||0);if(contraband&&rng()<.10+avoid){metrics.smuggleAvoided++;}else if(contraband){if((faction==='pirate'&&rng()<.60)||(rep[portList[current].faction]||0)>30){metrics.bribes++;gold=Math.max(0,gold-100);infamy+=1;metrics.infamyGained++;}else{combat(risk);}}else if(rng()<.48+ps.risk*.18){combat(risk);}}else{gold+=randInt(rng,20,100+40*fameTier(fame));}}
+    // Resolve the chosen activity only after the transit and encounter envelope.
+    resolveAction(action,risk,target);
+    metrics.crewLost=totalCrewLost;
+    if(action==='combat')metrics.combatMissions++;if(action==='escort')metrics.escort++;
+    if(fame===lastFame&&action==='explore')fame+=1;
+    recordMilestones();
+    if(crew<Math.max(1,Math.floor(SHIPS[ship].maxCrew*.18))&&gold<50)gameOver=true;
+  }
+
+  recordMilestones();
+  const reached=fame>=targetFame;const finalGold=gold;const totalDays=Math.max(1,day);const crewCap=Number(SHIPS[ship]?.maxCrew||5);
+  return {playstyle:playstyleKey,faction,finalFame:fame,finalGold,finalDay:day,finalShip:ship,finalCrew:crew,finalMorale:morale,infamy,heat,reached,gameOver,shots,shipPurchases,loan,rep,metrics,crewCap,goldPerDay:finalGold/totalDays,famePer100Days:(fame/totalDays)*100};
+}
+
+function aggregateCell(runs){
+  const reached=runs.filter(r=>r.reached).length;const medFinalGold=median(runs.map(r=>r.finalGold));
+  return {
+    runs:runs.length,reachedPct:reached/runs.length*100,days:median(runs.map(r=>r.finalDay)),daysP10:pct(runs.map(r=>r.finalDay),10),daysP90:pct(runs.map(r=>r.finalDay),90),
+    gold:medFinalGold,goldP10:pct(runs.map(r=>r.finalGold),10),goldP90:pct(runs.map(r=>r.finalGold),90),crew:median(runs.map(r=>r.finalCrew)),crewP10:pct(runs.map(r=>r.finalCrew),10),crewP90:pct(runs.map(r=>r.finalCrew),90),
+    morale:median(runs.map(r=>r.finalMorale)),gameOverPct:runs.filter(r=>r.gameOver).length/runs.length*100,
+    combats:median(runs.map(r=>r.metrics.combats)),wins:median(runs.map(r=>r.metrics.wins)),tradeProfit:median(runs.map(r=>r.metrics.tradeProfit)),smuggleProfit:median(runs.map(r=>r.metrics.smuggleProfit)),
+    missions:median(runs.map(r=>r.metrics.missions)),completed:median(runs.map(r=>r.metrics.completed)),trade:median(runs.map(r=>r.metrics.trade)),smuggle:median(runs.map(r=>r.metrics.smuggle)),combatMissions:median(runs.map(r=>r.metrics.combatMissions)),escort:median(runs.map(r=>r.metrics.escort)),explore:median(runs.map(r=>r.metrics.explore)),
+    plunders:median(runs.map(r=>r.metrics.plunders)),crewHired:median(runs.map(r=>r.metrics.crewHired)),crewLost:median(runs.map(r=>r.metrics.crewLost)),infamy:median(runs.map(r=>r.infamy)),heat:median(runs.map(r=>r.heat)),
+    loans:median(runs.map(r=>r.metrics.loans)),services:Object.fromEntries(['bank','embassy','inquisitor','navalYard','blackMarket'].map(k=>[k,median(runs.map(r=>r.metrics.services[k]||0))])),
+    goldPerDay:median(runs.map(r=>r.goldPerDay)),famePer100Days:median(runs.map(r=>r.famePer100Days)),crewTurnover100:median(runs.map(r=>((r.metrics.crewHired+r.metrics.crewLost)/Math.max(1,r.finalDay))*100)),combatCrewLoss:median(runs.map(r=>r.metrics.combats?r.metrics.combatCrewLost/r.metrics.combats:0)),routeWithinPct:median(runs.map(r=>r.metrics.routeTotal?r.metrics.routeWithinRange/r.metrics.routeTotal*100:100)),spendCrew:median(runs.map(r=>r.metrics.spendCrew)),spendProvisions:median(runs.map(r=>r.metrics.spendProvisions)),spendShip:median(runs.map(r=>r.metrics.spendShip)),
+    smuggleAvoided:median(runs.map(r=>r.metrics.smuggleAvoided)),bribes:median(runs.map(r=>r.metrics.bribes)),infamyReduced:median(runs.map(r=>r.metrics.infamyReduced)),exploreGold:median(runs.map(r=>r.metrics.exploreGold)),missionGold:median(runs.map(r=>r.metrics.missionGold)),
+    daysTo:Object.fromEntries(TARGET_MILESTONES.map(f=>[f,median(runs.filter(r=>r.shots[f]).map(r=>r.shots[f].day))])),
+    goldAt:Object.fromEntries(TARGET_MILESTONES.map(f=>[f,median(runs.filter(r=>r.shots[f]).map(r=>r.shots[f].gold))])),
+    reach:Object.fromEntries(TARGET_MILESTONES.map(f=>[f,runs.filter(r=>r.shots[f]).length/runs.length*100])),
+    shipAt:Object.fromEntries(TARGET_MILESTONES.map(f=>{const vals=runs.filter(r=>r.shots[f]).map(r=>r.shots[f].ship);if(!vals.length)return [f,START_SHIP];const counts={};for(const v of vals)counts[v]=(counts[v]||0)+1;return [f,Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0]];})),
+    crewReplenishmentTrips:median(runs.map(r=>r.metrics.crewReplenishmentTrips||0)),
+    crewReplenishmentDays:median(runs.map(r=>r.metrics.crewReplenishmentDays||0)),
+    restrictedCrewPortVisits:median(runs.map(r=>r.metrics.restrictedCrewPortVisits||0)),
+    shipPurchases:Object.fromEntries(UPGRADE_SEQ.map(sk=>{const ev=runs.map(r=>r.shipPurchases.find(x=>x.ship===sk)).filter(Boolean);return [sk,{rate:ev.length/runs.length*100,day:median(ev.map(x=>x.day)),fame:median(ev.map(x=>x.fame)),gold:median(ev.map(x=>x.goldAfter)),crew:median(ev.map(x=>x.crew))}]}))
+  };
+}
+
+function buildCells(allRuns){
+  const cells={};for(const p of PLAYSTYLE_KEYS){for(const f of FACTIONS){const runs=allRuns[`${p}|${f}`]||[];cells[`${p}|${f}`]={playstyle:p,faction:f,runs,agg:aggregateCell(runs)};}}return cells;
+}
+function byPlaystyle(cells,p){return FACTIONS.map(f=>cells[`${p}|${f}`]);}
+function byFaction(cells,f){return PLAYSTYLE_KEYS.map(p=>cells[`${p}|${f}`]);}
+function meanCell(cells,selector){return avg(Object.values(cells).map(c=>selector(c.agg)).filter(Number.isFinite));}
+function minMaxNorm(values){const lo=Math.min(...values),hi=Math.max(...values);return values.map(v=>hi===lo?50:(v-lo)/(hi-lo)*100);}
+function fingerprintRows(cells){
+  const rows=[];
+  for(const [key,c] of Object.entries(cells)){
+    const a=c.agg;const battle=Math.min(100,a.combats*8+a.plunders*12);const trade=Math.min(100,a.trade*7+a.tradeProfit/Math.max(1,a.runs)*.02);const smuggle=Math.min(100,a.smuggle*9+a.smuggleProfit/Math.max(1,a.runs)*.03);const exploration=Math.min(100,a.explore*7+a.exploreGold/Math.max(1,a.runs)*.01);const risk=clamp((a.infamy*2.5)+(a.heat*7)+(a.crewLost*2.5),0,100);const viability=clamp(a.reachedPct*.7+(100-a.gameOverPct)*.3,0,100);
+    rows.push({cell:c,values:[trade,smuggle,battle,exploration,risk,viability]});
+  }
+  return rows;
+}
+
+function renderOverall(cells,targetFame){
+  const all=Object.values(cells);const reach=avg(all.map(c=>c.agg.reachedPct));const medDays=median(all.map(c=>c.agg.days));const medGold=median(all.map(c=>c.agg.gold));const soft=avg(all.map(c=>c.agg.gameOverPct));
+  document.getElementById('headlineCards').innerHTML=[['Cells',all.length],['Avg target reach',pctFmt(reach)],['Median days',fmt(medDays)],['Median final gold',`${fmt(medGold)}g`],['Avg game-over/critical',pctFmt(soft)]].map(([k,v])=>`<div class="metric-card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  let h='<table><tr><th>Playstyle</th><th>Faction</th><th>Target reach</th><th>Game-over</th><th>p10 Gold</th><th>Median Gold</th><th>p90 Gold</th><th>p10 Crew</th><th>Median Crew</th><th>Days</th><th>Gold/Day</th></tr>';
+  all.sort((a,b)=>a.playstyle.localeCompare(b.playstyle)||a.faction.localeCompare(b.faction));
+  for(const c of all){const a=c.agg;h+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td><td class="val">${pctFmt(a.reachedPct)}</td><td class="val">${pctFmt(a.gameOverPct)}</td><td class="val gold">${fmt(a.goldP10)}g</td><td class="val gold">${fmt(a.gold)}g</td><td class="val gold">${fmt(a.goldP90)}g</td><td class="val">${fmt1(a.crewP10)}</td><td class="val">${fmt1(a.crew)}</td><td class="val">${fmt(a.days)}d</td><td class="val">${fmt(a.goldPerDay)}g</td><td class="val">${fmt1(a.crewTurnover100)}</td></tr>`;}
+  h+='</table><div class="note">Target reach is the percentage of runs reaching the configured Fame target before the horizon. Game-over is the model hitting its unrecoverable low-resource condition; it is deliberately separated from simple low-profit runs.</div>';document.getElementById('viabilityTable').innerHTML=h;
+}
+function shipLabel(sk){return SHIPS[sk]?.name||SHIPS[sk]?.label||sk;}
+function renderProgression(cells,targetFame){
+  const milestones=ACTIVE_MILESTONES.filter(x=>x<=targetFame);let h='<table><tr><th>Playstyle</th><th>Faction</th>';for(const f of milestones)h+=`<th>F${f}<br><span class="small">day / gold / crew / ship</span></th>`;h+='</tr>';
+  for(const c of Object.values(cells)){h+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td>`;for(const f of milestones){const x=c.agg.reach[f]>0&&c.runs.filter(r=>r.shots[f]).length?{day:c.agg.daysTo[f],gold:c.agg.goldAt[f],crew:median(c.runs.filter(r=>r.shots[f]).map(r=>r.shots[f].crew)),ship:shipLabel(c.agg.shipAt[f]||START_SHIP)}:null;h+=`<td>${x?`${fmt(x.day)}d / ${fmt(x.gold)}g / ${fmt1(x.crew)} / ${x.ship}`:'—'}</td>`;}h+='</tr>';}
+  h+='</table><div class="note">Each milestone is measured at the first point the run reaches that Fame level. Values are medians of runs that reached the milestone; ship is the ship owned at that moment.</div>';document.getElementById('progressionTable').innerHTML=h;
+
+  let sp='<table><tr><th>Playstyle</th><th>Faction</th>';for(const sk of UPGRADE_SEQ.slice(1))sp+=`<th>${shipLabel(sk)}</th>`;sp+='</tr>';
+  for(const c of Object.values(cells)){sp+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td>`;for(const sk of UPGRADE_SEQ.slice(1)){const x=c.agg.shipPurchases[sk];sp+=`<td>${x&&x.rate>0?`${pctFmt(x.rate)} / F${fmt(x.fame)} / ${fmt(x.day)}d / ${fmt(x.gold)}g / ${fmt1(x.crew)}`:'—'}</td>`;}sp+='</tr>';}
+  sp+='</table><div class="note">Ship purchase cells show purchase rate / median Fame / day / gold remaining / crew after purchase. A dash means the ship was not purchased in the run sample.</div>';document.getElementById('shipPurchaseTable').innerHTML=sp;
+
+  drawGroupedChart('chartDays',cells,c=>c.agg.daysTo[100]||targetFame?c.agg.daysTo[100]||c.agg.days: c.agg.days,'Days to Fame 100');
+  drawGroupedChart('chartGold',cells,c=>c.agg.goldAt[100]||c.agg.gold,'Gold at Fame 100');
+}
+
+function renderEconomy(cells){
+  let h='<table><tr><th>Playstyle</th><th>Faction</th><th>Trade Profit</th><th>Smuggle Profit</th><th>Mission Gold</th><th>Explore Gold</th><th>Ship Spend</th><th>Crew Spend</th><th>Provision Spend</th><th>Loans</th><th>Net Gold/Day</th><th>Action Mix</th></tr>';
+  for(const c of Object.values(cells)){const a=c.agg;const total=Math.max(1,a.missions+a.explore);const mix=`T ${Math.round(a.trade/total*100)}% / S ${Math.round(a.smuggle/total*100)}% / C ${Math.round((a.combatMissions+a.escort)/total*100)}% / E ${Math.round(a.explore/total*100)}%`;h+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td><td class="val gold">${fmt(a.tradeProfit)}g</td><td class="val gold">${fmt(a.smuggleProfit)}g</td><td class="val gold">${fmt(a.missionGold)}g</td><td class="val gold">${fmt(a.exploreGold)}g</td><td class="val gold">${fmt(a.spendShip)}g</td><td class="val">${fmt(a.spendCrew)}g</td><td class="val">${fmt(a.spendProvisions)}g</td><td class="val">${fmt1(a.loans)}</td><td class="val">${fmt(a.goldPerDay)}g</td><td>${mix}</td></tr>`;}
+  h+='</table>';document.getElementById('economyTable').innerHTML=h;
+  const ranges=PLAYSTYLE_KEYS.map(p=>{const cellsP=byPlaystyle(cells,p);return {p,max:Math.max(...cellsP.map(c=>c.agg.goldPerDay))};});const mx=Math.max(...ranges.map(x=>x.max),1);document.getElementById('economyBars').innerHTML='<h3>Best observed gold/day within each playstyle</h3>'+ranges.map(x=>`<div class="bar-row"><div>${PLAYSTYLES[x.p].label}</div><div class="bar"><span style="width:${x.max/mx*100}%;background:${PLAYSTYLE_COLORS[x.p]}"></span></div><div class="bar-value">${fmt(x.max)}g/d</div></div>`).join('');
+}
+function renderRisk(cells){
+  let h='<table><tr><th>Playstyle</th><th>Faction</th><th>Combats</th><th>Win/Combat</th><th>Crew Lost</th><th>Loss/Combat</th><th>Final Crew p10 / Med / p90</th><th>Final Gold p10</th><th>Final Morale</th><th>Infamy</th><th>Heat</th><th>Crew Replenish Trips</th><th>Replenish Days</th></tr>';
+  for(const c of Object.values(cells)){const a=c.agg;h+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td><td class="val">${fmt1(a.combats)}</td><td class="val">${pctFmt(a.combats?a.wins/a.combats*100:0)}</td><td class="val">${fmt1(a.crewLost)}</td><td class="val">${fmt1(a.combatCrewLoss)}</td><td class="val">${fmt1(a.crewP10)} / ${fmt1(a.crew)} / ${fmt1(a.crewP90)}</td><td class="val gold">${fmt(a.goldP10)}g</td><td class="val">${fmt1(a.morale)}</td><td class="val">${fmt1(a.infamy)}</td><td class="val">${fmt1(a.heat)}</td><td class="val">${fmt1(a.crewReplenishmentTrips)}</td><td class="val">${fmt1(a.crewReplenishmentDays)}d</td></tr>`;}
+  h+='</table>';document.getElementById('riskTable').innerHTML=h;
+  drawSpreadChart('chartGoldSpread',cells,c=>[c.agg.goldP10,c.agg.gold,c.agg.goldP90]);
+  drawGroupedChart('chartCrew',cells,c=>c.agg.crew,'Final Crew');
+}
+function renderFactionIdentity(cells){
+  let h='<table><tr><th>Playstyle</th><th>Faction</th><th>Observed Trade</th><th>Observed Smuggle</th><th>Plunder/Run</th><th>Infamy</th><th>Bribes</th><th>Smuggle Avoided</th><th>Faction Services</th><th>Identity Note</th></tr>';
+  for(const c of Object.values(cells)){const a=c.agg;let note='';if(c.faction==='dutch')note=`Dutch trade spread ${Math.round((1-tradeSpreadMultiplier('dutch'))*100)}% narrower proxy`;if(c.faction==='spanish')note=`Spanish recruitment cost/port lock`;if(c.faction==='french')note=`${Math.round((1-Number(TRAITS.french?.provisionMult||1))*100)}% lower provision proxy + reach`;if(c.faction==='english')note='20% combat crew-loss multiplier';if(c.faction==='pirate')note='Flee/contraband/bribe identity represented';h+=`<tr><td><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b></td><td style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</td><td class="val">${fmt1(a.trade)}</td><td class="val">${fmt1(a.smuggle)}</td><td class="val">${fmt1(a.plunders)}</td><td class="val">${fmt1(a.infamy)}</td><td class="val">${fmt1(a.bribes)}</td><td class="val">${fmt1(a.smuggleAvoided)}</td><td>${['bank','embassy','inquisitor','navalYard','blackMarket'].map(k=>a.services[k]>0?`${k}:${fmt1(a.services[k])}`:'').filter(Boolean).join(' ')||'—'}</td><td>${note}</td></tr>`;}
+  h+='</table>';document.getElementById('factionTable').innerHTML=h;
+  drawFactionEffectChart('chartFactionPower',cells,'goldPerDay','Median Gold / Day');
+  drawFactionEffectChart('chartFactionCrew',cells,'crew','Median Final Crew');
+}
+function renderFingerprint(cells){
+  const rows=fingerprintRows(cells);const headers=['Cell','Trade','Smuggle','Combat','Explore','Risk','Viability'];let html='<div class="fingerprint">'+headers.map(x=>`<div class="head">${x}</div>`).join('');for(const r of rows){const c=r.cell;html+=`<div><b style="color:${PLAYSTYLE_COLORS[c.playstyle]}">${PLAYSTYLES[c.playstyle].label}</b><br><span style="color:${FCOLOR[c.faction]}">${FNAME[c.faction]}</span></div>`;for(let i=0;i<r.values.length;i++)html+=`<div><div class="heat"><span style="width:${r.values[i]}%;background:${i===4?'#f44336':PLAYSTYLE_COLORS[c.playstyle]}"></span></div><div class="small">${Math.round(r.values[i])}</div></div>`;}html+='</div>';document.getElementById('fingerprint').innerHTML=html;}
+function renderDiagnostics(cells,targetFame){
+  const diagnostics=[];
+  for(const [key,c] of Object.entries(cells)){const a=c.agg;const label=`${PLAYSTYLES[c.playstyle].label} / ${FNAME[c.faction]}`;if(a.reachedPct<30)diagnostics.push(['viability','bad',`${label}: only ${pctFmt(a.reachedPct)} of runs reach Fame ${targetFame}.`]);if(a.gameOverPct>20)diagnostics.push(['viability','bad',`${label}: ${pctFmt(a.gameOverPct)} of runs hit the coarse unrecoverable state.`]);if(a.goldP10<100)diagnostics.push(['economy','warn',`${label}: final-gold p10 is below 100g.`]);}
+  for(const p of PLAYSTYLE_KEYS){const cs=byPlaystyle(cells,p);const days=cs.map(c=>c.agg.days).filter(x=>x>0);const g=cs.map(c=>c.agg.goldPerDay);if(days.length>=2&&Math.max(...days)>Math.min(...days)*2.2)diagnostics.push(['dominance','warn',`${PLAYSTYLES[p].label}: faction choice changes median career length by more than 2.2×.`]);if(g.length>=2&&Math.max(...g)>Math.max(1,Math.min(...g))*2.5)diagnostics.push(['dominance','warn',`${PLAYSTYLES[p].label}: faction choice changes median gold/day by more than 2.5×.`]);}
+  const spanishCells=PLAYSTYLE_KEYS.map(p=>cells[`${p}|spanish`]);const spanishTrips=median(spanishCells.map(c=>c.agg.crewReplenishmentTrips));const spanishDays=median(spanishCells.map(c=>c.agg.crewReplenishmentDays));if(spanishTrips>0)diagnostics.push(['identity','good',`Spanish careers make ${fmt1(spanishTrips)} dedicated crew-replenishment trips on the median run (${fmt1(spanishDays)} travel days).`]);
+  const compareTrait=(f,metric,relation,label,threshold)=>{const vals=PLAYSTYLE_KEYS.map(p=>cells[`${p}|${f}`].agg[metric]).filter(Number.isFinite);const others=PLAYSTYLE_KEYS.flatMap(p=>FACTIONS.filter(x=>x!==f).map(x=>cells[`${p}|${x}`].agg[metric])).filter(Number.isFinite);if(!vals.length||!others.length)return;const own=median(vals),other=median(others);const ratio=other?own/other:1;if(relation==='up'&&ratio<threshold)diagnostics.push(['identity','warn',`${FNAME[f]}: ${label} is not measurably expressed; own median ${fmt1(own)} vs ${fmt1(other)} elsewhere.`]);if(relation==='down'&&ratio>1/threshold)diagnostics.push(['identity','warn',`${FNAME[f]}: ${label} is not measurably expressed; own median ${fmt1(own)} vs ${fmt1(other)} elsewhere.`]);};
+  compareTrait('english','combatCrewLoss','down','combat crew loss',0.90);
+  compareTrait('pirate','smuggleAvoided','up','contraband avoidance / evasion',1.10);
+  if(!diagnostics.length)diagnostics.push(['overall','good','No generic viability, economy, dominance, or identity-expression warnings were triggered by the current sweep.']);
+  const rank={good:0,warn:1,bad:2};diagnostics.sort((a,b)=>rank[b[1]]-rank[a[1]]||a[0].localeCompare(b[0]));
+  document.getElementById('diagnostics').innerHTML=diagnostics.map(d=>`<div class="tag ${d[1]}" style="display:block;margin:3px 0"><b>${d[0].toUpperCase()}</b> — ${d[2]}</div>`).join('');
+}
+function renderRunInfo(meta){document.getElementById('runInfo').innerHTML=`${meta.cells} playstyle × faction cells · ${meta.runsPerCell} runs/cell · ${meta.totalRuns.toLocaleString()} total runs · horizon ${meta.maxDays} days · target Fame ${meta.targetFame} · base seed ${meta.seed||'random'} · generated ${new Date().toLocaleString()}<br>Model remains intentionally coarse; this report should be read as comparative balance evidence, not as a prediction of a specific player's campaign.`;}
+
+function drawGroupedChart(id,cells,valueFn,title){
+  const c=document.getElementById(id),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const W=c.width,H=c.height,p={l:65,r:20,t:25,b:55};const groups=PLAYSTYLE_KEYS;const vals=groups.map(p=>FACTIONS.map(f=>valueFn(cells[`${p}|${f}`])));const ymax=Math.max(1,...vals.flat());const gw=(W-p.l-p.r)/groups.length;const bw=Math.min(18,(gw*0.78)/FACTIONS.length);ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#a0a0a0';
+  for(let i=0;i<=4;i++){const v=ymax*i/4;const y=H-p.b-(v/ymax)*(H-p.t-p.b);ctx.strokeStyle='#1a2a3a';ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(W-p.r,y);ctx.stroke();ctx.fillText(Math.round(v).toLocaleString(),p.l-25,y+3);}
+  groups.forEach((g,gi)=>{const base=p.l+gi*gw+(gw-bw*FACTIONS.length)/2;FACTIONS.forEach((f,fi)=>{const v=vals[gi][fi];const h=(v/ymax)*(H-p.t-p.b);ctx.fillStyle=FCOLOR[f];ctx.fillRect(base+fi*bw,H-p.b-h,bw-1,h);});ctx.fillStyle=PLAYSTYLE_COLORS[g];ctx.fillText(PLAYSTYLES[g].label.slice(0,16),p.l+gi*gw+gw/2,H-34);});
+  ctx.textAlign='left';let lx=p.l;for(const f of FACTIONS){ctx.fillStyle=FCOLOR[f];ctx.fillRect(lx,10,10,4);ctx.fillStyle='#808080';ctx.fillText(FNAME[f],lx+14,14);lx+=95;}
+  ctx.fillStyle='#ffd700';ctx.fillText(title,p.l,24);
+}
+function drawSpreadChart(id,cells,valueFn){
+  const c=document.getElementById(id),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const W=c.width,H=c.height,p={l:65,r:20,t:25,b:55};const groups=PLAYSTYLE_KEYS;const vals=groups.map(p=>FACTIONS.map(f=>valueFn(cells[`${p}|${f}`])));const ymax=Math.max(1,...vals.flat().map(a=>a[2]));const gw=(W-p.l-p.r)/groups.length;ctx.font='9px monospace';
+  for(let i=0;i<=4;i++){const v=ymax*i/4,y=H-p.b-(v/ymax)*(H-p.t-p.b);ctx.strokeStyle='#1a2a3a';ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(W-p.r,y);ctx.stroke();ctx.fillStyle='#606060';ctx.fillText(Math.round(v).toLocaleString(),p.l-25,y+3);}
+  groups.forEach((g,gi)=>{FACTIONS.forEach((f,fi)=>{const a=vals[gi][fi];const x=p.l+gi*gw+10+fi*(gw-18)/FACTIONS.length;const scale=H-p.t-p.b;ctx.strokeStyle=FCOLOR[f];ctx.lineWidth=2;const ys=a.map(v=>H-p.b-(v/ymax)*scale);ctx.beginPath();ctx.moveTo(x,ys[0]);ctx.lineTo(x,ys[1]);ctx.lineTo(x,ys[2]);ctx.stroke();ctx.lineWidth=1;ctx.fillStyle=FCOLOR[f];ctx.fillRect(x-2,ys[1]-2,4,4);});ctx.fillStyle=PLAYSTYLE_COLORS[g];ctx.textAlign='center';ctx.fillText(PLAYSTYLES[g].label.slice(0,16),p.l+gi*gw+gw/2,H-34);});
+  ctx.textAlign='left';let lx=p.l;for(const f of FACTIONS){ctx.fillStyle=FCOLOR[f];ctx.fillRect(lx,10,10,4);ctx.fillStyle='#808080';ctx.fillText(FNAME[f],lx+14,14);lx+=95;}
+}
+function drawFactionEffectChart(id,cells,metric,title){
+  const c=document.getElementById(id),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const W=c.width,H=c.height,p={l:65,r:20,t:25,b:55};const vals=FACTIONS.map(f=>median(byFaction(cells,f).map(c=>c.agg[metric])));const ymax=Math.max(1,...vals);const bw=Math.min(70,(W-p.l-p.r)/FACTIONS.length*.65);ctx.font='9px monospace';
+  for(let i=0;i<=4;i++){const v=ymax*i/4,y=H-p.b-(v/ymax)*(H-p.t-p.b);ctx.strokeStyle='#1a2a3a';ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(W-p.r,y);ctx.stroke();ctx.fillStyle='#606060';ctx.fillText(Math.round(v).toLocaleString(),p.l-25,y+3);}
+  FACTIONS.forEach((f,i)=>{const x=p.l+i*((W-p.l-p.r)/FACTIONS.length)+((W-p.l-p.r)/FACTIONS.length-bw)/2;const h=(vals[i]/ymax)*(H-p.t-p.b);ctx.fillStyle=FCOLOR[f];ctx.fillRect(x,H-p.b-h,bw,h);ctx.fillStyle='#a0a0a0';ctx.textAlign='center';ctx.fillText(FNAME[f].slice(0,10),x+bw/2,H-34);});ctx.fillStyle='#ffd700';ctx.textAlign='left';ctx.fillText(title,p.l,24);
+}
+
+function runSimulation(){
+  const btn=document.getElementById('runBtn');btn.disabled=true;const fill=document.getElementById('progressFill'),status=document.getElementById('status');
+  const runsPerCell=clamp(parseInt(document.getElementById('nRuns').value)||150,20,2000);const maxDays=clamp(parseInt(document.getElementById('maxDays').value)||5000,500,20000);const targetFame=clamp(parseInt(document.getElementById('targetFame').value)||350,20,500);const inputSeed=parseInt(document.getElementById('seed').value)||0;const baseSeed=inputSeed||((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
+  const allRuns={};let done=0,total=PLAYSTYLE_KEYS.length*FACTIONS.length*runsPerCell;const started=performance.now();
+  for(const p of PLAYSTYLE_KEYS){for(const f of FACTIONS){const key=`${p}|${f}`;allRuns[key]=[];for(let i=0;i<runsPerCell;i++){allRuns[key].push(simulate(p,f,maxDays,targetFame,baseSeed,i));done++;if(done%20===0){fill.style.width=(done/total*100)+'%';status.textContent=`${PLAYSTYLES[p].label} / ${FNAME[f]}: ${i+1}/${runsPerCell}`;}}}}
+  const cells=buildCells(allRuns);renderOverall(cells,targetFame);renderProgression(cells,targetFame);renderEconomy(cells);renderRisk(cells);renderFactionIdentity(cells);renderFingerprint(cells);renderDiagnostics(cells,targetFame);renderRunInfo({cells:Object.keys(cells).length,runsPerCell,totalRuns:total,maxDays,targetFame,seed:baseSeed});
+  document.getElementById('results').style.display='block';fill.style.width='100%';status.textContent=`Done — ${total.toLocaleString()} runs across ${Object.keys(cells).length} career cells in ${Math.round((performance.now()-started)/1000)}s.`;btn.disabled=false;
+}
+</script>
+</body>
+</html>

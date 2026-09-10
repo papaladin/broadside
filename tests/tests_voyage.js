@@ -131,7 +131,8 @@
     const s0 = makeVoyageState({
       infamy: 100,
       factionAlerts: { english: 10 },
-      reputation: { portRoyal: 10, tortuga: 10 },
+      reputation: { english: 10, pirate: 10 },
+
     });
     // Force random event to trigger (0.04) and also make patrol very likely
     // (by high infamy/heat). But event check runs before patrol, so we should
@@ -194,7 +195,7 @@ reg("V.ADVANCE.08", "ADVANCE_DAY: escort mission encounter fires near destinatio
     const s0 = makeVoyageState({
       fame: 100,
       discoveredPorts: ["portRoyal", "tortuga", "havana", "kingston"], // exclude roatan
-      reputation: { tortuga: 80 },
+      reputation: { pirate: 80 },
       mapFragments: [],
     });
     // Roatan unlock: fame >= 50 OR pirate rep >= 65 (fame is 100, so it should unlock)

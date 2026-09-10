@@ -1,3 +1,6 @@
+### 2026-09-10
+- **UI fixes** on port service when they are disabled (unified display of why, below the action buttons), and better management of mission reward display : now the faction reputation impact on your mission reward is calcualted for you and what you see is what you'll get. Minus the loan, if you have one...
+
 ### 2026-09-08
 - **Captain faction** now has an impact on the game. Pirate will be more cunning, French are natural explorers, English have great naval discipline, etc.. Each faction will correspond to a different player playstyle.
 -**Port identity** : Each faction now has a specificity for its own ports. Dutch will get banks where the player can get loans depending on their fame and reputation, Spanish port will get inquisitorial offices where you can repent for your sins and reduce infamy... for a donation to the Church. Smuggling missions are now exclusive to pirate ports.

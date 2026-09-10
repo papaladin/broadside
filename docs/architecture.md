@@ -246,7 +246,6 @@ broadside/
 ├── engine_encounter.js                ←           encounter domain reducer (intercepts, random events, merchant encounters)
 ├── engine_onboarding.js               ←           onboarding middleware reducer
 ├── engine_career.js                   ←           career-stats middleware reducer
-├── engine_scripted.js                 ←           dev-only scripted-playthrough reducer (?scripted=1)
 │
 ├── ui.jsx                             ← window.UI : theme tokens + presentational components
 ├── icons.jsx                          ← extends window.UI : SVG icon library + LOG_ICONS
@@ -449,7 +448,6 @@ This is an architectural overview, not an API reference. Exact function names, r
 | `engine_encounter.js`| Encounter/interception flow outside the core battle exchange.| Encounter creation, intercept choices, parley/bribe/inspection/surrender flows, encounter consequences, escalation into battle or other outcomes.|
 | `engine_onboarding.js`| New-player onboarding state and tutorial progression.| First-game setup, onboarding choices, tutorial progression, introductory unlocks, one-time onboarding state changes.|
 | `engine_career.js`| Career/progression state transitions and career-specific rules.| Career progression, milestones, rewards, unlock progression, career-specific state changes.|
-| `engine_scripted.js`| Explicit scripted events and authored state transitions that do not belong to normal procedural systems.| Story/scripted events, special one-off sequences, authored branching outcomes, predefined event state changes.|
 | `ui.jsx`| Shared UI primitives and presentation utilities.| Panels, buttons, cards, layout primitives, common controls, formatting helpers, reusable presentation components.|
 | `icons.jsx`| Reusable visual icons and icon components.    | UI icons, symbolic indicators, status/action icons, shared icon rendering helpers.|
 | `screens_core.jsx`| Shared/core application screens.| Menu, general HUD/status views, common information screens, screens that do not belong to a specific domain subsystem.|

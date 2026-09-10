@@ -64,7 +64,7 @@ window.E = window.E || {};
     DEBUG_SET_FAME: "DEBUG_SET_FAME",
     DEBUG_SET_INFAMY: "DEBUG_SET_INFAMY",
     DEBUG_SET_SHIP: "DEBUG_SET_SHIP",
-    DEBUG_SET_PORT_REP: "DEBUG_SET_PORT_REP",
+    DEBUG_SET_FACTION_REP: "DEBUG_SET_FACTION_REP",
     DEBUG_FILL_HOLD: "DEBUG_FILL_HOLD",
     DEBUG_REPAIR: "DEBUG_REPAIR",
     DEBUG_SET_MORALE: "DEBUG_SET_MORALE",
@@ -80,7 +80,7 @@ window.E = window.E || {};
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  VERSION CONSTANT & CAREER FACTORY
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const CURRENT_STATE_VERSION = 2;
+  const CURRENT_STATE_VERSION = 3;
 
   const createDefaultCareer = () => {
     // Deep clone to avoid any shared references with D.DEFAULT_CAREER.
@@ -108,6 +108,20 @@ window.E = window.E || {};
         Object.keys(window.D.PORTS).filter(k => !window.D.PORTS[k].hidden);
       s.mapFragments = s.mapFragments || [];
       s.version = CURRENT_STATE_VERSION;
+    }
+    if (s.reputation && !('english' in s.reputation)) {
+      const old = s.reputation;
+      const newRep = { english: 50, spanish: 50, french: 50, dutch: 50, pirate: 50 };
+      Object.keys(newRep).forEach(faction => {
+        const portVals = Object.keys(window.D.PORTS)
+          .filter(k => window.D.PORTS[k].faction === faction)
+          .map(k => old[k])
+          .filter(v => typeof v === "number");
+        if (portVals.length > 0) {
+          newRep[faction] = Math.round(portVals.reduce((a, b) => a + b, 0) / portVals.length);
+        }
+      });
+      s.reputation = newRep;
     }
     if (!s.factionAlerts) {
       s.factionAlerts = { english: 0, spanish: 0, french: 0, dutch: 0, pirate: 0 };
@@ -156,7 +170,9 @@ window.E = window.E || {};
     if (s.previewPortMarket === undefined) s.previewPortMarket = null;
     if (s.bankDebt === undefined) s.bankDebt = 0;
     if (s.inquisitorUsedThisVisit === undefined) s.inquisitorUsedThisVisit = false;
-
+    if (!s.reputation || Object.keys(s.reputation).length === 0) {
+      s.reputation = { english: 50, spanish: 50, french: 50, dutch: 50, pirate: 50 };
+      }
     return s;
   };
 
@@ -288,7 +304,7 @@ window.E = window.E || {};
     portGossip: [],
     missions: [],
     activeMission: null,
-    reputation: {},
+    reputation: { english: 50, spanish: 50, french: 50, dutch: 50, pirate: 50 },
     encounterSession: null,
     notableNPCs: {},
     activeEvent: null,
@@ -297,9 +313,6 @@ window.E = window.E || {};
     
   };
 
-  Object.keys(PORTS).forEach(portKey => {
-    window.E.initialState.reputation[portKey] = 50;
-  });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  REDUCER CHAIN
@@ -331,8 +344,12 @@ window.E = window.E || {};
           crew: { ...state.crew, max: s.maxCrew },
         };
       }
-      case window.E.A.DEBUG_SET_PORT_REP:
-        return { ...state, reputation: { ...state.reputation, [action.port]: action.amount } };
+      case window.E.A.DEBUG_SET_FACTION_REP: {
+        const newRep = { ...state.reputation };
+        if (!(action.faction in newRep)) return state;
+        newRep[action.faction] = Math.max(0, Math.min(100, action.amount));
+        return { ...state, reputation: newRep };
+      }
       case window.E.A.DEBUG_FILL_HOLD:
         return { ...state, hold: { ...state.hold, items: { food:20, water:20, rum:10, sugar:8, spices:4, silk:3, cloth:6, weapons:5, coffee:5, cocoa:4, timber:0, tobacco:3, silver:2, slaves:0 } } };
       case window.E.A.DEBUG_REPAIR: {
@@ -375,10 +392,8 @@ window.E = window.E || {};
       case window.E.A.DEBUG_COMPLETE_MISSION: {
         const mission = state.activeMission;
         if (!mission) return state;
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        const baseGold = mission.gold || 0;
-        const finalGold = (mission.type === "trade" || mission.type === "smuggle") ? baseGold : Math.floor(baseGold * perk.missionMult);
+        // Mission reward already includes the faction-rep multiplier (baked in at generation).
+        const finalGold = mission.gold || 0;
         return { ...state, gold: state.gold + finalGold, fame: state.fame + (mission.fame || 0), infamy: Math.min(999, (state.infamy ?? 0) + (mission.infamyGain || 0)), reputation: L.applyReputationImpact(state, mission.repImpact), activeMission: null, log: [...state.log, `⚙ Debug-completed mission: ${mission.name}. +${finalGold}g.`] };
       }
       case window.E.A.DEBUG_SET_HEAT: {

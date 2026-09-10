@@ -76,7 +76,8 @@ window.L = window.L || {};
     const bribeGateRemoved = isPirate && (L.getBirthTrait(state, 'bribeGateRemoved') || false);
     
     const portKey = state.destination ?? state.currentPort;
-    const rep = state.reputation[portKey] ?? 0;
+    const portFaction = window.D.PORTS[portKey]?.faction;
+    const rep = portFaction ? getFactionReputation(state, portFaction, 0) : 0;
 
     // Reputation gate: applies to EVERYONE (lowered to 30)
     if (rep <= 30) return false;
@@ -94,12 +95,9 @@ window.L = window.L || {};
     return Math.min(100, state.crew.morale + moraleBonus);
   };
 
-  const getFactionReputation = (state, factionKey) => {
-    const ports = Object.keys(window.D.PORTS).filter(k => window.D.PORTS[k].faction === factionKey);
-    if (ports.length === 0) return 50;
-    const sum = ports.reduce((total, p) => total + (state.reputation[p] ?? 50), 0);
-    return Math.round(sum / ports.length);
-  };
+  const getFactionReputation = (state, factionKey, fallback = 50) => {
+  return state.reputation?.[factionKey] ?? fallback;
+};
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  SHIP STATS & EQUIPMENT
@@ -171,8 +169,21 @@ window.L = window.L || {};
   const canInstallEquipment = (state, equipmentKey, earlyAccess = false) => {
     const item = EQUIPMENT[equipmentKey];
     if (!item) return { ok: false, reason: "Unknown equipment" };
-    // ... existing hull/slot/duplicate checks ...
-    // Then Fame check:
+
+    const shipDef = SHIPS[state.ship.type];
+    const current = state.ship.equipment?.[item.slot] || [];
+
+    // ── Structural checks (never bypassed by early access) ──
+    if ((shipDef.maxHull || 0) < item.requiredHull)
+      return { ok: false, reason: "Ship hull too small" };
+    if ((shipDef.slots?.[item.slot] || 0) <= 0)
+      return { ok: false, reason: "No matching slot" };
+    if (current.length >= shipDef.slots[item.slot])
+      return { ok: false, reason: "Slot full" };
+    if (Object.values(state.ship.equipment || {}).flat().includes(equipmentKey))
+      return { ok: false, reason: "Already installed" };
+
+    // ── Fame check (early access may reduce requirement) ──
     let requiredFame = item.requiredFame || 0;
     if (earlyAccess) {
       const access = L.getNavalYardEarlyAccess(state);
@@ -180,9 +191,9 @@ window.L = window.L || {};
         requiredFame = access.equipmentFameThreshold(requiredFame);
       }
     }
-    if (state.fame < requiredFame)
+    if ((state.fame || 0) < requiredFame)
       return { ok: false, reason: `Requires ★ ${requiredFame} fame` };
-    // ... rest ...
+
     return { ok: true };
   };
 
@@ -502,7 +513,8 @@ window.L = window.L || {};
 
     const access = specialty.access || {};
     if (access.reputation) {
-      const rep = state.reputation[portKey] || 0;
+      const portFaction = window.D.PORTS[portKey]?.faction;
+      const rep = portFaction ? getFactionReputation(state, portFaction, 0) : 0;
       if (rep < access.reputation) return false;
     }
     return true;
@@ -510,19 +522,24 @@ window.L = window.L || {};
 
 // ── Bank helpers ──────────────────────────────────────────────────
 
-  const getBankTrustPct = (state, portKey) => {
-    // Used by UI for display purposes; no longer used for capacity
-    const bank = window.D.SERVICE_THRESHOLDS.bank;
-    const rep = state.reputation[portKey] ?? 50;
-    const repMin = bank.repRequired; // 30
-    const repMax = 100;
-    const progress = Math.max(0, Math.min(1, (rep - repMin) / (repMax - repMin)));
-    return 0.4 + 0.6 * progress; // 40% at Rep 30, 100% at Rep 100
+  const isBankAvailable = (state) => {
+    const port = window.D.PORTS[state.currentPort];
+    if (!port || port.faction !== 'dutch') {
+      return { available: false, reason: 'Not a Dutch port' };
+    }
+    const rep = getFactionReputation(state, port.faction, 0);
+    const required = window.D.SERVICE_THRESHOLDS.bank.repRequired;
+    if (rep < required) {
+      return { available: false, reason: `Requires Dutch reputation ${required}+ (current: ${rep})` };
+    }
+    return { available: true, reason: null };
   };
+
 
   const getBankInterestRate = (state, portKey) => {
     const bank = window.D.SERVICE_THRESHOLDS.bank;
-    const rep = state.reputation[portKey] ?? 50;
+    const faction = window.D.PORTS[portKey]?.faction;
+    const rep = faction ? getFactionReputation(state, faction) : 50;
     const repMin = bank.repRequired; // 30
     const repMax = 100;
     const progress = Math.max(0, Math.min(1, (rep - repMin) / (repMax - repMin)));
@@ -530,7 +547,8 @@ window.L = window.L || {};
   };
 
   const getBankCapacity = (state, portKey) => {
-    const rep = state.reputation[portKey] ?? 50;
+    const faction = window.D.PORTS[portKey]?.faction;
+    const rep = faction ? getFactionReputation(state, faction) : 50;
     const bank = window.D.SERVICE_THRESHOLDS.bank;
 
     // Reputation part: base at Fame 0 (200 at Rep 30, 1000 at Rep 100)
@@ -562,6 +580,18 @@ window.L = window.L || {};
 
   // ── Inquisitor helpers ────────────────────────────────────────────
 
+  const isInquisitorAvailable = (state) => {
+    const port = window.D.PORTS[state.currentPort];
+    if (!port || port.faction !== 'spanish') {
+      return { available: false, reason: 'Not a Spanish port' };
+    }
+    const rep = getFactionReputation(state, port.faction, 0);    const required = window.D.SERVICE_THRESHOLDS.inquisitor.repRequired;
+    if (rep < required) {
+      return { available: false, reason: `Requires Spanish reputation ${required}+ (current: ${rep})` };
+    }
+    return { available: true, reason: null };
+  };
+
   const getInquisitorCost = (state) => {
     const infamy = state.infamy || 0;
     const pricing = window.D.SERVICE_THRESHOLDS.inquisitor.pricing;
@@ -574,6 +604,18 @@ window.L = window.L || {};
   };
 
   // ── Embassy helpers ──────────────────────────────────────────────
+
+  const isEmbassyAvailable = (state) => {
+    const port = window.D.PORTS[state.currentPort];
+    if (!port || port.faction !== 'french') {
+      return { available: false, reason: 'Not a French port' };
+    }
+    const rep = getFactionReputation(state, port.faction, 0);    const required = window.D.SERVICE_THRESHOLDS.embassy.repRequired;
+    if (rep < required) {
+      return { available: false, reason: `Requires French reputation ${required}+ (current: ${rep})` };
+    }
+    return { available: true, reason: null };
+  };
 
   const getEmbassyCost = (state, targetFaction) => {
     const targetRep = L.getFactionReputation(state, targetFaction);
@@ -589,7 +631,7 @@ window.L = window.L || {};
   // ── Naval Yard helpers ────────────────────────────────────────────
 
   const getNavalYardEarlyAccess = (state) => {
-    const englishRep = L.getFactionReputation(state, 'english');
+    const englishRep = getFactionReputation(state, 'english');
     const thresholds = window.D.SERVICE_THRESHOLDS.navalYard;
     if (englishRep < thresholds.repRequiredForEarlyAccess) return null;
 
@@ -617,7 +659,7 @@ window.L = window.L || {};
       if (portFaction !== 'english') {
         return { allowed: false, reason: "Only available at English Naval Yard" };
       }
-      const rep = state.reputation[state.currentPort] ?? 0;
+      const rep = getFactionReputation(state, portFaction, 0);
       if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
         return { allowed: false, reason: `Requires English reputation ${window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval}+` };
       }
@@ -675,11 +717,13 @@ window.L = window.L || {};
       getPortSpecialty,
       getPortSpecialtyById,
       isPortServiceAvailable,
-      getBankTrustPct,
+      isBankAvailable,
       getBankInterestRate,
       getBankCapacity,
       applyLoanGarnish,
+      isInquisitorAvailable,
       getInquisitorCost,
+      isEmbassyAvailable,
       getEmbassyCost,
       getNavalYardEarlyAccess,
       isEarlyAccessEligible,

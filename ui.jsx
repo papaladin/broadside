@@ -880,7 +880,7 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
   const port = D.PORTS[portKey];
   if (!port) return null;
 
-  const rep = state.reputation[portKey] ?? 50;
+  const rep = L.getFactionReputation(state, port.faction);
   const heat = state.factionAlerts?.[port.faction] ?? 0;
   const profile = L.getPortTradeProfile(portKey);
   const goodDeals = (profile.goodDeals || []).filter(g => g !== "food" && g !== "water");
@@ -954,7 +954,6 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
 
             {/* ── Unique Service ────────────────────────────────────────── */}
       {specialty && (() => {
-        // Map specialty IDs to icon components from window.UI
         const iconMap = {
           bank: window.UI.IconGold,
           inquisitor: window.UI.IconSkull,
@@ -963,30 +962,47 @@ function PortCard({ portKey, state, label, distance, unreachableReason, isCurren
           black_market: window.UI.IconGoldBag,
         };
         const IconComponent = iconMap[specialty.id] || window.UI.IconAnchor;
-        const IconEl = IconComponent ? React.createElement(IconComponent, { size: 12, color: T.gold, style: { marginRight: 4 } }) : null;
+        const IconEl = IconComponent
+          ? React.createElement(IconComponent, { size: T.heading3FontSize, color: T.gold, style: { flexShrink: 0 } })
+          : null;
 
         return (
           <div style={{ marginBottom: 10 }}>
-            <div style={{ color: T.gold, fontSize: T.metadataFontSize, fontWeight: "bold", letterSpacing: "0.06em", display: "flex", alignItems: "center" }}>
+            {/* Section label — matches "Distance" / "Goods & Trade" */}
+            <div style={{
+              color: T.textDim,
+              fontSize: T.captionFontSize,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 4,
+            }}>
+              Service
+            </div>
+
+            {/* Single-line service row */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 6,
+              fontSize: T.heading3FontSize,
+              lineHeight: 1.3,
+            }}>
               {IconEl}
-              {specialty.label}
+              <span style={{ color: T.gold, fontWeight: "bold" }}>{specialty.label}</span>
+              <span style={{ color: T.textDim }}>{specialty.description}</span>
             </div>
-            <div style={{ color: T.textDim, fontSize: T.narrativeFontSize, marginTop: 2 }}>
-              {specialty.description}
-            </div>
-            {specialtyReq !== undefined && (
-              <div style={{
-                color: isGated ? T.redBr : T.textDim,
-                fontSize: T.captionFontSize,
-                marginTop: 2,
-              }}>
-                Requires {FACTIONS[port.faction]?.label || "Faction"} reputation {specialtyReq}+
-                {isGated ? ` (current: ${rep})` : ""}
+
+            {/* Blocked reason — one line below, red */}
+            {isGated && (
+              <div style={{ color: T.redBr, fontSize: T.captionFontSize, marginTop: 4 }}>
+                Requires {FACTIONS[port.faction]?.label || "Faction"} reputation {specialtyReq}+ (current: {rep})
               </div>
             )}
-            {/* Special handling for English Naval Yard: show both servicing and early access */}
+
+            {/* English Naval Yard special handling — kept as-is */}
             {specialty.id === 'naval_yard' && port.faction === 'english' && (
-              <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 2 }}>
+              <div style={{ fontSize: T.captionFontSize, color: T.textFaint, marginTop: 4 }}>
                 Servicing (install/remove): Rep {D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval}+
                 {rep >= D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval ? " ✓" : ""}
                 &nbsp;·&nbsp; Early access: Rep {D.SERVICE_THRESHOLDS.navalYard.repRequiredForEarlyAccess}+

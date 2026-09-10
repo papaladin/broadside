@@ -39,35 +39,41 @@ window.G = (() => {
     if (r <= 0) return w.faction;
   }
   return "pirate"; // fallback
-};
+  };
 
-const shuffleArray = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
+  const shuffleArray = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
 
-const isExtremePrice = (good, buyPrice) => {
-  const res = window.D.RESOURCES[good];
-  if (!res || res.variance === 0) return null; // fixed-price goods like food/water
+  const isExtremePrice = (good, buyPrice) => {
+    const res = window.D.RESOURCES[good];
+    if (!res || res.variance === 0) return null; // fixed-price goods like food/water
 
-  // Neutral buyFromPort = basePrice × 1.10 (no availability or faction modifier)
-  const neutral = res.basePrice * 1.10;
-  const ratio   = buyPrice / neutral;
+    // Neutral buyFromPort = basePrice × 1.10 (no availability or faction modifier)
+    const neutral = res.basePrice * 1.10;
+    const ratio   = buyPrice / neutral;
 
-  // Flag goods that are structurally cheap (≤−18%) or expensive (≥+18%).
-  // This corresponds to:
-  //   "always" tier (0.72×) = ratio ~0.72–0.79 → surplus
-  //   "rarely" tier (1.20×) = ratio ~1.20–1.26 → shortage
-  //   "sometimes" (1.00×)   = ratio ~0.99–1.01 → not flagged
-  if (ratio <= 0.82) return { type: "surplus",  deviation: 0.82 - ratio };
-  if (ratio >= 1.18) return { type: "shortage", deviation: ratio - 1.18 };
+    // Flag goods that are structurally cheap (≤−18%) or expensive (≥+18%).
+    // This corresponds to:
+    //   "always" tier (0.72×) = ratio ~0.72–0.79 → surplus
+    //   "rarely" tier (1.20×) = ratio ~1.20–1.26 → shortage
+    //   "sometimes" (1.00×)   = ratio ~0.99–1.01 → not flagged
+    if (ratio <= 0.82) return { type: "surplus",  deviation: 0.82 - ratio };
+    if (ratio >= 1.18) return { type: "shortage", deviation: ratio - 1.18 };
 
-  return null;
-};
+    return null;
+  };
+
+  const applyMissionRewardMultiplier = (state, faction, baseGold) => {
+    const rep = window.L.getFactionReputation(state, faction);
+    const perk = window.L.getRepPerk(rep);
+    return Math.round((baseGold * perk.missionMult) / 25) * 25;
+  };
 
   // ── crew generators (migrated from logic.js) ──────────────────
 
@@ -748,7 +754,7 @@ const findPortWithInDemandGood = (state, currentPort) => {
     // ── Gold reward from the standard mission gold table ──────────
     const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
     const rawGold = minGold + Math.random() * (maxGold - minGold);
-    const gold = Math.round(rawGold / 25) * 25;
+    const gold = applyMissionRewardMultiplier(state, faction, Math.round(rawGold / 25) * 25);
 
     // ── Required quantity derived from gold reward and profit margin ──
     const margin = window.D.TRADE_MISSION_PROFIT_MARGINS[risk] || 0.60;
@@ -811,7 +817,7 @@ const generateSmuggleMission = (portKey, state, risk) => {
     // ── Gold reward from the standard mission gold table ──────
     const [minGold, maxGold] = window.D.MISSION_GOLD_RANGES[tier][risk] || window.D.MISSION_GOLD_RANGES[tier].medium;
     const rawGold = minGold + Math.random() * (maxGold - minGold);
-    const gold = Math.round(rawGold / 25) * 25;
+    const gold = applyMissionRewardMultiplier(state, "pirate", Math.round(rawGold / 25) * 25);
 
     // ── Required quantity derived from gold reward and profit margin ──
     const margin = window.D.SMUGGLE_PROFIT_MARGINS[risk] || 0.80;
@@ -947,7 +953,7 @@ const generateSmuggleMission = (portKey, state, risk) => {
       defendingFaction = enemy ? enemy.faction : null;
     }
 
-    const gold = generateGold(type, risk, state.fame ?? 0);
+    const gold = applyMissionRewardMultiplier(state, missionFaction, generateGold(type, risk, state.fame ?? 0));
     const fame = type === "assault" ? 3 : risk === "high" ? 2 : 1;
     const infamyGain = type === "assault" ? (risk === "high" ? 3 : 2) : 0;
 
@@ -972,8 +978,8 @@ const generateSmuggleMission = (portKey, state, risk) => {
   };
 
   const generateFallbackMission = (portKey, state) => {
-    const fallbackGold = generateGold("escort", "low", state.fame ?? 0);
     const faction = window.D.PORTS[portKey]?.faction || "english";
+    const fallbackGold = applyMissionRewardMultiplier(state, faction, generateGold("escort", "low", state.fame ?? 0));
     return {
       type: "escort",
       name: "Escort the merchant fleet",

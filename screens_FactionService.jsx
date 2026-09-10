@@ -3,7 +3,8 @@ window.S = window.S || {};
 
 (() => {
   const { useState, useMemo } = React;
-  const { PORTS, FACTIONS } = window.D;
+  const { PORTS, FACTIONS } = window.D;x
+  const D = window.D;
   const L = window.L;
   const A = window.E.A;
   const G = window.G;
@@ -12,7 +13,8 @@ window.S = window.S || {};
   // ── Dutch Bank ─────────────────────────────────────────────────
   function BankScreen({ state, dispatch }) {
     const port = PORTS[state.currentPort];
-    const rep = state.reputation[state.currentPort] ?? 50;
+    const portFaction = port?.faction;
+    const rep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
     const debt = state.bankDebt ?? 0;
     const capacity = L.getBankCapacity(state, state.currentPort);
     const interestRate = L.getBankInterestRate(state, state.currentPort);
@@ -123,7 +125,8 @@ window.S = window.S || {};
   // ── Spanish Inquisitor ─────────────────────────────────────────
   function InquisitorScreen({ state, dispatch }) {
     const port = PORTS[state.currentPort];
-    const rep = state.reputation[state.currentPort] ?? 50;
+    const portFaction = port?.faction;
+    const rep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
     const infamy = state.infamy ?? 0;
     const cost = L.getInquisitorCost(state);
     const usedThisVisit = state.inquisitorUsedThisVisit || false;
@@ -177,7 +180,8 @@ window.S = window.S || {};
   // ── French Embassy ─────────────────────────────────────────────
   function EmbassyScreen({ state, dispatch }) {
     const port = PORTS[state.currentPort];
-    const frenchRep = state.reputation[state.currentPort] ?? 50;
+    const portFaction = port?.faction;
+    const frenchRep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
     const [targetFaction, setTargetFaction] = useState("spanish");
 
     const targetRep = L.getFactionReputation(state, targetFaction);

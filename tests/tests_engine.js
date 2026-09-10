@@ -117,17 +117,16 @@
   });
 
   reg("E.START.09", "START_GAME english: rep adjusted for english ports", (u) => {
-    const s = dispatch(makeState(), A.START_GAME, {
-      captainName: "Test",
-      faction: "english",
-      tutorialMode: "none",
-    });
-    const engAdj = D.STARTS.factionRepAdjust.english;
-    const portAffected = Object.keys(D.PORTS).find(k => D.PORTS[k].faction === "english");
-    if (portAffected && engAdj.english) {
-      u.assertEqual(s.reputation[portAffected], 50 + engAdj.english);
-    }
+  const s = dispatch(makeState(), A.START_GAME, {
+    captainName: "Test",
+    faction: "english",
+    tutorialMode: "none",
   });
+  const engAdj = D.STARTS.factionRepAdjust.english;
+  if (engAdj.english) {
+    u.assertEqual(s.reputation.english, 50 + engAdj.english);
+  }
+});
 
   reg("E.START.10", "START_GAME: ship equipment starts empty for all slots", (u) => {
     const s = dispatch(makeState(), A.START_GAME, {
@@ -192,7 +191,7 @@
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
-      reputation: { portRoyal: 60 }, // Friendly → 0.9 repairMult
+      reputation: { english: 60 }, // Friendly → 0.9 repairMult
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assertEqual(s1.ship.hull, 100, "hull restored to sloop maxHull");
@@ -202,7 +201,7 @@
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
     });
     const s1 = dispatch(s0, A.REPAIR);
     u.assert(s1.gold < s0.gold, "gold decreased");
@@ -212,7 +211,7 @@
     const s0 = makePortState("portRoyal", {
       gold: 5000,
       ship: { ...makeShip("sloop"), hull: 60 },
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
     });
     // sloop maxHull 100, hull 60 → 40 missing. cost per point = ceil(100/20) = 5. repMult = 0.9. total = 40 * 5 * 0.9 = 180
     const expectedCost = 180;
@@ -464,27 +463,27 @@
   });
 
   reg("E.MISS.03", "COMPLETE_MISSION trade: gold awarded, goods consumed", (u) => {
-    const mission = makeMission({
-      type: "trade",
-      targetPort: "portRoyal",
-      gold: 300,
-      fame: 2,
-      requiredGood: "sugar",
-      requiredQty: 5,
-    });
-    const s0 = makePortState("portRoyal", {
-      gold: 1000,
-      hold: makeHold({ sugar: 10, food: 5, water: 5 }),
-      activeMission: mission,
-      // No portMarket → goodsValue = 0
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    // reward = floor(300 * 1.10) = 330 (rep 50 → friendly multiplier 1.1)
-    u.assertEqual(s1.gold, 1330, "gold +330");
-    u.assertEqual(s1.hold.items.sugar, 5, "sugar consumed");
-    u.assert(s1.activeMission === null, "mission cleared");
-    u.assert(s1.fame >= 2, "fame increased");
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 300,
+    fame: 2,
+    requiredGood: "sugar",
+    requiredQty: 5,
   });
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    hold: makeHold({ sugar: 10, food: 5, water: 5 }),
+    activeMission: mission,
+    // No portMarket → goodsValue = 0
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 300 (final, no multiplier)
+  u.assertEqual(s1.gold, 1300, "gold +300");
+  u.assertEqual(s1.hold.items.sugar, 5, "sugar consumed");
+  u.assert(s1.activeMission === null, "mission cleared");
+  u.assert(s1.fame >= 2, "fame increased");
+});
 
   reg("E.MISS.04", "COMPLETE_MISSION: blocked at wrong port", (u) => {
     const mission = makeMission({ targetPort: "tortuga" });
@@ -548,22 +547,15 @@
   });
 
   reg("E.MISS.09", "ABANDON_MISSION: applies reputation penalty to mission faction", (u) => {
-    const mission = makeMission({ faction: "english" });
-    const repBefore = {};
-    Object.keys(D.PORTS).filter(k => D.PORTS[k].faction === "english")
-      .forEach(k => { repBefore[k] = 60; });
-
-    const s0 = makePortState("portRoyal", {
-      activeMission: mission,
-      reputation: { ...window.E.initialState.reputation, ...repBefore },
-    });
-    const s1 = dispatch(s0, A.ABANDON_MISSION);
-    const portKey = Object.keys(D.PORTS).find(k => D.PORTS[k].faction === "english");
-    if (portKey && repBefore[portKey] !== undefined) {
-      u.assert(s1.reputation[portKey] < repBefore[portKey],
-        "rep decreased at english port after abandonment");
-    }
+  const mission = makeMission({ faction: "english" });
+  const s0 = makePortState("portRoyal", {
+    activeMission: mission,
+    reputation: { ...window.E.initialState.reputation, english: 60 },
   });
+  const s1 = dispatch(s0, A.ABANDON_MISSION);
+  u.assert(s1.reputation.english < 60,
+    "rep decreased for english faction after abandonment");
+});
 
   // ══════════════════════════════════════════════════════════════════════════
   // E.TRADE — CONFIRM_TRADE
@@ -866,32 +858,32 @@
    // ── NEW: Navy Patrol Surrender (applyNavyPatrolSurrender) ──────────────
 
   reg("E.NAVYSURR.01", "applyNavyPatrolSurrender: applies all consequences correctly", (u) => {
-    const items = { food: 10, water: 10, tobacco: 5, slaves: 2, rum: 10, cloth: 20 };
-    const s0 = makePortState("portRoyal", {
-      gold: 1000,
-      infamy: 5,
-      hold: makeHold(items),
-      crew: { roster: fillRoster(10), max: 40, morale: 80 },
-    });
-    const enemy = { name: "Patrol", faction: "english" };
-    const session = { type: "navy_patrol", enemy, phase: "intercept" };
-
-    const s1 = window.E.applyNavyPatrolSurrender(s0, session);
-
-    u.assertEqual(s1.gold, 650, "gold reduced by fine");
-    u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
-    u.assertEqual(s1.hold.items.slaves, 0, "slaves seized");
-    u.assertEqual(s1.hold.items.rum, 10, "rum preserved");
-    u.assertEqual(s1.hold.items.food, 10, "food preserved");
-    u.assertEqual(s1.hold.items.water, 10, "water preserved");
-    u.assertEqual(s1.hold.items.cloth, 10, "cloth halved (50% cargo loss)");
-    u.assertEqual(s1.crew.morale, 65, "morale -15");
-    u.assertEqual(s1.infamy, 7, "infamy +2");
-    const repAfter = s1.reputation[s1.currentPort];
-    u.assert(repAfter < 50, `rep should be <50 (was ${repAfter})`);
-    u.assert(s1.encounterSession === null, "encounterSession cleared");
-    u.assertEqual(s1.screen, "port", "screen set to port");
+  const items = { food: 10, water: 10, tobacco: 5, slaves: 2, rum: 10, cloth: 20 };
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    infamy: 5,
+    hold: makeHold(items),
+    crew: { roster: fillRoster(10), max: 40, morale: 80 },
   });
+  const enemy = { name: "Patrol", faction: "english" };
+  const session = { type: "navy_patrol", enemy, phase: "intercept" };
+
+  const s1 = window.E.applyNavyPatrolSurrender(s0, session);
+
+  u.assertEqual(s1.gold, 650, "gold reduced by fine");
+  u.assertEqual(s1.hold.items.tobacco, 0, "tobacco seized");
+  u.assertEqual(s1.hold.items.slaves, 0, "slaves seized");
+  u.assertEqual(s1.hold.items.rum, 10, "rum preserved");
+  u.assertEqual(s1.hold.items.food, 10, "food preserved");
+  u.assertEqual(s1.hold.items.water, 10, "water preserved");
+  u.assertEqual(s1.hold.items.cloth, 10, "cloth halved (50% cargo loss)");
+  u.assertEqual(s1.crew.morale, 65, "morale -15");
+  u.assertEqual(s1.infamy, 7, "infamy +2");
+  const repAfter = s1.reputation.english;
+  u.assert(repAfter < 50, `rep should be <50 (was ${repAfter})`);
+  u.assert(s1.encounterSession === null, "encounterSession cleared");
+  u.assertEqual(s1.screen, "port", "screen set to port");
+});
 
   reg("E.NAVYSURR.02", "INTERCEPT_SURRENDER on navy patrol routes to applyNavyPatrolSurrender", (u) => {
     const items = { food: 10, tobacco: 3 };
@@ -951,39 +943,38 @@
   // ── NEW: PATROL_INSPECT tests ──────────────────────────────────────────
 
   reg("E.PATROL.01", "PATROL_INSPECT: seizes contraband, applies fine, rep/infamy/morale penalties", (u) => {
-    const items = { food: 5, water: 5, tobacco: 4, slaves: 1 };
-    const s0 = makePortState("portRoyal", {
-      gold: 500,
-      infamy: 0,
-      hold: makeHold(items),
-      crew: { roster: fillRoster(5), max: 40, morale: 80 },
-      reputation: { portRoyal: 60 },
-    });
-    const enemy = { name: "Patrol", faction: "english" };
-    const ctx = {
-      type: "navy_patrol",
-      phase: "intercept",
-      enemy: enemy,
-      intercept: {
-        flavourText: "Test",
-        options: [{ id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } }]
-      },
-      returnScreen: "port",
-    };
-    const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
-    const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
-    const s2 = dispatch(s1, A.RESOLVE_INSPECTION, { choice: "handOver" });
-
-    u.assertEqual(s2.gold, 375, "gold reduced by fine (500 - 125)");
-    u.assertEqual(s2.hold.items.tobacco, 0, "tobacco seized");
-    u.assertEqual(s2.hold.items.slaves, 0, "slaves seized");
-    u.assertEqual(s2.hold.items.food, 5, "food preserved");
-    u.assertEqual(s2.infamy, 2, "infamy +2");
-    u.assertEqual(s2.crew.morale, 70, "morale -10");
-    const repAfter = s2.reputation[s2.currentPort];
-    u.assertEqual(repAfter, 55, "reputation -5");
-    u.assert(s2.encounterSession === null, "encounter cleared");
+  const items = { food: 5, water: 5, tobacco: 4, slaves: 1 };
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    infamy: 0,
+    hold: makeHold(items),
+    crew: { roster: fillRoster(5), max: 40, morale: 80 },
+    reputation: { english: 60 },
   });
+  const enemy = { name: "Patrol", faction: "english" };
+  const ctx = {
+    type: "navy_patrol",
+    phase: "intercept",
+    enemy: enemy,
+    intercept: {
+      flavourText: "Test",
+      options: [{ id: "inspect", label: "Inspect", available: true, reason: null, action: { type: "PATROL_INSPECT" } }]
+    },
+    returnScreen: "port",
+  };
+  const session = { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null };
+  const s1 = dispatch(s0, A.PATROL_INSPECT, { encounterSession: session });
+  const s2 = dispatch(s1, A.RESOLVE_INSPECTION, { choice: "handOver" });
+
+  u.assertEqual(s2.gold, 375, "gold reduced by fine (500 - 125)");
+  u.assertEqual(s2.hold.items.tobacco, 0, "tobacco seized");
+  u.assertEqual(s2.hold.items.slaves, 0, "slaves seized");
+  u.assertEqual(s2.hold.items.food, 5, "food preserved");
+  u.assertEqual(s2.infamy, 2, "infamy +2");
+  u.assertEqual(s2.crew.morale, 70, "morale -10");
+  u.assertEqual(s2.reputation.english, 55, "reputation -5");
+  u.assert(s2.encounterSession === null, "encounter cleared");
+});
 
   reg("E.PATROL.02", "PATROL_INSPECT: Hidden Compartment can avoid detection", (u) => {
     const items = { tobacco: 3 };
@@ -1063,7 +1054,7 @@
       infamy: 0,
       hold: makeHold(items),
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
       activeMission: mission,
     });
 
@@ -1117,7 +1108,7 @@
       returnScreen: "port",
     };
     const s0 = makePortState("portRoyal", {
-      reputation: { portRoyal: 0 },
+      reputation: { english:0 },
       encounterSession: { ...ctx, notableNPCId: null, source: { kind: "random", id: null }, modifiers: [], battle: null, plunder: null },
     });
     setRandomSequence([0.9]);
@@ -1415,7 +1406,7 @@
         gold: 1000,
         ship: makeShip("sloop"),
         crew: { roster: fillRoster(10), max: 40, morale: 80 },
-        reputation: { portRoyal: 50 },
+        reputation: { english: 50 },
       }
     );
     s0.encounterSession.merchantFaction = "english";
@@ -1425,7 +1416,7 @@
     const s1 = dispatch(s0, A.DISMISS_BATTLE);
 
     u.assert(s1.gold > 1000, "gold increased for merchant rescue");
-    const repAfter = s1.reputation["portRoyal"] || 0;
+    const repAfter = s1.reputation.english || 0;
     u.assert(repAfter > 50, "reputation increased for merchant faction");
     u.assert(s1.log.some(l => l.includes("merchant is saved")), "rescue log present");
     u.assert(s1.encounterSession === null, "encounter cleared");
@@ -1445,7 +1436,7 @@
         gold: 1000,
         ship: makeShip("sloop"),
         crew: { roster: fillRoster(10), max: 40, morale: 80 },
-        reputation: { portRoyal: 50 },
+        reputation: { english: 50 },
       }
     );
     s0.encounterSession.merchantFaction = "english";
@@ -1455,7 +1446,7 @@
     const s1 = dispatch(s0, A.DISMISS_BATTLE);
 
     u.assertEqual(s1.gold, 1000, "gold unchanged when merchant destroyed");
-    u.assertEqual(s1.reputation["portRoyal"], 50, "reputation unchanged");
+    u.assertEqual(s1.reputation.english, 50, "reputation unchanged");
     u.assert(s1.log.some(l => l.includes("merchant ship was destroyed") || l.includes("no reward")), "no reward log present");
     u.assert(s1.encounterSession === null, "encounter cleared");
   });
@@ -1478,42 +1469,42 @@
     const s0 = makePortState("portRoyal", {
       activeMission: mission,
       gold: 1000,
-      reputation: { portRoyal: 50 },
+      reputation: { english: 50 },
     });
     const s1 = dispatch(s0, A.COMPLETE_MISSION);
 
     u.assert(s1.activeMission === null, "mission cleared");
     u.assertEqual(s1.gold, 1000, "gold not awarded for failed escort");
-    u.assert(s1.reputation["portRoyal"] < 50, "reputation decreased for failed escort");
+    u.assert(s1.reputation.english < 50, "reputation decreased for failed escort");
     u.assert(s1.log.some(l => l.includes("convoy was destroyed")), "failure log present");
   });
 
   reg("E.CONVOY.07", "COMPLETE_MISSION: allows escort completion when convoy survives", (u) => {
-    const mission = {
-      type: "escort",
-      id: "escort_2",
-      targetPort: "portRoyal",
-      faction: "english",
-      gold: 300,
-      fame: 2,
-      repImpact: { english: 3 },
-      convoyLost: false,
-      encounterOccurred: true,
-      enemyDefeated: true,
-      requiredGood: null,
-      requiredQty: 0,
-    };
-    const s0 = makePortState("portRoyal", {
-      activeMission: mission,
-      gold: 1000,
-      reputation: { portRoyal: 50 },
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-
-    u.assert(s1.activeMission === null, "mission cleared");
-    u.assertEqual(s1.gold, 1330, "gold awarded for successful escort (1000 + 330 with rep perk)");
-    u.assert(s1.reputation["portRoyal"] > 50, "reputation increased");
+  const mission = {
+    type: "escort",
+    id: "escort_2",
+    targetPort: "portRoyal",
+    faction: "english",
+    gold: 300,
+    fame: 2,
+    repImpact: { english: 3 },
+    convoyLost: false,
+    encounterOccurred: true,
+    enemyDefeated: true,
+    requiredGood: null,
+    requiredQty: 0,
+  };
+  const s0 = makePortState("portRoyal", {
+    activeMission: mission,
+    gold: 1000,
+    reputation: { english: 50 },
   });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+
+  u.assert(s1.activeMission === null, "mission cleared");
+  u.assertEqual(s1.gold, 1300, "gold awarded for successful escort (1000 + 300)");
+  u.assert(s1.reputation.english > 50, "reputation increased");
+});
 
   // ══════════════════════════════════════════════════════════════════════════
   // E.EVENT — RESOLVE_EVENT (deterministic gold/rep choices)
@@ -1927,117 +1918,108 @@
   // ══════════════════════════════════════════════════════════════════════════
 
   reg("E.MISS.10", "COMPLETE_MISSION trade: pays mission.gold + goods sale value", (u) => {
-    const mission = makeMission({
-      type: "trade",
-      targetPort: "portRoyal",
-      gold: 150,
-      fame: 1,
-      requiredGood: "spices",
-      requiredQty: 3,
-    });
-    const s0 = makePortState("portRoyal", {
-      gold: 500,
-      hold: makeHold({ spices: 3, food: 5, water: 5 }),
-      portMarket: {
-        goods: {
-          spices: { sellToPort: 100 },
-        },
-      },
-      activeMission: mission,
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    // reward = floor(150 * 1.10) = 165
-    // goodsValue = 3 * 100 = 300
-    // total = 165 + 300 = 465
-    // gold = 500 + 465 = 965
-    u.assertEqual(s1.gold, 965, "gold should be 965");
-    u.assertEqual(s1.hold.items.spices, 0, "spices removed from hold");
-    u.assert(s1.activeMission === null, "mission cleared");
-    u.assert(s1.log.some(l => l.includes("for the goods")), "log mentions goods value");
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 150,
+    fame: 1,
+    requiredGood: "spices",
+    requiredQty: 3,
   });
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ spices: 3, food: 5, water: 5 }),
+    portMarket: {
+      goods: {
+        spices: { sellToPort: 100 },
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 150 (final), goodsValue = 300, total = 450, gold = 950
+  u.assertEqual(s1.gold, 950, "gold should be 950");
+  u.assertEqual(s1.hold.items.spices, 0, "spices removed from hold");
+  u.assert(s1.activeMission === null, "mission cleared");
+  u.assert(s1.log.some(l => l.includes("for the goods")), "log mentions goods value");
+});
 
   reg("E.MISS.11", "COMPLETE_MISSION smuggle: pays mission.gold + goods sale value", (u) => {
-    const mission = makeMission({
-      type: "smuggle",
-      targetPort: "portRoyal",
-      gold: 200,
-      fame: 1,
-      infamyGain: 1,
-      requiredGood: "rum",
-      requiredQty: 5,
-    });
-    const s0 = makePortState("portRoyal", {
-      gold: 1000,
-      hold: makeHold({ rum: 5, food: 5, water: 5 }),
-      portMarket: {
-        goods: {
-          rum: { sellToPort: 30 },
-        },
-      },
-      activeMission: mission,
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    // reward = floor(200 * 1.10) = 220
-    // goodsValue = 5 * 30 = 150
-    // total = 220 + 150 = 370
-    // gold = 1000 + 370 = 1370
-    u.assertEqual(s1.gold, 1370, "gold should be 1370");
-    u.assertEqual(s1.hold.items.rum, 0, "rum removed from hold");
-    u.assertEqual(s1.infamy, 1, "infamy gained from smuggle mission");
+  const mission = makeMission({
+    type: "smuggle",
+    targetPort: "portRoyal",
+    gold: 200,
+    fame: 1,
+    infamyGain: 1,
+    requiredGood: "rum",
+    requiredQty: 5,
   });
+  const s0 = makePortState("portRoyal", {
+    gold: 1000,
+    hold: makeHold({ rum: 5, food: 5, water: 5 }),
+    portMarket: {
+      goods: {
+        rum: { sellToPort: 30 },
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 200 (final), goodsValue = 150, total = 350, gold = 1350
+  u.assertEqual(s1.gold, 1350, "gold should be 1350");
+  u.assertEqual(s1.hold.items.rum, 0, "rum removed from hold");
+  u.assertEqual(s1.infamy, 1, "infamy gained from smuggle mission");
+});
 
   reg("E.MISS.12", "COMPLETE_MISSION trade: falls back to mission.gold when sellPrice is zero", (u) => {
-    const mission = makeMission({
-      type: "trade",
-      targetPort: "portRoyal",
-      gold: 150,
-      fame: 1,
-      requiredGood: "spices",
-      requiredQty: 3,
-    });
-    const s0 = makePortState("portRoyal", {
-      gold: 500,
-      hold: makeHold({ spices: 3 }),
-      portMarket: {
-        goods: {
-          // no spices entry => sellPrice = 0
-        },
-      },
-      activeMission: mission,
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    // reward = floor(150 * 1.10) = 165
-    // goodsValue = 0
-    // gold = 500 + 165 = 665
-    u.assertEqual(s1.gold, 665, "gold should be 665");
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 150,
+    fame: 1,
+    requiredGood: "spices",
+    requiredQty: 3,
   });
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ spices: 3 }),
+    portMarket: {
+      goods: {
+        // no spices entry => sellPrice = 0
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  // mission.gold = 150 (final), goodsValue = 0, gold = 650
+  u.assertEqual(s1.gold, 650, "gold should be 650");
+});
 
   reg("E.MISS.13", "COMPLETE_MISSION trade: log includes goods value note", (u) => {
-    const mission = makeMission({
-      type: "trade",
-      targetPort: "portRoyal",
-      gold: 100,
-      fame: 0,
-      requiredGood: "sugar",
-      requiredQty: 2,
-    });
-    const s0 = makePortState("portRoyal", {
-      gold: 500,
-      hold: makeHold({ sugar: 2 }),
-      portMarket: {
-        goods: {
-          sugar: { sellToPort: 50 },
-        },
-      },
-      activeMission: mission,
-    });
-    const s1 = dispatch(s0, A.COMPLETE_MISSION);
-    const rewardLog = s1.log.find(l => l.includes("Completed:"));
-    // reward = floor(100 * 1.10) = 110, goodsValue = 2*50=100, total=210
-    // log should mention "+210g" and "for the goods"
-    u.assert(rewardLog.includes("+210g"), "log includes total gold");
-    u.assert(rewardLog.includes("for the goods"), "log mentions goods value");
+  const mission = makeMission({
+    type: "trade",
+    targetPort: "portRoyal",
+    gold: 100,
+    fame: 0,
+    requiredGood: "sugar",
+    requiredQty: 2,
   });
+  const s0 = makePortState("portRoyal", {
+    gold: 500,
+    hold: makeHold({ sugar: 2 }),
+    portMarket: {
+      goods: {
+        sugar: { sellToPort: 50 },
+      },
+    },
+    activeMission: mission,
+  });
+  const s1 = dispatch(s0, A.COMPLETE_MISSION);
+  const rewardLog = s1.log.find(l => l.includes("Completed:"));
+  // mission.gold = 100, goodsValue = 100, total = 200
+  u.assert(rewardLog.includes("+200g"), "log includes total gold");
+  u.assert(rewardLog.includes("for the goods"), "log mentions goods value");
+});
 
   // ── B10.3 — Spanish HIRE_CREW ──────────────────────────────────────
 
@@ -2153,7 +2135,7 @@
       hold: makeHold(items),
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
       ship: makeShip("sloop"),
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
     });
     const enemy = { name: "Patrol", faction: "english" };
     const ctx = {
@@ -2183,7 +2165,7 @@
       hold: makeHold(items),
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
       ship: makeShip("sloop"),
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
     });
     const enemy = { name: "Patrol", faction: "english" };
     const ctx = {
@@ -2359,7 +2341,7 @@
   reg("E.EVENT.MERCHANT.SAVED", "Merchant: Defend and win with merchant saved", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 1000,
-      reputation: { portRoyal: 50 },
+      reputation: { english: 50 },
       crew: { roster: fillRoster(10), max: 40, morale: 80 },
       ship: makeShip("sloop"),
       hold: makeHold(),
@@ -2381,7 +2363,7 @@
     const s3 = dispatch(s2, A.DISMISS_BATTLE);
 
     u.assert(s3.gold > 1000, "gold increased (rescue bonus)");
-    u.assert(s3.reputation["portRoyal"] > 50, "reputation increased");
+    u.assert(s3.reputation.english > 50, "reputation increased");
     u.assert(s3.log.some(l => l.includes("merchant is saved")), "log mentions saved");
     u.assert(s3.encounterSession === null, "encounter cleared");
   });
@@ -2389,7 +2371,7 @@
   reg("E.EVENT.MERCHANT.SUNK", "Merchant: Defend and win but merchant sunk yields no rescue reward", (u) => {
     const s0 = makePortState("portRoyal", {
       gold: 1000,
-      reputation: { portRoyal: 50 },
+      reputation: { english: 50 },
       crew: { roster: fillRoster(10), max: 40, morale: 80 },
       ship: makeShip("sloop"),
       hold: makeHold(),
@@ -2407,7 +2389,7 @@
     const s3 = dispatch(s2, A.DISMISS_BATTLE);
 
     u.assertEqual(s3.gold, 1000, "gold unchanged (no rescue bonus)");
-    u.assertEqual(s3.reputation["portRoyal"], 50, "reputation unchanged");
+    u.assertEqual(s3.reputation.english, 50, "reputation unchanged");
     u.assert(s3.log.some(l => l.includes("merchant ship was destroyed")), "log mentions destroyed");
   });
 
@@ -2538,7 +2520,7 @@
       infamy: 0,
       hold: makeHold({ tobacco: 4, food: 5 }),
       crew: { roster: fillRoster(5), max: 40, morale: 80 },
-      reputation: { portRoyal: 60 },
+      reputation: { english: 60 },
     });
     const enemy = { name: "Patrol", faction: "english" };
     const ctx = {
@@ -2603,7 +2585,7 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
       hold: makeHold({ food: 0, water: 0 }),
       previousPort: "portRoyal",
       currentPort: "portRoyal",
-      reputation: { portRoyal: 50 },
+      reputation: { ...window.E.initialState.reputation },
       discoveredPorts: ["portRoyal", "tortuga", "havana", "santiagoDeCuba"],
       encounterSession: {
         type: "random",
@@ -2619,27 +2601,22 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
     return makeState(base);
   };
 
-  // Mock findNearestPortOfFaction to return a fixed Spanish port.
+  // Mock findNearestPortOfFaction to respect discoveredPorts.
   const originalFind = L.findNearestPortOfFaction;
-  L.findNearestPortOfFaction = (state, faction, pos) => "havana";
+  L.findNearestPortOfFaction = (state, faction, pos) => {
+    return (state.discoveredPorts || []).includes("havana") ? "havana" : null;
+  };
 
-  // Define test matrix:
   // [faction, shipType, crewCount, gold, atSea, currentPortKey, expectedPort, expectedGameOver]
   const matrix = [
-    // Spanish, insufficient crew, at sea, non‑Spanish port → redirect to havana
     ["spanish", "sloop", 0, 200, true, "portRoyal", "havana", false],
-    // Spanish, insufficient crew, at sea, already at Spanish port → stay at havana
     ["spanish", "sloop", 0, 200, true, "havana", "havana", false],
-    // Spanish, insufficient crew, at non‑Spanish port → redirect to havana
     ["spanish", "sloop", 0, 200, false, "portRoyal", "havana", false],
-    // Spanish, insufficient crew, in dinghy → stay at portRoyal (no redirect)
     ["spanish", "dinghy", 0, 0, false, "portRoyal", "portRoyal", false],
-    // Spanish, sufficient crew (>= min) → stay at portRoyal
     ["spanish", "sloop", 5, 0, false, "portRoyal", "portRoyal", false],
-    // Non‑Spanish, 0 crew → stay at portRoyal, gameover
     ["english", "sloop", 0, 0, false, "portRoyal", "portRoyal", true],
-    // Spanish, no discovered Spanish ports → fallback to portRoyal, gameover
-    ["spanish", "sloop", 0, 200, false, "portRoyal", "portRoyal", true],
+    // No discovered Spanish ports → no redirect → stays at portRoyal, unrecoverable
+    ["spanish", "sloop", 0, 0, false, "portRoyal", "portRoyal", true],
   ];
 
   for (const [faction, shipType, crewCount, gold, atSea, currentPortKey, expectedPort, expectedGameOver] of matrix) {
@@ -2663,7 +2640,6 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
       };
     }
 
-    // For the "no discovered Spanish ports" case
     if (expectedGameOver && faction === "spanish") {
       overrides.discoveredPorts = ["portRoyal", "tortuga"];
     }
@@ -2686,7 +2662,6 @@ reg("E.WASH.REDIRECT", "Spanish redirection matrix: all conditions", (u) => {
     u.assert(result.encounterSession === null, "encounter cleared");
   }
 
-  // Restore original
   L.findNearestPortOfFaction = originalFind;
 });
 
@@ -2712,7 +2687,7 @@ reg("B10.ENGINE.BANK_FLOW", "TAKE_LOAN / REPAY_LOAN: table-driven flow", (u) => 
   u.assertEqual(s.bankDebt, 0, "non-Dutch port: no loan");
 
   // Rep too low
-  s = makeDutchState({ reputation: { curacao: 20 } });
+  s = makeDutchState({ reputation: { dutch: 20 } });
   s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
   u.assertEqual(s.bankDebt, 0, "rep <30: no loan");
 
@@ -2722,13 +2697,13 @@ reg("B10.ENGINE.BANK_FLOW", "TAKE_LOAN / REPAY_LOAN: table-driven flow", (u) => 
   u.assertEqual(s.bankDebt, 10000, "already in debt: no new loan");
 
   // Amount > capacity
-  s = makeDutchState({ fame: 0, reputation: { curacao: 30 } });
+  s = makeDutchState({ fame: 0, reputation: { dutch: 30 } });
   // capacity at rep30, fame0 = 200
   s = dispatch(s, A.TAKE_LOAN, { amount: 5000 });
   u.assertEqual(s.bankDebt, 0, "amount > capacity: no loan");
 
   // Valid loan
-  s = makeDutchState({ fame: 0, reputation: { curacao: 30 }, gold: 0 });
+  s = makeDutchState({ fame: 0, reputation: { dutch: 30 }, gold: 0 });
   // capacity = 200, interest = 20%, obligation = ceil(200 * 1.2) = 240
   s = dispatch(s, A.TAKE_LOAN, { amount: 200 });
   u.assertEqual(s.gold, 200, "gold increased by loan amount");
@@ -2762,7 +2737,7 @@ reg("B10.ENGINE.INQUISITOR_FLOW", "PAY_INQUISITOR: table-driven flow", (u) => {
   u.assertEqual(s.infamy, 30, "non-Spanish port: no change");
 
   // Rep < 50 fails
-  s = makeSpanishState({ reputation: { havana: 40 } });
+  s = makeSpanishState({ reputation: { spanish:40 } });
   s = dispatch(s, A.PAY_INQUISITOR);
   u.assertEqual(s.infamy, 30, "rep <50: no change");
 
@@ -2787,7 +2762,7 @@ reg("B10.ENGINE.INQUISITOR_FLOW", "PAY_INQUISITOR: table-driven flow", (u) => {
 reg("B10.ENGINE.EMBASSY_FLOW", "PURCHASE_EMBASSY_REP: table-driven flow", (u) => {
   const makeFrenchState = (overrides = {}) => makePortState("martinique", {
     faction: "french",
-    reputation: { ...window.E.initialState.reputation, martinique: 60, spanish: 30 },
+    reputation: { ...window.E.initialState.reputation, french: 60, spanish: 30 },
     gold: 5000,
     ...overrides,
   });
@@ -2799,7 +2774,7 @@ reg("B10.ENGINE.EMBASSY_FLOW", "PURCHASE_EMBASSY_REP: table-driven flow", (u) =>
   u.assertEqual(s.reputation.spanish, 30, "non-French port: no change");
 
   // Rep < 50 fails
-  s = makeFrenchState({ reputation: { martinique: 40, spanish: 30 } });
+  s = makeFrenchState({ reputation: { french: 40, spanish: 30 } });
   s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
   u.assertEqual(s.reputation.spanish, 30, "rep <50: no change");
 
@@ -2809,32 +2784,17 @@ reg("B10.ENGINE.EMBASSY_FLOW", "PURCHASE_EMBASSY_REP: table-driven flow", (u) =>
   u.assertEqual(s.reputation.spanish, 30, "invalid target: no change");
 
   // Target at 100 fails
-const frenchState100 = makeFrenchState({ 
-  reputation: { 
-    martinique: 60, 
-    spanish: 100,
-    // Also set all Spanish ports to 100
-    havana: 100,
-    santiagoDeCuba: 100,
-    santoDomingo: 100,
-    cartagena: 100,
-    maracaibo: 100,
-    portobelo: 100,
-    campeche: 100,
-    veracruz: 100,
-    trinidad: 100,
-  } 
-});
-s = dispatch(frenchState100, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
-u.assertEqual(s.gold, 5000, "target max: no change");
+  const frenchState100 = makeFrenchState({ reputation: { french: 60, spanish: 100 } });
+  s = dispatch(frenchState100, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
+  u.assertEqual(s.gold, 5000, "target max: no change");
 
   // Insufficient gold
-  s = makeFrenchState({ gold: 100, reputation: { martinique: 60, spanish: 30 } });
+  s = makeFrenchState({ gold: 100, reputation: { french: 60, spanish: 30 } });
   s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
   u.assertEqual(s.reputation.spanish, 30, "insufficient gold: no change");
 
   // Valid purchase: rep 30 → 35, cost 1000
-  s = makeFrenchState({ gold: 5000, reputation: { martinique: 60, spanish: 30 } });
+  s = makeFrenchState({ gold: 5000, reputation: { french: 60, spanish: 30 } });
   s = dispatch(s, A.PURCHASE_EMBASSY_REP, { targetFaction: "spanish" });
   u.assertEqual(s.gold, 4000, "gold reduced by 1000");
   u.assertEqual(s.reputation.spanish, 35, "rep increased by 5");
@@ -2856,18 +2816,18 @@ reg("B10.ENGINE.MISSION_GARNISH", "COMPLETE_MISSION: loan garnish on reward only
     hold: makeHold({ sugar: 5, food: 5, water: 5 }),
     portMarket: { goods: { sugar: { sellToPort: 50 } } },
     activeMission: mission,
-    reputation: { portRoyal: 50 }, // friendly multiplier 1.10
+    reputation: { english: 50 },
   });
 
   const s1 = dispatch(s0, A.COMPLETE_MISSION);
 
-  // rewardGold = Math.floor(200 * 1.10) = 220
-  // garnish = 220 * 0.20 = 44
-  // netReward = 220 - 44 = 176
+  // rewardGold = 200 (final, no multiplier)
+  // garnish = 200 * 0.20 = 40
+  // netReward = 200 - 40 = 160
   // goodsValue = 5 * 50 = 250
-  // netGoldGain = 176 + 250 = 426
-  u.assertEqual(s1.gold, 426, "gold added correctly");
-  u.assertEqual(s1.bankDebt, 956, "debt reduced by 44");
+  // netGoldGain = 160 + 250 = 410
+  u.assertEqual(s1.gold, 410, "gold added correctly");
+  u.assertEqual(s1.bankDebt, 960, "debt reduced by 40");
   u.assert(s1.log.some(l => l.includes("Bank repayment")), "garnish log present");
 });
 
@@ -2895,7 +2855,7 @@ reg("B10.ENGINE.NAVAL_YARD", "BUY_SHIP: early access uses English Rep 80", (u) =
   // English Rep 80, Fame 40 (Schooner requires 50, adjusted to 40)
   const s0 = makePortState("portRoyal", {
     gold: 25000,
-    reputation: { portRoyal: 80 },
+    reputation: {   english: 80},
     fame: 40,
     ship: makeShip("sloop"),
   });
@@ -2905,7 +2865,7 @@ reg("B10.ENGINE.NAVAL_YARD", "BUY_SHIP: early access uses English Rep 80", (u) =
   // English Rep 79, Fame 40 → blocked
   const s2 = makePortState("portRoyal", {
     gold: 25000,
-    reputation: { portRoyal: 79 },
+    reputation: { english:79 },
     fame: 40,
     ship: makeShip("sloop"),
   });
@@ -2915,7 +2875,7 @@ reg("B10.ENGINE.NAVAL_YARD", "BUY_SHIP: early access uses English Rep 80", (u) =
   // Non-English port → blocked even with Fame
   const s4 = makePortState("tortuga", {
     gold: 25000,
-    reputation: { tortuga: 80 },
+    reputation: { pirate: 80 },
     fame: 40,
     ship: makeShip("sloop"),
   });

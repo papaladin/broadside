@@ -346,18 +346,22 @@
       case A.INTERCEPT_PARLEY: {
         const ctx = state.encounterSession;
         if (!ctx) return state;
-        const rep = state.reputation[state.destination ?? state.currentPort] ?? 20;
+        const portKey = state.destination ?? state.currentPort;
+        const portFaction = PORTS[portKey]?.faction;
+        const rep = portFaction ? L.getFactionReputation(state, portFaction, 20) : 20;
         const success = L.roll(100) <= Math.min(80, rep + 20);
         if (success) {
-          const portKey = state.destination ?? state.currentPort;
+          const enemyFaction = ctx.enemy?.faction;
           return {
             ...state,
             encounterSession: null,
             screen: L.returnScreen(state),
-            reputation: { ...state.reputation, [portKey]: Math.min(100, (state.reputation[portKey] ?? 20) + 3) },
+            reputation: enemyFaction
+              ? L.applyReputationImpact(state, { [enemyFaction]: 3 })
+              : state.reputation,
             log: [...state.log, "Parley successful. They let you pass."]
           };
-        }
+        }        
         // Failed parley → battle
         const battle = createBattleState(state, ctx, { subPhase: "naval", distance: window.L.initialDistanceFor(ctx.type), openingLog: "Your parley failed. They attack!" });
         const newSession = {
@@ -395,12 +399,14 @@
           return { ...state, log: [...state.log, `Not enough gold for bribe (need ${cost}g).`] };
         }
 
-        const portKey = state.destination ?? state.currentPort;
+        const enemyFaction = ctx.enemy?.faction;
         return {
           ...state,
           encounterSession: null,
           gold: state.gold - cost,
-          reputation: { ...state.reputation, [portKey]: Math.max(0, (state.reputation[portKey] ?? 20) - 2) },
+          reputation: enemyFaction
+            ? L.applyReputationImpact(state, { [enemyFaction]: -2 })
+            : state.reputation,
           screen: L.returnScreen(state),
           log: [...state.log, `Bribed them with ${cost}g. They looked the other way.`]
         };
@@ -440,9 +446,11 @@
           logParts.push(`you were imprisoned for ${consequence.loseDays} day${consequence.loseDays !== 1 ? "s" : ""}`);
         }
         if (consequence.rep_loss) {
-          const portKey = state.destination ?? state.currentPort;
-          s = { ...s, reputation: { ...s.reputation, [portKey]: Math.max(0, (s.reputation[portKey] ?? 20) - consequence.rep_loss) } };
-          logParts.push(`your reputation with the local faction suffered (${consequence.rep_loss} points)`);
+          const enemyFaction = ctx.enemy?.faction;
+          if (enemyFaction) {
+            s = { ...s, reputation: L.applyReputationImpact(s, { [enemyFaction]: -consequence.rep_loss }) };
+          }
+          logParts.push(`your reputation with the ${FACTIONS[enemyFaction]?.label || "local faction"} suffered (${consequence.rep_loss} points)`);
         }
         if (consequence.loseCargoPercent) {
           const items = s.hold?.items || {};
@@ -545,14 +553,9 @@
             newHoldItems[contraband.smuggledGood] = 0;
           }
 
-          let newRep = { ...state.reputation };
-          if (inspectingFaction) {
-            Object.keys(PORTS).forEach(portKey => {
-              if (PORTS[portKey].faction === inspectingFaction) {
-                newRep[portKey] = Math.max(0, (newRep[portKey] ?? 50) - 5);
-              }
-            });
-          }
+          const newRep = inspectingFaction
+            ? L.applyReputationImpact(state, { [inspectingFaction]: -5 })
+            : state.reputation;
 
           return {
             ...state,

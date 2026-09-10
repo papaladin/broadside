@@ -1,204 +1,300 @@
-# Onboarding Coverage Audit — QM Dialogue vs Handbook
-## Every game mechanic/action, cross-referenced against both teaching surfaces
-
-**Legend**
-- ✅ Covered — confirmed present in the actual shipped content
-- ❌ Not covered — should be, nothing currently addresses it
-- ➖ Not needed — fine to leave discoverable-by-play, or QM Handbook are the wrong tool for it
-- 🔜 Planned — mechanic doesn't exist yet (B10/B11), coverage should ship alongside it, not before
-
-**Two important structural notes surfaced during this audit:**
-1. Per-screen `TutorialPopup` hints (Hints-only mode) are **suppressed entirely** when
-   `tutorialMode === "full"` (Guided/QM mode) — confirmed in `storage.js`'s
-   `shouldShowTutorial`. Any mechanic taught only via a per-screen popup is invisible
-   to guided-mode players. This is called out explicitly wherever it applies.
-2. The Handbook is reference documentation, opened voluntarily via the Menu — it is
-   never pushed to the player. A mechanic being "✅ Handbook" does not mean a new
-   player has necessarily seen it; it means the information exists if they look.
+# Onboarding Coverage Re-Audit (v2)
+## Every mechanic cross-referenced against QM, hints, and Handbook, post-B10/B11/B12
 
 ---
 
-## Core Loop & Navigation
+## What's changed since the last audit
 
-| Mechanic / Action | QM Coverage | Handbook Coverage |
+The previous audit was written before the following shipped. Each was either marked 🔜 or didn't exist, and now needs a real coverage check:
+
+**B10 — Player & Port Identity**
+- 5 player birth traits, one per faction (chosen at New Game, mechanical effect for the whole run)
+- 5 port specialties: Dutch Bank, Spanish Inquisitor, French Embassy, English Naval Yard, Pirate Black Market
+- Reputation is now faction-scoped, not port-scoped
+- Mission rewards now scale with **faction** rep, shown as a `(Eng : +20%)` badge on mission cards
+
+**B11 — Combat Rework**
+- Distance bands (Far / Medium / Close) and the `DistanceIndicator` UI
+- Close Distance / Open Distance movement actions
+- Legal-action gating per distance (some actions only available at some ranges)
+- Grapple now requires Close range and leads to boarding, no longer instant-win
+- Boarding sub-phase with its own action set: Continue Fighting, Fall Back, Surrender, Demand Surrender
+- Advantage bar (split green/red crew-×-morale ratio)
+- Demand Surrender's 0.65 ratio threshold
+- Fall Back's parting-shot crew cost
+- Sunk vs. Captured distinction (no plunder on Sunk)
+- Action previews on each combat button (hull range, crew range, hit chance)
+- Miss-fail flash animation on player misses
+
+**B12 — Sailing Enrichment**
+- Port modal (click a port on the map to open a modal with full details, service specialty, goods & trade, trade tip, compare-with-current, mission target badge, Set Sail button)
+- Port comparison ("Compare with current port" expandable section inside the modal)
+- Trade tip ("Cloth is 18% cheaper here…") computed live between two ports
+- Stable, learnable economy (fixed per-port prices with faction modifiers, no randomness on already-known goods)
+- SVG illustrations on event and intercept screens
+- Port silhouettes on the port screen
+- Quick Repair and Top Up Provisions as one-click port actions
+- Mission reward badge showing faction rep multiplier
+
+**Older but previously unaudited:**
+- Change Course mid-voyage
+- Faction reputation display on Status screen (coloured faction blocks with prose)
+- Autosave toggle
+- Menu's "Game Menu" button on Port screen
+
+---
+
+## Structural notes (updated)
+
+1. **Guided mode is QM-only.** `shouldShowTutorial` returns `false` when `tutorialMode === "full"`. Any mechanic taught exclusively via a per-screen popup is **invisible to guided-mode players**. This is the single most important constraint in this audit — it means the QM dialogue is the *only* teaching surface for players who chose the most hand-held option.
+
+2. **Light mode is popup-only.** `tutorialMode === "light"` never shows QM dialogue. Light-mode players learn via popups + Handbook + self-discovery.
+
+3. **Handbook is push-neutral.** Opened voluntarily from the Menu. Being "✅ Handbook" does not mean a player has seen it.
+
+4. **The right surface depends on the mechanic.** Critical path + complex = QM. Situational + contextual = hint. Reference = Handbook. Most mechanics warrant more than one.
+
+---
+
+## Coverage matrix
+
+**Legend:** ✅ Covered · ❌ Missing, should be · ➖ Not needed · 🆕 New since last audit · 🔜 Planned, not yet shipped
+
+### Core Loop & Navigation
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Port screen — purpose & layout | ✅ | ✅ | ➖ | Keep |
+| World Map — navigation | ✅ | ✅ | ➖ | Keep |
+| Sailing — Advance Day / Enter Port | ✅ | ✅ | ➖ | Keep |
+| **Change Course mid-voyage** | ❌ | ❌ | ❌ | **Add hint popup on Sailing screen** (contextual, only appears if a reroute is currently possible — right pattern). Low QM priority since it's a mid-game convenience, not critical path. |
+| Status screen — purpose | ❌ QM never routes here | ✅ | ✅ | **Add QM routing step** — either insert `statusOpened` between crew and shipyard, or explicitly skip and accept that guided players may not visit Status during onboarding. The current status popup is invisible in guided mode. |
+| Journal screen | ✅ | ✅ | ➖ | Keep |
+| Menu / Game Menu button | ❌ | ❌ | ❌ | **Handbook entry only**. Self-explanatory on open. |
+| Save / Load / Export / Import | ❌ | ❌ | ✅ Save & Load card | Keep as Handbook-only. |
+| Autosave toggle | ❌ | ❌ | ❌ | **Fold into Save & Load Handbook card**. |
+| Discovered vs hidden ports | ❌ | ❌ | ❌ | **Add Handbook section**. Currently only discoverable via gossip hints. |
+
+### 🆕 Player Faction Identity (B10)
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Player faction trait exists | ✅ via New Game screen (labels + desc + beginner note for each faction) | N/A | ❌ | **Handbook: add card "Your Captain's Allegiance"** listing all five traits with exact mechanical numbers. Returning players forget exact values; they shouldn't have to start a new game to look them up. |
+| English: crew loss reduction | ✅ New Game screen | N/A | ❌ | Handbook |
+| Spanish: cheap crew, Spanish-port-only | ✅ New Game screen | N/A | ❌ | Handbook |
+| French: less provisions + 1 max day | ✅ New Game screen | N/A | ❌ | Handbook |
+| Dutch: better trade margins | ✅ New Game screen | N/A | ❌ | Handbook |
+| Pirate: flee/contraband/bribe bonuses | ✅ New Game screen | N/A | ❌ | Handbook |
+| **Universal wage upkeep tick** | ❌ | ❌ | ✅ Gold card mentions wages | **Add a QM line the first time wages fire** ("Your crew's wages come due — every day at sea costs gold"). It's a recurring cost every player feels regardless of faction. |
+
+### 🆕 Port Identity & Faction Services (B10)
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Port specialty exists (BANK, INQUISITOR, etc.) | ❌ | ❌ | ✅ Faction Services card | Keep as Handbook + inline discovery (the port modal and PortCard both display the specialty with its description at the moment of decision, which is correct) |
+| Dutch Bank — loans, interest, garnish | ❌ | ❌ | ✅ | Keep |
+| Spanish Inquisitor — infamy reduction | ❌ | ❌ | ✅ | Keep |
+| French Embassy — buy reputation | ❌ | ❌ | ✅ | Keep |
+| English Naval Yard — early access / servicing | ❌ | ❌ | ✅ | Keep |
+| Pirate Black Market — smuggling source | ❌ | ❌ | ✅ | Keep |
+| Port reputation vs faction reputation distinction | ❌ | ❌ | ⚠ Partially (Reputation card framed per-port; recent change made it faction-scoped) | **Update Handbook Reputation card** to explain faction-scoped rep and how it averages. **Consider a Status-screen hint popup** explaining "standing with each faction" since the Status screen now shows a prose summary per faction. |
+| Mission reward faction-rep multiplier | ❌ | ❌ | ❌ | **Add Handbook line** in Missions card. Also **update the reward-badge tooltip** if you have one (currently the `(Eng : +20%)` badge is self-explanatory on inspection, but a hover tooltip on the badge explaining "because your standing with England is Allied" would help first-timers). |
+
+### Economy & Trade
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Buying/selling — basic | ✅ | ✅ | ✅ | Keep |
+| **Free trade / natural trade routes** | ❌ guided-mode-invisible (only in market popup) | ✅ | ✅ | **Add QM line** in `step2_marketOpen` or a new post-tutorial step: "You can also buy low here and sell high elsewhere." QM's market step is currently framed purely as mission-errand. |
+| **Good Deals / In Demand labels** | ❌ | ❌ | ✅ Resources & Trade card | Already documented. Consider adding a small tooltip on the label in the Market screen itself for contextual teaching. |
+| **Trade tip in Port modal** | N/A — self-teaching at the moment of use | N/A | ❌ | **No teaching needed** — the tip is its own explanation. Worth one line in the Handbook's trade card: "When previewing a port on the map, the modal shows the best current trade between your port and theirs." |
+| **Port comparison feature** | N/A — self-evident | N/A | ❌ | **No teaching needed**. |
+| Price variance/availability | ➖ | ➖ | ✅ | Keep |
+| Illegal goods / contraband risk | ➖ | ✅ | ✅ | Keep |
+| Hold capacity & overload penalty | ➖ | ✅ (inline warning) | ✅ | Keep |
+| Food/water consumption | ✅ | ❌ | ✅ | Keep |
+| Starvation consequences | ❌ | ❌ | ✅ | **Add Handbook-linked hint** — no proactive teaching needed, but if you ever add a "provisions low" warning popup, it should mention the starvation thresholds. |
+| Top Up Provisions quick action | ❌ | ❌ | ❌ | **Tooltip already explains the exact quantity** ("Buy N food and N water for 10 days"). No further teaching needed. |
+
+### Crew
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Hiring crew | ✅ | ✅ | ✅ | Keep |
+| Crew count affects combat | ➖ | ➖ | ✅ | Keep |
+| Wages | ❌ | ❌ | ✅ | **Add QM line** (see Faction Identity table above — universal wage tick). |
+| Morale — thresholds | ❌ | ❌ | ✅ | **Add Handbook crosslink from Crew hint** — the Crew popup mentions "keep morale up" but never the 50/30/0 thresholds. Handbook already documents them. Consider extending the Crew popup with one line: "Below 50 slows travel; below 30 raises wages; at 0 crew desert." |
+| Crew traits (hidden/revealed) | ❌ | ✅ | ✅ | **Add to QM** — the crew screen has zero QM dialogue about traits. Even one line ("Some traits are hidden until the crew trusts you") would help. |
+| Crew progression (Seasoned/Veteran/Loyal) | ❌ | ❌ | ✅ | Keep as Handbook-only. Emergent, not actionable. |
+| Desertion | ❌ | ❌ | ✅ | **Add line to QM crew step** if you want — but arguably discoverable-by-play (the log tells you clearly when it happens). Low priority. |
+| Minimum crew to sail | ✅ (contextual disabled-button reason) | N/A | ❌ | Keep the disabled-button pattern. |
+| Crew alignment / upset on attacking home faction | ❌ | ❌ | ⚠ Only in "Crew" card's "Attacking a faction's ships reduces reputation with all its ports" | **Add Handbook section "Crew Loyalty"** — the alignment modifier is fully invisible to players right now. |
+| Dismissing crew | ❌ | ❌ | ❌ | Tooltip on the button suffices. |
+
+### Reputation, Fame, Infamy, Heat
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Fame — definition, gain | ❌ | ✅ | ✅ | **Add to QM at step5_delivered** — one line ("Completing missions builds your fame; that's how you unlock bigger ships"). Currently invisible to guided players. |
+| Infamy — definition, thresholds | ❌ | ✅ | ✅ | **Add to QM step6b_victory** — after the tutorial hunt, one line about reputation earned from combat. |
+| Faction reputation (per-faction, post-change) | ❌ | ✅ | ⚠ Partially | **Update Status hint + Handbook.** |
+| Reputation decay toward neutral | ❌ | ❌ | ✅ | Keep. |
+| **Faction Heat** | ❌ | ❌ | ✅ | **Add to QM** — heat is invisible in the HUD (only shows when > 0) and never explained. One QM line at step6b_victory ("Word of your deeds spreads — factions remember") is cheap. **Add HUD tooltip.** |
+| Attacking one faction hurts allies | ❌ | ❌ | ✅ | Keep. |
+| Reputation-gated perks | ❌ | ❌ | ✅ | **Add to QM at step5_delivered** — currently invisible to guided players. |
+| Faction reputation display on Status | ❌ | ✅ | ➖ | Keep. |
+
+### Missions
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Trade mission | ✅ | ➖ | ✅ | Keep |
+| Combat mission | ✅ (via tutorial hunt) | ➖ | ✅ | Keep |
+| Smuggle mission | ❌ | ❌ | ✅ | **Add to QM at step6_hired** — one line ("Pirate ports offer smuggling work, if you're willing"). Currently invisible until the player is at a pirate port and happens to open the board. |
+| Patrol mission | ❌ | ❌ | ✅ | Keep as Handbook-only. |
+| Escort mission | ❌ | ❌ | ✅ | Keep as Handbook-only. |
+| Assault mission | ❌ | ❌ | ✅ | Keep as Handbook-only. |
+| Abandoning a mission | ❌ | ❌ | ❌ | **Add Handbook line** (consequence: reputation penalty with commissioning faction). |
+| Mission reward scaling by faction rep | ❌ | ❌ | ❌ | **Add Handbook line** (see Faction Identity table). |
+| **Patrol "not guaranteed encounter" mechanic** | ❌ | ❌ | ✅ Handbook mentions | Keep. |
+| Patrol "sail near target, advance days" instruction | ❌ | ❌ | ❌ | **Add to mission card** as persistent text (if not already there — the sub-panel now shows this per the current PortScreen code) — **already done in B12 changes, verify it's visible in all modes.** |
+
+### Combat — Intercept Phase
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Intercept screen exists | ❌ | ❌ | ✅ | **Add hint popup on first Intercept screen.** This is a critical path screen during the tutorial hunt and has zero teaching surface. The player sees five options with no context. **Highest-priority gap.** |
+| Fight | ✅ (implicit via hunt) | ❌ | ✅ | Keep (once the hint above lands) |
+| Flee — success odds | ➖ | ➖ | ➖ | Keep |
+| Parley | ❌ | ❌ | ✅ | Fold into the Intercept hint popup. |
+| Bribe — requirements (rep > 30, infamy < 25, or pirate) | ❌ | ❌ | ⚠ Listed but not the requirements | **Add Handbook line + intercept hint line.** The bribe gate is complex and undiscoverable. |
+| Surrender — costs | ❌ | ❌ | ✅ | Fold into the Intercept hint popup. |
+| Allow Inspection (patrols) | ❌ | ❌ | ✅ | Fold into the Intercept hint popup (patrol-specific variant). |
+| **Intercept flavour text / SVG** | N/A | N/A | N/A | Cosmetic — no teaching needed. |
+
+### Combat — Naval Phase (B11)
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Distance bands exist | ❌ | ✅ (Battle popup mentions them) | ✅ | Keep popup. **Add QM line at step6b_huntAccepted** — the player will hit the Battle screen within a few turns; the QM should set expectations. |
+| Broadside | ✅ (implicit) | ✅ | ✅ | Keep |
+| Precision | ❌ | ✅ | ✅ | Keep popup. |
+| Grapple requires Close | ❌ | ✅ | ✅ | Keep popup. |
+| Evade requires Far | ❌ | ✅ | ✅ | Keep popup. |
+| Close Distance / Open Distance actions | ❌ | ✅ | ✅ | Keep popup. |
+| **Action previews (hull range, crew range, hit chance)** | N/A | N/A | N/A | Self-explanatory on the button. No teaching. |
+| **Legal-action gating with disabled tooltips** | N/A | N/A | N/A | Self-explanatory — this is the correct contextual pattern. |
+| **Sunk vs Captured distinction** | ❌ | ❌ | ✅ | **Add Hint popup on first victory** — or a one-line QM at step6b_victory. Player will see one or the other first. |
+| **"You can't plunder a sunk ship"** | ❌ | ❌ | ✅ | **Add contextual hint on the Sunk outcome screen** — the correct pattern per the previous audit. |
+| **Miss-fail flash animation** | N/A | N/A | N/A | Cosmetic feedback, no teaching. |
+
+### Combat — Boarding Phase (B11)
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Boarding as distinct sub-phase | ❌ | ✅ (Battle popup has a boarding branch) | ✅ | Keep popup. **Add QM reference at step6b_huntAccepted** — the tutorial hunt doesn't grapple, so guided players never see this popup either. One line would help. |
+| Continue Fighting / Fall Back / Surrender | ❌ | ✅ | ✅ | Keep popup. |
+| Demand Surrender — 0.65 threshold | ➖ | N/A (disabled button + tooltip) | ✅ | Keep contextual pattern. |
+| Advantage ratio bar | ➖ | ✅ | ✅ | Keep popup. |
+| Fall Back's parting-shot cost | ❌ | ❌ | ✅ | **Add action preview on the Fall Back button** showing expected crew loss, matching the other buttons. |
+
+### Plunder Screen
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Plunder screen purpose | ❌ | ❌ | ⚠ Implied | **Add hint popup** — first time plunder is available, explain that you're transferring cargo from the enemy's hold, and that illegal goods attract patrols. Highest-priority missing popup. |
+| Keep searching vs leave now | 🔜 Not a mechanic yet | 🔜 | 🔜 | Defer. |
+| Jettison from your own hold to make room | ❌ | ❌ | ❌ | **Add inline hint on the Plunder screen** — the "Jettison" button is unexplained. |
+
+### Random Events & Patrol Enforcement
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Random events exist | ❌ | ❌ | ➖ | Keep discoverable. A popup would spoil the surprise. |
+| Event screen purpose | ❌ | ❌ | ➖ | Same. |
+| Event SVG illustrations | N/A | N/A | N/A | Cosmetic. |
+| Patrol inspection catches goods | ➖ | ➖ | ✅ | Keep. |
+| Random (non-mission) patrols can catch contraband | ❌ | ❌ | ⚠ Read as mission-specific | **Update Handbook patrol wording** to mention both mission and random patrols. |
+| **Resist inspection (B12)** | ❌ | ❌ | ❌ | **Add Handbook line + Intercept hint line.** The `RESOLVE_INSPECTION` choice screen is a distinct screen with no teaching. |
+
+### Ship & Equipment
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Repair | ✅ | ✅ | ✅ | Keep |
+| Equipment slots per tier | ❌ | ❌ | ✅ | **Add to QM at step7_shipyardOpen** — QM mentions "Repairs, upgrades, or a new ship" but not the slot system. One line would help. |
+| Removable vs structural equipment | ❌ | ❌ | ✅ | Keep |
+| Buying a new ship clears equipment | ✅ (inline warning) | ✅ | ➖ | Keep |
+| **Purchasing equipment from Shipyard needs Naval Yard access for install/remove** | ❌ | ❌ | ✅ | Keep |
+| **English Naval Yard early-access thresholds** | ❌ | ❌ | ✅ | Keep |
+| Hull vs max hull | ➖ | ➖ | ✅ | Keep |
+
+### Onboarding & Meta
+
+| Mechanic | QM | Hint | Handbook | Recommendation |
+|---|---|---|---|---|
+| Tutorial mode choice (full/light/none) | ✅ New Game screen explains each | N/A | N/A | Keep |
+| **Quartermaster as crew member** | ✅ (implicit) | N/A | ❌ | Keep — the QM introduces itself. No Handbook entry needed. |
+| **Skipping the QM** | ✅ ("I'll take it from here" button) | N/A | N/A | Keep |
+| **Refusing to abandon tutorial** | ✅ (contextual refusal popup) | N/A | N/A | Keep |
+| **Game Over screen** | ❌ | ❌ | ❌ | **Add Handbook line** in a new "Career" section — you can lose if hull 0 + no crew + no gold + no cargo to sell. It's a real state, and the QM never mentions it. |
+
+---
+
+## Priority buckets for implementation
+
+**Bucket 1 — Critical path, guided-mode-invisible (do first):**
+
+1. **Intercept screen hint popup.** Every new player sees this during the tutorial hunt with zero context. Add a `TutorialPopup` covering all five options, plus the patrol-specific "Allow Inspection" variant.
+2. **Plunder screen hint popup.** Same problem — a distinct screen with distinct mechanics (jettison, illegal goods risk) that appears at a moment of high cognitive load.
+3. **QM routing to Status screen.** Insert `statusOpened` step. Currently the Fame/Infamy/Reputation content of the Status screen is *assumed* to be seen by the Handbook, but is invisible to guided players.
+4. **QM line for Fame/Infamy/Reputation.** One line each, woven into existing steps (`step5_delivered` for Fame, `step6b_victory` for Infamy/Heat).
+
+**Bucket 2 — New mechanics from B10/B11/B12 with no coverage:**
+
+5. **Boarding phase QM reference.** One line at `step6b_huntAccepted` mentioning that grappling leads to a boarding fight.
+6. **Sunk-vs-captured contextual hint.** Shown on the first battle victory (whichever outcome fires first).
+7. **Fall Back action preview.** Match the other combat buttons, showing expected crew loss.
+8. **Resist inspection** hint on the Intercept screen + Handbook line.
+
+**Bucket 3 — Handbook updates (batch as one pass):**
+
+9. **New Handbook card: "Your Captain's Allegiance"** — all five birth traits with exact numbers.
+10. **Update Reputation card** — faction-scoped rep, not per-port.
+11. **Update Faction Services card** — verify all five service descriptions are current.
+12. **Update Combat/Boarding cards** — the B11 mechanics are described, but verify thresholds (Fall Back cost, Demand Surrender at 0.65) are stated.
+13. **Add to Handbook: abandoning missions, wage tick, game over conditions, hidden vs discovered ports, crew alignment/upset, resist inspection.**
+14. **Update Missions card** — faction reward multiplier.
+
+**Bucket 4 — QM enrichment (nice-to-have lines):**
+
+15. **Free trade mention** in `step2_marketOpen`.
+16. **Smuggle mission mention** in `step6_hired`.
+17. **Equipment slots mention** in `step7_shipyardOpen`.
+18. **Crew traits hint** in `step6_crewOpen`.
+19. **Change Course hint** on the Sailing screen.
+
+**Bucket 5 — Console/polish:**
+
+20. **HUD tooltip for Faction Heat** (currently only appears at > 0 with no explanation).
+21. **Crew hint popup extension** — mention 50/30/0 morale thresholds.
+22. **Save/Load Handbook card** — fold in autosave toggle.
+
+---
+
+## top 5 to do first
+
+
+| # | Task | Estimated time |
 |---|---|---|
-| Port screen — purpose & layout | ✅ Implicit (QM walks the player through it) | ➖ Not needed, self-evident once used |
-| World Map screen — purpose & navigation | ✅ `step3_mapOpen` | ➖ Not needed |
-| Sailing screen — Advance Day / Enter Port | ✅ `step4_sailing` | ➖ Not needed |
-| Change Course mid-voyage | ❌ Never mentioned by QM | ❌ Not documented |
-| Status screen — purpose & contents | ❌ **QM never routes here** — no `statusOpened` step exists in the 15-step list | ✅ Implicitly covered (Fame/Infamy/Reputation cards) |
-| Journal screen — purpose & log categories | ✅ `journalOpened` step exists, though QM's exact wording at that step wasn't verified in this pass | ➖ Not needed |
-| Crew screen — purpose | ✅ `crewOpened` step | ➖ Not needed |
-| Market screen — purpose | ✅ `marketOpened` step | ➖ Not needed |
-| Shipyard screen — purpose | ✅ `shipyardOpened` step | ➖ Not needed |
-| Menu — save/load/export/import | ❌ Never mentioned by QM or any hint | ❌ Not documented |
-| Discovered vs. hidden ports | ❌ Only obliquely via flavor gossip text | ❌ Not documented as an explicit mechanic |
+| 1 | Intercept `TutorialPopup` (covers Fight/Flee/Parley/Bribe/Surrender/Inspect/Resist) | ~30 min |
+| 2 | Plunder `TutorialPopup` (covers transfer, jettison, illegal goods) | ~20 min |
+| 3 | QM routing to Status + Fame/Infamy/Heat lines in existing steps | ~30 min |
+| 4 | New Handbook card "Your Captain's Allegiance" | ~30 min |
+| 5 | Fall Back action preview + Sunk-vs-captured contextual hint | ~20 min |
 
----
+----
 
-## Economy & Trade
+## one more thing
 
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Buying/selling goods — basic mechanic | ✅ `step2_marketOpen` (framed as contract fulfillment only) | ✅ "Resources & Trade" card |
-| **Free trade / natural trade routes as a strategy independent of missions** | ❌ QM's market step is purely mission-errand framed — real content exists but only in the market screen's `TutorialPopup`, which is **suppressed in guided mode** | ✅ "Buy low in one port, sell high in another for profit" — explicitly stated |
-| Good Deals / In Demand labels (B8.1 UI) | ❌ Neither QM nor Handbook references these specific labels by name | ❌ Handbook's trade advice predates this UI, doesn't point to it |
-| Map tooltip trade profile (hover a port) | ❌ Not mentioned anywhere | ❌ Not documented |
-| Price variance/availability mechanic | ➖ Implied by "buy low sell high," reasonable to leave as discoverable texture | ✅ "Prices vary per port based on availability and random variance" |
-| Illegal goods / contraband risk | ➖ Reasonable to leave discoverable — a smuggler finding this out by consequence is arguably correct design | ✅ Explicitly flagged in "Resources & Trade" and "Combat & Intercept" cards |
-| Hold capacity & overload speed penalty | ➖ Surfaced as a persistent inline UI warning on the market screen itself (contextual, always-visible — the right pattern) | ✅ Exact thresholds documented (+11% at 50%, +33% at 75%) |
-| Food & water consumption rate | ✅ `step2_marketOpen` mentions provisions | ✅ "1 unit per 10 crew" |
-| Starvation consequences (0 food/water) | ❌ QM teaches buying provisions, never the failure consequence | ✅ "14 days no food / 3 days no water, crew die" — exact thresholds given |
-
----
-
-## Crew
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Hiring crew — basic mechanic | ✅ `firstCrewHired` step | ✅ "Crew" card |
-| Crew count affects combat speed/effectiveness | ➖ Reasonable as background texture | ✅ "More crew → faster combat actions" |
-| Wages — daily cost, morale penalty multiplier | ❌ Never mentioned by QM | ✅ Exact formula given (2g/crew, ×1.5 under 30 morale) |
-| Morale — what raises/lowers it, thresholds | ❌ Never mentioned by QM | ✅ Full threshold table (50/30/0 breakpoints) |
-| Crew traits system (hidden/revealed) | ❌ Never mentioned anywhere in guided experience | ✅ "Crew Traits" card, dedicated section |
-| Crew progression (Seasoned/Veteran/Loyal) | ❌ Never mentioned | ✅ Exact day thresholds given |
-| Desertion mechanic | ❌ Never mentioned proactively | ✅ Implied via "0 morale → crew deserts" and "Upset crew may desert" |
-| Minimum crew to sail (B9 gate) | ✅ Contextual — disabled Sail button shows a tooltip reason when triggered (the right pattern, same as the equipment-clearing warning) | ❌ Not documented as a standing rule |
-
----
-
-## Reputation, Fame, Infamy, Heat
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Fame — what it is, how it's gained | ❌ Never mentioned by QM | ✅ Dedicated card |
-| Infamy — what it is, thresholds (50/100) | ❌ Never mentioned by QM | ✅ Dedicated card, exact thresholds |
-| Reputation — per-port standing, effects | ❌ Never mentioned by QM | ✅ Dedicated card |
-| Reputation decay toward neutral | ❌ Never mentioned | ✅ "Decays slowly toward 50 over time" |
-| Faction Heat — what it is, decay rate | ❌ Never mentioned by QM, and not shown in the HUD at all (confirmed no HUD tooltips exist anywhere) | ✅ Dedicated card, exact decay rate given |
-| Attacking one faction hurts rep with allies | ❌ Not mentioned by QM | ✅ "reduces reputation with all its ports" |
-| Reputation-gated perks (repair cost, mission pay) | ❌ Only discoverable by checking Status screen (which QM never routes to) | ✅ "Affects repair cost, mission rewards, and service access" |
-
----
-
-## Missions
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Trade mission type | ✅ QM's own delivered mission is this type | ✅ Listed |
-| Combat mission type | ✅ QM's tutorial hunt is this type | ✅ Listed |
-| Smuggle mission type | ❌ Never introduced by QM | ✅ Listed |
-| Patrol mission type | ❌ Never introduced by QM | ✅ Listed, including the "not guaranteed encounter" mechanic |
-| Escort mission type | ❌ Never introduced by QM | ✅ Listed |
-| Assault mission type | ❌ Never introduced by QM | ✅ Listed |
-| Abandoning a mission — consequence | ❌ Never mentioned | ❌ Not documented |
-| Mission reward scaling by risk/reputation | ❌ Never mentioned | ➖ Implied, not explicit |
-
----
-
-## Combat — Intercept Phase
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Intercept screen — purpose, exists at all | ❌ QM's tutorial hunt likely walks through this once live, but the screen itself has **zero `TutorialPopup` in either mode** | ✅ "Combat & Intercept" card lists all five options |
-| Fight option | ✅ (implicit, via tutorial hunt) | ✅ |
-| Flee option — success odds | ➖ Reasonable as felt-through-play texture | ➖ Not detailed (odds not given) |
-| Parley option | ❌ Never explained | ✅ Listed |
-| Bribe option | ❌ Never explained | ✅ Listed |
-| Surrender option — costs | ❌ Never explained | ✅ "costs gold, cargo, days, or reputation depending on context" |
-| Allow Inspection (navy patrols) | ❌ Never explained | ✅ Listed, contraband-seizure consequence given |
-
----
-
-## Combat — Naval Phase (current system)
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Broadside action | ✅ (implicit, tutorial hunt) | ✅ "reliable" |
-| Precision action | ❌ Never explained proactively | ✅ "risky high damage" |
-| Grapple action (current: instant win) | ❌ Never explained proactively | ✅ "board and capture" |
-| Evade action (current: flee attempt) | ❌ Never explained proactively | ✅ Listed |
-| Round resolution / how actions interact | ❌ Never explained | ➖ Not detailed at this level, reasonable to leave felt-through-play |
-
----
-
-## Combat — Naval Phase (🔜 B11 rework — distance & positioning)
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Distance bands (Far/Medium/Close) exist | 🔜 Needs a QM line or contextual hint once shipped — this is a genuinely new concept, not an extension of something already taught | 🔜 Needs a new Handbook card |
-| Close Distance / Open Distance actions | 🔜 Same — new mechanic | 🔜 Same |
-| Legal-action gating per distance | 🔜 Best taught contextually (disabled buttons with tooltips, per the established pattern) rather than QM prose | ➖ Can be inferred from the UI itself if gating is visually clear |
-| Grapple requires Close, no longer instant-win | 🔜 Needs explicit mention — this is a **behavior change** from the current system, worth flagging even to returning players via changelog, not just new players via QM | 🔜 Needs updated Handbook wording |
-| Sunk vs. Captured outcome distinction | 🔜 Needs explicit mention — directly affects whether plunder is available | 🔜 Needs new Handbook wording |
-| **"You can't plunder when the enemy is sunk"** | 🔜 High-value single line, contextual (shown at the moment of a Sunk outcome) rather than pre-taught | 🔜 Needs explicit statement |
-
----
-
-## Combat — Boarding Phase (🔜 B11 rework)
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Boarding as a distinct sub-phase (not instant) | 🔜 New concept, needs coverage | 🔜 New Handbook card |
-| Continue Fighting / Fall Back / Surrender actions | 🔜 New concept | 🔜 New Handbook card |
-| Advantage ratio (the split bar UI) | 🔜 The bar itself is designed to be self-explanatory via visual split (per the UI design decision already made) — likely doesn't need QM prose, but a first-encounter contextual hint is worth considering | 🔜 Should explain what the bar represents and how it's calculated (crew × morale-equivalent) |
-| Fall Back's parting-shot cost | 🔜 Worth a contextual warning the first time a player attempts it, not just Handbook text | 🔜 Needs explicit statement |
-| Demand Surrender's 0.65 ratio threshold | ➖ The disabled-with-tooltip UI pattern already communicates this contextually — no separate teaching needed | 🔜 Worth stating the exact threshold for reference |
-
----
-
-## Plunder
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Plunder screen — purpose | ❌ **Zero `TutorialPopup` in either mode** | ➖ Implied by Combat & Intercept card, not explicit |
-| Keep searching vs. leave now (risk of lingering) | 🔜 Not yet a mechanic (noted as a B11-adjacent design idea, not yet task-listed) | 🔜 If built, needs coverage |
-
----
-
-## Random Events & Patrol Enforcement
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Random events exist (storms, distressed ships, etc.) | ❌ **Zero `TutorialPopup`**, never QM-mentioned | ➖ Not documented, reasonable to leave discoverable — the whole point of a random event is surprise |
-| Patrol inspection catches smuggled goods | ➖ Reasonable as a natural consequence to discover | ✅ "If contraband is found during inspection, it is seized and you are fined" |
-| Random (non-mission) patrols can also catch contraband | ❌ Not distinguished from mission-driven patrol encounters anywhere | ❌ Not explicitly stated — the Handbook's patrol wording reads as mission-specific |
-
----
-
-## Ship & Equipment
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Repair mechanic | ✅ `shipRepaired` step | ✅ "Repair at any port's Shipyard" |
-| Equipment slots per ship tier | ❌ Shipyard hint says "browse the tabs," doesn't explain slot limits | ❌ Not documented |
-| Buying a new ship clears equipment | ➖ **Already well-handled** — persistent inline warning directly on the Ships tab, the correct pattern (this was the example that started this whole audit) | ➖ Not needed given the inline warning already covers it |
-| Hull vs. max hull, damage sources | ➖ Reasonable as background texture | ✅ Dedicated Hull card |
-
----
-
-## 🔜 Starting Faction Traits (B10, not yet built)
-
-| Mechanic / Action | QM Coverage | Handbook Coverage |
-|---|---|---|
-| Faction trait exists at all (bonus + drawback) | 🔜 Belongs on the **New Game screen itself** (already speced in that task list — inline description + mechanics recap per faction), not the QM, since it's chosen before the QM ever starts | 🔜 Needs a Handbook card once shipped — a returning player forgetting their own starting trait's exact numbers is a real, ordinary need |
-| English: combat damage/speed trade-off | 🔜 New Game screen (per B10 task list) | 🔜 Handbook |
-| Spanish: crew hire/wage asymmetry | 🔜 New Game screen | 🔜 Handbook |
-| Pirate: tribute mechanic, fairness check | 🔜 New Game screen for the base concept; the fairness-check nuance (don't hoard gold to dodge tribute) is arguably better discovered than pre-taught — over-explaining an anti-exploit mechanic can read as accusatory | 🔜 Handbook, full mechanic |
-| French: reputation/infamy/heat amplification | 🔜 New Game screen | 🔜 Handbook |
-| Dutch: trade bonus / combat-gold drawback | 🔜 New Game screen | 🔜 Handbook |
-| Universal wage upkeep tick (new base mechanic) | 🔜 Worth a QM line the first time it fires ("the crew's wages come due"), since it's a new recurring cost every player will feel regardless of faction | 🔜 Handbook — replaces/extends the existing Gold card's current wage description, which will be stale once this ships |
-
----
-
-## Summary: What's Actually Missing Right Now (excluding 🔜 future items)
-
-The pattern across the whole table is consistent: **the Handbook is doing most of the real work already** — it's thorough, accurate, and covers nearly everything at a reference level. The gaps cluster into three distinct categories, each needing a different fix:
-
-1. **Screens with zero teaching surface in either mode**: Intercept, Plunder, Random Events, Menu. These need `TutorialPopup` hints added, full stop — the same mechanical pattern already used for nine other screens.
-
-2. **Content that exists but is guided-mode-invisible**: the market's trade-route explanation is the clearest example — real, good content, but structurally unreachable by the player population most likely to need it. Fix is porting a line into the QM's own dialogue, not writing new content.
-
-3. **Status screen is a QM dead zone**: the guided sequence never routes there, so its Fame/Infamy/Reputation content (which the Handbook assumes will be seen) may never be encountered by a guided player at all during onboarding.
-
-Want this turned into the actual implementation task list — the three missing hint popups, the QM dialogue insertions, and the Status-screen routing fix — scoped to ship now, independent of B10/B11?
+upon dismissal (either of pop up hints or of qm onboarding process), the player should be showed what he would miss as guided/helped information (aka : the list of hint not seen and qm onboarding step not done, but with some rephrasing so that its inteligible for the new player) To be defined/refined how this should happend and be displayed.

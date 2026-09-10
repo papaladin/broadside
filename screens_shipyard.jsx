@@ -48,7 +48,9 @@ window.S = window.S || {};
   }
 
   function ShipyardScreen({ state, dispatch }) {
-    const perk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+    const portFaction = PORTS[state.currentPort]?.faction;
+    const rep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
+    const perk = L.getRepPerk(rep);
     if (perk.servicesBlocked) {
       return (
         <div style={{ padding: T.spacing.lg, display: "flex", flexDirection: "column", gap: T.spacing.md, overflowY: "auto", flex: 1 }}>

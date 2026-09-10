@@ -2,6 +2,7 @@
 Archive.zip
 tools/*.png
 feedbacks/
+archive/
 *.log
 *.bak
 .vscode/

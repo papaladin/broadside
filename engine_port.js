@@ -10,8 +10,10 @@
   const G = window.G;
 
   // ── Port‑specific helpers ─────────────────────────────────────
-  const checkServicesBlocked = (state) => {
-    const repPerk = L.getRepPerk(state.reputation[state.currentPort] ?? 50);
+    const checkServicesBlocked = (state) => {
+    const portFaction = PORTS[state.currentPort]?.faction;
+    const rep = portFaction ? L.getFactionReputation(state, portFaction, 0) : 0;
+    const repPerk = L.getRepPerk(rep);
     if (repPerk.servicesBlocked) {
       return { ...state, log: [...state.log, "You are at war with this port. No services available."] };
     }
@@ -51,8 +53,6 @@
   // mission completion effects helper :
 
 const applyMissionEffects = (state, mission) => {
-  const rep = state.reputation[state.currentPort] ?? 50;
-  const perk = L.getRepPerk(rep);
 
   // ── Goods value (trade / smuggle only) ─────────────────────────────
   let goodsValue = 0;
@@ -165,15 +165,12 @@ case A.START_GAME: {
   };
 
   // ── Reputation ──────────────────────────────────────────────
-  const rep = {};
-  Object.keys(PORTS).forEach(portKey => { rep[portKey] = 50; });
+  const rep = { english: 50, spanish: 50, french: 50, dutch: 50, pirate: 50 };
   const repAdj = start.factionRepAdjust?.[faction] || {};
   Object.entries(repAdj).forEach(([adjFaction, delta]) => {
-    Object.keys(PORTS).forEach(portKey => {
-      if (PORTS[portKey].faction === adjFaction) {
-        rep[portKey] = Math.max(0, Math.min(100, 50 + delta));
-      }
-    });
+    if (adjFaction in rep) {
+      rep[adjFaction] = Math.max(0, Math.min(100, 50 + delta));
+    }
   });
   newState.reputation = rep;
 
@@ -337,7 +334,8 @@ case A.ENTER_PORT: {
   }
   const port = PORTS[state.destination];
   const portFaction = port.faction;
-  const playerRep = state.reputation[state.destination] ?? 50;
+  const destinationFaction = PORTS[state.destination]?.faction;
+  const playerRep = destinationFaction ? L.getFactionReputation(state, destinationFaction) : 50;
   let combatEncounter = null;
 
   if (state.activeMission?.type === "assault" && state.activeMission.targetPort === state.destination) {
@@ -478,6 +476,43 @@ case A.PREVIEW_PORT: {
         };
       }
 
+      case A.REPAIR: {
+        const blocked = checkServicesBlocked(state);
+        if (blocked) return blocked;
+        const shipStats = L.getShipStats(state);
+        const portFaction = PORTS[state.currentPort]?.faction;
+        const rep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
+        const perk = L.getRepPerk(rep);
+        const baseCost = L.shipRepairCost(state);
+        const eqRepairPct = L.getEquipmentEffect(state, "repairCostPct") || 0;
+        const combinedMult = perk.repairMult * (1 + eqRepairPct);
+        const cost = Math.floor(baseCost * combinedMult);
+        if (state.gold < cost) {
+          return {
+            ...state,
+            log: [...state.log, "Not enough gold to repair."]
+          };
+        }
+        const discountNote =
+          perk.repairMult < 1 ? ` (${perk.tier} discount applied)` : "";
+        const eqPenaltyNote =
+          eqRepairPct > 0
+            ? ` (+${Math.round(eqRepairPct * 100)}% equipment penalty)`
+            : "";
+        const repairMsg = L.logPick(D.REPAIR_MESSAGES, state, cost);
+
+        let s = {
+          ...state,
+          gold: state.gold - cost,
+          ship: { ...state.ship, hull: shipStats.maxHull },
+          log: [
+            ...state.log,
+            `${repairMsg}${discountNote}${eqPenaltyNote}.`
+          ]
+        };
+        return s;
+      }
+
       case A.BUY_EQUIPMENT: {
         const blocked = checkServicesBlocked(state);
         if (blocked) return blocked;
@@ -524,7 +559,7 @@ case A.PREVIEW_PORT: {
         }
 
         // Require English reputation >= 50
-        const rep = state.reputation[state.currentPort] ?? 0;
+        const rep = L.getFactionReputation(state, 'english', 0);
         if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
           return {
             ...state,
@@ -574,7 +609,7 @@ case A.PREVIEW_PORT: {
         }
 
         // Require English reputation >= 50
-        const rep = state.reputation[state.currentPort] ?? 0;
+        const rep = L.getFactionReputation(state, 'english', 0);
         if (rep < window.D.SERVICE_THRESHOLDS.navalYard.repRequiredForRemoval) {
           return {
             ...state,
@@ -681,10 +716,11 @@ case A.PREVIEW_PORT: {
       }
 
       case A.TAKE_LOAN: {
-        const port = PORTS[state.currentPort];
-        if (!port || port.faction !== 'dutch') return state;
+        const bankStatus = L.isBankAvailable(state);
+        if (!bankStatus.available) return state;
 
-        const rep = state.reputation[state.currentPort] ?? 50;
+        const portFaction = PORTS[state.currentPort]?.faction;
+        const rep = portFaction ? L.getFactionReputation(state, portFaction) : 50;
         if (rep < window.D.SERVICE_THRESHOLDS.bank.repRequired) return state;
 
         if (state.bankDebt > 0) {
@@ -714,8 +750,8 @@ case A.PREVIEW_PORT: {
       }
 
       case A.REPAY_LOAN: {
-        const port = PORTS[state.currentPort];
-        if (!port || port.faction !== 'dutch') return state;
+        const bankStatus = L.isBankAvailable(state);
+        if (!bankStatus.available) return state;
 
         if (state.bankDebt <= 0) return state;
 
@@ -736,13 +772,15 @@ case A.PREVIEW_PORT: {
       }
 
       case A.PAY_INQUISITOR: {
-        const port = PORTS[state.currentPort];
-        if (!port || port.faction !== 'spanish') return state;
-
-        const rep = state.reputation[state.currentPort] ?? 0;
-        if (rep < window.D.SERVICE_THRESHOLDS.inquisitor.repRequired) {
-          return { ...state, log: [...state.log, "The Inquisitor will not hear you unless Spanish reputation is 50 or higher."] };
-        }
+        const inqStatus = L.isInquisitorAvailable(state);
+          if (!inqStatus.available) {
+            // Log the reason only if it's a rep issue at a Spanish port
+            const port = PORTS[state.currentPort];
+            if (port && port.faction === 'spanish') {
+              return { ...state, log: [...state.log, "The Inquisitor will not hear you unless Spanish reputation is 50 or higher."] };
+            }
+            return state;
+          }
 
         if (state.infamy <= 0) return state;
 
@@ -761,13 +799,15 @@ case A.PREVIEW_PORT: {
       }
 
       case A.PURCHASE_EMBASSY_REP: {
-        const port = PORTS[state.currentPort];
-        if (!port || port.faction !== 'french') return state;
-
-        const rep = state.reputation[state.currentPort] ?? 0;
-        if (rep < window.D.SERVICE_THRESHOLDS.embassy.repRequired) {
-          return { ...state, log: [...state.log, "The French Embassy requires a French reputation of 50 or higher."] };
-        }
+        const embStatus = L.isEmbassyAvailable(state);
+          if (!embStatus.available) {
+            // Log the reason only if it's a rep issue at a French port
+            const port = PORTS[state.currentPort];
+            if (port && port.faction === 'french') {
+              return { ...state, log: [...state.log, "The French Embassy requires a French reputation of 50 or higher."] };
+            }
+            return state;
+          }
 
         const targetFaction = action.targetFaction;
         if (!targetFaction || !FACTIONS[targetFaction]) {
@@ -935,21 +975,14 @@ case A.PREVIEW_PORT: {
         const { goodsValue, finalFame, newInfamy, newRep, newMorale, logLines } =
           applyMissionEffects(state, mission);
 
-        // ── Mission reward: base gold × reputation multiplier ──────────
-        const rep = state.reputation[state.currentPort] ?? 50;
-        const perk = L.getRepPerk(rep);
-        let rewardGold = Math.floor(mission.gold * perk.missionMult);
-        const goldDelta = rewardGold - mission.gold;
-        const bonusNote = goldDelta > 0
-          ? ` (+${goldDelta}g ${perk.tier} bonus)`
-          : goldDelta < 0 ? ` (${Math.abs(goldDelta)}g ${perk.tier} penalty)` : "";
+        // ── Mission reward: multiplier is baked in at generation time ──
+        const rewardGold = mission.gold;
 
         // ── Loan garnish: only on the mission reward (not goods value) ──
         let netReward = rewardGold;
         let newBankDebt = state.bankDebt ?? 0;
         if (rewardGold > 0 && newBankDebt > 0) {
           const garnishResult = L.applyLoanGarnish(newBankDebt, rewardGold);
-          console.log("Garnish debug: in if", { rewardGold, newBankDebt, garnishResult });
           netReward = garnishResult.netIncome;
           newBankDebt = garnishResult.newDebt;
           if (garnishResult.actualRepayment > 0) {
@@ -959,7 +992,7 @@ case A.PREVIEW_PORT: {
 
         const netGoldGain = netReward + goodsValue;
 
-        let completionMsg = `Completed: ${mission.name}. +${netGoldGain}g${bonusNote}, +${finalFame} fame.`;
+        let completionMsg = `Completed: ${mission.name}. +${netGoldGain}g, +${finalFame} fame.`;
         if (goodsValue > 0) {
           completionMsg += ` (includes ${goodsValue}g for the goods)`;
         }

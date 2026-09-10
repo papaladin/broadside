@@ -212,24 +212,24 @@ window.L = window.L || {};
     return event;
   };
 
-  const maybeRandomPatrol = (state, rng = defaultRng) => {
-    const port = PORTS[state.currentPort];
-    if (!port || port.faction === "pirate") return false;
-    const baseChance = 0.01;
-    const infamyBonus = (state.infamy ?? 0) / 400;
-    const alerts = state.factionAlerts || {};
-    const originFaction = port.faction;
-    const destFaction = state.destination ? PORTS[state.destination]?.faction : null;
-    const relevantHeat = Math.max(alerts[originFaction] || 0, destFaction ? (alerts[destFaction] || 0) : 0);
-    const originRep = state.reputation[state.currentPort] || 50;
-    const destRep = state.destination ? (state.reputation[state.destination] || 50) : originRep;
-    const avgRep = (originRep + destRep) / 2;
-    const heatDampening = avgRep >= 70 ? 0.5 : avgRep >= 50 ? 0.75 : 1.0;
-    const effectiveHeat = Math.floor(relevantHeat * heatDampening);
-    const heatBonus = effectiveHeat * 0.03;
-    const chance = Math.min(baseChance + infamyBonus + heatBonus, 0.40);
-    return rng.random() < chance;
-  };
+    const maybeRandomPatrol = (state, rng = defaultRng) => {
+      const port = PORTS[state.currentPort];
+      if (!port || port.faction === "pirate") return false;
+      const baseChance = 0.01;
+      const infamyBonus = (state.infamy ?? 0) / 400;
+      const alerts = state.factionAlerts || {};
+      const originFaction = port.faction;
+      const destFaction = state.destination ? PORTS[state.destination]?.faction : null;
+      const relevantHeat = Math.max(alerts[originFaction] || 0, destFaction ? (alerts[destFaction] || 0) : 0);
+      const originRep = originFaction ? L.getFactionReputation(state, originFaction) : 50;
+      const destRep = destFaction ? L.getFactionReputation(state, destFaction) : originRep;
+      const avgRep = (originRep + destRep) / 2;
+      const heatDampening = avgRep >= 70 ? 0.5 : avgRep >= 50 ? 0.75 : 1.0;
+      const effectiveHeat = Math.floor(relevantHeat * heatDampening);
+      const heatBonus = effectiveHeat * 0.03;
+      const chance = Math.min(baseChance + infamyBonus + heatBonus, 0.40);
+      return rng.random() < chance;
+    };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  EXPOSE
