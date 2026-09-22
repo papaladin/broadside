@@ -9,7 +9,7 @@ window.S = window.S || {};
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, EmptyState, TutorialPopup, BackButton, Tooltip, Panel,
     IconCheers,IconAnchor, IconCannon, IconHammer, IconChefHat, IconCompass, IconShield } = window.UI;
   const G = window.G;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial } = window.L;
 
   // Helper: returns an SVG icon element for the given crew role
   const getRoleIcon = (role) => {
@@ -114,7 +114,7 @@ window.S = window.S || {};
           <TutorialPopup
             title="Your Crew"
             onDismiss={(disableAll) => {
-              markTutorialSeen("crew", disableAll);
+              dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "crew", disableAll });
               setShowTutorial(false);
             }}
           >

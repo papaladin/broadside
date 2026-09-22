@@ -23,7 +23,7 @@ window.S = window.S || {};
     TransferLayout, ShipSideSprite,
     FactionPill, ShipSprite,
   } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial} = window.L;
 
   // Import distance-based action lookup
   const { LEGAL_ACTIONS_BY_DISTANCE } = window.D;
@@ -575,7 +575,7 @@ const InterceptScreen = ({ state, dispatch }) => {
           <TutorialPopup
             title={isBoarding ? "Boarding Phase" : "Naval Combat"}
             onDismiss={(disableAll) => {
-              markTutorialSeen("battle", disableAll);
+             dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "battle", disableAll });
               setShowTutorial(false);
             }}
           >

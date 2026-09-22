@@ -13,7 +13,7 @@ window.S = window.S || {};
     Panel, PortCard, PortModal
   } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial } = window.L;
 
   // ── MAP SCREEN ───────────────────────────────────────────────────────
   function MapScreen({ state, dispatch }) {
@@ -172,7 +172,7 @@ window.S = window.S || {};
       }}>
         <BackButton dispatch={dispatch} />
         {showTutorial && (
-          <TutorialPopup title="The Caribbean" onDismiss={(disableAll) => { markTutorialSeen("map", disableAll); setShowTutorial(false); }}>
+          <TutorialPopup title="The Caribbean" onDismiss={(disableAll) => { dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "map", disableAll }); setShowTutorial(false); }}>
             <p>Click any port to open its details. From there you can set sail.</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
               <li>See distance, reputation, trade opportunities</li>
@@ -382,7 +382,7 @@ function SailingScreen({ state, dispatch }) {
         <TutorialPopup
           title="At Sea"
           onDismiss={(disableAll) => {
-            markTutorialSeen("sailing", disableAll);
+             dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "sailing", disableAll });
             setShowTutorial(false);
           }}
         >

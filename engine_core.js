@@ -60,6 +60,7 @@ window.E = window.E || {};
     ONBOARDING_QM_SEEN: "ONBOARDING_QM_SEEN",
     ONBOARDING_SKIP: "ONBOARDING_SKIP",
     ONBOARDING_COMPLETE: "ONBOARDING_COMPLETE",
+    MARK_TUTORIAL_SEEN: "MARK_TUTORIAL_SEEN",
     DEBUG_ADD_GOLD: "DEBUG_ADD_GOLD",
     DEBUG_SET_FAME: "DEBUG_SET_FAME",
     DEBUG_SET_INFAMY: "DEBUG_SET_INFAMY",
@@ -101,6 +102,8 @@ window.E = window.E || {};
 
   window.E.migrateState = (loaded) => {
     let s = { ...loaded };
+    const legacyTutorial = window.L.loadTutorialState?.();
+
     if (!s.version) s.version = 1; // legacy default
     if (s.version < CURRENT_STATE_VERSION) {
       // Apply migrations for each version step (simplified: just fill missing fields)
@@ -173,6 +176,19 @@ window.E = window.E || {};
     if (!s.reputation || Object.keys(s.reputation).length === 0) {
       s.reputation = { english: 50, spanish: 50, french: 50, dutch: 50, pirate: 50 };
       }
+    if (!s.tutorialMode) {
+      s.tutorialMode = s.onboarding?.completed ? "light" : "full";
+    }
+
+    // ── Audit 3: import legacy tutorial state once ────────────────
+    if (s.tutorialSeen === undefined) {
+      s.tutorialSeen = legacyTutorial?.seen
+        ? { ...window.E.initialState.tutorialSeen, ...legacyTutorial.seen }
+        : { ...window.E.initialState.tutorialSeen };
+    }
+    if (s.tutorialDisabled === undefined) {
+      s.tutorialDisabled = legacyTutorial?.enabled === false;
+    }
     return s;
   };
 
@@ -244,6 +260,11 @@ window.E = window.E || {};
     captainName: "",
     faction: null,
     tutorialMode: "full",
+    tutorialSeen: {
+      port: false, map: false, sailing: false, battle: false,
+      market: false, crew: false, shipyard: false, journal: false, status: false,
+    },
+    tutorialDisabled: false,
     completedCombatThisVisit: false,
     inquisitorUsedThisVisit: false,
     daysWithoutFood: 0,
@@ -323,6 +344,21 @@ window.E = window.E || {};
     const tagged = { ...action, __prevState: state };
     return window.E._reducers.reduce((s, r) => r(s, tagged), state);
   };
+
+  window.E._reducers.push((state, action) => {
+    if (action.type !== window.E.A.MARK_TUTORIAL_SEEN) return state;
+
+    const { screen, disableAll } = action;
+    const tutorialSeen = { ...state.tutorialSeen };
+    if (screen) tutorialSeen[screen] = true;
+
+    return {
+      ...state,
+      tutorialSeen,
+      tutorialDisabled: disableAll ? true : state.tutorialDisabled,
+    };
+  });
+
 
   // ── Debug reducer ──────────────────────────────────────────────
   window.E._reducers.push((state, action) => {

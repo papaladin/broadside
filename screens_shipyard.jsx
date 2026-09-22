@@ -10,7 +10,7 @@ window.S = window.S || {};
     IconShield, IconCannon, IconSailboat, IconSparkles, IconChest, IconHammer, IconCog, IconShip, ShipSideSprite,
     IconLock, Tooltip,
   } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial} = window.L;
 
   const VISUAL_EQUIPMENT = ["war_pennants", "extra_sails", "lateen_rig"];
 
@@ -638,7 +638,7 @@ window.S = window.S || {};
           <TutorialPopup
             title="The Shipyard"
             onDismiss={(disableAll) => {
-              markTutorialSeen("shipyard", disableAll);
+              dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "shipyard", disableAll });
               setShowTutorial(false);
             }}
           >

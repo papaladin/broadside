@@ -9,7 +9,7 @@ window.S = window.S || {};
   const { T, panelStyle, Bar, Pill, Btn, StatBlock, SectionTitle, LogList, Divider, EmptyState, NarrativePanel, NarrativeLine, TutorialPopup, BackButton, Tooltip, Panel,
     IconMap, IconBarChart, IconMarket, IconJournal, IconAnchor, IconCrew, IconFloppy, IconFileTransfer, IconTalking, IconGold, IconSkull, IconHandshake, IconSearch, PortSilhouette } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial} = window.L;
 
   // ── STATUS SCREEN ────────────────────────────────────────────────────
   function StatusScreen({ state, dispatch }) {
@@ -53,7 +53,7 @@ window.S = window.S || {};
         </Tooltip>
 
         {showTutorial && (
-          <TutorialPopup title="Your Standing" onDismiss={(disableAll) => { markTutorialSeen("status", disableAll); setShowTutorial(false); }}>
+          <TutorialPopup title="Your Standing" onDismiss={(disableAll) => { dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "status", disableAll }); setShowTutorial(false); }}>
             <p>This is where your career is tracked — your identity, your deeds, and your standing with the powers of the Caribbean.</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
               <li><strong>Fame</strong> — earned through missions. Gates better ships, equipment, and hidden ports.</li>
@@ -259,7 +259,8 @@ window.S = window.S || {};
           <BackButton dispatch={dispatch} />
         </Tooltip>
         {showTutorial && (
-          <TutorialPopup title="Your Captain's Journal" onDismiss={(disableAll) => { markTutorialSeen("journal", disableAll); setShowTutorial(false); }}>
+          <TutorialPopup title="Your Captain's Journal" onDismiss={(disableAll) =>  {
+  dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "journal", disableAll }); setShowTutorial(false); }}>
             <p>Everything that has happened on this voyage is recorded here — battles, arrivals, crew events, trades, and discoveries.</p>
             <ul style={{ paddingLeft: 16, margin: "8px 0" }}>
               <li>Use the <strong>tabs</strong> to filter by category: Crew, Combat, Ports, Missions, or Trade.</li>

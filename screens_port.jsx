@@ -12,7 +12,7 @@ window.S = window.S || {};
     SubPanel,IconFood,IconWater,
   } = window.UI;
   const { FactionPill, RepPill, ShipSprite } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial} = window.L;
 
 
   // Small badge showing the faction-reputation bonus already baked into a
@@ -299,7 +299,7 @@ window.S = window.S || {};
           <TutorialPopup
             title="Welcome to Port"
             onDismiss={(disableAll) => {
-              markTutorialSeen("port", disableAll);
+              dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "port", disableAll });
               setShowTutorial(false);
             }}
           >

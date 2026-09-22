@@ -12,7 +12,7 @@ window.S = window.S || {};
     IconSpice, IconSilk, IconCoffee, IconCocoa, IconSpear, IconTobacco,
     IconGoblet, IconPerson, TransferLayout,
   } = window.UI;
-  const { shouldShowTutorial, markTutorialSeen } = window.L;
+  const { shouldShowTutorial} = window.L;
 
   // Map good keys to their icon components
   const GOOD_ICONS = {
@@ -244,7 +244,7 @@ window.S = window.S || {};
           <TutorialPopup
             title="The Market"
             onDismiss={(disableAll) => {
-              markTutorialSeen("market", disableAll);
+              dispatch({ type: A.MARK_TUTORIAL_SEEN, screen: "market", disableAll });
               setShowTutorial(false);
             }}
           >
